@@ -49,6 +49,8 @@ globalThis.fetch=async()=>({ok:true,json:async()=>({})});
 await import(`../js/app.js?fidelity=${Date.now()}`);
 const html=app.innerHTML;
 assert.match(html,/class="global-agreement-value">\d+%/,'TodaySummary must expose the global agreement prominently');
+assert.ok((html.match(/class="summary-metric-icon /g)||[]).length>=4,'TodaySummary must expose dedicated metric icons for temperature, precipitation and wind');
+assert.match(html,/class="summary-agreement-track"/,'TodaySummary variable cards must use their available height for agreement detail');
 const todayStart=html.indexOf('id="today-summary"'), agreementStart=html.indexOf('id="agreement"');
 const why=html.indexOf('data-action="why-confidence"');
 assert.ok(todayStart>=0&&why>todayStart&&why<agreementStart,'Why-this-agreement control must live in TodaySummary, before hourly band');
@@ -61,6 +63,8 @@ assert.match(html,/class="timeline-temp-band"/,'Timeline must retain thermal hea
 assert.match(html,/class="timeline-precip-heat"/,'Timeline must retain precipitation heat indicators');
 assert.match(html,/class="timeline-metric"/,'Timeline must retain precipitation, cloud and wind metrics');
 assert.match(html,/class="chart-legend"/,'Agreement chart must have a legend');
+assert.match(html,/class="agreement-strip"/,'Hourly agreement band must expose a color-coded confidence strip');
+assert.match(html,/agreement-level-legend[\s\S]*Élevé ≥80%[\s\S]*Moyen 50–79%[\s\S]*Faible &lt;50%/,'Agreement strip must explain high, medium and low confidence colors');
 assert.match(html,/class="table-legend heatmap-legend"/,'Temperature table must have a heatmap legend');
 assert.match(html,/class="heatmap-data-cell"[^>]*style="--heat:/,'Table cells must carry heatmap styling');
 assert.match(html,/class="detail-workspace"/,'Desktop detail view must use a workspace layout');
@@ -69,6 +73,7 @@ assert.match(html,/class="detail-sidebar"/,'Desktop detail view must expose a na
 assert.match(html,/4 modèles/,'model counts must be explicit rather than bare numbers');
 assert.match(html,/data-bias-model="GFS"[^>]*data-bias-variable="TEMPERATURE"/,'temperature bias must be clickable from the GFS model header');
 assert.ok((html.match(/data-bias-model=/g)||[]).length>=mids.length,'each eligible model header should expose its bias action');
+assert.match(html,/class="rank-row rank-row-link"[^>]*data-bias-model=/,'Local reliability model rows must navigate to model bias pages');
 
 function clickDataset(dataset){const target={dataset,closest(){return this}};listeners.click({target});return app.innerHTML;}
 let switched=clickDataset({detailTab:'PRECIPITATION'});

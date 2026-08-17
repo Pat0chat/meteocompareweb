@@ -187,7 +187,7 @@ Le comportement a été réaligné sur `ModelBiasChip` et `ModelBiasDetailSheet`
 
 ### PWA et non-régression
 
-- cache PWA incrémenté en `v7-modern-ui-bias` ;
+- cache PWA incrémenté en `v8-visual-refinement` ;
 - `tests/static-audit.mjs` vérifie l’absence du décor technique précédent, la conservation des heatmaps sur les lignes alternées et la structure de la route biais ;
 - `tests/fidelity-regression.mjs` construit un historique synthétique suffisant, vérifie le badge dans l’en-tête, ouvre la page de biais et contrôle ses métriques principales ainsi que le rang exprimé en modèles.
 
@@ -202,3 +202,16 @@ Le comportement a été réaligné sur `ModelBiasChip` et `ModelBiasDetailSheet`
 - `tests/fidelity-regression.mjs` : OK ;
 - vérification des chemins statiques et de la structure du workflow Pages.
 
+
+
+## Passe Visual Refinement v8
+
+Corrections ajoutées après retour visuel :
+
+- TodaySummaryCard densifiée avec icônes vectorielles pour température, précipitations et vent ;
+- plages inter-modèles et jauges d’accord intégrées dans chaque tuile de synthèse ;
+- bande d’accord horaire complétée par une timeline de confiance colorée (vert ≥ 80 %, ambre 50–79 %, rouge < 50 %) avec nombre de modèles au début et à la fin de l’horizon ;
+- identité visuelle assagie : rayons, ombres et contrastes plus sobres, hero et navigation moins démonstratifs, hiérarchie plus proche d’un produit data/SaaS moderne ;
+- chaque ligne de modèle dans « Fiabilité locale » devient un contrôle de navigation vers la page de biais du modèle et de la variable ;
+- cache PWA incrémenté en `v8-visual-refinement` ;
+- tests de fidélité renforcés pour couvrir les icônes de synthèse, la timeline colorée et la navigation depuis la fiabilité locale.

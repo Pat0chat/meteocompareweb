@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — Modern UI & Bias Fidelity
+# MeteoCompare Web v1.8.0 — Visual Refinement
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-modern-ui-bias
+cd meteocompare-web-v1.8.0-visual-refinement
 python3 -m http.server 8080
 ```
 
@@ -63,7 +63,7 @@ La révision remplace plusieurs conventions héritées de l'application téléph
 
 Le responsive mobile reste supporté : le but n'est pas de supprimer l'usage téléphone, mais de ne plus laisser celui-ci dicter l'interface desktop.
 
-### Passe Modern UI
+### Passe Visual Refinement
 
 Cette révision abandonne le langage visuel « terminal / instrumentation » de la passe précédente au profit d’un produit data moderne et plus sobre :
 
@@ -76,6 +76,9 @@ Cette révision abandonne le langage visuel « terminal / instrumentation » de 
 - en-têtes de tableaux plus sobres, tout en conservant les heatmaps métier ;
 - TodaySummaryCard étirée à la hauteur cumulée de « À retenir » + « Scénarios » sur grand écran ;
 - variables de la TodaySummaryCard présentées en matrice 2×2 sur desktop.
+- variables de la TodaySummaryCard enrichies par des icônes vectorielles température/pluie/vent, la plage inter-modèles et une jauge d’accord ;
+- bande d’accord horaire complétée par une timeline colorée vert/ambre/rouge, fidèle au principe Android ;
+- lignes de modèles de « Fiabilité locale » entièrement cliquables vers leur page de biais dédiée.
 
 Cette passe restaure aussi la fidélité du **biais par modèle** : le biais est affiché dans l’en-tête de la colonne du modèle, avec son état de calibration, et un clic ouvre une page dédiée au modèle et à la variable comme dans l’application Android.
 

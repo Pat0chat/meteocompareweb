@@ -44,5 +44,5 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.match(sw, /v7-modern-ui-bias/, 'service worker cache must be bumped for the modern UI and bias-page release');
+assert.match(sw, /v8-visual-refinement/, 'service worker cache must be bumped for the visual refinement release');
 console.log('MeteoCompare Web static audit tests: OK');
