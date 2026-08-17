@@ -21,6 +21,7 @@ export const defaultSettings = {
   confidenceMetric: 'TEMPERATURE',
   chartHorizon: 168,
   timelineMode: 'HOURLY',
+  density: 'COMFORTABLE',
   collapsedSections: {},
 };
 

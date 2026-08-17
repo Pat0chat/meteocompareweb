@@ -1,3 +1,7 @@
+# Améliorations implémentées — MeteoCompare Web
+
+Les dix propositions de cette liste ont été intégrées dans la passe **Analysis Suite**. Le fichier est conservé comme historique de conception.
+
 # Propositions d’amélioration — MeteoCompare Web
 
 Ces idées sont classées par valeur d’usage et tiennent compte du fait que l’application doit rester déployable comme site statique/PWA sur GitHub Pages.

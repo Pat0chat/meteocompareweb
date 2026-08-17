@@ -1,4 +1,4 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v12-history-refresh-policy';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v13-analysis-suite';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './assets/icon.png', './assets/icon-512.png',

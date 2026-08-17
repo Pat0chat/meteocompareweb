@@ -1,5 +1,21 @@
 # Audit complet — MeteoCompare Web v1.8.0
 
+## Analysis Suite — implémentation des 10 propositions
+
+- Tableaux : `thead` et première colonne sticky, avec ombre de séparation.
+- Comparaison modèles : sélection temporaire de 2 à 4 modèles et graphe direct.
+- Désaccord : décomposition 24 h température/pluie/vent/conditions, accessible depuis l’explication et la bande d’accord.
+- Fraîcheur : conservation des métadonnées de run si présentes ; absence explicitement signalée sinon.
+- Partage : état de vue encodé dans le hash (`tab`, `mode`, `metric`, `h`, `timeline`, `models`).
+- Export : CSV/JSON local, sans backend, avec accords et biais.
+- Villes : route de comparaison 2–3 villes et quatre graphes alignés.
+- Offline/cache : état et âge exact visibles dans la barre de contexte et la topbar.
+- Biais : plan de complétion sur 30 jours, plages contiguës manquantes uniquement, estimation des appels avant confirmation.
+- UI : densité confortable/compacte et barre de contexte sticky.
+
+Une nouvelle suite `tests/analysis-suite.mjs` couvre explicitement ces dix fonctionnalités.
+
+
 Date de la passe : 17 août 2026
 
 ## Portée
@@ -105,7 +121,7 @@ La première version de la navigation de sections utilisait des ancres `#section
 - service worker enregistré via `./sw.js` ;
 - `.nojekyll` inclus ;
 - workflow `.github/workflows/pages.yml` inclus ;
-- workflow exécute les cinq suites de tests avant publication ;
+- workflow exécute les six suites de tests avant publication ;
 - build `_site` exclut le dépôt, les tests et les fichiers de workflow de l'artefact public ;
 - permissions Pages/OIDC et environnement `github-pages` configurés.
 

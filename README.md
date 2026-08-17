@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — History Refresh Policy
+# MeteoCompare Web v1.8.0 — Analysis Suite
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-history-refresh-policy
+cd meteocompare-web-v1.8.0-analysis-suite
 python3 -m http.server 8080
 ```
 
@@ -135,6 +135,23 @@ Cette passe réduit les appels coûteux liés à la reconstruction de l’histor
 
 Le cache PWA est incrémenté en `v12-history-refresh-policy`.
 
+### Passe Analysis Suite
+
+Cette passe implémente les dix améliorations d’analyse et d’ergonomie prévues :
+
+1. **tableaux desktop** avec en-têtes et première colonne figés ;
+2. **comparaison ciblée de 2 à 4 modèles** avec graphe direct, sans modifier la sélection globale ;
+3. **analyse du désaccord par variable** (température, pluie, vent, conditions) depuis « Pourquoi cet accord ? » et depuis les segments de la bande horaire ;
+4. **fraîcheur par modèle** avec âge du run lorsque la réponse l’expose, sinon mention explicite « run exact non exposé », plus couverture temporelle ;
+5. **URLs partageables** mémorisant variable, mode journalier/horaire, métrique d’accord, horizon, chronologie et modèles comparés ;
+6. **exports CSV et JSON** contenant données comparées, accords et diagnostics de biais ;
+7. **comparaison de 2 à 3 villes** sur température médiane, pluie, vent et accord global ;
+8. **état en ligne/cache** plus visible avec âge exact et distinction cache récent / ancien / hors ligne ;
+9. **historique de biais incrémental** : estimation des jours manquants et du nombre d’appels, puis récupération des seules plages absentes ;
+10. **densité compacte** optionnelle et finition du workspace desktop avec barre de contexte sticky.
+
+Le cache PWA est incrémenté en `v13-analysis-suite`.
+
 ## Fonctionnalités météo conservées
 
 - favoris : recherche, ajout, retrait et affichage multi-ville ;
@@ -219,6 +236,7 @@ node tests/ui-performance.mjs
 node tests/static-audit.mjs
 node tests/pages-compat.mjs
 node tests/fidelity-regression.mjs
+node tests/analysis-suite.mjs
 ```
 
 Ils couvrent notamment :
@@ -242,7 +260,15 @@ Ils couvrent notamment :
 - biais présent dans les en-têtes de modèles et navigation vers la page de détail du biais ;
 - ouverture des routes au sommet de page et restauration Retour/Avancer ;
 - conservation de la position exacte lors d’un changement de variable ou de zoom malgré une variation simulée de hauteur du DOM ;
-- métriques et historique de la page de biais par modèle.
+- métriques et historique de la page de biais par modèle ;
+- en-têtes/colonne figés des tableaux ;
+- comparaison ciblée de modèles et comparaison multi-ville ;
+- décomposition du désaccord par variable ;
+- métadonnées de fraîcheur/run sans valeur inventée ;
+- état de vue partageable dans l’URL ;
+- exports CSV/JSON ;
+- planification incrémentale de l’historique de biais ;
+- mode de densité compacte.
 
 Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 

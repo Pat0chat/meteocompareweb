@@ -7,6 +7,7 @@ const city={id:'1',name:'Paris',country:'France',admin1:'Île-de-France',latitud
 const arome=getModel('AROME_FRANCE_HD'), gfs=getModel('GFS');
 const raw={
   latitude:48.85,longitude:2.35,timezone:'Europe/Paris',
+  meteofrance_arome_france_hd_run_time:'2026-08-17T00:00:00Z',
   hourly:{
     time:['2026-08-17T00:00','', '2026-08-17T02:00'],
     temperature_2m_meteofrance_arome_france_hd:[20,999,22],
@@ -34,6 +35,8 @@ assert.equal(f.seriesByModel.AROME_FRANCE_HD.hourly.timestamps.length,2,'invalid
 assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.hourly.temperature2m,[20,22],'value alignment must follow retained timestamp indices');
 assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.hourly.cloudCover,[40,70],'AROME HD cloud fallback must use max low/mid/high layer');
 assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.daily.sunrise,['2026-08-17T06:35','2026-08-18T06:36'],'shared sunrise should be accepted');
+assert.equal(f.modelMeta.AROME_FRANCE_HD.runTimestamp,'2026-08-17T00:00:00.000Z','run metadata should be retained when the API exposes it');
+assert.equal(f.modelMeta.AROME_FRANCE_HD.lastTimestamp,'2026-08-17T02:00','per-model temporal coverage should be retained');
 const conf=dayConfidence(f,'2026-08-18');
 assert.equal(conf.precipitation.kind,'DIVIDED');
 assert.equal(conf.precipitation.modelsForRain,1);

@@ -83,6 +83,32 @@ function cloudCover(hourly, model, single) {
   });
 }
 
+
+function parseIsoCandidate(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+function modelRunTimestamp(raw, model) {
+  const keys = [model.apiKey, ...model.aliases];
+  const direct=[];
+  for (const key of keys) direct.push(
+    raw?.[`${key}_run_time`], raw?.[`${key}_run`], raw?.[`${key}_initialization_time`], raw?.[`${key}_initialization`],
+    raw?.model_metadata?.[key]?.run_time, raw?.model_metadata?.[key]?.initialization_time, raw?.models?.[key]?.run_time, raw?.models?.[key]?.initialization_time
+  );
+  for (const value of direct) { const parsed=parseIsoCandidate(value); if(parsed)return parsed; }
+  return null;
+}
+function seriesCoverage(series) {
+  const hourly=series?.hourly, values=[];
+  if(!hourly?.timestamps?.length)return { firstTimestamp:null, lastTimestamp:null };
+  for(let i=0;i<hourly.timestamps.length;i++){
+    const usable=[hourly.temperature2m?.[i],hourly.precipitation?.[i],hourly.windSpeed10m?.[i],hourly.weatherCode?.[i]].some(v=>Number.isFinite(v));
+    if(usable)values.push(hourly.timestamps[i]);
+  }
+  return { firstTimestamp:values[0]||null, lastTimestamp:values.at(-1)||null };
+}
+
 export function normalizeBatchedForecast(raw, city, models) {
   const hourlyRaw = raw.hourly || {};
   const dailyRaw = raw.daily || {};
@@ -94,6 +120,7 @@ export function normalizeBatchedForecast(raw, city, models) {
   const dailyTime = dailyIndices.map(i=>dailySource[i]);
   const single = models.length===1;
   const seriesByModel = {};
+  const modelMeta = {};
   const errors = {};
   for (const model of models) {
     const tempH = numberList(values(hourlyRaw,'temperature_2m',model,single));
@@ -128,9 +155,13 @@ export function normalizeBatchedForecast(raw, city, models) {
         sunset:alignIndices(dailyIndices,strings(values(dailyRaw,'sunset',model,single,true))),
       }
     };
+    const coverage=seriesCoverage(seriesByModel[model.id]);
+    modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage };
   }
   if (!Object.keys(seriesByModel).length) throw new Error('Aucun modèle n’a renvoyé de données exploitables pour cette ville.');
-  return { city:{...city, timezone: city.timezone || raw.timezone || 'UTC'}, timezone:raw.timezone || city.timezone || 'UTC', seriesByModel, errors, fetchedAt:new Date().toISOString() };
+  const fetchedAt=new Date().toISOString();
+  for(const meta of Object.values(modelMeta))meta.loadedAt=fetchedAt;
+  return { city:{...city, timezone: city.timezone || raw.timezone || 'UTC'}, timezone:raw.timezone || city.timezone || 'UTC', seriesByModel, modelMeta, errors, fetchedAt };
 }
 
 export async function fetchClimateNormals(city, startDate, endDate) {
