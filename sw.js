@@ -1,4 +1,4 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v1';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v2-performance';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './assets/icon.png', './assets/icon-512.png',

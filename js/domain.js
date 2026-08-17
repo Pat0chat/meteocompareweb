@@ -1,5 +1,14 @@
 import { CONDITION, CONDITION_INFO, getModel } from './models.js';
 
+const zonedFormatters = new Map();
+const timezoneValidity = new Map();
+const dateLabelFormatters = new Map();
+function zonedFormatter(tz){
+  let f=zonedFormatters.get(tz);
+  if(!f){f=new Intl.DateTimeFormat('en-CA',{ timeZone:tz, year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23' });zonedFormatters.set(tz,f);}
+  return f;
+}
+
 export function fromWmoCode(code) {
   if (code == null) return null;
   if (code === 0) return CONDITION.CLEAR;
@@ -36,7 +45,7 @@ export function conditionInfo(condition){ return CONDITION_INFO[condition] || CO
 
 export function zonedParts(date, timezone) {
   const tz = safeTimezone(timezone);
-  const parts = new Intl.DateTimeFormat('en-CA',{ timeZone:tz, year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23' }).formatToParts(date);
+  const parts = zonedFormatter(tz).formatToParts(date);
   return Object.fromEntries(parts.filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
 }
 export function cityToday(timezone, date=new Date()) {
@@ -46,7 +55,10 @@ export function cityNowLocal(timezone, date=new Date()) {
   const p=zonedParts(date,timezone); return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 export function safeTimezone(tz) {
-  try { new Intl.DateTimeFormat('en',{timeZone:tz||'UTC'}).format(); return tz||'UTC'; } catch { return 'UTC'; }
+  const candidate=tz||'UTC';
+  if(timezoneValidity.has(candidate))return timezoneValidity.get(candidate);
+  let valid='UTC';try{new Intl.DateTimeFormat('en',{timeZone:candidate}).format();valid=candidate;}catch{}
+  timezoneValidity.set(candidate,valid);return valid;
 }
 function localEpoch(s) { if(typeof s!=='string') return NaN; const m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); if(!m)return NaN; return Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)); }
 export function addDays(dateStr, days){ const d=new Date(`${dateStr}T12:00:00Z`); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
@@ -186,7 +198,7 @@ export function reliabilityRanking(biases,variable='TEMPERATURE'){
 export function windArrow(direction,speed){ if(!Number.isFinite(direction)||!Number.isFinite(speed)||speed<=5)return '';return {deg:(direction+180)%360,char:'↑'}; }
 export function formatWindDirection(direction){if(!Number.isFinite(direction))return '';const dirs=['N','NE','E','SE','S','SO','O','NO'];return dirs[Math.round(direction/45)%8];}
 
-export function dateLabel(date,locale='fr-FR',style='short'){const d=new Date(`${date}T12:00:00Z`);return new Intl.DateTimeFormat(locale, style==='long'?{weekday:'long',day:'numeric',month:'long'}:{weekday:'short',day:'numeric',month:'short'},{timeZone:'UTC'}).format(d);}
+export function dateLabel(date,locale='fr-FR',style='short'){const d=new Date(`${date}T12:00:00Z`),key=`${locale}|${style}`;let f=dateLabelFormatters.get(key);if(!f){f=new Intl.DateTimeFormat(locale,{...(style==='long'?{weekday:'long',day:'numeric',month:'long'}:{weekday:'short',day:'numeric',month:'short'}),timeZone:'UTC'});dateLabelFormatters.set(key,f);}return f.format(d);}
 export function timeLabel(localTs){return typeof localTs==='string'&&localTs.includes('T')?localTs.slice(11,16):'—';}
 export function relativeAge(iso,locale='fr'){if(!iso)return '';const ms=Date.now()-Date.parse(iso);if(ms<0)return locale==='fr'?'à l’instant':'just now';const min=Math.floor(ms/60000);if(min<1)return locale==='fr'?'à l’instant':'just now';if(min<60)return locale==='fr'?`il y a ${min} min`:`${min} min ago`;const h=Math.floor(min/60);if(h<24)return locale==='fr'?`il y a ${h} h`:`${h} h ago`;const d=Math.floor(h/24);return locale==='fr'?`il y a ${d} j`:`${d} d ago`;}
 

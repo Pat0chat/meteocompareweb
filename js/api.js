@@ -14,8 +14,11 @@ const DAILY_VARS = [
   'wind_speed_10m_max','wind_gusts_10m_max','wind_direction_10m_dominant','weather_code','sunrise','sunset'
 ].join(',');
 
-async function fetchJson(url, timeoutMs=30000) {
+async function fetchJson(url, timeoutMs=30000, externalSignal=null) {
   const controller = new AbortController();
+  const abortFromExternal=()=>controller.abort();
+  if(externalSignal?.aborted)controller.abort();
+  else externalSignal?.addEventListener?.('abort',abortFromExternal,{once:true});
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: controller.signal, headers:{ 'Accept':'application/json' } });
@@ -23,16 +26,16 @@ async function fetchJson(url, timeoutMs=30000) {
     const json = await res.json();
     if (json?.error) throw new Error(json.reason || 'Open-Meteo error');
     return json;
-  } finally { clearTimeout(timer); }
+  } finally { clearTimeout(timer); externalSignal?.removeEventListener?.('abort',abortFromExternal); }
 }
 
-export async function searchCities(query, language='fr') {
+export async function searchCities(query, language='fr', signal=null) {
   const u = new URL(GEOCODING_URL);
   u.searchParams.set('name', query);
   u.searchParams.set('count','10');
   u.searchParams.set('language', language || 'fr');
   u.searchParams.set('format','json');
-  const data = await fetchJson(u);
+  const data = await fetchJson(u,30000,signal);
   return (data.results || []).map(r => ({
     id:String(r.id), name:r.name, admin1:r.admin1 || '', country:r.country || '', latitude:r.latitude, longitude:r.longitude,
     timezone:r.timezone || null,

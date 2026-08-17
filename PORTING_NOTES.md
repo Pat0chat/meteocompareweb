@@ -28,3 +28,7 @@ Les clés du port web sont préfixées `meteocompare.web.` pour ne pas entrer en
 ## Réseau
 
 Le service worker ne met pas en cache les réponses Open-Meteo. La couche applicative contrôle elle-même la fraîcheur et la persistance des données météo. Cela évite qu’un cache HTTP du service worker réinjecte silencieusement une réponse d’un ancien run.
+
+## Réactivité de l’interface
+
+Le port web n’effectue plus de rerender global pendant la saisie de recherche. Le géocodage est debouncé de 600 ms et la requête précédente est annulée lorsque la saisie change. Les objets i18n/Intl et les principaux calculs dérivés d’une prévision sont mis en cache. Les actualisations automatiques des villes sont sérialisées pour éviter plusieurs gros traitements réseau/JSON simultanés sur le thread principal.

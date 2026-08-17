@@ -1,7 +1,7 @@
 import { WEATHER_MODELS, COVERAGE_LABELS, REFRESH_INTERVALS, getModel, selectedModels } from './models.js';
 import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, saveForecast, deleteForecast, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, clearAllData } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
-import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, dailyMatrix, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, normalizePreviousRuns, normalizeBiasObservations, computeBiases, buildEvolution, reliabilityRanking, windArrow, formatWindDirection, dateLabel, timeLabel, relativeAge, dailyCondition, dailyCloudCoverMean } from './domain.js';
+import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, normalizePreviousRuns, normalizeBiasObservations, computeBiases, buildEvolution, reliabilityRanking, windArrow, formatWindDirection, dateLabel, timeLabel, relativeAge, dailyCondition, dailyCloudCoverMean } from './domain.js';
 import { makeI18n, languageCode } from './i18n.js';
 
 const state = {
@@ -13,14 +13,29 @@ const state = {
   modal: null,
   route: parseRoute(),
   normals: {},
+  evolution: {},
+  bias: {},
   biasRefresh: new Set(),
   online: navigator.onLine,
 };
-state.cities.forEach(c => { const f=loadForecast(c.id); if(f) state.forecasts[c.id]=f; const n=loadNormals(c.id); if(n)state.normals[c.id]=n; });
+state.cities.forEach(c => {
+  const f=loadForecast(c.id); if(f) state.forecasts[c.id]=f;
+  const n=loadNormals(c.id); if(n) state.normals[c.id]=n;
+  state.evolution[c.id]=loadEvolution(c.id);
+  state.bias[c.id]=loadBias(c.id);
+});
 
 const app = document.querySelector('#app');
 let searchTimer = null;
+let searchAbort = null;
+let searchSeq = 0;
 let autoRefreshTimer = null;
+let dueRefreshRunning = false;
+let renderQueued = false;
+let i18nCacheKey = null;
+let i18nCache = null;
+const numberFormatters = new Map();
+const forecastViewCache = new WeakMap();
 
 init();
 
@@ -29,7 +44,10 @@ function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service worker:', err));
   }
-  window.addEventListener('hashchange',()=>{state.route=parseRoute();state.modal=null;render();onRouteSettled();});
+  app.addEventListener('click', handleAppClick);
+  app.addEventListener('input', handleAppInput);
+  app.addEventListener('toggle', handleDetailsToggle, true);
+  window.addEventListener('hashchange',()=>{state.route=parseRoute();state.modal=null;cancelCitySearch();render();onRouteSettled();});
   window.addEventListener('online',()=>{state.online=true;render();refreshDueCities();});
   window.addEventListener('offline',()=>{state.online=false;render();});
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
@@ -44,10 +62,20 @@ function parseRoute(){
   if(parts[0]==='settings')return {name:'settings'}; if(parts[0]==='city'&&parts[1])return {name:'city',id:decodeURIComponent(parts[1])}; return {name:'home'};
 }
 function go(path){ location.hash=path; }
-function i18n(){ return makeI18n(state.settings.language); }
+function i18n(){
+  const key=`${state.settings.language}|${navigator.language||''}`;
+  if(key!==i18nCacheKey){i18nCacheKey=key;i18nCache=makeI18n(state.settings.language);numberFormatters.clear();}
+  return i18nCache;
+}
 function esc(v=''){ return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function attr(v=''){ return esc(v).replace(/`/g,'&#96;'); }
-function fmt(v,d=0){ return Number.isFinite(v)?new Intl.NumberFormat(i18n().locale,{maximumFractionDigits:d,minimumFractionDigits:d}).format(v):'—'; }
+function fmt(v,d=0){
+  if(!Number.isFinite(v))return '—';
+  const locale=i18n().locale,key=`${locale}|${d}`;
+  let nf=numberFormatters.get(key);
+  if(!nf){nf=new Intl.NumberFormat(locale,{maximumFractionDigits:d,minimumFractionDigits:d});numberFormatters.set(key,nf);}
+  return nf.format(v);
+}
 function fmtRange(a,b,unit='',d=0){ if(!Number.isFinite(a)||!Number.isFinite(b))return '—'; return `${fmt(a,d)}–${fmt(b,d)}${unit}`; }
 function localizedConditionInfo(condition){
   const base=conditionInfo(condition); const {t}=i18n();
@@ -59,16 +87,29 @@ function confidenceClass(percent){return percent>=80?'high':percent>=50?'medium'
 function confidencePill(percent,count){ if(!Number.isFinite(percent))return '';return `<span class="pill confidence ${confidenceClass(percent)}">◎ ${percent}%${count?` · ${count}`:''}</span>`; }
 function toast(message){const root=document.querySelector('#toast-root');if(!root)return;const el=document.createElement('div');el.className='toast';el.textContent=message;root.appendChild(el);setTimeout(()=>el.remove(),3500);}
 
+function viewCache(f){let c=forecastViewCache.get(f);if(!c){c={days:new Map(),scenarios:new Map(),bands:new Map(),heat:new Map(),evolutionSource:null,evolutionReport:null,biasSource:null,biasToday:null,biasReport:null};forecastViewCache.set(f,c);}return c;}
+function cachedAggregateDay(f,date){const c=viewCache(f);if(!c.days.has(date))c.days.set(date,aggregateDay(f,date));return c.days.get(date);}
+function cachedScenarios(f,limit=null){const key=limit==null?'all':String(limit),c=viewCache(f);if(!c.scenarios.has(key))c.scenarios.set(key,limit==null?buildScenarios(f):buildScenarios(f,limit));return c.scenarios.get(key);}
+function cachedBand(f,metric,horizon){const key=`${metric}|${horizon}`,c=viewCache(f);if(!c.bands.has(key))c.bands.set(key,hourlyConfidenceBand(f,metric,horizon));return c.bands.get(key);}
+function cachedHeatmap(f,hours){const c=viewCache(f);if(!c.heat.has(hours))c.heat.set(hours,homeHeatmap(f,hours));return c.heat.get(hours);}
+function cachedEvolution(f,snapshots){const c=viewCache(f);if(c.evolutionSource!==snapshots){c.evolutionSource=snapshots;c.evolutionReport=buildEvolution(f,snapshots);}return c.evolutionReport;}
+function cachedBiases(f,biasSource,today){const c=viewCache(f);if(c.biasSource!==biasSource||c.biasToday!==today){c.biasSource=biasSource;c.biasToday=today;c.biasReport=computeBiases(biasSource,today);}return c.biasReport;}
+
 function applyTheme(){
   let dark=state.settings.theme==='DARK'||(state.settings.theme==='SYSTEM'&&window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme=dark?'dark':'light'; document.documentElement.lang=languageCode(state.settings.language);
 }
 
 function render(){
+  if(renderQueued)return;
+  renderQueued=true;
+  requestAnimationFrame(()=>{renderQueued=false;renderNow();});
+}
+function renderNow(){
   const {t}=i18n();
   let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else content=renderCityDetail(state.route.id);
   app.innerHTML=`${renderTopbar()}${!state.online?`<div class="page"><div class="banner warn">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
-  bindEvents();
+  const input=document.querySelector('#city-search');if(input)queueMicrotask(()=>{if(document.activeElement!==input)input.focus({preventScroll:true});});
 }
 
 function renderTopbar(){
@@ -95,7 +136,7 @@ function renderCityCard(city){
   const {t}=i18n(); const f=state.forecasts[city.id]; const loading=state.loading.has(city.id); const err=state.errors[city.id];
   if(!f && loading)return `<article class="skeleton" aria-label="${esc(t('loading'))}"></article>`;
   if(!f)return `<article class="card city-card" data-city-open="${attr(city.id)}"><div class="card-body"><div class="city-card-head"><div><h2 class="city-name">${esc(city.name)}</h2><div class="city-place">${esc(placeLine(city))}</div></div></div><div class="banner ${err?'error':'info'}">${err?esc(err):esc(t('noCache'))}</div><button class="btn tonal" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button></div></article>`;
-  const now=currentConditions(f); const today=cityToday(f.city.timezone); const day=aggregateDay(f,today); const info=localizedConditionInfo(now.condition||day.condition); const heat=homeHeatmap(f,12); const conf=day.confidence?.overallPercent;
+  const now=currentConditions(f); const today=cityToday(f.city.timezone); const day=cachedAggregateDay(f,today); const info=localizedConditionInfo(now.condition||day.condition); const heat=cachedHeatmap(f,12); const conf=day.confidence?.overallPercent;
   const minT=day.tempMin,maxT=day.tempMax; const precip=day.precip; const wind=day.wind;
   return `<article class="card city-card" data-city-open="${attr(city.id)}" style="--accent:${info.accent}"><div class="card-body">
     <div class="city-card-head"><div><h2 class="city-name">${esc(city.name)}</h2><div class="city-place">${esc(placeLine(city))}</div></div><button class="icon-btn" data-city-menu="${attr(city.id)}" aria-label="Menu">⋮</button></div>
@@ -103,7 +144,7 @@ function renderCityCard(city){
     <div class="metric-row"><div class="metric"><div class="metric-label">T° min/max</div><div class="metric-value">${Number.isFinite(minT)&&Number.isFinite(maxT)?`${fmt(minT)}° / ${fmt(maxT)}°`:'—'}</div></div><div class="metric"><div class="metric-label">${esc(t('precipitation'))}</div><div class="metric-value">${Number.isFinite(precip)?`${fmt(precip,1)} mm`:'—'}</div></div><div class="metric"><div class="metric-label">${esc(t('wind'))}</div><div class="metric-value">${Number.isFinite(wind)?`${fmt(wind)} km/h`:'—'}</div></div></div>
     ${renderHeatmap(heat)}
     ${day.sunrise||day.sunset?`<div class="footer-line" style="justify-content:flex-start"><span>☀ ${esc(t('sunrise'))} ${day.sunrise?timeLabel(day.sunrise):'—'}</span><span>☾ ${esc(t('sunset'))} ${day.sunset?timeLabel(day.sunset):'—'}</span></div>`:''}
-    <details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:700">${esc(t('models'))} · scénarios 12 h</summary><div class="scenario-list">${buildScenarios(f,3).map(s=>`<div class="scenario"><span class="scenario-icon">${scenarioIcon(s.kind)}</span><span><span class="scenario-main">${esc(scenarioLabel(s))}</span><span class="cell-sub">${s.modelCount}/${s.totalModelCount} modèles</span></span></div>`).join('')}</div></details>
+    <details style="margin-top:10px" data-city-scenarios="${attr(city.id)}"><summary class="small" style="cursor:pointer;font-weight:700">${esc(t('models'))} · scénarios 12 h</summary><div class="scenario-list" data-scenario-body><div class="small" style="padding:8px 0">Ouvrez pour calculer les scénarios.</div></div></details>
     <div class="footer-line"><span>${Object.keys(f.seriesByModel).length} ${esc(t('models'))}</span><span>${esc(t('updated'))} ${esc(relativeAge(f.fetchedAt,i18n().lang))}${loading?' · ⟳':''}</span></div>
     ${err?`<div class="banner error" style="margin-bottom:0">${esc(err)}</div>`:''}
   </div></article>`;
@@ -118,7 +159,7 @@ function renderCityDetail(cityId){
   const {t}=i18n(); const city=state.cities.find(c=>c.id===cityId); if(!city)return `<main class="page"><div class="empty-state"><h2>Ville introuvable</h2><button class="btn" data-action="home">${esc(t('back'))}</button></div></main>`;
   const f=state.forecasts[cityId]; const loading=state.loading.has(cityId); const err=state.errors[cityId];
   if(!f)return `<main class="page"><section class="detail-hero"><div class="detail-title"><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></section>${err?`<div class="banner error">${esc(err)}</div>`:''}<div class="section-card">${loading?'<div class="loader"></div> '+esc(t('loading')):`<button class="btn primary" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button>`}</div></main>`;
-  const today=cityToday(f.city.timezone); const agg=aggregateDay(f,today); const now=currentConditions(f); const inf=localizedConditionInfo(now.condition||agg.condition); const scenarios=buildScenarios(f); const evolution=buildEvolution(f,loadEvolution(cityId)); const biases=computeBiases(loadBias(cityId),today); const loadingLabel=loading?' · actualisation…':'';
+  const today=cityToday(f.city.timezone); const agg=cachedAggregateDay(f,today); const now=currentConditions(f); const inf=localizedConditionInfo(now.condition||agg.condition); const scenarios=cachedScenarios(f); const evolution=cachedEvolution(f,state.evolution[cityId]||[]); const biasSource=state.bias[cityId]||{forecasts:[],observations:[]}; const biases=cachedBiases(f,biasSource,today); const loadingLabel=loading?' · actualisation…':'';
   return `<main class="page">
     <section class="detail-hero"><div style="font-size:3.2rem">${inf.icon}</div><div class="detail-title"><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))} · ${Object.keys(f.seriesByModel).length} modèles · ${esc(relativeAge(f.fetchedAt,i18n().lang))}${esc(loadingLabel)}</p></div><button class="btn tonal" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button></section>
     ${err?`<div class="banner error">${esc(err)}</div>`:''}
@@ -152,7 +193,7 @@ function renderInsights(f,evolution){
   const dates=[...new Set(Object.values(f.seriesByModel||{}).flatMap(s=>s.daily.dates))].filter(d=>d>=today).sort().slice(0,6);
   const items=[];
   for(const d of dates){
-    const a=aggregateDay(f,d), c=a.confidence?.overallPercent;
+    const a=cachedAggregateDay(f,d), c=a.confidence?.overallPercent;
     if(Number.isFinite(c)&&c<45) items.push({p:95,date:d,icon:'⚠️',text:`Fort désaccord des modèles (${c}% d’accord global).`});
     const pc=a.confidence?.precipitation;
     if(pc?.kind==='DIVIDED'&&pc.percent<50) items.push({p:90,date:d,icon:'☂️',text:`Pluie incertaine : ${pc.modelsForRain}/${pc.count} modèles annoncent au moins 1 mm.`});
@@ -161,7 +202,7 @@ function renderInsights(f,evolution){
     if(Number.isFinite(c)&&c>=85) items.push({p:35,date:d,icon:'✓',text:`Accord élevé des modèles (${c}%).`});
   }
   for(let i=1;i<dates.length;i++){
-    const prev=aggregateDay(f,dates[i-1]),cur=aggregateDay(f,dates[i]);
+    const prev=cachedAggregateDay(f,dates[i-1]),cur=cachedAggregateDay(f,dates[i]);
     if(Number.isFinite(prev.tempMax)&&Number.isFinite(cur.tempMax)&&Math.abs(cur.tempMax-prev.tempMax)>=7){const delta=cur.tempMax-prev.tempMax;items.push({p:80,date:dates[i],icon:'🌡️',text:`Changement thermique net : ${delta>0?'+':''}${fmt(delta,0)} °C sur la maximale moyenne.`});break;}
   }
   const ev=[];for(const day of evolution?.days||[])for(const [v,x] of Object.entries(day.variables||{})){if(x.trend!=='STABLE'&&Number.isFinite(x.medianAbsDelta)){const threshold=v==='temperature'?1:v==='precipitation'?2:5;if(x.medianAbsDelta>=threshold)ev.push({p:92,date:day.date,icon:v==='temperature'?'🌡️':v==='precipitation'?'☂️':'💨',text:`Prévision révisée depuis H−${x.previous?.[0]?.ageHours||'?'} : ${trendText(x.trend,x.medianDelta,v==='temperature'?' °C':v==='precipitation'?' mm':' km/h')}.`});}}
@@ -182,14 +223,14 @@ function renderScenarios(scenarios){if(!scenarios.length)return '';return `<sect
 
 function renderTimeline(f){
   const {t}=i18n(); const today=cityToday(f.city.timezone); const dates=[...new Set(Object.values(f.seriesByModel).flatMap(s=>s.daily.dates))].filter(d=>d>=today).sort().slice(0,7);
-  return `<section class="section"><div class="section-head"><div><h2>${esc(t('forecastTimeline'))}</h2><p>Résumé compact des prochaines échéances et de l’accord inter-modèles.</p></div></div><div class="timeline">${dates.map(d=>{const a=aggregateDay(f,d),ci=conditionInfo(a.condition);return `<div class="timeline-item ${d===today?'today':''}"><div class="timeline-date">${esc(dateLabel(d,i18n().locale))}</div><div class="timeline-icon">${ci.icon}</div><div class="timeline-value">${Number.isFinite(a.tempMin)&&Number.isFinite(a.tempMax)?`${fmt(a.tempMin)}° / ${fmt(a.tempMax)}°`:'—'}</div><div class="timeline-mini">${Number.isFinite(a.precip)?`☂ ${fmt(a.precip,1)} mm`:''}${Number.isFinite(a.wind)?` · 💨 ${fmt(a.wind)}`:''}</div><div style="margin-top:6px">${confidencePill(a.confidence.overallPercent)}</div></div>`;}).join('')}</div></section>`;
+  return `<section class="section"><div class="section-head"><div><h2>${esc(t('forecastTimeline'))}</h2><p>Résumé compact des prochaines échéances et de l’accord inter-modèles.</p></div></div><div class="timeline">${dates.map(d=>{const a=cachedAggregateDay(f,d),ci=conditionInfo(a.condition);return `<div class="timeline-item ${d===today?'today':''}"><div class="timeline-date">${esc(dateLabel(d,i18n().locale))}</div><div class="timeline-icon">${ci.icon}</div><div class="timeline-value">${Number.isFinite(a.tempMin)&&Number.isFinite(a.tempMax)?`${fmt(a.tempMin)}° / ${fmt(a.tempMax)}°`:'—'}</div><div class="timeline-mini">${Number.isFinite(a.precip)?`☂ ${fmt(a.precip,1)} mm`:''}${Number.isFinite(a.wind)?` · 💨 ${fmt(a.wind)}`:''}</div><div style="margin-top:6px">${confidencePill(a.confidence.overallPercent)}</div></div>`;}).join('')}</div></section>`;
 }
 
 function renderConfidenceSection(f,cityId){
   const {t}=i18n();
   const metric=state.settings.confidenceMetric||'TEMPERATURE';
   const horizon=[24,72,168].includes(Number(state.settings.chartHorizon))?Number(state.settings.chartHorizon):168;
-  const bands=hourlyConfidenceBand(f,metric,horizon); const normals=state.normals[cityId]?.normals||null;
+  const bands=cachedBand(f,metric,horizon); const normals=state.normals[cityId]?.normals||null;
   return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('confidenceBand'))}</h2><p>${esc(t('chart_confidence_band_desc'))}</p></div><button class="btn tonal" data-action="why-confidence">${esc(t('whyAgreement'))}</button></div>
   <div class="chart-controls"><div class="segmented" data-control="confidence-metric">${[['TEMPERATURE',t('temperature')],['PRECIPITATION',t('precipitation')],['WIND',t('wind')]].map(([id,label])=>`<button class="seg-btn ${metric===id?'active':''}" data-confidence-metric="${id}">${esc(label)}</button>`).join('')}</div><div class="segmented" aria-label="Horizon du graphique">${[[24,'24 h'],[72,'72 h'],[168,'7 j']].map(([hours,label])=>`<button class="seg-btn ${horizon===hours?'active':''}" data-chart-horizon="${hours}">${label}</button>`).join('')}</div></div>
   <div class="chart-wrap" title="Faites défiler horizontalement sur petit écran. Utilisez 24 h, 72 h ou 7 j pour changer l'échelle.">${renderBandChart(bands,metric,normals)}</div>${metric==='TEMPERATURE'&&!normals?`<div class="small">${esc(t('webNormals'))} : ${state.online?esc(t('webLoading')):esc(t('webUnavailableOffline'))}</div>`:''}</div></section>`;
@@ -239,7 +280,7 @@ function renderDetailedComparison(f,biases){
 
 function visibleModelIds(f){return Object.keys(f.seriesByModel).sort((a,b)=>(getModel(a)?.resolutionKm||999)-(getModel(b)?.resolutionKm||999));}
 function renderDailyTable(f,tab,biases){
-  const ids=visibleModelIds(f),today=cityToday(f.city.timezone); const dates=[...new Set(ids.flatMap(id=>f.seriesByModel[id].daily.dates))].filter(d=>d>=today).sort().slice(0,7); const matrix=tab==='CONDITIONS'?dailyMatrix(f):null;
+  const ids=visibleModelIds(f),today=cityToday(f.city.timezone); const dates=[...new Set(ids.flatMap(id=>f.seriesByModel[id].daily.dates))].filter(d=>d>=today).sort().slice(0,7);
   return `<div class="table-wrap"><table><thead><tr><th>Jour</th>${ids.map(id=>{const m=getModel(id);return `<th title="${m?.family||''} · ${m?.resolutionKm||'?'} km">${esc(m?.name||id)}<span class="cell-sub">${m?.resolutionKm||'?'} km</span></th>`;}).join('')}</tr></thead><tbody>${dates.map(date=>`<tr class="${date===today?'current':''}"><td>${esc(dateLabel(date,i18n().locale,'long'))}</td>${ids.map(id=>renderDailyCell(f.seriesByModel[id],date,tab,biases?.[id])).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 function renderDailyCell(s,date,tab,modelBias){const i=s.daily.dates.indexOf(date);if(i<0)return '<td>—</td>';if(tab==='CONDITIONS'){const x=dailyCondition(s,date),ci=localizedConditionInfo(x.condition),prob=s.daily.precipitationProbabilityMax[i],cloud=dailyCloudCoverMean(s,date);const isWet=['RAIN','RAIN_SHOWERS','THUNDERSTORM','FREEZING_RAIN','SNOW','SNOW_SHOWERS'].includes(x.condition);const badge=isWet?(Number.isFinite(prob)?prob+'%':null):(['PARTLY_CLOUDY','OVERCAST'].includes(x.condition)&&Number.isFinite(cloud)?cloud+'%':null);return `<td title="${esc(ci.label)}${x.inferred?' · condition inférée du même modèle':''}">${conditionMarkup(x.condition,'small')}${badge?`<span class="cell-sub">${badge}</span>`:''}${x.inferred?'<span class="cell-sub">≈ inféré</span>':''}</td>`;}if(tab==='TEMPERATURE'){const max=s.daily.tempMax[i],min=s.daily.tempMin[i];return `<td>${Number.isFinite(max)?fmt(max,1)+'°':'—'} / ${Number.isFinite(min)?fmt(min,1)+'°':'—'}${renderInlineBias(modelBias?.TEMPERATURE,'TEMPERATURE','°')}</td>`;}if(tab==='PRECIPITATION'){const p=s.daily.precipitationSum[i],prob=s.daily.precipitationProbabilityMax[i];return `<td>${Number.isFinite(p)?fmt(p,1)+' mm':'—'}${Number.isFinite(prob)?`<span class="cell-sub">max ${prob}%</span>`:''}${renderInlineBias(modelBias?.PRECIPITATION,'PRECIPITATION',' mm/j')}</td>`;}const w=s.daily.windSpeedMax[i],g=s.daily.windGustsMax[i],dir=s.daily.windDirection10mDominant[i],arrow=windArrow(dir,w);return `<td>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(dir)?`<span class="cell-sub">${formatWindDirection(dir)}${Number.isFinite(g)?` · raf. ${fmt(g)}`:''}</span>`:''}${renderInlineBias(modelBias?.WIND_SPEED,'WIND_SPEED',' km/h')}</td>`;}
@@ -270,31 +311,43 @@ function renderModelRow(m){const on=state.settings.enabledModelIds.includes(m.id
 
 function renderModal(){
   const {t}=i18n(); if(!state.modal)return '';
-  if(state.modal.type==='addCity')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h2>${esc(t('searchCity'))}</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><input id="city-search" class="search-input" value="${attr(state.modal.query||'')}" placeholder="${esc(t('searchPlaceholder'))}" autocomplete="off" autofocus>${state.modal.searching?`<div class="banner info"><span class="loader"></span>${esc(t('loading'))}</div>`:''}${state.modal.error?`<div class="banner error">${esc(state.modal.error)}</div>`:''}<div class="search-results">${(state.modal.results||[]).map(c=>`<button class="search-result" data-add-city-id="${attr(c.id)}"><span style="font-size:1.5rem">📍</span><span><b>${esc(c.name)}</b><span class="cell-sub">${esc(placeLine(c))}</span></span></button>`).join('')}</div></div></div></div>`;
+  if(state.modal.type==='addCity')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h2>${esc(t('searchCity'))}</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><input id="city-search" class="search-input" value="${attr(state.modal.query||'')}" placeholder="${esc(t('searchPlaceholder'))}" autocomplete="off" autofocus><div id="city-search-status">${renderSearchStatus()}</div><div class="search-results" id="city-search-results">${renderSearchResults()}</div></div></div></div>`;
   if(state.modal.type==='cityMenu'){const c=state.cities.find(x=>x.id===state.modal.cityId);return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal"><div class="modal-head"><h2>${esc(c?.name||'Ville')}</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><button class="btn tonal" style="width:100%;margin-bottom:8px" data-refresh-city="${attr(c?.id)}">↻ ${esc(t('refresh'))}</button><button class="btn danger" style="width:100%" data-remove-city="${attr(c?.id)}">🗑 ${esc(t('remove'))}</button></div></div></div>`;}
   if(state.modal.type==='confidence')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal"><div class="modal-head"><h2>${esc(t('whyAgreement'))}</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><p>L’indice d’accord part de la dispersion des valeurs prévues par les modèles disponibles à une même échéance.</p><div class="banner info"><b>Ce n’est pas une probabilité de justesse.</b>&nbsp; Un accord élevé signifie seulement que les modèles convergent.</div><p><b>Température :</b> accord maximal lorsque σ ≤ 0,5 °C, divergence forte à partir de 3 °C.</p><p><b>Vent :</b> accord maximal lorsque σ ≤ 2 km/h, divergence forte à partir de 12 km/h.</p><p><b>Pluie :</b> la vue journalière distingue d’abord sec/pluie. Si tous annoncent de la pluie, la dispersion des cumuls utilise des seuils 1–8 mm. La bande horaire reste continue.</p><p>Le nombre de modèles peut diminuer avec l’horizon lorsque les modèles régionaux arrivent à leur fin de prévision. Les données brutes restent visibles dans le tableau détaillé.</p></div></div></div>`;
   if(state.modal.type==='donate')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal"><div class="modal-head"><h2>♡ Soutenir MeteoCompare</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><p>MeteoCompare reste gratuit, open-source, sans publicité et sans version premium.</p><div class="grid"><a class="btn tonal" href="https://liberapay.com/Pat0chat" target="_blank" rel="noopener">💝 Liberapay</a><a class="btn tonal" href="https://github.com/sponsors/Pat0chat" target="_blank" rel="noopener">❤️ GitHub Sponsors</a><a class="btn tonal" href="https://ko-fi.com/pat0chat" target="_blank" rel="noopener">☕ Ko-Fi</a></div></div></div></div>`;
   return '';
 }
 
-function bindEvents(){
-  document.querySelectorAll('[data-action]').forEach(el=>el.addEventListener('click',handleAction));
-  document.querySelectorAll('[data-city-open]').forEach(el=>el.addEventListener('click',e=>{if(e.target.closest('button'))return;go(`#/city/${encodeURIComponent(el.dataset.cityOpen)}`);}));
-  document.querySelectorAll('[data-city-menu]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();state.modal={type:'cityMenu',cityId:el.dataset.cityMenu};render();}));
-  document.querySelectorAll('[data-refresh-city]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();state.modal=null;refreshCity(el.dataset.refreshCity,true);}));
-  document.querySelectorAll('[data-remove-city]').forEach(el=>el.addEventListener('click',()=>removeCity(el.dataset.removeCity)));
-  document.querySelectorAll('[data-add-city-id]').forEach(el=>el.addEventListener('click',()=>addCityFromSearch(el.dataset.addCityId)));
-  document.querySelectorAll('[data-confidence-metric]').forEach(el=>el.addEventListener('click',()=>{state.settings.confidenceMetric=el.dataset.confidenceMetric;persistSettings();render();}));
-  document.querySelectorAll('[data-chart-horizon]').forEach(el=>el.addEventListener('click',()=>{state.settings.chartHorizon=Number(el.dataset.chartHorizon);persistSettings();render();}));
-  document.querySelectorAll('[data-detail-mode]').forEach(el=>el.addEventListener('click',()=>{state.settings.detailViewMode=el.dataset.detailMode;persistSettings();render();}));
-  document.querySelectorAll('[data-detail-tab]').forEach(el=>el.addEventListener('click',()=>{state.settings.detailTab=el.dataset.detailTab;persistSettings();render();}));
-  document.querySelectorAll('[data-theme]').forEach(el=>el.addEventListener('click',()=>{state.settings.theme=el.dataset.theme;persistSettings();applyTheme();render();}));
-  document.querySelectorAll('[data-language]').forEach(el=>el.addEventListener('click',()=>{state.settings.language=el.dataset.language;persistSettings();render();}));
-  document.querySelectorAll('[data-refresh-interval]').forEach(el=>el.addEventListener('click',()=>{state.settings.refreshInterval=el.dataset.refreshInterval;persistSettings();render();refreshDueCities();}));
-  document.querySelectorAll('[data-model-sort]').forEach(el=>el.addEventListener('click',()=>{state.settings.modelSort=el.dataset.modelSort;persistSettings();render();}));
-  document.querySelectorAll('[data-model-toggle]').forEach(el=>el.addEventListener('click',()=>toggleModel(el.dataset.modelToggle)));
-  document.querySelectorAll('[data-bias-refresh-city]').forEach(el=>el.addEventListener('click',()=>refreshBiasForCity(el.dataset.biasRefreshCity)));
-  const input=document.querySelector('#city-search');if(input){input.focus();input.addEventListener('input',()=>scheduleSearch(input.value));}
+function handleDetailsToggle(e){
+  const details=e.target?.closest?.('details[data-city-scenarios]');
+  if(!details||!details.open||details.dataset.loaded==='1')return;
+  const f=state.forecasts[details.dataset.cityScenarios],body=details.querySelector('[data-scenario-body]');if(!f||!body)return;
+  const scenarios=cachedScenarios(f,3);
+  body.innerHTML=scenarios.length?scenarios.map(s=>`<div class="scenario"><span class="scenario-icon">${scenarioIcon(s.kind)}</span><span><span class="scenario-main">${esc(scenarioLabel(s))}</span><span class="cell-sub">${s.modelCount}/${s.totalModelCount} modèles</span></span></div>`).join(''):'<div class="small">Aucun scénario disponible.</div>';
+  details.dataset.loaded='1';
+}
+function handleAppInput(e){
+  if(e.target?.id==='city-search')scheduleSearch(e.target.value);
+}
+function handleAppClick(e){
+  const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city]');
+  if(!target||!app.contains(target))return;
+  if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
+  if(target.dataset.cityMenu){e.stopPropagation();state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
+  if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;refreshCity(target.dataset.refreshCity,true);return;}
+  if(target.dataset.removeCity){removeCity(target.dataset.removeCity);return;}
+  if(target.dataset.addCityId){addCityFromSearch(target.dataset.addCityId);return;}
+  if(target.dataset.confidenceMetric){state.settings.confidenceMetric=target.dataset.confidenceMetric;persistSettings();render();return;}
+  if(target.dataset.chartHorizon){state.settings.chartHorizon=Number(target.dataset.chartHorizon);persistSettings();render();return;}
+  if(target.dataset.detailMode){state.settings.detailViewMode=target.dataset.detailMode;persistSettings();render();return;}
+  if(target.dataset.detailTab){state.settings.detailTab=target.dataset.detailTab;persistSettings();render();return;}
+  if(target.dataset.theme){state.settings.theme=target.dataset.theme;persistSettings();applyTheme();render();return;}
+  if(target.dataset.language){state.settings.language=target.dataset.language;i18nCacheKey=null;persistSettings();render();return;}
+  if(target.dataset.refreshInterval){state.settings.refreshInterval=target.dataset.refreshInterval;persistSettings();render();refreshDueCities();return;}
+  if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render();return;}
+  if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
+  if(target.dataset.biasRefreshCity){refreshBiasForCity(target.dataset.biasRefreshCity);return;}
+  if(target.dataset.cityOpen){if(e.target.closest('button'))return;go(`#/city/${encodeURIComponent(target.dataset.cityOpen)}`);}
 }
 
 function handleAction(e){
@@ -303,9 +356,9 @@ function handleAction(e){
   else if(action==='home')go('#/');
   else if(action==='settings')go('#/settings');
   else if(action==='refresh-all')refreshAll(true);
-  else if(action==='open-add-city'){state.modal={type:'addCity',query:'',results:[],searching:false};render();}
-  else if(action==='close-modal'){state.modal=null;render();}
-  else if(action==='modal-backdrop'&&e.target===e.currentTarget){state.modal=null;render();}
+  else if(action==='open-add-city'){cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
+  else if(action==='close-modal'){cancelCitySearch();state.modal=null;render();}
+  else if(action==='modal-backdrop'&&e.target===e.currentTarget){cancelCitySearch();state.modal=null;render();}
   else if(action==='why-confidence'){state.modal={type:'confidence'};render();}
   else if(action==='donate'){state.modal={type:'donate'};render();}
   else if(action==='refresh-bias-all')refreshBiasAll();
@@ -315,31 +368,76 @@ function handleAction(e){
 function persistSettings(){saveSettings(state.settings);applyTheme();}
 function placeLine(c){return [c.admin1,c.country].filter(Boolean).join(', ')||`${c.latitude?.toFixed?.(2)||c.latitude}, ${c.longitude?.toFixed?.(2)||c.longitude}`;}
 
+function cancelCitySearch(){
+  clearTimeout(searchTimer);searchTimer=null;searchSeq++;
+  if(searchAbort){searchAbort.abort();searchAbort=null;}
+}
+function renderSearchStatus(){
+  if(!state.modal||state.modal.type!=='addCity')return '';
+  const q=(state.modal.query||'').trim();
+  if(state.modal.error)return `<div class="banner error">${esc(state.modal.error)}</div>`;
+  if(state.modal.searching)return `<div class="banner info"><span class="loader"></span>${esc(i18n().t('loading'))}</div>`;
+  if(q.length>0&&q.length<3)return `<div class="small search-hint">Saisissez au moins 3 caractères.</div>`;
+  if(state.modal.pending)return `<div class="small search-hint">Recherche après une courte pause de saisie…</div>`;
+  return '';
+}
+function renderSearchResults(){
+  return (state.modal?.results||[]).map(c=>`<button class="search-result" data-add-city-id="${attr(c.id)}"><span style="font-size:1.5rem">📍</span><span><b>${esc(c.name)}</b><span class="cell-sub">${esc(placeLine(c))}</span></span></button>`).join('');
+}
+function updateSearchModal(){
+  if(!state.modal||state.modal.type!=='addCity')return;
+  const status=document.querySelector('#city-search-status'),results=document.querySelector('#city-search-results');
+  if(status)status.innerHTML=renderSearchStatus();
+  if(results)results.innerHTML=renderSearchResults();
+}
 function scheduleSearch(query){
-  if(!state.modal||state.modal.type!=='addCity')return;state.modal.query=query;state.modal.error=null;clearTimeout(searchTimer);if(query.trim().length<3){state.modal.results=[];state.modal.searching=false;render();return;}state.modal.searching=true;render();searchTimer=setTimeout(()=>performSearch(query.trim()),650);
+  if(!state.modal||state.modal.type!=='addCity')return;
+  state.modal.query=query;state.modal.error=null;state.modal.searching=false;state.modal.pending=false;
+  cancelCitySearch();
+  const q=query.trim();
+  if(q.length<3){state.modal.results=[];updateSearchModal();return;}
+  state.modal.pending=true;updateSearchModal();
+  const seq=searchSeq;
+  searchTimer=setTimeout(()=>performSearch(q,seq),600);
 }
-async function performSearch(query){
-  try{const results=await searchCities(query,i18n().lang);if(!state.modal||state.modal.type!=='addCity'||state.modal.query.trim()!==query)return;state.modal.results=results;state.modal.searching=false;render();}
-  catch(err){if(!state.modal||state.modal.type!=='addCity')return;state.modal.error=humanError(err);state.modal.searching=false;render();}
+async function performSearch(query,seq=searchSeq){
+  if(!state.modal||state.modal.type!=='addCity'||seq!==searchSeq)return;
+  searchAbort=new AbortController();state.modal.pending=false;state.modal.searching=true;updateSearchModal();
+  try{
+    const results=await searchCities(query,i18n().lang,searchAbort.signal);
+    if(!state.modal||state.modal.type!=='addCity'||seq!==searchSeq||state.modal.query.trim()!==query)return;
+    state.modal.results=results;state.modal.searching=false;updateSearchModal();
+  }catch(err){
+    if(err?.name==='AbortError')return;
+    if(!state.modal||state.modal.type!=='addCity'||seq!==searchSeq)return;
+    state.modal.error=humanError(err);state.modal.searching=false;updateSearchModal();
+  }finally{if(seq===searchSeq)searchAbort=null;}
 }
-function addCityFromSearch(id){const city=state.modal?.results?.find(c=>c.id===id);if(!city)return;if(!state.cities.some(c=>c.id===city.id)){state.cities.push(city);saveCities(state.cities);}state.modal=null;render();refreshCity(city.id,true);}
-function removeCity(id){state.cities=state.cities.filter(c=>c.id!==id);saveCities(state.cities);delete state.forecasts[id];delete state.errors[id];deleteForecast(id);state.modal=null;if(state.route.name==='city'&&state.route.id===id)go('#/');else render();}
+
+function addCityFromSearch(id){const city=state.modal?.results?.find(c=>c.id===id);if(!city)return;cancelCitySearch();if(!state.cities.some(c=>c.id===city.id)){state.cities.push(city);saveCities(state.cities);state.evolution[city.id]=[];state.bias[city.id]={forecasts:[],observations:[],updatedAt:null};}state.modal=null;render();refreshCity(city.id,true);}
+function removeCity(id){state.cities=state.cities.filter(c=>c.id!==id);saveCities(state.cities);delete state.forecasts[id];delete state.errors[id];delete state.evolution[id];delete state.bias[id];deleteForecast(id);state.modal=null;if(state.route.name==='city'&&state.route.id===id)go('#/');else render();}
 function toggleModel(id){const set=new Set(state.settings.enabledModelIds);if(set.has(id)){if(set.size<=1){toast('Au moins un modèle doit rester activé.');return;}set.delete(id);}else set.add(id);state.settings.enabledModelIds=WEATHER_MODELS.filter(m=>set.has(m.id)).map(m=>m.id);persistSettings();render();toast('Sélection des modèles mise à jour. Actualisez pour charger la nouvelle comparaison.');}
 
 function refreshIntervalMinutes(){return REFRESH_INTERVALS.find(x=>x.id===state.settings.refreshInterval)?.minutes??60;}
 function isForecastFresh(f){const minutes=refreshIntervalMinutes();if(!f?.fetchedAt)return false;if(minutes===0)return true;const age=Date.now()-Date.parse(f.fetchedAt);return age>=0&&age<minutes*60000;}
-async function refreshDueCities(){if(!state.online)return;const minutes=refreshIntervalMinutes();if(minutes===0)return;for(const city of state.cities){const f=state.forecasts[city.id];if(!f||!isForecastFresh(f))refreshCity(city.id,false);}}
-async function refreshAll(force=false){const cities=[...state.cities];const workers=Math.min(3,cities.length);let i=0;await Promise.all(Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force);}}));}
+async function refreshDueCities(){
+  if(!state.online||dueRefreshRunning)return;const minutes=refreshIntervalMinutes();if(minutes===0)return;
+  const due=state.cities.filter(city=>{const f=state.forecasts[city.id];return !f||!isForecastFresh(f);});
+  if(!due.length)return;dueRefreshRunning=true;
+  try{for(const city of due)await refreshCity(city.id,false);}finally{dueRefreshRunning=false;}
+}
+async function refreshAll(force=false){const cities=[...state.cities];const workers=Math.min(2,cities.length);let i=0;await Promise.all(Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force);}}));}
 async function refreshCity(cityId,force=false){
   const city=state.cities.find(c=>c.id===cityId);if(!city||state.loading.has(cityId))return;if(!state.online){if(!state.forecasts[cityId])state.errors[cityId]='Pas de réseau et aucun cache local.';render();return;}if(!force&&state.forecasts[cityId]&&isForecastFresh(state.forecasts[cityId]))return;
   state.loading.add(cityId);delete state.errors[cityId];render();
-  try{const f=await fetchForecast(city,state.settings.enabledModelIds,7);state.forecasts[cityId]=f;saveForecast(cityId,f);recordEvolutionSnapshot(cityId,f);delete state.errors[cityId];if(state.route.name==='city'&&state.route.id===cityId)ensureNormals(cityId);}
+  try{const f=await fetchForecast(city,state.settings.enabledModelIds,7);state.forecasts[cityId]=f;saveForecast(cityId,f);state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);delete state.errors[cityId];if(state.route.name==='city'&&state.route.id===cityId)scheduleIdle(()=>ensureNormals(cityId));}
   catch(err){state.errors[cityId]=humanError(err);if(!state.forecasts[cityId])toast(state.errors[cityId]);}
   finally{state.loading.delete(cityId);render();}
 }
 function humanError(err){if(err?.name==='AbortError')return 'La requête météo a expiré.';const m=String(err?.message||err||'Erreur inconnue');if(/Failed to fetch/i.test(m))return 'Impossible de joindre Open-Meteo. Vérifiez la connexion et les règles CORS de l’hébergement.';return m;}
 
-function onRouteSettled(){if(state.route.name==='city'){const id=state.route.id;if(!state.forecasts[id])refreshCity(id,false);else ensureNormals(id);}}
+function onRouteSettled(){if(state.route.name==='city'){const id=state.route.id;if(!state.forecasts[id])refreshCity(id,false);else scheduleIdle(()=>ensureNormals(id));}}
+function scheduleIdle(fn){if('requestIdleCallback' in window)requestIdleCallback(()=>fn(),{timeout:1200});else setTimeout(fn,80);}
 async function ensureNormals(cityId){
   const city=state.cities.find(c=>c.id===cityId);if(!city||!state.online)return;const cached=state.normals[cityId]||loadNormals(cityId);if(cached&&Date.now()-(cached.computedAt||0)<180*24*3600e3){state.normals[cityId]=cached;return;}
   if(state.normals[cityId]?.loading)return;state.normals[cityId]={...(cached||{}),loading:true};
@@ -354,9 +452,9 @@ async function refreshBiasForCity(cityId){
   try{
     const models=selectedModels(state.settings.enabledModelIds);const today=cityToday(city.timezone);const end=addDays(today,-1),start=addDays(end,-20);
     const [prev,archive]=await Promise.all([fetchPreviousRuns(city,models,start,end),fetchBiasArchive(city,start,end)]);
-    const forecasts=normalizePreviousRuns(prev,city,models,start,end),observations=normalizeBiasObservations(archive,start,end);const old=loadBias(cityId);
+    const forecasts=normalizePreviousRuns(prev,city,models,start,end),observations=normalizeBiasObservations(archive,start,end);const old=state.bias[cityId]||{forecasts:[],observations:[],updatedAt:null};
     const mergedForecasts=dedupe([...old.forecasts,...forecasts],x=>`${x.modelId}|${x.variable}|${x.targetDate}`);const mergedObs=dedupe([...old.observations,...observations],x=>`${x.variable}|${x.targetDate}`);const cutoff=addDays(today,-45);
-    saveBias(cityId,{forecasts:mergedForecasts.filter(x=>x.targetDate>=cutoff),observations:mergedObs.filter(x=>x.targetDate>=cutoff),updatedAt:Date.now()});toast(`${city.name} : historique J+1 actualisé (${forecasts.length} prévisions, ${observations.length} références).`);
+    const nextBias={forecasts:mergedForecasts.filter(x=>x.targetDate>=cutoff),observations:mergedObs.filter(x=>x.targetDate>=cutoff),updatedAt:Date.now()};state.bias[cityId]=nextBias;saveBias(cityId,nextBias);toast(`${city.name} : historique J+1 actualisé (${forecasts.length} prévisions, ${observations.length} références).`);
   }catch(err){toast(`Biais ${city.name} : ${humanError(err)}`);}finally{state.biasRefresh.delete(cityId);render();}
 }
 function dedupe(list,key){const m=new Map();for(const x of list)m.set(key(x),x);return [...m.values()];}

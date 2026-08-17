@@ -237,3 +237,13 @@ tr.current td:first-child { background:color-mix(in srgb,var(--primary) 7%,var(-
   .logo { width:34px; height:34px; }
   .topbar .btn-label { display:none; }
 }
+
+/* Performance: defer layout/paint work for sections below the viewport. */
+.section, .city-card, .settings-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+.search-hint { padding: 8px 2px 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .loader { will-change: transform; }
+}

@@ -7,7 +7,7 @@ Cette arborescence est une version web statique de MeteoCompare. Elle reprend la
 Le site utilise des modules JavaScript ES : il faut le servir en HTTP(S), et non ouvrir `index.html` en `file://`.
 
 ```bash
-cd web
+cd meteocompare-web-v1.8.0
 python3 -m http.server 8080
 ```
 
@@ -53,6 +53,20 @@ Les appels météo partent directement du navigateur vers Open-Meteo :
 - liens de soutien du projet ;
 - aucun widget Glance.
 
+
+## Optimisations de réactivité web
+
+Cette révision corrige les gels observés dans le premier port :
+
+- recherche de ville déclenchée 600 ms après la dernière frappe, avec annulation de la requête précédente ;
+- mise à jour locale du modal de recherche, sans reconstruction de toute l’application à chaque caractère ;
+- délégation d’événements unique au niveau de l’application au lieu de rattacher des listeners à chaque rerender ;
+- cache de l’objet i18n et des formateurs `Intl.NumberFormat` / `Intl.DateTimeFormat` ;
+- cache mémoire des agrégations journalières, scénarios, bandes d’accord, évolution et biais tant que la prévision source ne change pas ;
+- scénarios des cartes d’accueil calculés uniquement à l’ouverture de leur volet ;
+- rafraîchissements automatiques des villes sérialisés et rafraîchissement global limité à deux villes simultanées ;
+- `content-visibility` utilisé pour éviter le layout/paint des sections hors écran.
+
 ## Adaptations Android → Web
 
 | Android | Web |
@@ -72,6 +86,7 @@ Un site statique ne peut pas reproduire de façon fiable WorkManager quand le na
 
 ```bash
 node tests/smoke.mjs
+node tests/ui-performance.mjs
 ```
 
 Les tests couvrent notamment :
@@ -81,7 +96,9 @@ Les tests couvrent notamment :
 - les champs solaires partagés du batch ;
 - le calcul de l’accord pluie en cas de modèles divisés ;
 - le rejet d’une journée de seulement 18 h dans le bootstrap de biais ;
-- la garde de complétude des normales ERA5.
+- la garde de complétude des normales ERA5 ;
+- le debounce de recherche de ville (600 ms après la dernière frappe) ;
+- l’absence de rerender complet pendant la saisie et l’unicité de la requête de géocodage.
 
 ## Structure
 
@@ -94,7 +111,8 @@ Les tests couvrent notamment :
 - `js/i18n.js` : interface multilingue ;
 - `js/app.js` : rendu, navigation et interactions ;
 - `manifest.webmanifest`, `sw.js` : PWA / shell hors ligne ;
-- `tests/smoke.mjs` : tests de non-régression du portage.
+- `tests/smoke.mjs` : tests de non-régression du portage ;
+- `tests/ui-performance.mjs` : test du debounce et du chemin de saisie sans rerender global.
 
 ## Licence et confidentialité
 
