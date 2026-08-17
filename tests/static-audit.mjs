@@ -29,6 +29,18 @@ assert.match(css, /--content-max:\s*1560px/, 'modern desktop layout should use a
 assert.match(css, /@media \(max-width: 560px\)/, 'mobile fallback must remain responsive');
 assert.match(css, /prefers-reduced-motion:\s*reduce/, 'reduced-motion preference must be supported');
 
+assert.equal((app.match(/data-action="refresh-all"/g)||[]).length,1,'refresh-all must appear only as a page-level action, not duplicated in the top bar');
+assert.equal((app.match(/data-action="settings"/g)||[]).length,1,'settings must appear only once in the global navigation');
+assert.match(app, /state\.route\.name==='bias'\?0:/, 'model bias routes must reset the viewport to the top');
+assert.match(app, /routeScrollPositions\.set\(routeKey\(state\.route\)/, 'ordinary route navigation should preserve the previous route scroll position');
+assert.match(app, /chart-band-segment \$\{level\}/, 'the min-max agreement envelope must be segmented and confidence-colored');
+assert.match(css, /\.chart-band-segment\.high[^}]*fill:\s*var\(--good\)/s, 'high-agreement envelope segments must use the good color');
+assert.match(css, /\.chart-band-segment\.medium[^}]*fill:\s*var\(--medium\)/s, 'medium-agreement envelope segments must use the medium color');
+assert.match(css, /\.chart-band-segment\.low[^}]*fill:\s*var\(--low\)/s, 'low-agreement envelope segments must use the low color');
+assert.match(app, /class="model-header-stack"/, 'table model headers must reserve separate rows for metadata and bias state');
+assert.match(app, /class="model-bias-slot"/, 'table bias/calibration pills must live in a dedicated model-header slot');
+assert.match(app, /bias-chip bias-chip-button pending table-bias-chip[^>]*data-bias-model=/, 'calibration pills must remain clickable and open the model reliability page');
+
 assert.match(css, /\.overview-primary\s*\{[^}]*display:\s*flex/s, 'TodaySummary column must stretch to the full overview height');
 assert.match(css, /\.overview-primary \.today-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/s, 'TodaySummary variables should use a 2x2 desktop matrix');
 assert.match(css, /Modern professional UI/, 'the modern professional visual layer must be present');
@@ -44,5 +56,5 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.match(sw, /v8-visual-refinement/, 'service worker cache must be bumped for the visual refinement release');
+assert.match(sw, /v9-action-polish/, 'service worker cache must be bumped for the visual refinement release');
 console.log('MeteoCompare Web static audit tests: OK');

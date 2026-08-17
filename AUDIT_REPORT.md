@@ -215,3 +215,38 @@ Corrections ajoutées après retour visuel :
 - chaque ligne de modèle dans « Fiabilité locale » devient un contrôle de navigation vers la page de biais du modèle et de la variable ;
 - cache PWA incrémenté en `v8-visual-refinement` ;
 - tests de fidélité renforcés pour couvrir les icônes de synthèse, la timeline colorée et la navigation depuis la fiabilité locale.
+
+## 12. Action hierarchy, accord coloré et navigation modèle — corrigé
+
+### Actions globales
+
+- suppression des doublons `Actualiser / Ajouter` dans la topbar de la page d’accueil ;
+- suppression du second bouton `Paramètres` sur les pages ville ;
+- la topbar conserve uniquement la navigation globale `Mes villes / Paramètres`, tandis que les actions restent contextuelles à chaque page.
+
+### Bande d’accord horaire
+
+- l’enveloppe min–max inter-modèles est découpée par intervalle temporel ;
+- chaque intervalle est coloré selon le pourcentage d’accord : vert ≥ 80 %, ambre 50–79 %, rouge < 50 % ;
+- les limites min/max restent tracées afin de préserver la lecture de l’amplitude de dispersion ;
+- la légende indique désormais explicitement que la couleur de la plage min–max représente le niveau d’accord.
+
+### Navigation vers la fiabilité locale
+
+- l’ouverture d’une route de biais force le viewport en haut de la page ;
+- la position de défilement de la route précédente est mémorisée avant navigation afin de pouvoir retrouver son contexte au retour.
+
+### En-têtes des tableaux
+
+- séparation structurelle du nom du modèle, de sa résolution/famille et du badge de biais/calibration ;
+- espace vertical réservé au badge pour supprimer tout chevauchement ;
+- l’état `Calibration N/14 j` devient lui aussi cliquable et ouvre la page de fiabilité locale du modèle.
+
+### Non-régression
+
+- tests statiques ajoutés pour détecter la réapparition de boutons globaux dupliqués ;
+- tests dédiés à la coloration de l’enveloppe min–max ;
+- contrôle de la structure d’en-tête modèle et du badge de calibration cliquable ;
+- contrôle de l’ouverture d’une page biais en haut ;
+- cache PWA incrémenté en `v9-action-polish`.
+

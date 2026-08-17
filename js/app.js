@@ -38,6 +38,7 @@ let i18nCache = null;
 const numberFormatters = new Map();
 const forecastViewCache = new WeakMap();
 const seriesIndexCache = new WeakMap();
+const routeScrollPositions = new Map();
 
 init();
 
@@ -51,7 +52,7 @@ function init() {
   app.addEventListener('toggle', handleDetailsToggle, true);
   document.addEventListener?.('keydown', handleGlobalKeydown);
   document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible')refreshDueCities();});
-  window.addEventListener('hashchange',()=>{state.route=parseRoute();state.modal=null;cancelCitySearch();render();onRouteSettled();});
+  window.addEventListener('hashchange',()=>{state.route=parseRoute();state.modal=null;cancelCitySearch();render();requestAnimationFrame(()=>{const saved=routeScrollPositions.get(routeKey(state.route));window.scrollTo?.(0,state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0));});onRouteSettled();});
   window.addEventListener('online',()=>{state.online=true;render();refreshDueCities();});
   window.addEventListener('offline',()=>{state.online=false;render();});
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
@@ -75,7 +76,8 @@ function parseRoute(){
   if(parts[0]==='city'&&parts[1])return {name:'city',id:decodeURIComponent(parts[1])};
   return {name:'home'};
 }
-function go(path){ location.hash=path; }
+function routeKey(route){return route.name==='city'?`city:${route.id}`:route.name==='bias'?`bias:${route.id}:${route.modelId}:${route.variable}`:route.name;}
+function go(path){routeScrollPositions.set(routeKey(state.route),Number(window.scrollY)||0);location.hash=path;}
 function i18n(){
   const key=`${state.settings.language}|${navigator.language||''}`;
   if(key!==i18nCacheKey){i18nCacheKey=key;i18nCache=makeI18n(state.settings.language);numberFormatters.clear();}
@@ -153,7 +155,6 @@ function renderNow(){
 function renderTopbar(){
   const {t}=i18n();
   const isHome=state.route.name==='home', isSettings=state.route.name==='settings';
-  const refreshBusy=state.loading.size>0;
   return `<header class="topbar"><div class="topbar-inner">
     ${!isHome?`<button class="icon-btn" data-action="back" aria-label="${esc(t('back'))}" title="${esc(t('back'))}">${uiIcon('back',18)}</button>`:''}
     <div class="brand" role="link" tabindex="0" data-action="home" aria-label="MeteoCompare — ${esc(t('cities'))}"><img class="logo" src="assets/icon.png" alt=""><div><div class="brand-title">MeteoCompare</div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
@@ -163,10 +164,6 @@ function renderTopbar(){
     </nav>
     <div class="topbar-spacer"></div>
     <div class="topbar-system-status ${state.online?'online':'offline'}" title="${state.online?'Connexion active · appels météo disponibles':'Hors ligne · données locales'}"><span class="system-led" aria-hidden="true"></span><span>${state.online?'Données en ligne':'Données en cache'}</span></div>
-    <div class="topbar-actions">
-      ${isHome?`<button class="btn tonal" data-action="refresh-all" ${refreshBusy?'disabled':''}><span class="btn-icon ${refreshBusy?'spinning':''}">${uiIcon('refresh')}</span><span class="btn-label">${esc(t('refresh'))}</span></button><button class="btn primary" data-action="open-add-city"><span class="btn-icon">${uiIcon('plus')}</span><span class="btn-label">${esc(t('addCity'))}</span></button>`:''}
-      ${!isHome&&!isSettings?`<button class="btn tonal" data-action="settings"><span class="btn-icon">${uiIcon('settings')}</span><span class="btn-label">${esc(t('settings'))}</span></button>`:''}
-    </div>
   </div></header>`;
 }
 
@@ -350,7 +347,7 @@ function dailyIntensityStyle(metric,value){
 }
 function renderBandLegend(metric,hasNormals){
   const unit=metric==='TEMPERATURE'?'°C':metric==='PRECIPITATION'?'mm':'km/h';
-  return `<div class="chart-legend" aria-label="Légende du graphique"><span><i class="legend-line mean"></i>Moyenne des modèles (${unit})</span><span><i class="legend-area"></i>Plage min–max inter-modèles</span>${metric==='TEMPERATURE'&&hasNormals?'<span><i class="legend-line normal"></i>Repères thermiques ERA5 sur 10 ans</span>':''}</div>`;
+  return `<div class="chart-legend" aria-label="Légende du graphique"><span><i class="legend-line mean"></i>Moyenne des modèles (${unit})</span><span><i class="legend-area agreement-range"></i>Plage min–max inter-modèles · couleur = niveau d’accord</span>${metric==='TEMPERATURE'&&hasNormals?'<span><i class="legend-line normal"></i>Repères thermiques ERA5 sur 10 ans</span>':''}</div>`;
 }
 function renderConfidenceTimeline(bands){
   if(!bands?.length)return '';
@@ -381,11 +378,12 @@ function renderBandChart(bands,metric,normals){
   const width=920,height=270,pad={l:48,r:18,t:18,b:38}; let ys=bands.flatMap(x=>[x.minValue,x.maxValue]);
   if(metric==='TEMPERATURE'&&normals){for(const b of bands){const n=normals[b.timestamp.slice(5,10)];if(n)ys.push(n.tempMaxNormal,n.tempMinNormal);}}
   if(metric!=='TEMPERATURE')ys.push(0);let ymin=Math.min(...ys),ymax=Math.max(...ys);const margin=Math.max(.5,(ymax-ymin)*.12);ymin-=margin;ymax+=margin;const x=i=>pad.l+i*(width-pad.l-pad.r)/(bands.length-1);const y=v=>pad.t+(ymax-v)*(height-pad.t-pad.b)/(ymax-ymin);
-  const upper=bands.map((b,i)=>`${x(i)},${y(b.maxValue)}`).join(' ');const lower=[...bands].reverse().map((b,j)=>{const i=bands.length-1-j;return `${x(i)},${y(b.minValue)}`;}).join(' ');const mean=bands.map((b,i)=>`${x(i)},${y(b.meanValue)}`).join(' ');
+  const upper=bands.map((b,i)=>`${x(i)},${y(b.maxValue)}`).join(' ');const lower=bands.map((b,i)=>`${x(i)},${y(b.minValue)}`).join(' ');const mean=bands.map((b,i)=>`${x(i)},${y(b.meanValue)}`).join(' ');
+  const rangeSegments=bands.slice(0,-1).map((b,i)=>{const next=bands[i+1],agreementValues=[b.percent,next.percent].filter(Number.isFinite),percent=agreementValues.length?agreementValues.reduce((a,v)=>a+v,0)/agreementValues.length:null;const level=Number.isFinite(percent)?confidenceClass(percent):'unknown';const points=`${x(i)},${y(b.maxValue)} ${x(i+1)},${y(next.maxValue)} ${x(i+1)},${y(next.minValue)} ${x(i)},${y(b.minValue)}`;return `<polygon class="chart-band-segment ${level}" points="${points}"><title>${esc(b.timestamp)} → ${esc(next.timestamp)} · accord ${Number.isFinite(percent)?Math.round(percent)+'%':'indisponible'}</title></polygon>`;}).join('');
   let normalsSvg='';if(metric==='TEMPERATURE'&&normals){const maxPts=[],minPts=[];bands.forEach((b,i)=>{const n=normals[b.timestamp.slice(5,10)];if(n){maxPts.push(`${x(i)},${y(n.tempMaxNormal)}`);minPts.push(`${x(i)},${y(n.tempMinNormal)}`);}});if(maxPts.length>1)normalsSvg=`<polyline class="chart-normal-max" points="${maxPts.join(' ')}"/><polyline class="chart-normal-min" points="${minPts.join(' ')}"/>`;}
   const ticks=5;let grid='';for(let i=0;i<=ticks;i++){const val=ymin+(ymax-ymin)*i/ticks;const yy=y(val);grid+=`<line class="chart-grid" x1="${pad.l}" y1="${yy}" x2="${width-pad.r}" y2="${yy}"/><text class="chart-axis" x="${pad.l-7}" y="${yy+4}" text-anchor="end">${fmt(val,metric==='PRECIPITATION'?1:0)}</text>`;}
   let xlabels='';const every=Math.max(1,Math.floor(bands.length/6));bands.forEach((b,i)=>{if(i%every===0||i===bands.length-1)xlabels+=`<text class="chart-axis" x="${x(i)}" y="${height-12}" text-anchor="middle">${esc(b.timestamp.slice(5,10)+' '+timeLabel(b.timestamp))}</text>`;});
-  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Bande d'accord inter-modèles">${grid}<polygon class="chart-band" points="${upper} ${lower}"/><polyline class="chart-line" points="${mean}"/>${normalsSvg}${xlabels}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Bande d'accord inter-modèles">${grid}${rangeSegments}<polyline class="chart-range-edge" points="${upper}"/><polyline class="chart-range-edge" points="${lower}"/><polyline class="chart-line" points="${mean}"/>${normalsSvg}${xlabels}</svg>`;
 }
 
 function renderEvolutionSection(report){
@@ -414,13 +412,13 @@ function biasUnit(variable){return variable==='TEMPERATURE'?' °C':variable==='P
 function renderTableBiasChip(bias,modelId,variable,cityId){
   if(!variable)return '';
   const samples=bias?.sampleSize||0;
-  if(!bias?.ready)return `<span class="bias-chip pending table-bias-chip" title="Calibration locale en cours : ${samples}/14 journées complètes">Calibration ${samples}/14 j</span>`;
+  if(!bias?.ready)return `<button type="button" class="bias-chip bias-chip-button pending table-bias-chip" data-bias-model="${attr(modelId)}" data-bias-variable="${attr(variable)}" data-bias-city="${attr(cityId)}" title="Ouvrir la fiabilité locale · calibration ${samples}/14 journées complètes"><span>Calibration</span><small>${samples}/14 j</small></button>`;
   const sig=biasSignificance(bias,variable),sign=bias.meanBias>0?'+':'',unit=biasUnit(variable);
   return `<button type="button" class="bias-chip bias-chip-button table-bias-chip confidence ${sig==='HIGH'?'low':sig==='MODERATE'?'medium':'high'}" data-bias-model="${attr(modelId)}" data-bias-variable="${attr(variable)}" data-bias-city="${attr(cityId)}" title="Ouvrir la fiabilité locale · écart-type ${fmt(bias.stdDev,1)}${esc(unit)}">Biais ${sign}${fmt(bias.meanBias,1)}${esc(unit)}</button>`;
 }
 function renderForecastModelHeader(modelId,tab,biases,cityId,showFamily=false){
   const m=getModel(modelId),variable=tableBiasVariable(tab),bias=variable?biases?.[modelId]?.[variable]:null;
-  return `<span class="model-header">${esc(m?.name||modelId)}</span><span class="cell-sub">${m?.resolutionKm||'?'} km${showFamily?` · ${esc(m?.family||'')}`:''}</span>${renderTableBiasChip(bias,modelId,variable,cityId)}`;
+  return `<span class="model-header-stack"><span class="model-header">${esc(m?.name||modelId)}</span><span class="model-meta cell-sub">${m?.resolutionKm||'?'} km${showFamily?` · ${esc(m?.family||'')}`:''}</span>${variable?`<span class="model-bias-slot">${renderTableBiasChip(bias,modelId,variable,cityId)}</span>`:''}</span>`;
 }
 
 function renderDetailedComparison(f,biases){

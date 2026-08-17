@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — Visual Refinement
+# MeteoCompare Web v1.8.0 — Action & Agreement Polish
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-visual-refinement
+cd meteocompare-web-v1.8.0-action-polish
 python3 -m http.server 8080
 ```
 
@@ -81,6 +81,17 @@ Cette révision abandonne le langage visuel « terminal / instrumentation » de 
 - lignes de modèles de « Fiabilité locale » entièrement cliquables vers leur page de biais dédiée.
 
 Cette passe restaure aussi la fidélité du **biais par modèle** : le biais est affiché dans l’en-tête de la colonne du modèle, avec son état de calibration, et un clic ouvre une page dédiée au modèle et à la variable comme dans l’application Android.
+
+### Passe Action & Agreement Polish
+
+Cette passe corrige plusieurs détails d’ergonomie et de fidélité relevés après usage :
+
+- navigation globale simplifiée : « Mes villes » et « Paramètres » n’existent plus en double, et les actions « Actualiser / Ajouter » restent au niveau de la page concernée ;
+- enveloppe min–max de la bande d’accord colorée directement en vert / ambre / rouge selon l’accord inter-modèles local, en complément de la timeline de confiance ;
+- ouverture d’une page de biais systématiquement en haut, avec mémorisation de la position de la page précédente pour le retour ;
+- en-têtes de modèles restructurés en trois zones distinctes (nom, métadonnées, biais/calibration) afin que la pill de calibration ne recouvre plus la résolution ou la famille du modèle ;
+- pill de calibration elle-même cliquable vers la page de fiabilité locale ;
+- cache PWA incrémenté en `v9-action-polish`.
 
 ## Fonctionnalités météo conservées
 

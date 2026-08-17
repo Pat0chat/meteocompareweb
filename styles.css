@@ -1242,3 +1242,34 @@ body, html[data-theme="dark"] body { background-image: none; }
 .nav-icon svg, .btn-icon svg, .icon-btn svg { display: block; }
 .btn-icon.spinning svg { animation: meteo-spin .8s linear infinite; }
 @keyframes meteo-spin { to { transform: rotate(360deg); } }
+
+/* v9 — action hierarchy, agreement envelope and model-header polish */
+/* The min/max inter-model envelope itself carries confidence, not only the strip below it. */
+.chart-band-segment { stroke: none; pointer-events: auto; }
+.chart-band-segment.high { fill: var(--good); fill-opacity: .20; }
+.chart-band-segment.medium { fill: var(--medium); fill-opacity: .22; }
+.chart-band-segment.low { fill: var(--low); fill-opacity: .20; }
+.chart-band-segment.unknown { fill: var(--surface-3); fill-opacity: .38; }
+.chart-range-edge { fill: none; stroke: color-mix(in srgb, var(--muted) 38%, transparent); stroke-width: 1; }
+.legend-area.agreement-range {
+  background: linear-gradient(90deg, color-mix(in srgb,var(--low) 52%,transparent), color-mix(in srgb,var(--medium) 52%,transparent), color-mix(in srgb,var(--good) 52%,transparent));
+  border-color: color-mix(in srgb, var(--border-strong) 52%, transparent);
+}
+
+/* Reserve a distinct row for calibration/bias so it never covers model metadata. */
+.model-header-stack {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  justify-items: center;
+  align-content: start;
+  gap: 3px;
+  min-width: 108px;
+  line-height: 1.18;
+}
+.model-header-stack .model-header { display: block; max-width: 132px; }
+.model-header-stack .model-meta { display: block; min-height: 1.15em; margin: 0; white-space: normal; }
+.model-bias-slot { display: flex; align-items: flex-start; justify-content: center; min-height: 29px; padding-top: 3px; }
+.model-bias-slot .table-bias-chip { margin: 0; }
+.table-bias-chip.pending { display: inline-flex; align-items: center; gap: 5px; min-height: 25px; max-width: none; padding: 3px 7px; white-space: nowrap; }
+.table-bias-chip.pending small { font-size: .62rem; color: currentColor; opacity: .78; }
+.forecast-table thead th { vertical-align: top; }

@@ -41,7 +41,7 @@ globalThis.document={activeElement:null,documentElement:{dataset:{},lang:''},que
 Object.defineProperty(globalThis,'navigator',{value:{onLine:false,language:'fr-FR'},configurable:true});
 globalThis.location={hash:'#/city/test'};globalThis.history={length:1,back(){}};globalThis.confirm=()=>true;
 const windowListeners={};
-globalThis.window={addEventListener(type,fn){windowListeners[type]=fn;},matchMedia(){return {matches:false,addEventListener(){}}}};
+let scrollTopCalls=0;globalThis.window={addEventListener(type,fn){windowListeners[type]=fn;},matchMedia(){return {matches:false,addEventListener(){}}},scrollTo(x,y){if(x===0&&y===0)scrollTopCalls++;}};
 globalThis.requestAnimationFrame=cb=>{cb();return 1};globalThis.queueMicrotask||=(cb=>Promise.resolve().then(cb));
 const realSetInterval=globalThis.setInterval;globalThis.setInterval=()=>1;
 globalThis.fetch=async()=>({ok:true,json:async()=>({})});
@@ -64,6 +64,8 @@ assert.match(html,/class="timeline-precip-heat"/,'Timeline must retain precipita
 assert.match(html,/class="timeline-metric"/,'Timeline must retain precipitation, cloud and wind metrics');
 assert.match(html,/class="chart-legend"/,'Agreement chart must have a legend');
 assert.match(html,/class="agreement-strip"/,'Hourly agreement band must expose a color-coded confidence strip');
+assert.match(html,/class="chart-band-segment (?:high|medium|low)"/,'The min-max inter-model envelope must itself be color-coded by agreement');
+assert.match(html,/class="model-header-stack"/,'Model metadata and bias pills must use a non-overlapping stacked header layout');
 assert.match(html,/agreement-level-legend[\s\S]*Élevé ≥80%[\s\S]*Moyen 50–79%[\s\S]*Faible &lt;50%/,'Agreement strip must explain high, medium and low confidence colors');
 assert.match(html,/class="table-legend heatmap-legend"/,'Temperature table must have a heatmap legend');
 assert.match(html,/class="heatmap-data-cell"[^>]*style="--heat:/,'Table cells must carry heatmap styling');
@@ -90,6 +92,7 @@ assert.match(switched,/data-timeline-mode="DAILY"[^>]*class=|class="seg-btn acti
 clickDataset({biasModel:'GFS',biasVariable:'TEMPERATURE',biasCity:'test'});
 assert.match(location.hash,/\/bias\/GFS\/TEMPERATURE$/,'clicking a table bias must navigate to the model bias route');
 windowListeners.hashchange?.();
+assert.ok(scrollTopCalls>0,'Opening a model bias page must reset the viewport to the top');
 const biasPage=app.innerHTML;
 assert.match(biasPage,/Fiabilité locale J\+1/,'dedicated model bias page must render');
 assert.match(biasPage,/Indice local de fiabilité/,'bias page must expose the local reliability score');
