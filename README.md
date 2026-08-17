@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — Bias Top Fix
+# MeteoCompare Web v1.8.0 — History Refresh Policy
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-bias-top-fix
+cd meteocompare-web-v1.8.0-history-refresh-policy
 python3 -m http.server 8080
 ```
 
@@ -119,6 +119,21 @@ Cette passe corrige spécifiquement le cas où une page de biais pouvait encore 
 - un test reproduit désormais une restauration tardive à 2400 px après le rendu et vérifie que le viewport revient à 0.
 
 Le cache PWA est incrémenté en `v11-bias-top-fix`.
+
+
+### Passe History Refresh Policy
+
+Cette passe réduit les appels coûteux liés à la reconstruction de l’historique de biais :
+
+- suppression du bouton d’actualisation de l’historique dans la section « Fiabilité locale » de chaque ville ;
+- suppression du bouton sur chaque page de biais modèle/variable ;
+- suppression de l’action globale « tout actualiser » ;
+- gestion centralisée dans **Paramètres → Fiabilité locale**, ville par ville ;
+- affichage de la dernière mise à jour et du volume d’historique déjà stocké ;
+- avertissement explicite avant lancement, car l’opération interroge plusieurs archives météo ;
+- consultation des pages de biais sans requête réseau supplémentaire : elles utilisent uniquement les données locales existantes.
+
+Le cache PWA est incrémenté en `v12-history-refresh-policy`.
 
 ## Fonctionnalités météo conservées
 

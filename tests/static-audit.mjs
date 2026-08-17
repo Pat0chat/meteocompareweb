@@ -55,6 +55,12 @@ assert.match(css, /professional-hero::before, \.professional-hero::after \{ disp
 assert.match(css, /\.chart-wrap \{ background: var\(--surface\); background-image: none; \}/, 'chart containers must not use decorative graph-paper backgrounds');
 assert.match(css, /\.topbar-system-status/, 'the data availability status must remain visible without terminal styling');
 assert.match(app, /Données en ligne/, 'top bar should use human-readable online status text');
+assert.match(app, /class="settings-section settings-wide history-management"/, 'costly bias-history refresh must be centralized in Settings');
+assert.match(app, /Opération coûteuse/, 'history management must clearly warn that archive reconstruction is costly');
+assert.match(app, /function renderBiasHistoryManagementRow/, 'Settings must expose per-city history management rather than a global refresh-everything action');
+assert.match(app, /class="btn tonal history-refresh-action" data-bias-refresh-city=/, 'history refresh must remain available per city from the dedicated Settings area');
+assert.doesNotMatch(app, /data-action="refresh-bias-all"/, 'the expensive refresh-all action must not be exposed');
+assert.doesNotMatch(app, />Actualiser l’historique<\/button>/, 'model bias pages must not expose costly history-refresh buttons');
 assert.match(storage, /indexedDB/, 'large forecast payloads should use IndexedDB');
 assert.match(storage, /loadForecastAsync/, 'legacy forecast cache migration must be present');
 assert.match(storage, /export async function saveForecast/, 'forecast persistence should be awaitable');
@@ -63,7 +69,7 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.match(sw, /v11-bias-top-fix/, 'service worker cache must be bumped for the bias top-route fix');
+assert.match(sw, /v12-history-refresh-policy/, 'service worker cache must be bumped for the centralized history-refresh policy');
 assert.match(css, /#app \{ overflow-anchor: none; \}/, 'browser scroll anchoring must not fight the explicit viewport restoration logic');
 assert.doesNotMatch(css, /\.section, \.city-card, \.settings-section \{ content-visibility: auto/, 'detail sections must not use estimated off-screen heights that can cause scroll jumps');
 console.log('MeteoCompare Web static audit tests: OK');

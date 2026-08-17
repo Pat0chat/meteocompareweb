@@ -308,3 +308,23 @@ Le cache PWA est incrémenté en `v10-navigation-stability`.
 Le reset précédent pouvait encore être annulé par le navigateur lorsque le bouton source restait focalisé jusqu’au remplacement asynchrone du DOM. Le routeur a donc été durci : blur du contrôle avant navigation, rendu immédiat de la nouvelle route, focus du landmark avec `preventScroll`, reset simultané de `window`, `documentElement` et `body`, puis verrouillage du haut sur les frames suivantes.
 
 Le test de fidélité simule maintenant explicitement une restauration tardive à 2400 px après le premier rendu et exige un retour à 0 à la frame suivante. Le cache PWA passe à `v11-bias-top-fix`.
+
+
+## 15. Politique de mise à jour de l’historique de biais
+
+La reconstruction de l’historique J+1 peut déclencher de nombreuses requêtes vers les archives météo. L’action n’est donc plus exposée dans les vues de consultation.
+
+### Correctifs
+
+- retrait de l’action de la section « Fiabilité locale » d’une ville ;
+- retrait de l’action des pages de biais par modèle ;
+- suppression de l’actualisation globale de toutes les villes ;
+- création d’une zone dédiée dans Paramètres avec une ligne par ville, dernière mise à jour et volume local ;
+- confirmation utilisateur avant l’appel réseau ;
+- les pages de biais restent purement consultatives et n’entraînent aucun appel d’archive par elles-mêmes.
+
+### Non-régression
+
+Le test statique vérifie désormais que l’action coûteuse n’est présente que dans la zone de gestion dédiée, que l’action globale n’existe plus et que les pages de modèle n’exposent plus « Actualiser l’historique ».
+
+Le cache PWA passe à `v12-history-refresh-policy`.

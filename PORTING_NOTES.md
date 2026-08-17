@@ -48,3 +48,8 @@ Le comportement de l’interface de biais suit désormais la structure Android :
 
 Le port web utilise toujours des routes hash `#/…` pour rester compatible avec un hébergement statique GitHub Pages, mais la navigation interne est pilotée par History API. Les vraies routes ouvrent en haut, Retour/Avancer restaurent leur position propre, et les changements d’état internes (variable, zoom, onglet) préservent le contrôle cliqué dans le viewport. Cette séparation évite les sauts de scroll provoqués auparavant par les rerenders complets et la restauration native du navigateur.
 
+
+
+## Politique web de reconstruction du biais
+
+Contrairement à une lecture de prévision ordinaire, la reconstruction manuelle de l’historique J+1 peut effectuer de nombreux appels d’archives. Dans la version web, cette opération est volontairement centralisée dans les Paramètres et déclenchée ville par ville. Les écrans de fiabilité et les pages de biais n’effectuent pas cette reconstruction lors de leur consultation.
