@@ -1,0 +1,28 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
+const html=read('index.html'), app=read('js/app.js'), css=read('styles.css'), storage=read('js/storage.js'), sw=read('sw.js');
+
+assert.doesNotMatch(html, /id="app"[^>]*aria-live=/, 'the whole application must not be an aria-live region');
+assert.match(html, /id="toast-root"[^>]*aria-live="polite"/, 'toasts should use a non-interruptive live region');
+assert.match(html, /Content-Security-Policy/, 'a document CSP should constrain executable and network resources');
+assert.match(html, /connect-src[^"]*api\.open-meteo\.com/, 'CSP should allow only the required weather endpoints');
+assert.match(app, /e\.key==='Escape'&&state\.modal/, 'Escape must close modals');
+assert.match(app, /querySelectorAll\('button:not\(\[disabled\]\).*tabindex/, 'modal focus must be trapped');
+assert.match(app, /\[data-city-open\]\[role="link"\]/, 'city cards must be keyboard activatable');
+assert.match(app, /data-scroll-section="today-summary"/, 'detail navigation must not conflict with hash routing');
+assert.doesNotMatch(app, /href="#today-summary"/, 'hash routing must not be overwritten by section anchors');
+assert.equal((app.match(/Saisissez au moins 3 caractères\./g)||[]).length,1,'search hint must not be duplicated');
+assert.match(css, /--content-max:\s*1440px/, 'desktop layout should use a professional wide canvas');
+assert.match(css, /@media \(max-width: 560px\)/, 'mobile fallback must remain responsive');
+assert.match(css, /prefers-reduced-motion:\s*reduce/, 'reduced-motion preference must be supported');
+assert.match(storage, /indexedDB/, 'large forecast payloads should use IndexedDB');
+assert.match(storage, /loadForecastAsync/, 'legacy forecast cache migration must be present');
+assert.match(storage, /export async function saveForecast/, 'forecast persistence should be awaitable');
+assert.match(storage, /database\?\.close/, 'clearing local data should close IndexedDB before deleting it');
+assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city refresh should suppress per-city full renders');
+assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
+assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
+assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
+console.log('MeteoCompare Web static audit tests: OK');

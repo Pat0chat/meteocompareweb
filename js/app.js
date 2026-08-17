@@ -1,5 +1,5 @@
 import { WEATHER_MODELS, COVERAGE_LABELS, REFRESH_INTERVALS, getModel, selectedModels } from './models.js';
-import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, saveForecast, deleteForecast, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, clearAllData } from './storage.js';
+import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, clearAllData } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
 import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, normalizePreviousRuns, normalizeBiasObservations, computeBiases, buildEvolution, reliabilityRanking, windArrow, formatWindDirection, dateLabel, timeLabel, relativeAge, dailyCondition, dailyCloudCoverMean } from './domain.js';
 import { makeI18n, languageCode } from './i18n.js';
@@ -32,10 +32,12 @@ let searchSeq = 0;
 let autoRefreshTimer = null;
 let dueRefreshRunning = false;
 let renderQueued = false;
+let lastFocusedBeforeModal = null;
 let i18nCacheKey = null;
 let i18nCache = null;
 const numberFormatters = new Map();
 const forecastViewCache = new WeakMap();
+const seriesIndexCache = new WeakMap();
 
 init();
 
@@ -47,14 +49,23 @@ function init() {
   app.addEventListener('click', handleAppClick);
   app.addEventListener('input', handleAppInput);
   app.addEventListener('toggle', handleDetailsToggle, true);
+  document.addEventListener?.('keydown', handleGlobalKeydown);
+  document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible')refreshDueCities();});
   window.addEventListener('hashchange',()=>{state.route=parseRoute();state.modal=null;cancelCitySearch();render();onRouteSettled();});
   window.addEventListener('online',()=>{state.online=true;render();refreshDueCities();});
   window.addEventListener('offline',()=>{state.online=false;render();});
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
   render();
-  onRouteSettled();
-  refreshDueCities();
+  hydrateForecastStorage().finally(()=>{onRouteSettled();refreshDueCities();});
   autoRefreshTimer=setInterval(refreshDueCities,60_000);
+}
+async function hydrateForecastStorage(){
+  let changed=false;
+  await Promise.all(state.cities.map(async city=>{
+    const f=await loadForecastAsync(city.id);
+    if(f&&state.forecasts[city.id]!==f){state.forecasts[city.id]=f;changed=true;}
+  }));
+  if(changed)render();
 }
 
 function parseRoute(){
@@ -108,38 +119,52 @@ function render(){
 function renderNow(){
   const {t}=i18n();
   let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else content=renderCityDetail(state.route.id);
-  app.innerHTML=`${renderTopbar()}${!state.online?`<div class="page"><div class="banner warn">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
-  const input=document.querySelector('#city-search');if(input)queueMicrotask(()=>{if(document.activeElement!==input)input.focus({preventScroll:true});});
+  app.innerHTML=`${renderTopbar()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
+  document.body?.classList?.toggle?.('modal-open',Boolean(state.modal));
+  if(state.modal){queueMicrotask(()=>{const input=document.querySelector('#city-search');const dialog=document.querySelector('.modal');(input||dialog?.querySelector('button,input,a,[tabindex]:not([tabindex="-1"])'))?.focus?.({preventScroll:true});});}
 }
 
 function renderTopbar(){
-  const {t}=i18n(); const isHome=state.route.name==='home';
+  const {t}=i18n();
+  const isHome=state.route.name==='home', isSettings=state.route.name==='settings';
+  const refreshBusy=state.loading.size>0;
   return `<header class="topbar"><div class="topbar-inner">
-    ${!isHome?`<button class="icon-btn" data-action="back" aria-label="${esc(t('back'))}">←</button>`:''}
-    <div class="brand" ${isHome?'':'style="cursor:pointer" data-action="home"'}><img class="logo" src="assets/icon.png" alt=""><div><div class="brand-title">MeteoCompare</div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
+    ${!isHome?`<button class="icon-btn" data-action="back" aria-label="${esc(t('back'))}" title="${esc(t('back'))}">←</button>`:''}
+    <div class="brand" role="link" tabindex="0" data-action="home" aria-label="MeteoCompare — ${esc(t('cities'))}"><img class="logo" src="assets/icon.png" alt=""><div><div class="brand-title">MeteoCompare</div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
+    <nav class="topbar-nav" aria-label="Navigation principale">
+      <button class="nav-btn ${isHome?'active':''}" data-action="home" ${isHome?'aria-current="page"':''}><span>⌂</span><span>${esc(t('cities'))}</span></button>
+      <button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span>⚙</span><span>${esc(t('settings'))}</span></button>
+    </nav>
     <div class="topbar-spacer"></div>
-    ${state.route.name==='home'?`<button class="icon-btn" data-action="refresh-all" aria-label="${esc(t('refresh'))}" title="${esc(t('refresh'))}">${state.loading.size?'⟳':'↻'}</button>`:''}
-    ${state.route.name!=='settings'?`<button class="icon-btn" data-action="settings" aria-label="${esc(t('settings'))}" title="${esc(t('settings'))}">⚙</button>`:''}
+    <div class="topbar-actions">
+      ${isHome?`<button class="btn tonal" data-action="refresh-all" ${refreshBusy?'disabled':''}><span class="btn-icon">${refreshBusy?'⟳':'↻'}</span><span class="btn-label">${esc(t('refresh'))}</span></button><button class="btn primary" data-action="open-add-city"><span class="btn-icon">＋</span><span class="btn-label">${esc(t('addCity'))}</span></button>`:''}
+      ${!isHome&&!isSettings?`<button class="btn tonal" data-action="settings"><span class="btn-icon">⚙</span><span class="btn-label">${esc(t('settings'))}</span></button>`:''}
+    </div>
   </div></header>`;
 }
 
 function renderHome(){
   const {t}=i18n();
   const cards=state.cities.map(renderCityCard).join('');
-  return `<main class="page"><section class="hero"><div><h1>${esc(t('cities'))}</h1><p>${esc(t('webHomeIntro'))}</p></div><button class="btn tonal" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>
-  ${state.cities.length?`<section class="grid city-grid">${cards}</section>`:`<section class="empty-state"><div class="big">🌦️</div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}
-  ${state.cities.length?`<button class="fab" data-action="open-add-city" aria-label="${esc(t('addCity'))}">＋</button>`:''}
+  const forecasts=Object.values(state.forecasts).filter(Boolean);
+  const modelCounts=forecasts.map(f=>Object.keys(f.seriesByModel||{}).length).filter(Number.isFinite);
+  const avgModels=modelCounts.length?Math.round(modelCounts.reduce((a,b)=>a+b,0)/modelCounts.length):state.settings.enabledModelIds.length;
+  const fresh=state.cities.filter(c=>isForecastFresh(state.forecasts[c.id])).length;
+  const busy=state.loading.size;
+  return `<main class="page"><section class="hero"><div class="hero-copy"><div class="eyebrow">Dashboard météo</div><h1>${esc(t('cities'))}</h1><p>${esc(t('webHomeIntro'))}</p></div><div class="page-actions"><button class="btn tonal" data-action="refresh-all" ${busy?'disabled':''}>${busy?'⟳':'↻'} ${esc(t('refresh'))}</button><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></div></section>
+  <section class="dashboard-kpis" aria-label="Résumé"><div class="kpi"><div class="kpi-label">Villes suivies</div><div class="kpi-value">${state.cities.length}</div><div class="kpi-note">favoris enregistrés localement</div></div><div class="kpi"><div class="kpi-label">Modèles actifs</div><div class="kpi-value">${state.settings.enabledModelIds.length}</div><div class="kpi-note">sélection configurée</div></div><div class="kpi"><div class="kpi-label">Modèles disponibles</div><div class="kpi-value">${avgModels}</div><div class="kpi-note">moyenne sur les données chargées</div></div><div class="kpi"><div class="kpi-label">Caches à jour</div><div class="kpi-value">${fresh}/${state.cities.length||0}</div><div class="kpi-note">selon la cadence choisie</div></div></section>
+  ${state.cities.length?`<section class="grid city-grid" aria-label="${esc(t('cities'))}">${cards}</section>`:`<section class="empty-state"><div class="big">🌦️</div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}
   </main>`;
 }
 
 function renderCityCard(city){
   const {t}=i18n(); const f=state.forecasts[city.id]; const loading=state.loading.has(city.id); const err=state.errors[city.id];
   if(!f && loading)return `<article class="skeleton" aria-label="${esc(t('loading'))}"></article>`;
-  if(!f)return `<article class="card city-card" data-city-open="${attr(city.id)}"><div class="card-body"><div class="city-card-head"><div><h2 class="city-name">${esc(city.name)}</h2><div class="city-place">${esc(placeLine(city))}</div></div></div><div class="banner ${err?'error':'info'}">${err?esc(err):esc(t('noCache'))}</div><button class="btn tonal" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button></div></article>`;
+  if(!f)return `<article class="card city-card" role="link" tabindex="0" data-city-open="${attr(city.id)}"><div class="card-body"><div class="city-card-head"><div><h2 class="city-name">${esc(city.name)}</h2><div class="city-place">${esc(placeLine(city))}</div></div></div><div class="banner ${err?'error':'info'}">${err?esc(err):esc(t('noCache'))}</div><button class="btn tonal" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button></div></article>`;
   const now=currentConditions(f); const today=cityToday(f.city.timezone); const day=cachedAggregateDay(f,today); const info=localizedConditionInfo(now.condition||day.condition); const heat=cachedHeatmap(f,12); const conf=day.confidence?.overallPercent;
   const minT=day.tempMin,maxT=day.tempMax; const precip=day.precip; const wind=day.wind;
-  return `<article class="card city-card" data-city-open="${attr(city.id)}" style="--accent:${info.accent}"><div class="card-body">
-    <div class="city-card-head"><div><h2 class="city-name">${esc(city.name)}</h2><div class="city-place">${esc(placeLine(city))}</div></div><button class="icon-btn" data-city-menu="${attr(city.id)}" aria-label="Menu">⋮</button></div>
+  return `<article class="card city-card" role="link" tabindex="0" data-city-open="${attr(city.id)}" style="--accent:${info.accent}"><div class="card-body">
+    <div class="city-card-head"><div><h2 class="city-name">${esc(city.name)}</h2><div class="city-place">${esc(placeLine(city))}</div></div><button class="icon-btn" data-city-menu="${attr(city.id)}" aria-label="Options">⋮</button></div>
     <div class="weather-now">${conditionMarkup(now.condition||day.condition)}<div><div class="current-temp">${Number.isFinite(now.temperature)?`${fmt(now.temperature,1)}°`:'—'}</div><div class="now-meta">${esc(info.label)}${Number.isFinite(now.cloudCover)&&['PARTLY_CLOUDY','OVERCAST'].includes(now.condition)?` · ${now.cloudCover}% ☁`:''}</div></div>${Number.isFinite(conf)?`<div style="margin-left:auto">${confidencePill(conf,Object.keys(f.seriesByModel).length)}</div>`:''}</div>
     <div class="metric-row"><div class="metric"><div class="metric-label">T° min/max</div><div class="metric-value">${Number.isFinite(minT)&&Number.isFinite(maxT)?`${fmt(minT)}° / ${fmt(maxT)}°`:'—'}</div></div><div class="metric"><div class="metric-label">${esc(t('precipitation'))}</div><div class="metric-value">${Number.isFinite(precip)?`${fmt(precip,1)} mm`:'—'}</div></div><div class="metric"><div class="metric-label">${esc(t('wind'))}</div><div class="metric-value">${Number.isFinite(wind)?`${fmt(wind)} km/h`:'—'}</div></div></div>
     ${renderHeatmap(heat)}
@@ -161,7 +186,8 @@ function renderCityDetail(cityId){
   if(!f)return `<main class="page"><section class="detail-hero"><div class="detail-title"><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></section>${err?`<div class="banner error">${esc(err)}</div>`:''}<div class="section-card">${loading?'<div class="loader"></div> '+esc(t('loading')):`<button class="btn primary" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button>`}</div></main>`;
   const today=cityToday(f.city.timezone); const agg=cachedAggregateDay(f,today); const now=currentConditions(f); const inf=localizedConditionInfo(now.condition||agg.condition); const scenarios=cachedScenarios(f); const evolution=cachedEvolution(f,state.evolution[cityId]||[]); const biasSource=state.bias[cityId]||{forecasts:[],observations:[]}; const biases=cachedBiases(f,biasSource,today); const loadingLabel=loading?' · actualisation…':'';
   return `<main class="page">
-    <section class="detail-hero"><div style="font-size:3.2rem">${inf.icon}</div><div class="detail-title"><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))} · ${Object.keys(f.seriesByModel).length} modèles · ${esc(relativeAge(f.fetchedAt,i18n().lang))}${esc(loadingLabel)}</p></div><button class="btn tonal" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button></section>
+    <section class="detail-hero"><div class="detail-weather-mark" aria-hidden="true">${inf.icon}</div><div class="detail-title"><div class="eyebrow">Prévision multi-modèles</div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))} · ${Object.keys(f.seriesByModel).length} modèles · ${esc(relativeAge(f.fetchedAt,i18n().lang))}${esc(loadingLabel)}</p></div><button class="btn tonal" data-refresh-city="${attr(city.id)}" ${loading?'disabled':''}>${loading?'⟳':'↻'} ${esc(t('refresh'))}</button></section>
+    <nav class="detail-nav" aria-label="Sections de la prévision"><button data-scroll-section="today-summary">${esc(t('today'))}</button><button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button></nav>
     ${err?`<div class="banner error">${esc(err)}</div>`:''}
     ${renderTodaySummary(f,agg,now)}
     ${renderInsights(f,evolution)}
@@ -178,7 +204,7 @@ function renderCityDetail(cityId){
 function renderTodaySummary(f,agg,now){
   const {t}=i18n(); const c=agg.confidence;
   const precipConfidence=c.precipitation; const precipTxt=precipConfidence?.kind==='NO_RAIN'?`${precipConfidence.percent}% · ${t('dry')}`:precipConfidence?.kind==='DIVIDED'?`${precipConfidence.percent}% · ${precipConfidence.modelsForRain}/${precipConfidence.count} ${t('rain')}`:precipConfidence?`${precipConfidence.percent}%`:'';
-  return `<section class="section"><div class="section-head"><div><h2>${esc(t('today'))}</h2><p>${Number.isFinite(now.temperature)?`${fmt(now.temperature,1)} °C maintenant · `:''}${esc(localizedConditionInfo(now.condition||agg.condition).label)}${agg.sunrise?` · ${t('sunrise')} ${timeLabel(agg.sunrise)}`:''}${agg.sunset?` · ${t('sunset')} ${timeLabel(agg.sunset)}`:''}</p></div></div>
+  return `<section class="section" id="today-summary"><div class="section-head"><div><h2>${esc(t('today'))}</h2><p>${Number.isFinite(now.temperature)?`${fmt(now.temperature,1)} °C maintenant · `:''}${esc(localizedConditionInfo(now.condition||agg.condition).label)}${agg.sunrise?` · ${t('sunrise')} ${timeLabel(agg.sunrise)}`:''}${agg.sunset?` · ${t('sunset')} ${timeLabel(agg.sunset)}`:''}</p></div></div>
   <div class="today-grid">
     <div class="summary-tile"><h3>T° min</h3><div class="big-value">${Number.isFinite(agg.tempMin)?fmt(agg.tempMin,1)+' °C':'—'}</div><div class="range">${fmtRange(...agg.tempMinRange,' °C',1)}</div>${confidencePill(c.tempMin?.percent,c.tempMin?.count)}</div>
     <div class="summary-tile"><h3>T° max</h3><div class="big-value">${Number.isFinite(agg.tempMax)?fmt(agg.tempMax,1)+' °C':'—'}</div><div class="range">${fmtRange(...agg.tempMaxRange,' °C',1)}</div>${confidencePill(c.tempMax?.percent,c.tempMax?.count)}</div>
@@ -223,7 +249,7 @@ function renderScenarios(scenarios){if(!scenarios.length)return '';return `<sect
 
 function renderTimeline(f){
   const {t}=i18n(); const today=cityToday(f.city.timezone); const dates=[...new Set(Object.values(f.seriesByModel).flatMap(s=>s.daily.dates))].filter(d=>d>=today).sort().slice(0,7);
-  return `<section class="section"><div class="section-head"><div><h2>${esc(t('forecastTimeline'))}</h2><p>Résumé compact des prochaines échéances et de l’accord inter-modèles.</p></div></div><div class="timeline">${dates.map(d=>{const a=cachedAggregateDay(f,d),ci=conditionInfo(a.condition);return `<div class="timeline-item ${d===today?'today':''}"><div class="timeline-date">${esc(dateLabel(d,i18n().locale))}</div><div class="timeline-icon">${ci.icon}</div><div class="timeline-value">${Number.isFinite(a.tempMin)&&Number.isFinite(a.tempMax)?`${fmt(a.tempMin)}° / ${fmt(a.tempMax)}°`:'—'}</div><div class="timeline-mini">${Number.isFinite(a.precip)?`☂ ${fmt(a.precip,1)} mm`:''}${Number.isFinite(a.wind)?` · 💨 ${fmt(a.wind)}`:''}</div><div style="margin-top:6px">${confidencePill(a.confidence.overallPercent)}</div></div>`;}).join('')}</div></section>`;
+  return `<section class="section" id="timeline"><div class="section-head"><div><h2>${esc(t('forecastTimeline'))}</h2><p>Résumé compact des prochaines échéances et de l’accord inter-modèles.</p></div></div><div class="timeline">${dates.map(d=>{const a=cachedAggregateDay(f,d),ci=conditionInfo(a.condition);return `<div class="timeline-item ${d===today?'today':''}"><div class="timeline-date">${esc(dateLabel(d,i18n().locale))}</div><div class="timeline-icon">${ci.icon}</div><div class="timeline-value">${Number.isFinite(a.tempMin)&&Number.isFinite(a.tempMax)?`${fmt(a.tempMin)}° / ${fmt(a.tempMax)}°`:'—'}</div><div class="timeline-mini">${Number.isFinite(a.precip)?`☂ ${fmt(a.precip,1)} mm`:''}${Number.isFinite(a.wind)?` · 💨 ${fmt(a.wind)}`:''}</div><div style="margin-top:6px">${confidencePill(a.confidence.overallPercent)}</div></div>`;}).join('')}</div></section>`;
 }
 
 function renderConfidenceSection(f,cityId){
@@ -231,7 +257,7 @@ function renderConfidenceSection(f,cityId){
   const metric=state.settings.confidenceMetric||'TEMPERATURE';
   const horizon=[24,72,168].includes(Number(state.settings.chartHorizon))?Number(state.settings.chartHorizon):168;
   const bands=cachedBand(f,metric,horizon); const normals=state.normals[cityId]?.normals||null;
-  return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('confidenceBand'))}</h2><p>${esc(t('chart_confidence_band_desc'))}</p></div><button class="btn tonal" data-action="why-confidence">${esc(t('whyAgreement'))}</button></div>
+  return `<section class="section" id="agreement"><div class="section-card"><div class="section-head"><div><h2>${esc(t('confidenceBand'))}</h2><p>${esc(t('chart_confidence_band_desc'))}</p></div><button class="btn tonal" data-action="why-confidence">${esc(t('whyAgreement'))}</button></div>
   <div class="chart-controls"><div class="segmented" data-control="confidence-metric">${[['TEMPERATURE',t('temperature')],['PRECIPITATION',t('precipitation')],['WIND',t('wind')]].map(([id,label])=>`<button class="seg-btn ${metric===id?'active':''}" data-confidence-metric="${id}">${esc(label)}</button>`).join('')}</div><div class="segmented" aria-label="Horizon du graphique">${[[24,'24 h'],[72,'72 h'],[168,'7 j']].map(([hours,label])=>`<button class="seg-btn ${horizon===hours?'active':''}" data-chart-horizon="${hours}">${label}</button>`).join('')}</div></div>
   <div class="chart-wrap" title="Faites défiler horizontalement sur petit écran. Utilisez 24 h, 72 h ou 7 j pour changer l'échelle.">${renderBandChart(bands,metric,normals)}</div>${metric==='TEMPERATURE'&&!normals?`<div class="small">${esc(t('webNormals'))} : ${state.online?esc(t('webLoading')):esc(t('webUnavailableOffline'))}</div>`:''}</div></section>`;
 }
@@ -250,20 +276,20 @@ function renderBandChart(bands,metric,normals){
 
 function renderEvolutionSection(report){
   const {t}=i18n();
-  if(!report.days?.length)return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('evolution'))}</h2><p>${esc(t('forecast_evolution_subtitle'))}</p></div></div><div class="banner info">Aucun point ~24/48/72 h comparable n’est encore disponible. Cette section apparaîtra progressivement.</div></div></section>`;
+  if(!report.days?.length)return `<section class="section" id="evolution"><div class="section-card"><div class="section-head"><div><h2>${esc(t('evolution'))}</h2><p>${esc(t('forecast_evolution_subtitle'))}</p></div></div><div class="banner info">Aucun point ~24/48/72 h comparable n’est encore disponible. Cette section apparaîtra progressivement.</div></div></section>`;
   const variableLabel={temperature:t('temperature'),precipitation:t('precipitation'),wind:t('wind')};
   const unit={temperature:' °C',precipitation:' mm',wind:' km/h'};
   const icon={temperature:'🌡️',precipitation:'☂️',wind:'💨'};
   const cards=[];
   for(const day of report.days.slice(0,5))for(const [v,e] of Object.entries(day.variables)){cards.push(`<div class="evolution-item"><div><b>${icon[v]} ${esc(dateLabel(day.date,i18n().locale))} · ${esc(variableLabel[v])}</b></div><div class="small" style="margin-top:4px">Actuel : ${fmt(e.currentMedian,1)}${unit[v]} · ${trendText(e.trend,e.medianDelta,unit[v])}</div><div class="evolution-snapshots">${e.previous.map(p=>`<span class="snapshot">H−${p.ageHours} · ${fmt(p.median,1)}${unit[v]}</span>`).join('')}</div></div>`);}
-  return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('evolution'))}</h2><p>${esc(t('forecast_evolution_subtitle'))}</p></div></div><div class="evolution-grid">${cards.join('')}</div></div></section>`;
+  return `<section class="section" id="evolution"><div class="section-card"><div class="section-head"><div><h2>${esc(t('evolution'))}</h2><p>${esc(t('forecast_evolution_subtitle'))}</p></div></div><div class="evolution-grid">${cards.join('')}</div></div></section>`;
 }
 function trendText(trend,delta,unit){const sign=delta>0?'+':'';return {INCREASING:`en hausse (${sign}${fmt(delta,1)}${unit})`,DECREASING:`en baisse (${fmt(delta,1)}${unit})`,STABLE:'stable',VOLATILE:`révisions partagées (${sign}${fmt(delta,1)}${unit})`}[trend]||trend;}
 
 function renderReliabilitySection(city,biases){
   const {t}=i18n(); const vars=[['TEMPERATURE','🌡️',t('temperature'),' °C'],['PRECIPITATION','☂️',t('precipitation'),' mm/j'],['WIND_SPEED','💨',t('wind'),' km/h']];
   const any=Object.values(biases).some(x=>Object.values(x).some(v=>v.ready));
-  return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('reliability'))}</h2><p>${esc(t('webBiasDesc'))}</p></div><button class="btn tonal" data-bias-refresh-city="${attr(city.id)}" ${state.biasRefresh.has(city.id)?'disabled':''}>${state.biasRefresh.has(city.id)?'⟳':'↻'} Historique</button></div>
+  return `<section class="section" id="reliability"><div class="section-card"><div class="section-head"><div><h2>${esc(t('reliability'))}</h2><p>${esc(t('webBiasDesc'))}</p></div><button class="btn tonal" data-bias-refresh-city="${attr(city.id)}" ${state.biasRefresh.has(city.id)?'disabled':''}>${state.biasRefresh.has(city.id)?'⟳':'↻'} Historique</button></div>
   ${!any?`<div class="banner info">${esc(t('biasNotReady'))} — il faut au moins 14 journées complètes par modèle et variable.</div>`:''}
   <div class="reliability-grid">${vars.map(([key,ico,label,unit])=>{const rank=reliabilityRanking(biases,key);return `<div><b>${ico} ${esc(label)}</b>${rank.length?rank.slice(0,8).map((x,i)=>`<div class="rank-row"><span class="rank-number">${i+1}</span><span><b>${esc(getModel(x.modelId)?.name||x.modelId)}</b><span class="cell-sub">${x.bias.sampleSize} jours</span></span>${renderBiasChip(x.bias,key,unit)}</div>`).join(''):`<div class="small" style="padding:12px 0">${esc(t('biasNotReady'))}</div>`}</div>`;}).join('')}</div></div></section>`;
 }
@@ -273,49 +299,82 @@ function renderBiasChip(bias,variable,unit){if(!bias?.ready)return `<span class=
 function renderDetailedComparison(f,biases){
   const {t}=i18n(); const mode=state.settings.detailViewMode||'DAILY'; const tab=state.settings.detailTab||'CONDITIONS';
   const tabs=[['CONDITIONS',t('conditions')],['TEMPERATURE',t('temperature')],['PRECIPITATION',t('precipitation')],['WIND',t('wind')]];
-  return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('detailedComparison'))}</h2><p>${esc(t('webDetailedDesc'))}</p></div></div>
+  return `<section class="section" id="details"><div class="section-card"><div class="section-head"><div><h2>${esc(t('detailedComparison'))}</h2><p>${esc(t('webDetailedDesc'))}</p></div></div>
   <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px"><div class="segmented">${[['DAILY',t('daily')],['HOURLY',t('hourly')]].map(([id,l])=>`<button class="seg-btn ${mode===id?'active':''}" data-detail-mode="${id}">${esc(l)}</button>`).join('')}</div><div class="segmented">${tabs.map(([id,l])=>`<button class="seg-btn ${tab===id?'active':''}" data-detail-tab="${id}">${esc(l)}</button>`).join('')}</div></div>
   ${mode==='DAILY'?renderDailyTable(f,tab,biases):renderHourlyTable(f,tab,biases)}</div></section>`;
 }
 
+function seriesIndexes(series){
+  let cached=seriesIndexCache.get(series);
+  if(!cached){cached={hourly:new Map(series.hourly.timestamps.map((ts,i)=>[ts,i])),daily:new Map(series.daily.dates.map((date,i)=>[date,i]))};seriesIndexCache.set(series,cached);}
+  return cached;
+}
 function visibleModelIds(f){return Object.keys(f.seriesByModel).sort((a,b)=>(getModel(a)?.resolutionKm||999)-(getModel(b)?.resolutionKm||999));}
 function renderDailyTable(f,tab,biases){
   const ids=visibleModelIds(f),today=cityToday(f.city.timezone); const dates=[...new Set(ids.flatMap(id=>f.seriesByModel[id].daily.dates))].filter(d=>d>=today).sort().slice(0,7);
   return `<div class="table-wrap"><table><thead><tr><th>Jour</th>${ids.map(id=>{const m=getModel(id);return `<th title="${m?.family||''} · ${m?.resolutionKm||'?'} km">${esc(m?.name||id)}<span class="cell-sub">${m?.resolutionKm||'?'} km</span></th>`;}).join('')}</tr></thead><tbody>${dates.map(date=>`<tr class="${date===today?'current':''}"><td>${esc(dateLabel(date,i18n().locale,'long'))}</td>${ids.map(id=>renderDailyCell(f.seriesByModel[id],date,tab,biases?.[id])).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
-function renderDailyCell(s,date,tab,modelBias){const i=s.daily.dates.indexOf(date);if(i<0)return '<td>—</td>';if(tab==='CONDITIONS'){const x=dailyCondition(s,date),ci=localizedConditionInfo(x.condition),prob=s.daily.precipitationProbabilityMax[i],cloud=dailyCloudCoverMean(s,date);const isWet=['RAIN','RAIN_SHOWERS','THUNDERSTORM','FREEZING_RAIN','SNOW','SNOW_SHOWERS'].includes(x.condition);const badge=isWet?(Number.isFinite(prob)?prob+'%':null):(['PARTLY_CLOUDY','OVERCAST'].includes(x.condition)&&Number.isFinite(cloud)?cloud+'%':null);return `<td title="${esc(ci.label)}${x.inferred?' · condition inférée du même modèle':''}">${conditionMarkup(x.condition,'small')}${badge?`<span class="cell-sub">${badge}</span>`:''}${x.inferred?'<span class="cell-sub">≈ inféré</span>':''}</td>`;}if(tab==='TEMPERATURE'){const max=s.daily.tempMax[i],min=s.daily.tempMin[i];return `<td>${Number.isFinite(max)?fmt(max,1)+'°':'—'} / ${Number.isFinite(min)?fmt(min,1)+'°':'—'}${renderInlineBias(modelBias?.TEMPERATURE,'TEMPERATURE','°')}</td>`;}if(tab==='PRECIPITATION'){const p=s.daily.precipitationSum[i],prob=s.daily.precipitationProbabilityMax[i];return `<td>${Number.isFinite(p)?fmt(p,1)+' mm':'—'}${Number.isFinite(prob)?`<span class="cell-sub">max ${prob}%</span>`:''}${renderInlineBias(modelBias?.PRECIPITATION,'PRECIPITATION',' mm/j')}</td>`;}const w=s.daily.windSpeedMax[i],g=s.daily.windGustsMax[i],dir=s.daily.windDirection10mDominant[i],arrow=windArrow(dir,w);return `<td>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(dir)?`<span class="cell-sub">${formatWindDirection(dir)}${Number.isFinite(g)?` · raf. ${fmt(g)}`:''}</span>`:''}${renderInlineBias(modelBias?.WIND_SPEED,'WIND_SPEED',' km/h')}</td>`;}
+function renderDailyCell(s,date,tab,modelBias){const i=seriesIndexes(s).daily.get(date)??-1;if(i<0)return '<td>—</td>';if(tab==='CONDITIONS'){const x=dailyCondition(s,date),ci=localizedConditionInfo(x.condition),prob=s.daily.precipitationProbabilityMax[i],cloud=dailyCloudCoverMean(s,date);const isWet=['RAIN','RAIN_SHOWERS','THUNDERSTORM','FREEZING_RAIN','SNOW','SNOW_SHOWERS'].includes(x.condition);const badge=isWet?(Number.isFinite(prob)?prob+'%':null):(['PARTLY_CLOUDY','OVERCAST'].includes(x.condition)&&Number.isFinite(cloud)?cloud+'%':null);return `<td title="${esc(ci.label)}${x.inferred?' · condition inférée du même modèle':''}">${conditionMarkup(x.condition,'small')}${badge?`<span class="cell-sub">${badge}</span>`:''}${x.inferred?'<span class="cell-sub">≈ inféré</span>':''}</td>`;}if(tab==='TEMPERATURE'){const max=s.daily.tempMax[i],min=s.daily.tempMin[i];return `<td>${Number.isFinite(max)?fmt(max,1)+'°':'—'} / ${Number.isFinite(min)?fmt(min,1)+'°':'—'}${renderInlineBias(modelBias?.TEMPERATURE,'TEMPERATURE','°')}</td>`;}if(tab==='PRECIPITATION'){const p=s.daily.precipitationSum[i],prob=s.daily.precipitationProbabilityMax[i];return `<td>${Number.isFinite(p)?fmt(p,1)+' mm':'—'}${Number.isFinite(prob)?`<span class="cell-sub">max ${prob}%</span>`:''}${renderInlineBias(modelBias?.PRECIPITATION,'PRECIPITATION',' mm/j')}</td>`;}const w=s.daily.windSpeedMax[i],g=s.daily.windGustsMax[i],dir=s.daily.windDirection10mDominant[i],arrow=windArrow(dir,w);return `<td>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(dir)?`<span class="cell-sub">${formatWindDirection(dir)}${Number.isFinite(g)?` · raf. ${fmt(g)}`:''}</span>`:''}${renderInlineBias(modelBias?.WIND_SPEED,'WIND_SPEED',' km/h')}</td>`;}
 function renderInlineBias(b,variable,unit){if(!b?.ready)return '';const sig=biasSignificance(b,variable);if(sig==='LOW')return '';return `<span class="cell-sub confidence ${sig==='HIGH'?'low':'medium'}">biais ${b.meanBias>0?'+':''}${fmt(b.meanBias,1)}${unit}</span>`;}
 
 function renderHourlyTable(f,tab,biases){
   const ids=visibleModelIds(f),nowLocal=(new Date()); const today=cityToday(f.city.timezone);const all=[...new Set(ids.flatMap(id=>f.seriesByModel[id].hourly.timestamps))].filter(ts=>ts.slice(0,10)>=today).sort();
   // En web, on conserve le détail jusqu'à 48 h pour rester utile sur grand écran, sans masquer les heures de la journée courante.
-  const rows=all.slice(0,48); const targetHour=rows.reduce((best,ts)=>{const nowKey=cityToday(f.city.timezone)+'T'+new Intl.DateTimeFormat('en-GB',{timeZone:f.city.timezone||'UTC',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(nowLocal).slice(0,2)+':00';return Math.abs(Date.parse(ts+'Z')-Date.parse(nowKey+'Z'))<Math.abs(Date.parse((best||ts)+'Z')-Date.parse(nowKey+'Z'))?ts:best;},rows[0]);
+  const rows=all.slice(0,48); const hourNow=new Intl.DateTimeFormat('en-GB',{timeZone:f.city.timezone||'UTC',hour:'2-digit',hourCycle:'h23'}).format(nowLocal).slice(0,2);const nowKey=`${today}T${hourNow}:00`;const nowMs=Date.parse(nowKey+'Z');
+  const targetHour=rows.reduce((best,ts)=>Math.abs(Date.parse(ts+'Z')-nowMs)<Math.abs(Date.parse((best||ts)+'Z')-nowMs)?ts:best,rows[0]);
   return `<div class="table-wrap"><table><thead><tr><th>Heure</th>${ids.map(id=>`<th>${esc(getModel(id)?.name||id)}</th>`).join('')}</tr></thead><tbody>${rows.map(ts=>`<tr class="${ts===targetHour?'current':''}"><td>${esc(ts.slice(5,10))} · ${esc(timeLabel(ts))}</td>${ids.map(id=>renderHourlyCell(f.seriesByModel[id],ts,tab)).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
-function renderHourlyCell(s,ts,tab){const i=s.hourly.timestamps.indexOf(ts);if(i<0)return '<td>—</td>';if(tab==='CONDITIONS'){const c=fromWmoCode(s.hourly.weatherCode[i])||null,ci=conditionInfo(c);const pp=s.hourly.precipitationProbability[i],cl=s.hourly.cloudCover[i];return `<td>${c?conditionMarkup(c,'small'):'—'}${Number.isFinite(pp)?`<span class="cell-sub">☂ ${pp}%</span>`:Number.isFinite(cl)?`<span class="cell-sub">☁ ${cl}%</span>`:''}</td>`;}if(tab==='TEMPERATURE'){const v=s.hourly.temperature2m[i];return `<td>${Number.isFinite(v)?fmt(v,1)+' °C':'—'}</td>`;}if(tab==='PRECIPITATION'){const v=s.hourly.precipitation[i],pp=s.hourly.precipitationProbability[i];return `<td>${Number.isFinite(v)?fmt(v,1)+' mm':'—'}${Number.isFinite(pp)?`<span class="cell-sub">${pp}%</span>`:''}</td>`;}const w=s.hourly.windSpeed10m[i],g=s.hourly.windGusts10m[i],dir=s.hourly.windDirection10m[i],arrow=windArrow(dir,w);return `<td>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(g)?`<span class="cell-sub">raf. ${fmt(g)} km/h</span>`:''}</td>`;}
+function renderHourlyCell(s,ts,tab){const i=seriesIndexes(s).hourly.get(ts)??-1;if(i<0)return '<td>—</td>';if(tab==='CONDITIONS'){const c=fromWmoCode(s.hourly.weatherCode[i])||null,ci=conditionInfo(c);const pp=s.hourly.precipitationProbability[i],cl=s.hourly.cloudCover[i];return `<td>${c?conditionMarkup(c,'small'):'—'}${Number.isFinite(pp)?`<span class="cell-sub">☂ ${pp}%</span>`:Number.isFinite(cl)?`<span class="cell-sub">☁ ${cl}%</span>`:''}</td>`;}if(tab==='TEMPERATURE'){const v=s.hourly.temperature2m[i];return `<td>${Number.isFinite(v)?fmt(v,1)+' °C':'—'}</td>`;}if(tab==='PRECIPITATION'){const v=s.hourly.precipitation[i],pp=s.hourly.precipitationProbability[i];return `<td>${Number.isFinite(v)?fmt(v,1)+' mm':'—'}${Number.isFinite(pp)?`<span class="cell-sub">${pp}%</span>`:''}</td>`;}const w=s.hourly.windSpeed10m[i],g=s.hourly.windGusts10m[i],dir=s.hourly.windDirection10m[i],arrow=windArrow(dir,w);return `<td>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(g)?`<span class="cell-sub">raf. ${fmt(g)} km/h</span>`:''}</td>`;}
 
 function renderSettings(){
   const {t}=i18n();const sort=state.settings.modelSort||'ZONE';const groups=modelGroups(sort);const refresh=REFRESH_INTERVALS.find(x=>x.id===state.settings.refreshInterval)||REFRESH_INTERVALS[2];
-  return `<main class="page"><div class="settings-list">
-    <section class="settings-section"><h2>${esc(t('theme'))}</h2><div class="option-row">${[['SYSTEM',t('system')],['LIGHT',t('light')],['DARK',t('dark')]].map(([id,l])=>`<button class="chip ${state.settings.theme===id?'active':''}" data-theme="${id}" style="padding:9px 13px;${state.settings.theme===id?'border-color:var(--primary);color:var(--primary)':''}">${esc(l)}</button>`).join('')}</div></section>
-    <section class="settings-section"><h2>${esc(t('language'))}</h2><div class="option-row">${[['SYSTEM','Système'],['FRENCH','Français'],['ENGLISH','English'],['SPANISH','Español'],['GERMAN','Deutsch'],['ITALIAN','Italiano']].map(([id,l])=>`<button class="chip" data-language="${id}" style="padding:9px 13px;${state.settings.language===id?'border-color:var(--primary);color:var(--primary)':''}">${esc(l)}</button>`).join('')}</div></section>
-    <section class="settings-section"><h2>${esc(t('refreshInterval'))}</h2><p>${esc(t('webRefreshDesc'))}</p><div class="option-row">${REFRESH_INTERVALS.map(x=>`<button class="chip" data-refresh-interval="${x.id}" style="padding:9px 13px;${refresh.id===x.id?'border-color:var(--primary);color:var(--primary)':''}">${esc(x.label)}</button>`).join('')}</div></section>
-    <section class="settings-section"><h2>${esc(t('weatherModels'))}</h2><p>${esc(t('settings_models_desc'))}</p><div class="segmented">${[['ZONE',t('sortZone')],['FAMILLE',t('sortFamily')],['FINESSE',t('sortResolution')]].map(([id,l])=>`<button class="seg-btn ${sort===id?'active':''}" data-model-sort="${id}">${esc(l)}</button>`).join('')}</div>${groups.map(g=>`${g.label?`<div class="model-group-title">${esc(g.label)}</div>`:''}${g.models.map(renderModelRow).join('')}`).join('')}</section>
+  return `<main class="page"><section class="page-header"><div class="page-header-copy"><div class="eyebrow">Configuration</div><h1>${esc(t('settings'))}</h1><p>Personnalisez l’affichage, les modèles comparés et la stratégie de mise à jour de MeteoCompare.</p></div></section><div class="settings-list">
+    <section class="settings-section"><h2>${esc(t('theme'))}</h2><div class="option-row">${[['SYSTEM',t('system')],['LIGHT',t('light')],['DARK',t('dark')]].map(([id,l])=>`<button class="chip ${state.settings.theme===id?'active':''}" aria-pressed="${state.settings.theme===id}" data-theme="${id}">${esc(l)}</button>`).join('')}</div></section>
+    <section class="settings-section"><h2>${esc(t('language'))}</h2><div class="option-row">${[['SYSTEM','Système'],['FRENCH','Français'],['ENGLISH','English'],['SPANISH','Español'],['GERMAN','Deutsch'],['ITALIAN','Italiano']].map(([id,l])=>`<button class="chip ${state.settings.language===id?'active':''}" aria-pressed="${state.settings.language===id}" data-language="${id}">${esc(l)}</button>`).join('')}</div></section>
+    <section class="settings-section"><h2>${esc(t('refreshInterval'))}</h2><p>${esc(t('webRefreshDesc'))}</p><div class="option-row">${REFRESH_INTERVALS.map(x=>`<button class="chip ${refresh.id===x.id?'active':''}" aria-pressed="${refresh.id===x.id}" data-refresh-interval="${x.id}">${esc(x.label)}</button>`).join('')}</div></section>
     <section class="settings-section"><h2>${esc(t('reliability'))}</h2><p>${esc(t('biasDesc'))}</p><button class="btn tonal" data-action="refresh-bias-all" ${state.biasRefresh.size?'disabled':''}>↻ ${esc(t('biasRefresh'))}</button></section>
+    <section class="settings-section settings-wide"><h2>${esc(t('weatherModels'))}</h2><p>${esc(t('settings_models_desc'))}</p><div class="segmented">${[['ZONE',t('sortZone')],['FAMILLE',t('sortFamily')],['FINESSE',t('sortResolution')]].map(([id,l])=>`<button class="seg-btn ${sort===id?'active':''}" data-model-sort="${id}">${esc(l)}</button>`).join('')}</div>${groups.map(g=>`${g.label?`<div class="model-group-title">${esc(g.label)}</div>`:''}${g.models.map(renderModelRow).join('')}`).join('')}</section>
     <section class="settings-section"><h2>${esc(t('about'))}</h2><p>${esc(t('webAboutBody'))}</p><div class="banner info">🌐 ${esc(t('noWidgets'))}</div><p>${esc(t('source'))}</p><button class="btn tonal" data-action="donate">♡ ${esc(t('support'))}</button></section>
     <section class="settings-section"><h2>${esc(t('privacy'))}</h2><p>${esc(t('webPrivacyBody'))}</p><button class="btn danger" data-action="clear-data">${esc(t('clearLocalData'))}</button></section>
   </div></main>`;
 }
+
 function modelGroups(sort){let models=[...WEATHER_MODELS];if(sort==='FINESSE')return [{label:'',models:models.sort((a,b)=>a.resolutionKm-b.resolutionKm)}];if(sort==='FAMILLE'){const order=[...new Set(models.map(m=>m.family))];return order.map(f=>({label:f,models:models.filter(m=>m.family===f).sort((a,b)=>a.resolutionKm-b.resolutionKm)}));}const order=['FRANCE','EUROPE','UNITED_STATES','GLOBAL'];return order.map(z=>({label:COVERAGE_LABELS[z],models:models.filter(m=>m.coverage===z).sort((a,b)=>a.resolutionKm-b.resolutionKm)})).filter(g=>g.models.length);}
 function renderModelRow(m){const on=state.settings.enabledModelIds.includes(m.id);return `<div class="model-row"><div><div class="model-title">${esc(m.name)}</div><div class="model-meta">${esc(m.family)} · ${m.resolutionKm} km · horizon ~${m.horizonHours} h</div></div><button class="switch ${on?'on':''}" role="switch" aria-checked="${on}" data-model-toggle="${m.id}" aria-label="${esc(m.name)}"></button></div>`;}
 
 function renderModal(){
   const {t}=i18n(); if(!state.modal)return '';
-  if(state.modal.type==='addCity')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h2>${esc(t('searchCity'))}</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><input id="city-search" class="search-input" value="${attr(state.modal.query||'')}" placeholder="${esc(t('searchPlaceholder'))}" autocomplete="off" autofocus><div id="city-search-status">${renderSearchStatus()}</div><div class="search-results" id="city-search-results">${renderSearchResults()}</div></div></div></div>`;
-  if(state.modal.type==='cityMenu'){const c=state.cities.find(x=>x.id===state.modal.cityId);return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal"><div class="modal-head"><h2>${esc(c?.name||'Ville')}</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><button class="btn tonal" style="width:100%;margin-bottom:8px" data-refresh-city="${attr(c?.id)}">↻ ${esc(t('refresh'))}</button><button class="btn danger" style="width:100%" data-remove-city="${attr(c?.id)}">🗑 ${esc(t('remove'))}</button></div></div></div>`;}
-  if(state.modal.type==='confidence')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal"><div class="modal-head"><h2>${esc(t('whyAgreement'))}</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><p>L’indice d’accord part de la dispersion des valeurs prévues par les modèles disponibles à une même échéance.</p><div class="banner info"><b>Ce n’est pas une probabilité de justesse.</b>&nbsp; Un accord élevé signifie seulement que les modèles convergent.</div><p><b>Température :</b> accord maximal lorsque σ ≤ 0,5 °C, divergence forte à partir de 3 °C.</p><p><b>Vent :</b> accord maximal lorsque σ ≤ 2 km/h, divergence forte à partir de 12 km/h.</p><p><b>Pluie :</b> la vue journalière distingue d’abord sec/pluie. Si tous annoncent de la pluie, la dispersion des cumuls utilise des seuils 1–8 mm. La bande horaire reste continue.</p><p>Le nombre de modèles peut diminuer avec l’horizon lorsque les modèles régionaux arrivent à leur fin de prévision. Les données brutes restent visibles dans le tableau détaillé.</p></div></div></div>`;
-  if(state.modal.type==='donate')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal"><div class="modal-head"><h2>♡ Soutenir MeteoCompare</h2><button class="icon-btn" data-action="close-modal">×</button></div><div class="modal-content"><p>MeteoCompare reste gratuit, open-source, sans publicité et sans version premium.</p><div class="grid"><a class="btn tonal" href="https://liberapay.com/Pat0chat" target="_blank" rel="noopener">💝 Liberapay</a><a class="btn tonal" href="https://github.com/sponsors/Pat0chat" target="_blank" rel="noopener">❤️ GitHub Sponsors</a><a class="btn tonal" href="https://ko-fi.com/pat0chat" target="_blank" rel="noopener">☕ Ko-Fi</a></div></div></div></div>`;
+  if(state.modal.type==='addCity')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">${esc(t('searchCity'))}</h2><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><input id="city-search" class="search-input" value="${attr(state.modal.query||'')}" placeholder="${esc(t('searchPlaceholder'))}" autocomplete="off" autofocus><div id="city-search-status" role="status" aria-live="polite">${renderSearchStatus()}</div><div class="search-results" id="city-search-results">${renderSearchResults()}</div></div></div></div>`;
+  if(state.modal.type==='cityMenu'){const c=state.cities.find(x=>x.id===state.modal.cityId);return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">${esc(c?.name||'Ville')}</h2><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><div class="modal-actions"><button class="btn tonal" data-refresh-city="${attr(c?.id)}">↻ ${esc(t('refresh'))}</button><button class="btn danger" data-remove-city="${attr(c?.id)}">🗑 ${esc(t('remove'))}</button></div></div></div></div>`;}
+  if(state.modal.type==='confidence')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">${esc(t('whyAgreement'))}</h2><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><p>L’indice d’accord part de la dispersion des valeurs prévues par les modèles disponibles à une même échéance.</p><div class="banner info"><b>Ce n’est pas une probabilité de justesse.</b>&nbsp; Un accord élevé signifie seulement que les modèles convergent.</div><p><b>Température :</b> accord maximal lorsque σ ≤ 0,5 °C, divergence forte à partir de 3 °C.</p><p><b>Vent :</b> accord maximal lorsque σ ≤ 2 km/h, divergence forte à partir de 12 km/h.</p><p><b>Pluie :</b> la vue journalière distingue d’abord sec/pluie. Si tous annoncent de la pluie, la dispersion des cumuls utilise des seuils 1–8 mm. La bande horaire reste continue.</p><p>Le nombre de modèles peut diminuer avec l’horizon lorsque les modèles régionaux arrivent à leur fin de prévision. Les données brutes restent visibles dans le tableau détaillé.</p></div></div></div>`;
+  if(state.modal.type==='donate')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">♡ Soutenir MeteoCompare</h2><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><p>MeteoCompare reste gratuit, open-source, sans publicité et sans version premium.</p><div class="grid"><a class="btn tonal" href="https://liberapay.com/Pat0chat" target="_blank" rel="noopener">💝 Liberapay</a><a class="btn tonal" href="https://github.com/sponsors/Pat0chat" target="_blank" rel="noopener">❤️ GitHub Sponsors</a><a class="btn tonal" href="https://ko-fi.com/pat0chat" target="_blank" rel="noopener">☕ Ko-Fi</a></div></div></div></div>`;
   return '';
+}
+
+function closeModal(){
+  if(!state.modal)return;
+  const closing={...state.modal};
+  const previous=lastFocusedBeforeModal;
+  cancelCitySearch(); state.modal=null; render();
+  requestAnimationFrame(()=>{
+    let target=null;
+    if(closing.type==='addCity')target=document.querySelector('[data-action="open-add-city"]');
+    else if(closing.type==='cityMenu')target=document.querySelector(`[data-city-menu="${CSS.escape(closing.cityId||'')}"]`);
+    else if(closing.type==='confidence')target=document.querySelector('[data-action="why-confidence"]');
+    else if(closing.type==='donate')target=document.querySelector('[data-action="donate"]');
+    (target||(previous?.isConnected?previous:null))?.focus?.({preventScroll:true});
+  });
+}
+function handleGlobalKeydown(e){
+  if(e.key==='Escape'&&state.modal){e.preventDefault();closeModal();return;}
+  if((e.key==='Enter'||e.key===' ')&&e.target?.matches?.('.brand[role="link"]')){e.preventDefault();go('#/');return;}
+  if((e.key==='Enter'||e.key===' ')&&e.target?.matches?.('[data-city-open][role="link"]')){e.preventDefault();go(`#/city/${encodeURIComponent(e.target.dataset.cityOpen)}`);return;}
+  if(e.key!=='Tab'||!state.modal)return;
+  const dialog=document.querySelector('.modal');if(!dialog)return;
+  const focusable=[...dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')].filter(el=>el.offsetParent!==null);
+  if(!focusable.length)return;const first=focusable[0],last=focusable.at(-1);
+  if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
 }
 
 function handleDetailsToggle(e){
@@ -330,10 +389,10 @@ function handleAppInput(e){
   if(e.target?.id==='city-search')scheduleSearch(e.target.value);
 }
 function handleAppClick(e){
-  const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city]');
+  const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-scroll-section]');
   if(!target||!app.contains(target))return;
   if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
-  if(target.dataset.cityMenu){e.stopPropagation();state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
+  if(target.dataset.cityMenu){e.stopPropagation();lastFocusedBeforeModal=document.activeElement;state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
   if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;refreshCity(target.dataset.refreshCity,true);return;}
   if(target.dataset.removeCity){removeCity(target.dataset.removeCity);return;}
   if(target.dataset.addCityId){addCityFromSearch(target.dataset.addCityId);return;}
@@ -347,6 +406,7 @@ function handleAppClick(e){
   if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render();return;}
   if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
   if(target.dataset.biasRefreshCity){refreshBiasForCity(target.dataset.biasRefreshCity);return;}
+  if(target.dataset.scrollSection){document.getElementById?.(target.dataset.scrollSection)?.scrollIntoView?.({behavior:'smooth',block:'start'});return;}
   if(target.dataset.cityOpen){if(e.target.closest('button'))return;go(`#/city/${encodeURIComponent(target.dataset.cityOpen)}`);}
 }
 
@@ -356,13 +416,13 @@ function handleAction(e){
   else if(action==='home')go('#/');
   else if(action==='settings')go('#/settings');
   else if(action==='refresh-all')refreshAll(true);
-  else if(action==='open-add-city'){cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
-  else if(action==='close-modal'){cancelCitySearch();state.modal=null;render();}
-  else if(action==='modal-backdrop'&&e.target===e.currentTarget){cancelCitySearch();state.modal=null;render();}
-  else if(action==='why-confidence'){state.modal={type:'confidence'};render();}
-  else if(action==='donate'){state.modal={type:'donate'};render();}
+  else if(action==='open-add-city'){lastFocusedBeforeModal=document.activeElement;cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
+  else if(action==='close-modal'){closeModal();}
+  else if(action==='modal-backdrop'&&e.target===e.currentTarget){closeModal();}
+  else if(action==='why-confidence'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence'};render();}
+  else if(action==='donate'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'donate'};render();}
   else if(action==='refresh-bias-all')refreshBiasAll();
-  else if(action==='clear-data'){if(confirm('Effacer tous les favoris, réglages et caches MeteoCompare de ce navigateur ?')){clearAllData();location.reload();}}
+  else if(action==='clear-data'){if(confirm('Effacer tous les favoris, réglages et caches MeteoCompare de ce navigateur ?')){clearAllData().finally(()=>location.reload());}}
 }
 
 function persistSettings(){saveSettings(state.settings);applyTheme();}
@@ -423,16 +483,21 @@ function isForecastFresh(f){const minutes=refreshIntervalMinutes();if(!f?.fetche
 async function refreshDueCities(){
   if(!state.online||dueRefreshRunning)return;const minutes=refreshIntervalMinutes();if(minutes===0)return;
   const due=state.cities.filter(city=>{const f=state.forecasts[city.id];return !f||!isForecastFresh(f);});
-  if(!due.length)return;dueRefreshRunning=true;
-  try{for(const city of due)await refreshCity(city.id,false);}finally{dueRefreshRunning=false;}
+  if(!due.length)return;dueRefreshRunning=true;render();
+  try{for(const city of due)await refreshCity(city.id,false,false);}finally{dueRefreshRunning=false;render();}
 }
-async function refreshAll(force=false){const cities=[...state.cities];const workers=Math.min(2,cities.length);let i=0;await Promise.all(Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force);}}));}
-async function refreshCity(cityId,force=false){
-  const city=state.cities.find(c=>c.id===cityId);if(!city||state.loading.has(cityId))return;if(!state.online){if(!state.forecasts[cityId])state.errors[cityId]='Pas de réseau et aucun cache local.';render();return;}if(!force&&state.forecasts[cityId]&&isForecastFresh(state.forecasts[cityId]))return;
-  state.loading.add(cityId);delete state.errors[cityId];render();
-  try{const f=await fetchForecast(city,state.settings.enabledModelIds,7);state.forecasts[cityId]=f;saveForecast(cityId,f);state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);delete state.errors[cityId];if(state.route.name==='city'&&state.route.id===cityId)scheduleIdle(()=>ensureNormals(cityId));}
+async function refreshAll(force=false){
+  const cities=[...state.cities];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0;
+  const tasks=Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force,false);}});
+  render();
+  try{await Promise.all(tasks);}finally{render();}
+}
+async function refreshCity(cityId,force=false,renderUpdates=true){
+  const city=state.cities.find(c=>c.id===cityId);if(!city||state.loading.has(cityId))return;if(!state.online){if(!state.forecasts[cityId])state.errors[cityId]='Pas de réseau et aucun cache local.';if(renderUpdates)render();return;}if(!force&&state.forecasts[cityId]&&isForecastFresh(state.forecasts[cityId]))return;
+  state.loading.add(cityId);delete state.errors[cityId];if(renderUpdates)render();
+  try{const f=await fetchForecast(city,state.settings.enabledModelIds,7);state.forecasts[cityId]=f;await saveForecast(cityId,f);state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);delete state.errors[cityId];if(state.route.name==='city'&&state.route.id===cityId)scheduleIdle(()=>ensureNormals(cityId));}
   catch(err){state.errors[cityId]=humanError(err);if(!state.forecasts[cityId])toast(state.errors[cityId]);}
-  finally{state.loading.delete(cityId);render();}
+  finally{state.loading.delete(cityId);if(renderUpdates)render();}
 }
 function humanError(err){if(err?.name==='AbortError')return 'La requête météo a expiré.';const m=String(err?.message||err||'Erreur inconnue');if(/Failed to fetch/i.test(m))return 'Impossible de joindre Open-Meteo. Vérifiez la connexion et les règles CORS de l’hébergement.';return m;}
 

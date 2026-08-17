@@ -1,13 +1,15 @@
-# MeteoCompare Web — port de l’application Android v1.8.0
+# MeteoCompare Web v1.8.0 — édition desktop / audit
 
-Cette arborescence est une version web statique de MeteoCompare. Elle reprend la logique météo et l’expérience de comparaison de l’application Android fournie, sans les widgets Android Glance.
+Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
-## Lancer localement
+Cette révision ajoute une interface pensée pour ordinateur, un audit technique élargi, des corrections de performance/accessibilité/stockage, ainsi qu'un déploiement GitHub Pages prêt à l'emploi.
 
-Le site utilise des modules JavaScript ES : il faut le servir en HTTP(S), et non ouvrir `index.html` en `file://`.
+## Démarrage local
+
+Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0
+cd meteocompare-web-v1.8.0-professional
 python3 -m http.server 8080
 ```
 
@@ -15,105 +17,164 @@ Puis ouvrir `http://localhost:8080/`.
 
 Aucune compilation et aucune dépendance npm ne sont nécessaires.
 
-## Déploiement
+## Déployer sur GitHub Pages
 
-Le dossier peut être déployé tel quel sur un hébergement statique HTTPS : GitHub Pages, Cloudflare Pages, Netlify, serveur Nginx/Apache, etc. Il ne contient aucun secret ni clé API.
+Le projet est compatible avec une **Project Page** de la forme `https://utilisateur.github.io/nom-du-depot/` : les ressources, le manifeste, le service worker et les routes utilisent des chemins relatifs.
 
-Les appels météo partent directement du navigateur vers Open-Meteo :
+### Méthode recommandée — GitHub Actions
 
-- Forecast API
-- Geocoding API
-- Archive API / ERA5
-- Previous Runs API
+1. Créer un dépôt GitHub.
+2. Copier **le contenu de ce dossier à la racine du dépôt**, y compris `.github/workflows/pages.yml` et `.nojekyll`.
+3. Pousser les fichiers sur la branche `main`.
+4. Dans GitHub : **Settings → Pages → Build and deployment → Source → GitHub Actions**.
+5. Le workflow `Deploy MeteoCompare to GitHub Pages` exécute les tests, prépare le site statique puis le publie.
+6. Une fois le workflow terminé, ouvrir l'URL Pages indiquée dans le déploiement.
 
-## Fonctionnalités portées
+Le workflow est déjà configuré avec les permissions `pages: write` et `id-token: write`, l'environnement `github-pages`, ainsi que les actions officielles de configuration, packaging et déploiement Pages.
+
+### Domaine personnalisé
+
+GitHub Pages peut également être utilisé derrière un domaine personnalisé. Aucun changement du code n'est nécessaire tant que le site reste servi en HTTPS et que le domaine pointe correctement vers Pages.
+
+## Installation PWA
+
+Le site contient `manifest.webmanifest` et `sw.js`. Sur un hébergement HTTPS tel que GitHub Pages, un navigateur compatible peut proposer l'installation de MeteoCompare comme application web.
+
+Le service worker :
+
+- met en cache le shell statique pour rouvrir l'interface hors connexion ;
+- ne met **jamais** en cache les réponses Open-Meteo, afin de ne pas réinjecter un ancien run ;
+- utilise une stratégie network-first pour la navigation et le code afin qu'un nouveau déploiement ne reste pas bloqué derrière une ancienne version du cache.
+
+## Refonte desktop
+
+La révision remplace plusieurs conventions héritées de l'application téléphone par une interface web plus professionnelle :
+
+- conteneur jusqu'à 1440 px au lieu d'une colonne étroite ;
+- barre de navigation desktop avec actions explicites ;
+- tableau de bord avec indicateurs de villes, modèles, caches chargés et fraîcheur ;
+- grille de villes 3 colonnes sur grand écran, puis 2/1 colonnes selon la largeur ;
+- cartes plus denses, typographie et hiérarchie visuelle revues ;
+- détail d'une ville avec navigation de sections persistante ;
+- réglages en grille desktop ;
+- dialogues centrés sur ordinateur et bottom-sheet seulement sur petit écran ;
+- tableaux à en-têtes fixes et hauteur adaptée aux écrans desktop ;
+- état de focus visible, navigation clavier et respect de `prefers-reduced-motion`.
+
+Le responsive mobile reste supporté : le but n'est pas de supprimer l'usage téléphone, mais de ne plus laisser celui-ci dicter l'interface desktop.
+
+## Fonctionnalités météo conservées
 
 - favoris : recherche, ajout, retrait et affichage multi-ville ;
-- comparaison des modèles météo (17 modèles du projet Android) et sélection des modèles ;
-- résumé de la journée, conditions courantes, lever/coucher du soleil ;
-- heatmap des 12 prochaines heures et scénarios multi-modèles ;
+- comparaison des 17 modèles du projet Android et sélection des modèles ;
+- résumé journalier, conditions actuelles, lever/coucher du soleil ;
+- heatmap 12 h et scénarios multi-modèles ;
 - chronologie des prochains jours et synthèse « À retenir » ;
-- score d’accord inter-modèles ;
-- bande horaire température / pluie / vent avec horizons 24 h, 72 h et 7 jours ;
+- score d'accord inter-modèles ;
+- bandes d'incertitude température / pluie / vent, horizons 24 h / 72 h / 7 jours ;
 - repères thermiques ERA5 sur 10 ans avec garde de complétude ;
-- tableaux détaillés par jour et par heure ;
+- tableaux détaillés journaliers et horaires ;
 - conditions WMO et fallback de condition dérivée ;
-- fallback AROME HD de nébulosité à partir des couches basse / moyenne / haute ;
-- vent et rafales, direction du vent uniquement lorsqu’elle est pertinente ;
-- évolution des prévisions par snapshots locaux ~24 / 48 / 72 h ;
-- suivi du biais local J+1 avec Previous Runs + Archive ;
+- fallback AROME HD de nébulosité basse / moyenne / haute ;
+- évolution des prévisions via snapshots locaux ~24 / 48 / 72 h ;
+- biais local J+1 avec Previous Runs + Archive ;
 - bootstrap du biais uniquement sur des journées civiles complètes de 23 à 25 h ;
-- minimum de 14 journées correspondantes avant d’afficher un biais ;
+- minimum de 14 journées correspondantes avant exposition du biais ;
 - thèmes système / clair / sombre ;
-- langues FR / EN / ES / DE / IT pour les principaux éléments d’interface ;
-- réglage de la fréquence de rafraîchissement ;
-- mode hors connexion sur le dernier cache disponible ;
-- PWA installable (manifest + service worker pour l’interface statique) ;
-- stockage local des favoris, réglages, caches, biais et historiques ;
-- liens de soutien du projet ;
+- langues FR / EN / ES / DE / IT pour les éléments traduits ;
+- cadence de rafraîchissement ;
+- cache local et PWA ;
 - aucun widget Glance.
 
+## Corrections de performance
 
-## Optimisations de réactivité web
+Les correctifs de la passe précédente sont conservés et complétés :
 
-Cette révision corrige les gels observés dans le premier port :
+- recherche de ville avec debounce 600 ms et annulation de la requête précédente ;
+- aucune reconstruction globale pendant la frappe ;
+- délégation d'événements unique ;
+- cache des traductions et des formateurs `Intl` ;
+- mémoïsation des agrégations, scénarios, bandes d'accord, évolution et biais ;
+- index horaires/journaliers pré-calculés pour éviter des `indexOf()` répétés dans les grands tableaux ;
+- scénarios de l'accueil calculés à la demande ;
+- rafraîchissement global limité à deux appels météo simultanés ;
+- un seul rendu au début/à la fin d'un rafraîchissement multi-ville, au lieu de rerendre toute l'application pour chaque ville ;
+- `content-visibility` sur les sections lourdes hors écran ;
+- gros payloads météo déplacés de `localStorage` vers **IndexedDB** afin d'éviter les quotas faibles et le coût du stockage synchrone.
 
-- recherche de ville déclenchée 600 ms après la dernière frappe, avec annulation de la requête précédente ;
-- mise à jour locale du modal de recherche, sans reconstruction de toute l’application à chaque caractère ;
-- délégation d’événements unique au niveau de l’application au lieu de rattacher des listeners à chaque rerender ;
-- cache de l’objet i18n et des formateurs `Intl.NumberFormat` / `Intl.DateTimeFormat` ;
-- cache mémoire des agrégations journalières, scénarios, bandes d’accord, évolution et biais tant que la prévision source ne change pas ;
-- scénarios des cartes d’accueil calculés uniquement à l’ouverture de leur volet ;
-- rafraîchissements automatiques des villes sérialisés et rafraîchissement global limité à deux villes simultanées ;
-- `content-visibility` utilisé pour éviter le layout/paint des sections hors écran.
+Les favoris, paramètres et petits index restent dans `localStorage`. Une ancienne prévision stockée par la version précédente est migrée automatiquement vers IndexedDB lors du chargement.
+
+## Accessibilité et robustesse
+
+- dialogues `role="dialog"` + `aria-modal` ;
+- fermeture avec Échap ;
+- piège de focus dans le dialogue ;
+- restauration du focus vers le contrôle qui a ouvert le dialogue ;
+- cartes de ville utilisables au clavier ;
+- zones `aria-live` limitées aux statuts utiles au lieu de rendre toute l'application bavarde pour un lecteur d'écran ;
+- `lang` du document synchronisé avec la langue choisie ;
+- `prefers-reduced-motion` pris en compte ;
+- navigation de sections sans conflit avec le routeur `#/…` ;
+- Content Security Policy côté document limitant scripts, connexions et ressources aux origines nécessaires ;
+- suppression robuste de `localStorage` **et** IndexedDB lors de « Effacer les données locales ».
 
 ## Adaptations Android → Web
 
 | Android | Web |
 |---|---|
-| Jetpack Compose | HTML/CSS/JavaScript ES modules |
-| Navigation Compose | routes par hash `#/…` |
-| DataStore / Room | stockage local du navigateur |
-| WorkManager | vérification de fraîcheur au chargement + minuterie quand le site est ouvert |
+| Jetpack Compose | HTML / CSS / JavaScript ES modules |
+| Navigation Compose | routeur hash `#/…` |
+| DataStore / Room | `localStorage` + IndexedDB |
+| WorkManager | contrôle de fraîcheur au chargement + minuterie tant que le site est actif |
 | Glance App Widgets | supprimés volontairement |
-| gestes de zoom du graphique | horizons 24 h / 72 h / 7 j + défilement horizontal tactile |
+| gestes de zoom du graphique | horizons 24 h / 72 h / 7 j + défilement horizontal |
 
-### Limite de plateforme importante
+### Limite de plateforme
 
-Un site statique ne peut pas reproduire de façon fiable WorkManager quand le navigateur est complètement fermé. MeteoCompare Web actualise selon la cadence choisie tant que la page est active et vérifie la fraîcheur du cache au prochain chargement. Le service worker rend l’interface réouvrable hors ligne, mais il ne prétend pas fournir une exécution périodique garantie en arrière-plan.
+Un site statique ne peut pas garantir l'équivalent de WorkManager lorsque le navigateur est totalement fermé. MeteoCompare vérifie donc la fraîcheur des caches à l'ouverture/retour au premier plan et selon la cadence choisie tant que la page est active.
 
 ## Tests inclus
 
 ```bash
 node tests/smoke.mjs
 node tests/ui-performance.mjs
+node tests/static-audit.mjs
+node tests/pages-compat.mjs
 ```
 
-Les tests couvrent notamment :
+Ils couvrent notamment :
 
-- l’alignement des valeurs avec les timestamps valides ;
-- le fallback de couverture nuageuse AROME HD ;
-- les champs solaires partagés du batch ;
-- le calcul de l’accord pluie en cas de modèles divisés ;
-- le rejet d’une journée de seulement 18 h dans le bootstrap de biais ;
-- la garde de complétude des normales ERA5 ;
-- le debounce de recherche de ville (600 ms après la dernière frappe) ;
-- l’absence de rerender complet pendant la saisie et l’unicité de la requête de géocodage.
+- invariants de normalisation météo et fallback AROME HD ;
+- accord pluie et complétude ERA5 ;
+- rejet d'une journée de biais de 18 h ;
+- debounce de 600 ms et absence de rerender global pendant la frappe ;
+- garde-fous de performance de l'interface ;
+- accessibilité statique essentielle des dialogues et cartes ;
+- absence de conflit entre ancres internes et routeur hash ;
+- stockage IndexedDB des gros caches ;
+- stratégie de service worker ;
+- chemins relatifs et manifeste compatibles GitHub Pages ;
+- présence et structure du workflow de déploiement Pages.
+
+Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 
 ## Structure
 
-- `index.html` : shell de l’application ;
-- `styles.css` : interface responsive ;
+- `index.html` : shell, métadonnées et politique CSP ;
+- `styles.css` : design desktop/responsive ;
 - `js/models.js` : métadonnées des modèles ;
-- `js/api.js` : appels Open-Meteo et normalisation des batchs ;
-- `js/domain.js` : calculs météo, confiance, scénarios, biais, ERA5, évolution ;
-- `js/storage.js` : favoris, réglages et caches locaux ;
+- `js/api.js` : appels Open-Meteo et normalisation ;
+- `js/domain.js` : calculs météo, accord, scénarios, biais, ERA5, évolution ;
+- `js/storage.js` : réglages/favoris + cache IndexedDB ;
 - `js/i18n.js` : interface multilingue ;
-- `js/app.js` : rendu, navigation et interactions ;
-- `manifest.webmanifest`, `sw.js` : PWA / shell hors ligne ;
-- `tests/smoke.mjs` : tests de non-régression du portage ;
-- `tests/ui-performance.mjs` : test du debounce et du chemin de saisie sans rerender global.
+- `js/app.js` : rendu, routeur et interactions ;
+- `manifest.webmanifest`, `sw.js` : PWA ;
+- `.github/workflows/pages.yml` : publication GitHub Pages ;
+- `.nojekyll` : compatibilité de publication statique ;
+- `tests/` : non-régression, performance, audit et Pages.
 
-## Licence et confidentialité
+## Confidentialité
 
-Le port conserve la licence et la politique de confidentialité fournies avec le projet source (`LICENSE`, `PRIVACY.md`).
+Aucun secret ni clé API n'est embarqué. Les requêtes météo sont envoyées directement depuis le navigateur vers Open-Meteo. Les villes, réglages et caches MeteoCompare restent dans le stockage local du navigateur.
+
+La licence et la politique de confidentialité du projet source restent incluses (`LICENSE`, `PRIVACY.md`).
