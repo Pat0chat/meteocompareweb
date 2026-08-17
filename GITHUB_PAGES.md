@@ -24,6 +24,7 @@ node tests/smoke.mjs
 node tests/ui-performance.mjs
 node tests/static-audit.mjs
 node tests/pages-compat.mjs
+node tests/fidelity-regression.mjs
 ```
 
 Puis il prépare `_site`, en excluant les tests et les fichiers propres au dépôt, charge l'artefact Pages et le publie dans l'environnement `github-pages`.

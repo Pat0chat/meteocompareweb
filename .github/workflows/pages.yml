@@ -28,6 +28,7 @@ jobs:
           node tests/ui-performance.mjs
           node tests/static-audit.mjs
           node tests/pages-compat.mjs
+          node tests/fidelity-regression.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

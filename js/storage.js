@@ -20,6 +20,7 @@ export const defaultSettings = {
   detailTab: 'CONDITIONS',
   confidenceMetric: 'TEMPERATURE',
   chartHorizon: 168,
+  timelineMode: 'HOURLY',
   collapsedSections: {},
 };
 

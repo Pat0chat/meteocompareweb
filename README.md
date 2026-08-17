@@ -2,14 +2,14 @@
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
-Cette révision ajoute une interface pensée pour ordinateur, un audit technique élargi, des corrections de performance/accessibilité/stockage, ainsi qu'un déploiement GitHub Pages prêt à l'emploi.
+Cette révision ajoute une interface pensée pour ordinateur, un audit technique élargi, des corrections de performance/accessibilité/stockage, un déploiement GitHub Pages prêt à l'emploi et une passe de fidélité fonctionnelle qui restaure les informations détaillées de l'application Android.
 
 ## Démarrage local
 
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-professional
+cd meteocompare-web-v1.8.0-desktop-fidelity
 python3 -m http.server 8080
 ```
 
@@ -50,7 +50,7 @@ Le service worker :
 
 La révision remplace plusieurs conventions héritées de l'application téléphone par une interface web plus professionnelle :
 
-- conteneur jusqu'à 1440 px au lieu d'une colonne étroite ;
+- conteneur jusqu'à 1580 px au lieu d'une colonne étroite ;
 - barre de navigation desktop avec actions explicites ;
 - tableau de bord avec indicateurs de villes, modèles, caches chargés et fraîcheur ;
 - grille de villes 3 colonnes sur grand écran, puis 2/1 colonnes selon la largeur ;
@@ -69,11 +69,13 @@ Le responsive mobile reste supporté : le but n'est pas de supprimer l'usage té
 - comparaison des 17 modèles du projet Android et sélection des modèles ;
 - résumé journalier, conditions actuelles, lever/coucher du soleil ;
 - heatmap 12 h et scénarios multi-modèles ;
-- chronologie des prochains jours et synthèse « À retenir » ;
-- score d'accord inter-modèles ;
+- chronologie riche avec modes 24 h / 7 jours, repères réguliers, bande thermique, signal pluie, nébulosité, vent/rafales, accord et variables en désaccord ;
+- synthèse « À retenir » ;
+- accord global remis dans la TodaySummaryCard, avec « Pourquoi cet accord ? » au même endroit ;
+- score d'accord inter-modèles et bande horaire séparée ;
 - bandes d'incertitude température / pluie / vent, horizons 24 h / 72 h / 7 jours ;
 - repères thermiques ERA5 sur 10 ans avec garde de complétude ;
-- tableaux détaillés journaliers et horaires ;
+- tableaux détaillés journaliers et horaires avec heatmaps et légendes par variable ;
 - conditions WMO et fallback de condition dérivée ;
 - fallback AROME HD de nébulosité basse / moyenne / haute ;
 - évolution des prévisions via snapshots locaux ~24 / 48 / 72 h ;
@@ -140,6 +142,7 @@ node tests/smoke.mjs
 node tests/ui-performance.mjs
 node tests/static-audit.mjs
 node tests/pages-compat.mjs
+node tests/fidelity-regression.mjs
 ```
 
 Ils couvrent notamment :
@@ -154,7 +157,10 @@ Ils couvrent notamment :
 - stockage IndexedDB des gros caches ;
 - stratégie de service worker ;
 - chemins relatifs et manifeste compatibles GitHub Pages ;
-- présence et structure du workflow de déploiement Pages.
+- présence et structure du workflow de déploiement Pages ;
+- présence des heatmaps et légendes ;
+- chronologie riche 24 h / 7 jours ;
+- accord global et action « Pourquoi cet accord ? » dans la TodaySummaryCard, et absence de cette action dans la bande horaire.
 
 Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 
@@ -171,7 +177,7 @@ Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 - `manifest.webmanifest`, `sw.js` : PWA ;
 - `.github/workflows/pages.yml` : publication GitHub Pages ;
 - `.nojekyll` : compatibilité de publication statique ;
-- `tests/` : non-régression, performance, audit et Pages.
+- `tests/` : non-régression, performance, audit, fidélité UI et Pages.
 
 ## Confidentialité
 

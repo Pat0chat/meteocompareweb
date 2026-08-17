@@ -12,9 +12,15 @@ assert.match(app, /e\.key==='Escape'&&state\.modal/, 'Escape must close modals')
 assert.match(app, /querySelectorAll\('button:not\(\[disabled\]\).*tabindex/, 'modal focus must be trapped');
 assert.match(app, /\[data-city-open\]\[role="link"\]/, 'city cards must be keyboard activatable');
 assert.match(app, /data-scroll-section="today-summary"/, 'detail navigation must not conflict with hash routing');
+assert.match(app, /class="global-agreement\s/, 'TodaySummary must restore global agreement');
+assert.match(app, /data-action="why-confidence"/, 'TodaySummary must expose the agreement explanation action');
+assert.match(app, /renderTableLegend\(tab,mode,normals\)/, 'detailed tables must render legends');
+assert.match(app, /heatmap-data-cell/, 'detailed tables must render heatmap cells');
+assert.match(app, /data-timeline-mode="HOURLY"/, 'rich timeline must expose 24h mode');
+assert.match(app, /data-timeline-mode="DAILY"/, 'rich timeline must expose daily mode');
 assert.doesNotMatch(app, /href="#today-summary"/, 'hash routing must not be overwritten by section anchors');
 assert.equal((app.match(/Saisissez au moins 3 caractères\./g)||[]).length,1,'search hint must not be duplicated');
-assert.match(css, /--content-max:\s*1440px/, 'desktop layout should use a professional wide canvas');
+assert.match(css, /--content-max:\s*1580px/, 'desktop layout should use a professional wide canvas');
 assert.match(css, /@media \(max-width: 560px\)/, 'mobile fallback must remain responsive');
 assert.match(css, /prefers-reduced-motion:\s*reduce/, 'reduced-motion preference must be supported');
 assert.match(storage, /indexedDB/, 'large forecast payloads should use IndexedDB');
@@ -25,4 +31,5 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
+assert.match(sw, /v5-desktop-fidelity/, 'service worker cache must be bumped for the fidelity release');
 console.log('MeteoCompare Web static audit tests: OK');

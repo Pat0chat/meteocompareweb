@@ -142,6 +142,91 @@ export function aggregateDay(forecast,date){
   return {date,data,tempMax:mean('tempMax'),tempMin:mean('tempMin'),precip:mean('precip'),wind:mean('wind'),gust:mean('gust'),tempMaxRange:range('tempMax'),tempMinRange:range('tempMin'),precipRange:range('precip'),windRange:range('wind'),gustRange:range('gust'),condition,confidence:dayConfidence(forecast,date),sunrise:data.find(x=>x.sunrise)?.sunrise||null,sunset:data.find(x=>x.sunset)?.sunset||null};
 }
 
+
+export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date()) {
+  const series=Object.values(forecast.seriesByModel||{});
+  if(!series.length)return [];
+  const hourly=mode==='HOURLY';
+  const rainThreshold=hourly?.1:.2;
+  const keys=hourly
+    ? [...new Set(series.flatMap(x=>x.hourly.timestamps||[]))].sort()
+    : [...new Set(series.flatMap(x=>x.daily.dates||[]))].sort();
+  let selected;
+  if(hourly){
+    const anchor=roundedHourLocal(forecast.city.timezone,now);
+    const end=localEpoch(anchor)+24*3600000;
+    selected=keys.filter(ts=>localEpoch(ts)>=localEpoch(anchor)&&localEpoch(ts)<end);
+  }else{
+    const today=cityToday(forecast.city.timezone,now);
+    selected=keys.filter(d=>d>=today).slice(0,7);
+  }
+  return selected.map(key=>{
+    const snaps=[];
+    for(const s of series){
+      const i=(hourly?s.hourly.timestamps:s.daily.dates).indexOf(key);
+      if(i<0)continue;
+      const temperature=hourly?s.hourly.temperature2m[i]:null;
+      const tempMin=hourly?null:s.daily.tempMin[i];
+      const tempMax=hourly?null:s.daily.tempMax[i];
+      const precipitation=hourly?s.hourly.precipitation[i]:s.daily.precipitationSum[i];
+      const precipitationProbability=hourly?s.hourly.precipitationProbability[i]:s.daily.precipitationProbabilityMax[i];
+      const cloudCover=hourly?s.hourly.cloudCover[i]:dailyCloudCoverMean(s,key);
+      const wind=hourly?s.hourly.windSpeed10m[i]:s.daily.windSpeedMax[i];
+      const windGust=hourly?s.hourly.windGusts10m[i]:s.daily.windGustsMax[i];
+      const native=fromWmoCode(hourly?s.hourly.weatherCode[i]:s.daily.weatherCode[i]);
+      const condition=(native&&native!==CONDITION.UNKNOWN)?native:inferCondition(precipitation,temperature??tempMin,cloudCover);
+      if([temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN))
+        snaps.push({temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,condition});
+    }
+    const temps=snaps.map(x=>x.temperature).filter(Number.isFinite), mins=snaps.map(x=>x.tempMin).filter(Number.isFinite), maxs=snaps.map(x=>x.tempMax).filter(Number.isFinite);
+    const prec=snaps.map(x=>x.precipitation).filter(Number.isFinite), probs=snaps.map(x=>x.precipitationProbability).filter(Number.isFinite);
+    const clouds=snaps.map(x=>x.cloudCover).filter(Number.isFinite), winds=snaps.map(x=>x.wind).filter(Number.isFinite), gusts=snaps.map(x=>x.windGust).filter(Number.isFinite);
+    const conditions=snaps.map(x=>x.condition).filter(x=>x&&x!==CONDITION.UNKNOWN);
+    const counts=new Map();conditions.forEach(c=>counts.set(c,(counts.get(c)||0)+1));
+    const top=counts.size?Math.max(...counts.values()):0;
+    const condition=[...counts].filter(([,n])=>n===top).map(([c])=>c).sort((a,b)=>conditionInfo(b).severity-conditionInfo(a).severity)[0]||null;
+    const conditionAgreement=conditions.length>=2?top*100/conditions.length:null;
+    const spread=a=>a.length>=2?Math.max(...a)-Math.min(...a):0;
+    const wetVotes=prec.filter(v=>v>=rainThreshold).length;
+    const wetShare=prec.length>=2?wetVotes*100/prec.length:null;
+    const rainCapable=snaps.filter(x=>Number.isFinite(x.precipitationProbability)||Number.isFinite(x.precipitation)).length;
+    const minProbCoverage=Math.max(2,Math.ceil(rainCapable/2));
+    const robustProb=probs.length>=minProbCoverage;
+    const precipPercent=robustProb?Math.round(median(probs)):Number.isFinite(wetShare)?Math.round(wetShare):null;
+    const precipSource=robustProb?'PROBABILITY':Number.isFinite(wetShare)?'MODEL_AGREEMENT':null;
+    const tempSpread=hourly?spread(temps):Math.max(spread(mins),spread(maxs));
+    const windSpread=spread(winds),probSpread=spread(probs);
+    const splitRain=Number.isFinite(wetShare)&&wetShare>=30&&wetShare<=70;
+    const rainDivergent=robustProb?probSpread>50:splitRain;
+    const score=(sp,z)=>Math.max(0,Math.min(100,100-(sp/z*100)));
+    const metricScores=[];const divergence=[];
+    const tempCount=hourly?temps.length:Math.max(mins.length,maxs.length);
+    if(tempCount>=2){const x=score(tempSpread,hourly?8:10);metricScores.push(x);if(tempSpread>(hourly?4:5))divergence.push('TEMPERATURE');}
+    if(winds.length>=2){const x=score(windSpread,40);metricScores.push(x);if(windSpread>20)divergence.push('WIND');}
+    if(robustProb){const x=Math.max(0,Math.min(100,100-probSpread));metricScores.push(x);if(rainDivergent)divergence.push('PRECIPITATION');}
+    else if(Number.isFinite(wetShare)){metricScores.push(Math.max(wetShare,100-wetShare));if(rainDivergent)divergence.push('PRECIPITATION');}
+    if(Number.isFinite(conditionAgreement)){metricScores.push(conditionAgreement);if(conditionAgreement<60)divergence.push('CONDITION');}
+    const consensusPercent=metricScores.length?Math.round(metricScores.reduce((a,b)=>a+b,0)/metricScores.length):null;
+    return {
+      mode,key,timestamp:hourly?key:null,date:hourly?key.slice(0,10):key,temperatureC:median(temps),tempMinC:median(mins),tempMaxC:median(maxs),
+      temperatureMinAcrossModels:(hourly?temps:maxs).length?Math.min(...(hourly?temps:maxs)):null,temperatureMaxAcrossModels:(hourly?temps:maxs).length?Math.max(...(hourly?temps:maxs)):null,
+      precipitationPercent:precipPercent,precipitationSource:precipSource,precipitationModelCount:robustProb?probs.length:prec.length,wetModelCount:wetVotes,
+      precipitationMm:median(prec),precipitationMinAcrossModelsMm:prec.length?Math.min(...prec):null,precipitationMaxAcrossModelsMm:prec.length?Math.max(...prec):null,
+      precipitationProbabilityMin:probs.length?Math.min(...probs):null,precipitationProbabilityMax:probs.length?Math.max(...probs):null,
+      cloudCoverPercent:clouds.length?Math.round(median(clouds)):null,cloudCoverMinAcrossModels:clouds.length?Math.min(...clouds):null,cloudCoverMaxAcrossModels:clouds.length?Math.max(...clouds):null,
+      windKmh:median(winds),windMinAcrossModels:winds.length?Math.min(...winds):null,windMaxAcrossModels:winds.length?Math.max(...winds):null,windGustKmh:median(gusts),
+      condition,modelCount:snaps.length,consensusPercent,consensusLevel:Number.isFinite(consensusPercent)?(consensusPercent>=75?'HIGH':consensusPercent>=50?'MEDIUM':'LOW'):null,divergenceReasons:divergence
+    };
+  }).filter(x=>x.modelCount>0);
+}
+
+export function selectRegularTimelinePoints(points,maxPoints=8,stepHours=3){
+  if(!points.length)return [];
+  if(points[0].mode!=='HOURLY')return points.slice(0,maxPoints);
+  const by=new Map(points.map(x=>[x.timestamp,x]));const first=points[0].timestamp;const start=localEpoch(first);
+  return Array.from({length:maxPoints},(_,slot)=>{const d=new Date(start+slot*stepHours*3600000);const ts=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}T${String(d.getUTCHours()).padStart(2,'0')}:00`;return by.get(ts)||{mode:'HOURLY',key:ts,timestamp:ts,date:ts.slice(0,10),modelCount:0,divergenceReasons:[]};});
+}
+
 export function homeHeatmap(forecast,hours=12){
   const anchor=roundedHourLocal(forecast.city.timezone);const result=[];
   for(let off=0;off<hours;off++){const d=new Date(localEpoch(anchor)+off*3600000);const target=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}T${String(d.getUTCHours()).padStart(2,'0')}:00`;const temps=[],probs=[];for(const s of Object.values(forecast.seriesByModel||{})){const i=nearestIndex(s.hourly.timestamps,target,30);if(i==null)continue;if(Number.isFinite(s.hourly.temperature2m[i]))temps.push(s.hourly.temperature2m[i]);if(Number.isFinite(s.hourly.precipitationProbability[i]))probs.push(s.hourly.precipitationProbability[i]);}result.push({timestamp:target,temp:stats(temps)?.mean??null,precipProbability:probs.length?Math.round(stats(probs).mean):null});}return result;

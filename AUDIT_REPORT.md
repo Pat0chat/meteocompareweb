@@ -18,7 +18,7 @@ L'audit a porté sur l'interface desktop/mobile, le rendu DOM, les interactions,
 
 ### Corrections
 
-- shell desktop jusqu'à 1440 px ;
+- shell desktop jusqu'à 1580 px ;
 - vraie navigation horizontale et actions textuelles ;
 - dashboard de synthèse ;
 - grille de villes 3/2/1 colonnes responsive ;
@@ -105,13 +105,32 @@ La première version de la navigation de sections utilisait des ancres `#section
 - service worker enregistré via `./sw.js` ;
 - `.nojekyll` inclus ;
 - workflow `.github/workflows/pages.yml` inclus ;
-- workflow exécute les quatre suites de tests avant publication ;
+- workflow exécute les cinq suites de tests avant publication ;
 - build `_site` exclut le dépôt, les tests et les fichiers de workflow de l'artefact public ;
 - permissions Pages/OIDC et environnement `github-pages` configurés.
 
 ## 9. Domaine météo — non-régression
 
 Les tests existants continuent de couvrir les points sensibles du port Android : alignement temporel, fallback AROME HD, champs solaires, accord pluie, garde ERA5 et rejet des journées de biais incomplètes (dont une journée de 18 h).
+
+## 10. Fidélité fonctionnelle et densité desktop — restauré
+
+Une passe supplémentaire a comparé la vue web à l’implémentation Android fournie afin de corriger les simplifications introduites par la première refonte desktop.
+
+### Corrections
+
+- TodaySummaryCard enrichie et accord global de nouveau visible au premier niveau ;
+- action « Pourquoi cet accord ? » déplacée de la bande horaire vers la TodaySummaryCard ;
+- bande horaire conservée comme analyse temporelle de dispersion, sans dupliquer l’explication globale ;
+- chronologie restaurée avec modes 24 h / 7 jours, repères réguliers, conditions, bande thermique min/max, indicateur de probabilité de pluie, nébulosité, vent/rafales, consensus et causes de divergence ;
+- heatmaps restaurées dans les tableaux température, précipitations et vent avec les seuils/palettes du projet Android ;
+- légendes ajoutées aux heatmaps, aux conditions météo et au graphique d’accord ;
+- mise en page desktop densifiée : rail de navigation, composition en colonnes, panneaux plus structurés, hiérarchie visuelle renforcée et largeur utile augmentée ;
+- cache du service worker incrémenté afin que cette refonte ne reste pas masquée par une ancienne version PWA.
+
+### Non-régression dédiée
+
+`tests/fidelity-regression.mjs` vérifie explicitement la présence de l’accord global, le placement de « Pourquoi cet accord ? », les deux modes de chronologie, les bandes thermiques, l’indicateur pluie, les légendes et les cellules heatmap. Ce test est également exécuté avant chaque déploiement GitHub Pages.
 
 ## Validation effectuée
 
@@ -121,6 +140,7 @@ Les tests existants continuent de couvrir les points sensibles du port Android :
 - `tests/ui-performance.mjs` : OK ;
 - `tests/static-audit.mjs` : OK ;
 - `tests/pages-compat.mjs` : OK ;
+- `tests/fidelity-regression.mjs` : OK ;
 - vérification des chemins statiques et de la structure du workflow Pages.
 
 ## Limites qui ne sont pas des bugs du port
