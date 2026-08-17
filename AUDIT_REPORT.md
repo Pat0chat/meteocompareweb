@@ -18,7 +18,7 @@ L'audit a porté sur l'interface desktop/mobile, le rendu DOM, les interactions,
 
 ### Corrections
 
-- shell desktop jusqu'à 1580 px ;
+- shell desktop jusqu'à 1600 px ;
 - vraie navigation horizontale et actions textuelles ;
 - dashboard de synthèse ;
 - grille de villes 3/2/1 colonnes responsive ;
@@ -149,3 +149,21 @@ Une passe supplémentaire a comparé la vue web à l’implémentation Android f
 - les caches IndexedDB/localStorage sont propres au navigateur/profil/appareil ;
 - sans réseau, aucune nouvelle donnée Open-Meteo ne peut être téléchargée ;
 - GitHub Pages héberge le frontend statique : il n'ajoute pas de backend ni de stockage serveur partagé.
+
+## 11. Technical UI et équilibrage TodaySummary — corrigé
+
+Une nouvelle passe visuelle a été appliquée après le retour indiquant que l’interface restait trop proche d’une application mobile et que la zone de variables de la TodaySummaryCard paraissait tronquée.
+
+### Corrections
+
+- la grille `overview-layout` étire désormais la TodaySummaryCard à la hauteur totale de la colonne « À retenir » + « Scénarios » sur grand écran ;
+- la zone des quatre variables utilise une matrice 2×2 sur desktop pour exploiter la hauteur supplémentaire de manière lisible ;
+- retour automatique à une disposition plus compacte lorsque les colonnes se replient sous 1320 px ;
+- palette revue vers des bleus ardoise/cyan plus techniques, avec chrome supérieur sombre ;
+- grille de fond subtile, rayons réduits et panneaux à bordures plus franches ;
+- typographie monospace/tabulaire pour valeurs, statuts, légendes et métadonnées techniques ;
+- traitement renforcé des graphes, chronologies et tableaux comme panneaux d’instrumentation ;
+- indicateur réseau `DATA LIVE` / `LOCAL CACHE` dans la barre supérieure ;
+- cache PWA incrémenté en `v6-technical-ui`.
+
+Les tests statiques vérifient maintenant explicitement l’étirement de la TodaySummaryCard, la matrice 2×2 des variables, la présence de la pile typographique technique et l’indicateur d’état de données.

@@ -136,6 +136,7 @@ function renderTopbar(){
       <button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span>⚙</span><span>${esc(t('settings'))}</span></button>
     </nav>
     <div class="topbar-spacer"></div>
+    <div class="topbar-system-status ${state.online?'online':'offline'}" title="${state.online?'Connexion active · appels météo disponibles':'Hors ligne · données locales'}"><span class="system-led" aria-hidden="true"></span><span>${state.online?'DATA LIVE':'LOCAL CACHE'}</span></div>
     <div class="topbar-actions">
       ${isHome?`<button class="btn tonal" data-action="refresh-all" ${refreshBusy?'disabled':''}><span class="btn-icon">${refreshBusy?'⟳':'↻'}</span><span class="btn-label">${esc(t('refresh'))}</span></button><button class="btn primary" data-action="open-add-city"><span class="btn-icon">＋</span><span class="btn-label">${esc(t('addCity'))}</span></button>`:''}
       ${!isHome&&!isSettings?`<button class="btn tonal" data-action="settings"><span class="btn-icon">⚙</span><span class="btn-label">${esc(t('settings'))}</span></button>`:''}

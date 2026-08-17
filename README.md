@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — édition desktop / audit
+# MeteoCompare Web v1.8.0 — Technical UI
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-desktop-fidelity
+cd meteocompare-web-v1.8.0-technical-ui
 python3 -m http.server 8080
 ```
 
@@ -50,7 +50,7 @@ Le service worker :
 
 La révision remplace plusieurs conventions héritées de l'application téléphone par une interface web plus professionnelle :
 
-- conteneur jusqu'à 1580 px au lieu d'une colonne étroite ;
+- conteneur jusqu'à 1600 px au lieu d'une colonne étroite ;
 - barre de navigation desktop avec actions explicites ;
 - tableau de bord avec indicateurs de villes, modèles, caches chargés et fraîcheur ;
 - grille de villes 3 colonnes sur grand écran, puis 2/1 colonnes selon la largeur ;
@@ -62,6 +62,18 @@ La révision remplace plusieurs conventions héritées de l'application téléph
 - état de focus visible, navigation clavier et respect de `prefers-reduced-motion`.
 
 Le responsive mobile reste supporté : le but n'est pas de supprimer l'usage téléphone, mais de ne plus laisser celui-ci dicter l'interface desktop.
+
+### Passe Technical UI
+
+Cette révision pousse davantage l'identité vers un outil d'analyse météo professionnel :
+
+- chrome supérieur sombre type console de données, avec état `DATA LIVE` / `LOCAL CACHE` ;
+- fond quadrillé très discret, panneaux plus rectilignes et rayons réduits ;
+- valeurs, statuts, légendes et métadonnées rendus avec une pile monospace/tabulaire ;
+- graphes et chronologies traités comme des panneaux d'instrumentation ;
+- tableaux comparatifs densifiés avec en-têtes techniques contrastés ;
+- TodaySummaryCard étirée à la hauteur cumulée de « À retenir » + « Scénarios » sur grand écran ;
+- variables de la TodaySummaryCard présentées en matrice 2×2 sur desktop afin d'utiliser cette hauteur sans laisser une bande vide ou tronquée.
 
 ## Fonctionnalités météo conservées
 
