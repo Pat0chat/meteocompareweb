@@ -21,6 +21,18 @@ mids.forEach((mid,k)=>{
 const forecast={city,seriesByModel,fetchedAt:new Date().toISOString()};
 localStorage.setItem('meteocompare.web.cities.v1',JSON.stringify([city]));
 localStorage.setItem('meteocompare.web.forecast.test',JSON.stringify(forecast));
+const biasDates=Array.from({length:20},(_,i)=>{const p=localParts(new Date(now.getTime()-(20-i)*24*3600e3));return `${p.year}-${p.month}-${p.day}`;});
+const observations=[];const forecastsBias=[];
+biasDates.forEach((date,i)=>{
+  const observedTemp=23+(i%4)*.6,observedRain=i%4===0?4:0,observedWind=24+(i%5)*2;
+  observations.push({variable:'TEMPERATURE',targetDate:date,value:observedTemp},{variable:'PRECIPITATION',targetDate:date,value:observedRain},{variable:'WIND_SPEED',targetDate:date,value:observedWind});
+  mids.forEach((mid,k)=>{
+    forecastsBias.push({modelId:mid,variable:'TEMPERATURE',targetDate:date,value:observedTemp+[.4,.8,1.2,1.7][k]});
+    forecastsBias.push({modelId:mid,variable:'PRECIPITATION',targetDate:date,value:Math.max(0,observedRain+[.2,.5,1,1.5][k])});
+    forecastsBias.push({modelId:mid,variable:'WIND_SPEED',targetDate:date,value:observedWind+[1.5,3,5,7][k]});
+  });
+});
+localStorage.setItem('meteocompare.web.bias.test',JSON.stringify({forecasts:forecastsBias,observations,updatedAt:Date.now()}));
 localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify({theme:'LIGHT',language:'FRENCH',enabledModelIds:mids,refreshInterval:'MANUAL',detailViewMode:'HOURLY',detailTab:'TEMPERATURE',confidenceMetric:'TEMPERATURE',chartHorizon:24,timelineMode:'HOURLY'}));
 
 const listeners={};
@@ -28,7 +40,8 @@ const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true
 globalThis.document={activeElement:null,documentElement:{dataset:{},lang:''},querySelector(sel){if(sel==='#app')return app;if(sel==='#toast-root')return {appendChild(){}};return null},createElement(){return {className:'',textContent:'',remove(){}}},addEventListener(){}};
 Object.defineProperty(globalThis,'navigator',{value:{onLine:false,language:'fr-FR'},configurable:true});
 globalThis.location={hash:'#/city/test'};globalThis.history={length:1,back(){}};globalThis.confirm=()=>true;
-globalThis.window={addEventListener(){},matchMedia(){return {matches:false,addEventListener(){}}}};
+const windowListeners={};
+globalThis.window={addEventListener(type,fn){windowListeners[type]=fn;},matchMedia(){return {matches:false,addEventListener(){}}}};
 globalThis.requestAnimationFrame=cb=>{cb();return 1};globalThis.queueMicrotask||=(cb=>Promise.resolve().then(cb));
 const realSetInterval=globalThis.setInterval;globalThis.setInterval=()=>1;
 globalThis.fetch=async()=>({ok:true,json:async()=>({})});
@@ -53,6 +66,10 @@ assert.match(html,/class="heatmap-data-cell"[^>]*style="--heat:/,'Table cells mu
 assert.match(html,/class="detail-workspace"/,'Desktop detail view must use a workspace layout');
 assert.match(html,/class="detail-sidebar"/,'Desktop detail view must expose a navigation rail');
 
+assert.match(html,/4 modèles/,'model counts must be explicit rather than bare numbers');
+assert.match(html,/data-bias-model="GFS"[^>]*data-bias-variable="TEMPERATURE"/,'temperature bias must be clickable from the GFS model header');
+assert.ok((html.match(/data-bias-model=/g)||[]).length>=mids.length,'each eligible model header should expose its bias action');
+
 function clickDataset(dataset){const target={dataset,closest(){return this}};listeners.click({target});return app.innerHTML;}
 let switched=clickDataset({detailTab:'PRECIPITATION'});
 assert.match(switched,/Précipitations horaires/,'Hourly precipitation table must expose its heatmap legend');
@@ -64,6 +81,16 @@ switched=clickDataset({detailTab:'CONDITIONS'});
 assert.match(switched,/weather-legend/,'Conditions table must expose the weather legend');
 switched=clickDataset({timelineMode:'DAILY'});
 assert.match(switched,/data-timeline-mode="DAILY"[^>]*class=|class="seg-btn active" data-timeline-mode="DAILY"/,'Timeline must be switchable to the 7-day view');
+
+clickDataset({biasModel:'GFS',biasVariable:'TEMPERATURE',biasCity:'test'});
+assert.match(location.hash,/\/bias\/GFS\/TEMPERATURE$/,'clicking a table bias must navigate to the model bias route');
+windowListeners.hashchange?.();
+const biasPage=app.innerHTML;
+assert.match(biasPage,/Fiabilité locale J\+1/,'dedicated model bias page must render');
+assert.match(biasPage,/Indice local de fiabilité/,'bias page must expose the local reliability score');
+assert.match(biasPage,/Erreur absolue moyenne/,'bias page must distinguish MAE from signed bias');
+assert.match(biasPage,/Historique prévision \/ observation/,'bias page must restore forecast-vs-observation history');
+assert.match(biasPage,/Rang \d+\/\d+ modèles/,'bias page rank must explicitly label the model count');
 
 globalThis.setInterval=realSetInterval;
 if(process.env.SNAPSHOT){ const fs=await import('node:fs'); fs.writeFileSync(process.env.SNAPSHOT,`<!doctype html><html data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"stylesheet\" href=\"styles.css\"></head><body><div id=\"app\">${html}</div></body></html>`); }

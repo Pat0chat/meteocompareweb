@@ -16,19 +16,26 @@ assert.match(app, /class="global-agreement\s/, 'TodaySummary must restore global
 assert.match(app, /data-action="why-confidence"/, 'TodaySummary must expose the agreement explanation action');
 assert.match(app, /renderTableLegend\(tab,mode,normals\)/, 'detailed tables must render legends');
 assert.match(app, /heatmap-data-cell/, 'detailed tables must render heatmap cells');
+assert.match(app, /renderTableBiasChip/, 'table model headers must render local bias chips');
+assert.doesNotMatch(app, /function renderInlineBias/, 'bias values must not be repeated inside every forecast cell');
+assert.match(app, /name:'bias'/, 'each model bias must have a dedicated web route');
+assert.match(app, /function renderBiasDetailPage/, 'a dedicated model bias page must be implemented');
+assert.match(css, /tr:nth-child\(even\) td\.heatmap-data-cell\[style\*="--heat"\]/, 'even heatmap rows must preserve their heat colors');
 assert.match(app, /data-timeline-mode="HOURLY"/, 'rich timeline must expose 24h mode');
 assert.match(app, /data-timeline-mode="DAILY"/, 'rich timeline must expose daily mode');
 assert.doesNotMatch(app, /href="#today-summary"/, 'hash routing must not be overwritten by section anchors');
 assert.equal((app.match(/Saisissez au moins 3 caractères\./g)||[]).length,1,'search hint must not be duplicated');
-assert.match(css, /--content-max:\s*1600px/, 'technical desktop layout should use a wide canvas');
+assert.match(css, /--content-max:\s*1560px/, 'modern desktop layout should use a wide canvas');
 assert.match(css, /@media \(max-width: 560px\)/, 'mobile fallback must remain responsive');
 assert.match(css, /prefers-reduced-motion:\s*reduce/, 'reduced-motion preference must be supported');
 
 assert.match(css, /\.overview-primary\s*\{[^}]*display:\s*flex/s, 'TodaySummary column must stretch to the full overview height');
 assert.match(css, /\.overview-primary \.today-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/s, 'TodaySummary variables should use a 2x2 desktop matrix');
-assert.match(css, /--tech-font:/, 'technical UI must expose a dedicated numeric/readout font stack');
-assert.match(css, /\.topbar-system-status/, 'technical chrome should expose the live/cache data status');
-assert.match(app, /DATA LIVE/, 'top bar should render the technical online data indicator');
+assert.match(css, /Modern professional UI/, 'the modern professional visual layer must be present');
+assert.match(css, /professional-hero::before, \.professional-hero::after \{ display: none; \}/, 'decorative hero grids must be disabled');
+assert.match(css, /\.chart-wrap \{ background: var\(--surface\); background-image: none; \}/, 'chart containers must not use decorative graph-paper backgrounds');
+assert.match(css, /\.topbar-system-status/, 'the data availability status must remain visible without terminal styling');
+assert.match(app, /Données en ligne/, 'top bar should use human-readable online status text');
 assert.match(storage, /indexedDB/, 'large forecast payloads should use IndexedDB');
 assert.match(storage, /loadForecastAsync/, 'legacy forecast cache migration must be present');
 assert.match(storage, /export async function saveForecast/, 'forecast persistence should be awaitable');
@@ -37,5 +44,5 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.match(sw, /v6-technical-ui/, 'service worker cache must be bumped for the technical UI release');
+assert.match(sw, /v7-modern-ui-bias/, 'service worker cache must be bumped for the modern UI and bias-page release');
 console.log('MeteoCompare Web static audit tests: OK');

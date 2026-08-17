@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — Technical UI
+# MeteoCompare Web v1.8.0 — Modern UI & Bias Fidelity
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-technical-ui
+cd meteocompare-web-v1.8.0-modern-ui-bias
 python3 -m http.server 8080
 ```
 
@@ -50,7 +50,7 @@ Le service worker :
 
 La révision remplace plusieurs conventions héritées de l'application téléphone par une interface web plus professionnelle :
 
-- conteneur jusqu'à 1600 px au lieu d'une colonne étroite ;
+- conteneur jusqu'à 1560 px au lieu d'une colonne étroite ;
 - barre de navigation desktop avec actions explicites ;
 - tableau de bord avec indicateurs de villes, modèles, caches chargés et fraîcheur ;
 - grille de villes 3 colonnes sur grand écran, puis 2/1 colonnes selon la largeur ;
@@ -63,17 +63,21 @@ La révision remplace plusieurs conventions héritées de l'application téléph
 
 Le responsive mobile reste supporté : le but n'est pas de supprimer l'usage téléphone, mais de ne plus laisser celui-ci dicter l'interface desktop.
 
-### Passe Technical UI
+### Passe Modern UI
 
-Cette révision pousse davantage l'identité vers un outil d'analyse météo professionnel :
+Cette révision abandonne le langage visuel « terminal / instrumentation » de la passe précédente au profit d’un produit data moderne et plus sobre :
 
-- chrome supérieur sombre type console de données, avec état `DATA LIVE` / `LOCAL CACHE` ;
-- fond quadrillé très discret, panneaux plus rectilignes et rayons réduits ;
-- valeurs, statuts, légendes et métadonnées rendus avec une pile monospace/tabulaire ;
-- graphes et chronologies traités comme des panneaux d'instrumentation ;
-- tableaux comparatifs densifiés avec en-têtes techniques contrastés ;
+- fond neutre et surfaces hiérarchisées, sans quadrillage décoratif omniprésent ;
+- barre supérieure claire/translucide en thème clair et équivalent sombre cohérent ;
+- accent bleu/cyan utilisé avec parcimonie pour les actions, états et données importantes ;
+- typographie d’interface moderne, avec chiffres tabulaires seulement là où ils facilitent la comparaison ;
+- cartes et panneaux moins démonstratifs, avec bordures et ombres discrètes ;
+- graphes et tableaux lisibles sans décor de « console » ;
+- en-têtes de tableaux plus sobres, tout en conservant les heatmaps métier ;
 - TodaySummaryCard étirée à la hauteur cumulée de « À retenir » + « Scénarios » sur grand écran ;
-- variables de la TodaySummaryCard présentées en matrice 2×2 sur desktop afin d'utiliser cette hauteur sans laisser une bande vide ou tronquée.
+- variables de la TodaySummaryCard présentées en matrice 2×2 sur desktop.
+
+Cette passe restaure aussi la fidélité du **biais par modèle** : le biais est affiché dans l’en-tête de la colonne du modèle, avec son état de calibration, et un clic ouvre une page dédiée au modèle et à la variable comme dans l’application Android.
 
 ## Fonctionnalités météo conservées
 
@@ -88,6 +92,10 @@ Cette révision pousse davantage l'identité vers un outil d'analyse météo pro
 - bandes d'incertitude température / pluie / vent, horizons 24 h / 72 h / 7 jours ;
 - repères thermiques ERA5 sur 10 ans avec garde de complétude ;
 - tableaux détaillés journaliers et horaires avec heatmaps et légendes par variable ;
+- heatmaps appliquées à toutes les lignes du tableau, y compris les lignes alternées ;
+- compteurs explicitement libellés en « modèles » dans les cartes, accords, scénarios et diagnostics ;
+- biais affiché dans l’en-tête de chaque modèle concerné, et non répété dans les cellules ;
+- page de biais dédiée par modèle/variable : indice local de fiabilité, MAE/RMSE, biais signé, variabilité, jours proches, tendance récente, historique prévision/observation, comparaison multi-modèles et diagnostics pluie ;
 - conditions WMO et fallback de condition dérivée ;
 - fallback AROME HD de nébulosité basse / moyenne / haute ;
 - évolution des prévisions via snapshots locaux ~24 / 48 / 72 h ;
@@ -172,7 +180,11 @@ Ils couvrent notamment :
 - présence et structure du workflow de déploiement Pages ;
 - présence des heatmaps et légendes ;
 - chronologie riche 24 h / 7 jours ;
-- accord global et action « Pourquoi cet accord ? » dans la TodaySummaryCard, et absence de cette action dans la bande horaire.
+- accord global et action « Pourquoi cet accord ? » dans la TodaySummaryCard, et absence de cette action dans la bande horaire ;
+- heatmaps présentes sur lignes paires et impaires ;
+- libellé « modèles » associé aux compteurs concernés ;
+- biais présent dans les en-têtes de modèles et navigation vers la page de détail du biais ;
+- métriques et historique de la page de biais par modèle.
 
 Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 

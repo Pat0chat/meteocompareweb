@@ -32,3 +32,14 @@ Le service worker ne met pas en cache les réponses Open-Meteo. La couche applic
 ## Réactivité de l’interface
 
 Le port web n’effectue plus de rerender global pendant la saisie de recherche. Le géocodage est debouncé de 600 ms et la requête précédente est annulée lorsque la saisie change. Les objets i18n/Intl et les principaux calculs dérivés d’une prévision sont mis en cache. Les actualisations automatiques des villes sont sérialisées pour éviter plusieurs gros traitements réseau/JSON simultanés sur le thread principal.
+
+## Fidélité du biais Android
+
+Le comportement de l’interface de biais suit désormais la structure Android :
+
+- le `ModelBiasChip` est transposé en badge cliquable dans l’en-tête du modèle des tableaux température, précipitations et vent ;
+- avant 14 journées exploitables, l’en-tête indique la progression de calibration au lieu d’exposer un biais prématuré ;
+- une fois prêt, le badge ouvre une route dédiée `#/city/<ville>/bias/<modèle>/<variable>` ;
+- la page web remplace le `ModelBiasDetailSheet` Android tout en conservant ses informations : indice de fiabilité local, MAE/RMSE, biais moyen, dispersion, jours proches, tendance récente, historique prévision/observation, référence multi-modèles et diagnostics pluie ;
+- le classement local est calculé sur une cohorte de modèles partageant suffisamment de dates comparables ;
+- le biais sert à qualifier la fiabilité locale et n’est pas appliqué silencieusement aux valeurs de prévision affichées.

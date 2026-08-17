@@ -70,7 +70,10 @@ async function hydrateForecastStorage(){
 
 function parseRoute(){
   const hash=(location.hash||'#/').replace(/^#/,''); const parts=hash.split('/').filter(Boolean);
-  if(parts[0]==='settings')return {name:'settings'}; if(parts[0]==='city'&&parts[1])return {name:'city',id:decodeURIComponent(parts[1])}; return {name:'home'};
+  if(parts[0]==='settings')return {name:'settings'};
+  if(parts[0]==='city'&&parts[1]&&parts[2]==='bias'&&parts[3]&&parts[4])return {name:'bias',id:decodeURIComponent(parts[1]),modelId:decodeURIComponent(parts[3]),variable:decodeURIComponent(parts[4])};
+  if(parts[0]==='city'&&parts[1])return {name:'city',id:decodeURIComponent(parts[1])};
+  return {name:'home'};
 }
 function go(path){ location.hash=path; }
 function i18n(){
@@ -95,7 +98,8 @@ function localizedConditionInfo(condition){
 }
 function conditionMarkup(condition,size='normal'){const inf=localizedConditionInfo(condition);return `<span class="weather-icon" title="${esc(inf.label)}" style="font-size:${size==='small'?'1.25rem':'2.35rem'}">${inf.icon}</span>`;}
 function confidenceClass(percent){return percent>=80?'high':percent>=50?'medium':'low';}
-function confidencePill(percent,count){ if(!Number.isFinite(percent))return '';return `<span class="pill confidence ${confidenceClass(percent)}">◎ ${percent}%${count?` · ${count}`:''}</span>`; }
+function modelCountLabel(count){return `${count} ${i18n().t('models')}`;}
+function confidencePill(percent,count){ if(!Number.isFinite(percent))return '';return `<span class="pill confidence ${confidenceClass(percent)}">◎ ${percent}%${Number.isFinite(count)?` · ${modelCountLabel(count)}`:''}</span>`; }
 function toast(message){const root=document.querySelector('#toast-root');if(!root)return;const el=document.createElement('div');el.className='toast';el.textContent=message;root.appendChild(el);setTimeout(()=>el.remove(),3500);}
 
 function viewCache(f){let c=forecastViewCache.get(f);if(!c){c={days:new Map(),scenarios:new Map(),bands:new Map(),heat:new Map(),evolutionSource:null,evolutionReport:null,biasSource:null,biasToday:null,biasReport:null};forecastViewCache.set(f,c);}return c;}
@@ -118,7 +122,7 @@ function render(){
 }
 function renderNow(){
   const {t}=i18n();
-  let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else content=renderCityDetail(state.route.id);
+  let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='bias')content=renderBiasDetailPage(state.route); else content=renderCityDetail(state.route.id);
   app.innerHTML=`${renderTopbar()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
   document.body?.classList?.toggle?.('modal-open',Boolean(state.modal));
   if(state.modal){queueMicrotask(()=>{const input=document.querySelector('#city-search');const dialog=document.querySelector('.modal');(input||dialog?.querySelector('button,input,a,[tabindex]:not([tabindex="-1"])'))?.focus?.({preventScroll:true});});}
@@ -136,7 +140,7 @@ function renderTopbar(){
       <button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span>⚙</span><span>${esc(t('settings'))}</span></button>
     </nav>
     <div class="topbar-spacer"></div>
-    <div class="topbar-system-status ${state.online?'online':'offline'}" title="${state.online?'Connexion active · appels météo disponibles':'Hors ligne · données locales'}"><span class="system-led" aria-hidden="true"></span><span>${state.online?'DATA LIVE':'LOCAL CACHE'}</span></div>
+    <div class="topbar-system-status ${state.online?'online':'offline'}" title="${state.online?'Connexion active · appels météo disponibles':'Hors ligne · données locales'}"><span class="system-led" aria-hidden="true"></span><span>${state.online?'Données en ligne':'Données en cache'}</span></div>
     <div class="topbar-actions">
       ${isHome?`<button class="btn tonal" data-action="refresh-all" ${refreshBusy?'disabled':''}><span class="btn-icon">${refreshBusy?'⟳':'↻'}</span><span class="btn-label">${esc(t('refresh'))}</span></button><button class="btn primary" data-action="open-add-city"><span class="btn-icon">＋</span><span class="btn-label">${esc(t('addCity'))}</span></button>`:''}
       ${!isHome&&!isSettings?`<button class="btn tonal" data-action="settings"><span class="btn-icon">⚙</span><span class="btn-label">${esc(t('settings'))}</span></button>`:''}
@@ -153,7 +157,7 @@ function renderHome(){
   const fresh=state.cities.filter(c=>isForecastFresh(state.forecasts[c.id])).length;
   const busy=state.loading.size;
   return `<main class="page"><section class="hero"><div class="hero-copy"><div class="eyebrow">Dashboard météo</div><h1>${esc(t('cities'))}</h1><p>${esc(t('webHomeIntro'))}</p></div><div class="page-actions"><button class="btn tonal" data-action="refresh-all" ${busy?'disabled':''}>${busy?'⟳':'↻'} ${esc(t('refresh'))}</button><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></div></section>
-  <section class="dashboard-kpis" aria-label="Résumé"><div class="kpi"><div class="kpi-label">Villes suivies</div><div class="kpi-value">${state.cities.length}</div><div class="kpi-note">favoris enregistrés localement</div></div><div class="kpi"><div class="kpi-label">Modèles actifs</div><div class="kpi-value">${state.settings.enabledModelIds.length}</div><div class="kpi-note">sélection configurée</div></div><div class="kpi"><div class="kpi-label">Modèles disponibles</div><div class="kpi-value">${avgModels}</div><div class="kpi-note">moyenne sur les données chargées</div></div><div class="kpi"><div class="kpi-label">Caches à jour</div><div class="kpi-value">${fresh}/${state.cities.length||0}</div><div class="kpi-note">selon la cadence choisie</div></div></section>
+  <section class="dashboard-kpis" aria-label="Résumé"><div class="kpi"><div class="kpi-label">Villes suivies</div><div class="kpi-value">${state.cities.length}</div><div class="kpi-note">favoris enregistrés localement</div></div><div class="kpi"><div class="kpi-label">Modèles actifs</div><div class="kpi-value">${modelCountLabel(state.settings.enabledModelIds.length)}</div><div class="kpi-note">sélection configurée</div></div><div class="kpi"><div class="kpi-label">Modèles disponibles</div><div class="kpi-value">${modelCountLabel(avgModels)}</div><div class="kpi-note">moyenne sur les données chargées</div></div><div class="kpi"><div class="kpi-label">Caches à jour</div><div class="kpi-value">${fresh}/${state.cities.length||0}</div><div class="kpi-note">selon la cadence choisie</div></div></section>
   ${state.cities.length?`<section class="grid city-grid" aria-label="${esc(t('cities'))}">${cards}</section>`:`<section class="empty-state"><div class="big">🌦️</div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}
   </main>`;
 }
@@ -193,7 +197,7 @@ function renderCityDetail(cityId){
     <div class="detail-workspace">
       <aside class="detail-sidebar" aria-label="Navigation de la prévision">
         <div class="sidebar-card"><div class="sidebar-title">Vue d’ensemble</div><nav class="detail-nav" aria-label="Sections de la prévision"><button data-scroll-section="today-summary">${esc(t('today'))}</button><button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button></nav></div>
-        <div class="sidebar-card data-status"><div class="sidebar-title">Données</div><div class="status-row"><span>Modèles</span><strong>${modelCount}</strong></div><div class="status-row"><span>Dernière mise à jour</span><strong>${esc(relativeAge(f.fetchedAt,i18n().lang))}</strong></div><div class="status-row"><span>État réseau</span><strong>${state.online?'En ligne':'Cache local'}</strong></div></div>
+        <div class="sidebar-card data-status"><div class="sidebar-title">Données</div><div class="status-row"><span>Modèles</span><strong>${modelCountLabel(modelCount)}</strong></div><div class="status-row"><span>Dernière mise à jour</span><strong>${esc(relativeAge(f.fetchedAt,i18n().lang))}</strong></div><div class="status-row"><span>État réseau</span><strong>${state.online?'En ligne':'Cache local'}</strong></div></div>
       </aside>
       <div class="detail-main">
         <div class="overview-layout"><div class="overview-primary">${renderTodaySummary(f,agg,now)}</div><div class="overview-secondary">${renderInsights(f,evolution)}${renderScenarios(scenarios)}</div></div>
@@ -210,7 +214,7 @@ function renderCityDetail(cityId){
 
 function renderTodaySummary(f,agg,now){
   const {t}=i18n(); const c=agg.confidence; const overall=c?.overallPercent; const modelCount=Object.keys(f.seriesByModel||{}).length;
-  const precipConfidence=c.precipitation; const precipTxt=precipConfidence?.kind==='NO_RAIN'?`${precipConfidence.percent}% · ${t('dry')}`:precipConfidence?.kind==='DIVIDED'?`${precipConfidence.percent}% · ${precipConfidence.modelsForRain}/${precipConfidence.count} ${t('rain')}`:precipConfidence?`${precipConfidence.percent}%`:'';
+  const precipConfidence=c.precipitation; const precipTxt=precipConfidence?.kind==='NO_RAIN'?`${precipConfidence.percent}% · ${t('dry')}`:precipConfidence?.kind==='DIVIDED'?`${precipConfidence.percent}% · ${precipConfidence.modelsForRain}/${precipConfidence.count} ${t('models')} · ${t('rain')}`:precipConfidence?`${precipConfidence.percent}%`:'';
   const info=localizedConditionInfo(now.condition||agg.condition);
   return `<section class="section today-summary" id="today-summary"><div class="summary-card">
     <div class="summary-accent" style="--summary-accent:${info.accent||'var(--primary)'}"></div>
@@ -257,7 +261,7 @@ function scenarioLabel(s){
   return key?t(key):s.kind;
 }
 function scenarioIcon(kind){return {CLEAR:'☀️',VARIABLE_SKY:'⛅',OVERCAST:'☁️',DRY_UNSPECIFIED:'🌤️',SHOWERS:'🌦️',RAIN:'🌧️',SNOW:'❄️',FREEZING_RAIN:'🧊',THUNDERSTORM:'⛈️',OTHER:'🧩'}[kind]||'🌦️';}
-function renderScenarios(scenarios){if(!scenarios.length)return '';return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(i18n().t('home_scenarios_title'))}</h2><p>${esc(i18n().t('forecast_insights_subtitle_generic'))}</p></div></div><div class="scenario-list">${scenarios.map(s=>`<div class="scenario"><div class="scenario-icon">${scenarioIcon(s.kind)}</div><div><div class="scenario-main">${esc(scenarioLabel(s))}</div><div class="scenario-sub">${Number.isFinite(s.tempMin)&&Number.isFinite(s.tempMax)?`${fmt(s.tempMin)}–${fmt(s.tempMax)} °C`:''}${Number.isFinite(s.precipMax)?` · pluie ${fmtRange(s.precipMin,s.precipMax,' mm',1)}`:''}${Number.isFinite(s.gustMax)?` · rafales jusqu’à ${fmt(s.gustMax)} km/h`:''}</div></div><span class="pill">${s.modelCount}/${s.totalModelCount}</span></div>`).join('')}</div></div></section>`;}
+function renderScenarios(scenarios){if(!scenarios.length)return '';return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(i18n().t('home_scenarios_title'))}</h2><p>${esc(i18n().t('forecast_insights_subtitle_generic'))}</p></div></div><div class="scenario-list">${scenarios.map(s=>`<div class="scenario"><div class="scenario-icon">${scenarioIcon(s.kind)}</div><div><div class="scenario-main">${esc(scenarioLabel(s))}</div><div class="scenario-sub">${Number.isFinite(s.tempMin)&&Number.isFinite(s.tempMax)?`${fmt(s.tempMin)}–${fmt(s.tempMax)} °C`:''}${Number.isFinite(s.precipMax)?` · pluie ${fmtRange(s.precipMin,s.precipMax,' mm',1)}`:''}${Number.isFinite(s.gustMax)?` · rafales jusqu’à ${fmt(s.gustMax)} km/h`:''}</div></div><span class="pill">${s.modelCount}/${s.totalModelCount} ${esc(i18n().t('models'))}</span></div>`).join('')}</div></div></section>`;}
 
 function renderTimeline(f){
   const {t}=i18n();
@@ -372,7 +376,20 @@ function renderReliabilitySection(city,biases){
   <div class="reliability-grid">${vars.map(([key,ico,label,unit])=>{const rank=reliabilityRanking(biases,key);return `<div><b>${ico} ${esc(label)}</b>${rank.length?rank.slice(0,8).map((x,i)=>`<div class="rank-row"><span class="rank-number">${i+1}</span><span><b>${esc(getModel(x.modelId)?.name||x.modelId)}</b><span class="cell-sub">${x.bias.sampleSize} jours</span></span>${renderBiasChip(x.bias,key,unit)}</div>`).join(''):`<div class="small" style="padding:12px 0">${esc(t('biasNotReady'))}</div>`}</div>`;}).join('')}</div></div></section>`;
 }
 function biasSignificance(bias,variable){if(!bias?.ready)return 'NONE';const a=Math.abs(bias.meanBias),ratio=bias.stdDev>0?a/bias.stdDev:Infinity;const th=variable==='TEMPERATURE'?[.3,1]:variable==='PRECIPITATION'?[.5,2]:[3,8];if(a>=th[1]&&ratio>=1)return 'HIGH';if(a>=th[0]&&ratio>=.5)return 'MODERATE';return 'LOW';}
-function renderBiasChip(bias,variable,unit){if(!bias?.ready)return `<span class="bias-chip">—</span>`;const sig=biasSignificance(bias,variable),sign=bias.meanBias>0?'+':'';return `<span class="bias-chip confidence ${sig==='HIGH'?'low':sig==='MODERATE'?'medium':'high'}" title="écart-type ${fmt(bias.stdDev,1)}${unit}">${sign}${fmt(bias.meanBias,1)}${unit}</span>`;}
+function renderBiasChip(bias,variable,unit){if(!bias?.ready)return `<span class="bias-chip pending">${bias?.sampleSize||0}/14 j</span>`;const sig=biasSignificance(bias,variable),sign=bias.meanBias>0?'+':'';return `<span class="bias-chip confidence ${sig==='HIGH'?'low':sig==='MODERATE'?'medium':'high'}" title="écart-type ${fmt(bias.stdDev,1)}${unit}">${sign}${fmt(bias.meanBias,1)}${unit}</span>`;}
+function tableBiasVariable(tab){return tab==='TEMPERATURE'?'TEMPERATURE':tab==='PRECIPITATION'?'PRECIPITATION':tab==='WIND'?'WIND_SPEED':null;}
+function biasUnit(variable){return variable==='TEMPERATURE'?' °C':variable==='PRECIPITATION'?' mm/j':' km/h';}
+function renderTableBiasChip(bias,modelId,variable,cityId){
+  if(!variable)return '';
+  const samples=bias?.sampleSize||0;
+  if(!bias?.ready)return `<span class="bias-chip pending table-bias-chip" title="Calibration locale en cours : ${samples}/14 journées complètes">Calibration ${samples}/14 j</span>`;
+  const sig=biasSignificance(bias,variable),sign=bias.meanBias>0?'+':'',unit=biasUnit(variable);
+  return `<button type="button" class="bias-chip bias-chip-button table-bias-chip confidence ${sig==='HIGH'?'low':sig==='MODERATE'?'medium':'high'}" data-bias-model="${attr(modelId)}" data-bias-variable="${attr(variable)}" data-bias-city="${attr(cityId)}" title="Ouvrir la fiabilité locale · écart-type ${fmt(bias.stdDev,1)}${esc(unit)}">Biais ${sign}${fmt(bias.meanBias,1)}${esc(unit)}</button>`;
+}
+function renderForecastModelHeader(modelId,tab,biases,cityId,showFamily=false){
+  const m=getModel(modelId),variable=tableBiasVariable(tab),bias=variable?biases?.[modelId]?.[variable]:null;
+  return `<span class="model-header">${esc(m?.name||modelId)}</span><span class="cell-sub">${m?.resolutionKm||'?'} km${showFamily?` · ${esc(m?.family||'')}`:''}</span>${renderTableBiasChip(bias,modelId,variable,cityId)}`;
+}
 
 function renderDetailedComparison(f,biases){
   const {t}=i18n(); const mode=state.settings.detailViewMode||'DAILY'; const tab=state.settings.detailTab||'CONDITIONS'; const normals=state.normals[f.city.id]?.normals||null;
@@ -390,26 +407,24 @@ function seriesIndexes(series){
 function visibleModelIds(f){return Object.keys(f.seriesByModel).sort((a,b)=>(getModel(a)?.resolutionKm||999)-(getModel(b)?.resolutionKm||999));}
 function renderDailyTable(f,tab,biases,normals=null){
   const ids=visibleModelIds(f),today=cityToday(f.city.timezone); const dates=[...new Set(ids.flatMap(id=>f.seriesByModel[id].daily.dates))].filter(d=>d>=today).sort().slice(0,7);
-  return `<div class="table-wrap"><table class="forecast-table"><thead><tr><th>Jour</th>${ids.map(id=>{const m=getModel(id);return `<th title="${m?.family||''} · ${m?.resolutionKm||'?'} km"><span class="model-header">${esc(m?.name||id)}</span><span class="cell-sub">${m?.resolutionKm||'?'} km · ${esc(m?.family||'')}</span></th>`;}).join('')}</tr></thead><tbody>${dates.map(date=>`<tr class="${date===today?'current':''}"><td><strong>${esc(dateLabel(date,i18n().locale,'long'))}</strong>${date===today?'<span class="cell-sub">Aujourd’hui</span>':''}</td>${ids.map(id=>renderDailyCell(f.seriesByModel[id],date,tab,biases?.[id],normals?.[date.slice(5)])).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="forecast-table"><thead><tr><th>Jour</th>${ids.map(id=>{const m=getModel(id);return `<th title="${m?.family||''} · ${m?.resolutionKm||'?'} km">${renderForecastModelHeader(id,tab,biases,f.city.id||state.route.id,true)}</th>`;}).join('')}</tr></thead><tbody>${dates.map(date=>`<tr class="${date===today?'current':''}"><td><strong>${esc(dateLabel(date,i18n().locale,'long'))}</strong>${date===today?'<span class="cell-sub">Aujourd’hui</span>':''}</td>${ids.map(id=>renderDailyCell(f.seriesByModel[id],date,tab,biases?.[id],normals?.[date.slice(5)])).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
 function renderDailyCell(s,date,tab,modelBias,normal=null){
   const i=seriesIndexes(s).daily.get(date)??-1;if(i<0)return '<td class="no-data">—</td>';
   if(tab==='CONDITIONS'){const x=dailyCondition(s,date),ci=localizedConditionInfo(x.condition),prob=s.daily.precipitationProbabilityMax[i],cloud=dailyCloudCoverMean(s,date);const isWet=['RAIN','RAIN_SHOWERS','THUNDERSTORM','FREEZING_RAIN','SNOW','SNOW_SHOWERS'].includes(x.condition);const badge=isWet?(Number.isFinite(prob)?prob+'%':null):(['PARTLY_CLOUDY','OVERCAST'].includes(x.condition)&&Number.isFinite(cloud)?cloud+'%':null);return `<td title="${esc(ci.label)}${x.inferred?' · condition inférée du même modèle':''}">${conditionMarkup(x.condition,'small')}<span class="condition-label">${esc(ci.label)}</span>${badge?`<span class="cell-sub">${badge}</span>`:''}${x.inferred?'<span class="cell-sub">≈ inféré</span>':''}</td>`;}
-  if(tab==='TEMPERATURE'){const max=s.daily.tempMax[i],min=s.daily.tempMin[i];const maxClass=temperatureNormalClass(max,normal?.tempMaxNormal),minClass=temperatureNormalClass(min,normal?.tempMinNormal);return `<td class="normal-temp-cell"><span class="${maxClass}">${Number.isFinite(max)?fmt(max,1)+'°':'—'}</span><span class="temp-separator"> / </span><span class="${minClass}">${Number.isFinite(min)?fmt(min,1)+'°':'—'}</span>${renderInlineBias(modelBias?.TEMPERATURE,'TEMPERATURE','°')}</td>`;}
-  if(tab==='PRECIPITATION'){const p=s.daily.precipitationSum[i],prob=s.daily.precipitationProbabilityMax[i];const style=Number.isFinite(p)?dailyIntensityStyle('PRECIPITATION',p):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(p)?fmt(p,1)+' mm':'—'}${Number.isFinite(prob)?`<span class="cell-sub">max ${prob}%</span>`:''}${renderInlineBias(modelBias?.PRECIPITATION,'PRECIPITATION',' mm/j')}</td>`;}
-  const w=s.daily.windSpeedMax[i],g=s.daily.windGustsMax[i],dir=s.daily.windDirection10mDominant[i],arrow=windArrow(dir,w);const style=Number.isFinite(w)?dailyIntensityStyle('WIND',w):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(dir)?`<span class="cell-sub">${formatWindDirection(dir)}${Number.isFinite(g)?` · R ${fmt(g)}`:''}</span>`:''}${renderInlineBias(modelBias?.WIND_SPEED,'WIND_SPEED',' km/h')}</td>`;
+  if(tab==='TEMPERATURE'){const max=s.daily.tempMax[i],min=s.daily.tempMin[i];const maxClass=temperatureNormalClass(max,normal?.tempMaxNormal),minClass=temperatureNormalClass(min,normal?.tempMinNormal);return `<td class="normal-temp-cell"><span class="${maxClass}">${Number.isFinite(max)?fmt(max,1)+'°':'—'}</span><span class="temp-separator"> / </span><span class="${minClass}">${Number.isFinite(min)?fmt(min,1)+'°':'—'}</span></td>`;}
+  if(tab==='PRECIPITATION'){const p=s.daily.precipitationSum[i],prob=s.daily.precipitationProbabilityMax[i];const style=Number.isFinite(p)?dailyIntensityStyle('PRECIPITATION',p):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(p)?fmt(p,1)+' mm':'—'}${Number.isFinite(prob)?`<span class="cell-sub">max ${prob}%</span>`:''}</td>`;}
+  const w=s.daily.windSpeedMax[i],g=s.daily.windGustsMax[i],dir=s.daily.windDirection10mDominant[i],arrow=windArrow(dir,w);const style=Number.isFinite(w)?dailyIntensityStyle('WIND',w):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(dir)?`<span class="cell-sub">${formatWindDirection(dir)}${Number.isFinite(g)?` · R ${fmt(g)}`:''}</span>`:''}</td>`;
 }
 
 function temperatureNormalClass(value,normal){if(!Number.isFinite(value)||!Number.isFinite(normal))return 'temp-normal';const d=value-normal;return d>2?'temp-above':d<-2?'temp-below':'temp-normal';}
-
-function renderInlineBias(b,variable,unit){if(!b?.ready)return '';const sig=biasSignificance(b,variable);if(sig==='LOW')return '';return `<span class="cell-sub confidence ${sig==='HIGH'?'low':'medium'}">biais ${b.meanBias>0?'+':''}${fmt(b.meanBias,1)}${unit}</span>`;}
 
 function renderHourlyTable(f,tab,biases){
   const ids=visibleModelIds(f),nowLocal=(new Date()); const today=cityToday(f.city.timezone);const all=[...new Set(ids.flatMap(id=>f.seriesByModel[id].hourly.timestamps))].filter(ts=>ts.slice(0,10)>=today).sort();
   const rows=all.slice(0,48); const hourNow=new Intl.DateTimeFormat('en-GB',{timeZone:f.city.timezone||'UTC',hour:'2-digit',hourCycle:'h23'}).format(nowLocal).slice(0,2);const nowKey=`${today}T${hourNow}:00`;const nowMs=Date.parse(nowKey+'Z');
   const targetHour=rows.reduce((best,ts)=>Math.abs(Date.parse(ts+'Z')-nowMs)<Math.abs(Date.parse((best||ts)+'Z')-nowMs)?ts:best,rows[0]);
-  return `<div class="table-wrap"><table class="forecast-table"><thead><tr><th>Heure</th>${ids.map(id=>{const m=getModel(id);return `<th><span class="model-header">${esc(m?.name||id)}</span><span class="cell-sub">${m?.resolutionKm||'?'} km</span></th>`;}).join('')}</tr></thead><tbody>${rows.map(ts=>`<tr class="${ts===targetHour?'current':''}"><td><strong>${esc(ts.slice(5,10))}</strong><span class="cell-sub">${esc(timeLabel(ts))}${ts===targetHour?' · maintenant':''}</span></td>${ids.map(id=>renderHourlyCell(f.seriesByModel[id],ts,tab)).join('')}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="forecast-table"><thead><tr><th>Heure</th>${ids.map(id=>`<th>${renderForecastModelHeader(id,tab,biases,f.city.id||state.route.id,false)}</th>`).join('')}</tr></thead><tbody>${rows.map(ts=>`<tr class="${ts===targetHour?'current':''}"><td><strong>${esc(ts.slice(5,10))}</strong><span class="cell-sub">${esc(timeLabel(ts))}${ts===targetHour?' · maintenant':''}</span></td>${ids.map(id=>renderHourlyCell(f.seriesByModel[id],ts,tab)).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
 function renderHourlyCell(s,ts,tab){
@@ -418,6 +433,103 @@ function renderHourlyCell(s,ts,tab){
   if(tab==='TEMPERATURE'){const v=s.hourly.temperature2m[i];return `<td class="heatmap-data-cell" ${Number.isFinite(v)?heatStyle('TEMPERATURE',v):''}>${Number.isFinite(v)?fmt(v,1)+' °C':'—'}</td>`;}
   if(tab==='PRECIPITATION'){const v=s.hourly.precipitation[i],pp=s.hourly.precipitationProbability[i];return `<td class="heatmap-data-cell" ${Number.isFinite(v)?heatStyle('PRECIPITATION',v):''}>${Number.isFinite(v)?fmt(v,1)+' mm':'—'}${Number.isFinite(pp)?`<span class="cell-sub">${pp}%</span>`:''}</td>`;}
   const w=s.hourly.windSpeed10m[i],g=s.hourly.windGusts10m[i],dir=s.hourly.windDirection10m[i],arrow=windArrow(dir,w);return `<td class="heatmap-data-cell" ${Number.isFinite(w)?heatStyle('WIND',w):''}>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(g)?`<span class="cell-sub">R ${fmt(g)} km/h</span>`:''}</td>`;
+}
+
+
+const BIAS_MIN_SAMPLES=14;
+function biasVariableLabel(variable){const {t}=i18n();return variable==='TEMPERATURE'?t('temperature'):variable==='PRECIPITATION'?t('precipitation'):t('wind');}
+function biasScale(variable){return variable==='TEMPERATURE'?{closeTolerance:1.5,maeScale:2.4,biasScale:1.2,spreadScale:3}:variable==='PRECIPITATION'?{closeTolerance:1,maeScale:3,biasScale:1.5,spreadScale:4}:{closeTolerance:5,maeScale:8,biasScale:5,spreadScale:10};}
+function average(values){return values.length?values.reduce((a,b)=>a+b,0)/values.length:null;}
+function sampleStdDev(values,mean){if(values.length<=1)return 0;return Math.sqrt(values.reduce((sum,v)=>sum+(v-mean)**2,0)/(values.length-1));}
+function rawBiasSamples(cityId,modelId,variable,windowDays=30){
+  const city=state.cities.find(c=>c.id===cityId),source=state.bias[cityId]||{forecasts:[],observations:[]};if(!city)return [];
+  const today=cityToday(city.timezone),start=addDays(today,-windowDays),obs=new Map();
+  for(const o of source.observations||[])if(o.variable===variable&&o.targetDate>=start&&o.targetDate<today&&Number.isFinite(o.value))obs.set(o.targetDate,o.value);
+  const forecastByDate=new Map();
+  for(const f of source.forecasts||[])if(f.modelId===modelId&&f.variable===variable&&f.targetDate>=start&&f.targetDate<today&&Number.isFinite(f.value))forecastByDate.set(f.targetDate,f.value);
+  return [...forecastByDate].map(([date,forecast])=>({date,forecast,observation:obs.get(date)})).filter(x=>Number.isFinite(x.observation)).map(x=>({...x,error:x.forecast-x.observation})).sort((a,b)=>a.date.localeCompare(b.date));
+}
+function computeLocalReliability(variable,samples,windowDays=30){
+  if(samples.length<BIAS_MIN_SAMPLES)return null;
+  const errors=samples.map(x=>x.error),absErrors=errors.map(Math.abs),meanBias=average(errors),mae=average(absErrors),rmse=Math.sqrt(average(errors.map(x=>x*x))),stdDev=sampleStdDev(errors,meanBias),scale=biasScale(variable);
+  const withinToleranceRate=absErrors.filter(x=>x<=scale.closeTolerance).length/errors.length;
+  const overestimateRate=errors.filter(x=>x>0).length/errors.length,underestimateRate=errors.filter(x=>x<0).length/errors.length;
+  const overToleranceOverestimateRate=errors.filter(x=>x>scale.closeTolerance).length/errors.length,underToleranceUnderestimateRate=errors.filter(x=>x<-scale.closeTolerance).length/errors.length;
+  const expScore=(value,scaleValue)=>Math.exp(-Math.max(0,value)/scaleValue);
+  const score=Math.max(0,Math.min(100,Math.round((expScore(mae,scale.maeScale)*.42+expScore(Math.abs(meanBias),scale.biasScale)*.20+expScore(stdDev,scale.spreadScale)*.16+withinToleranceRate*.17+Math.min(1,samples.length/windowDays)*.05)*100)));
+  const level=score>=85?'EXCELLENT':score>=70?'GOOD':score>=50?'FAIR':'LIMITED';
+  let recentMeanAbsoluteError=null,previousMeanAbsoluteError=null,trend='INSUFFICIENT_DATA';
+  if(absErrors.length>=10){const recentCount=Math.min(7,Math.floor(absErrors.length/2)),previousCount=Math.min(recentCount,absErrors.length-recentCount);if(previousCount>=3){recentMeanAbsoluteError=average(absErrors.slice(-recentCount));previousMeanAbsoluteError=average(absErrors.slice(-(recentCount+previousCount),-recentCount));const meaningful=Math.max(scale.closeTolerance*.15,previousMeanAbsoluteError*.12);trend=recentMeanAbsoluteError<previousMeanAbsoluteError-meaningful?'IMPROVING':recentMeanAbsoluteError>previousMeanAbsoluteError+meaningful?'DECLINING':'STABLE';}}
+  let precipitation=null;
+  if(variable==='PRECIPITATION'){let hits=0,misses=0,falseAlarms=0,observedWetDays=0,forecastWetDays=0;for(const x of samples){const fw=x.forecast>=.5,ow=x.observation>=.5;if(fw)forecastWetDays++;if(ow)observedWetDays++;if(fw&&ow)hits++;else if(fw&&!ow)falseAlarms++;else if(!fw&&ow)misses++;}precipitation={hitRate:observedWetDays?hits/observedWetDays:null,falseAlarmRate:forecastWetDays?falseAlarms/forecastWetDays:null,missedEventRate:observedWetDays?misses/observedWetDays:null,hitCount:hits,falseAlarmCount:falseAlarms,missedEventCount:misses,observedWetDays,forecastWetDays};}
+  return {variable,score,level,meanBias,meanAbsoluteError:mae,rootMeanSquareError:rmse,standardDeviation:stdDev,withinToleranceRate,overestimateRate,underestimateRate,closeRate:withinToleranceRate,overToleranceOverestimateRate,underToleranceUnderestimateRate,closeTolerance:scale.closeTolerance,sampleSize:samples.length,windowDays,recentMeanAbsoluteError,previousMeanAbsoluteError,trend,precipitation};
+}
+function biasHistoriesByModel(cityId,variable){
+  const source=state.bias[cityId]||{forecasts:[]};const ids=[...new Set((source.forecasts||[]).filter(x=>x.variable===variable).map(x=>x.modelId))];
+  return Object.fromEntries(ids.map(id=>[id,rawBiasSamples(cityId,id,variable)]).filter(([,samples])=>samples.length));
+}
+function comparableBiasCohort(histories,minimumSamples=BIAS_MIN_SAMPLES){
+  const entries=Object.entries(histories).filter(([,samples])=>samples.length>=minimumSamples).sort(([a],[b])=>a.localeCompare(b));if(entries.length<2)return null;
+  let best=null;
+  const better=(ids,dates)=>{if(ids.length<2||dates.size<minimumSamples)return;const key=ids.join('|');if(!best||ids.length>best.ids.length||(ids.length===best.ids.length&&dates.size>best.dates.size)||(ids.length===best.ids.length&&dates.size===best.dates.size&&key<best.key))best={ids:[...ids],dates:new Set(dates),key};};
+  const visit=(index,ids,common)=>{
+    if(ids.length+(entries.length-index)<(best?.ids.length||2))return;
+    if(ids.length>=2&&common)better(ids,common);
+    if(index>=entries.length)return;
+    const [id,samples]=entries[index],dateSet=new Set(samples.map(x=>x.date));
+    const nextCommon=common?new Set([...common].filter(d=>dateSet.has(d))):dateSet;
+    if(nextCommon.size>=minimumSamples)visit(index+1,[...ids,id],nextCommon);
+    visit(index+1,ids,common);
+  };
+  visit(0,[],null);return best;
+}
+function computeMultiModelBiasBaseline(variable,histories,cohort){
+  if(!cohort)return null;const byModel=Object.fromEntries(cohort.ids.map(id=>[id,new Map((histories[id]||[]).map(x=>[x.date,x]))]));const samples=[];
+  for(const date of [...cohort.dates].sort()){const rows=cohort.ids.map(id=>byModel[id].get(date)).filter(Boolean);if(rows.length<2)continue;samples.push({date,forecast:average(rows.map(x=>x.forecast)),observation:average(rows.map(x=>x.observation))});}
+  return computeLocalReliability(variable,samples.map(x=>({...x,error:x.forecast-x.observation})),30);
+}
+function buildBiasSelectionWeb(cityId,modelId,variable){
+  const histories=biasHistoriesByModel(cityId,variable),sourceSamples=histories[modelId]||rawBiasSamples(cityId,modelId,variable),cohort=comparableBiasCohort(histories);
+  const comparable=Boolean(cohort?.ids.includes(modelId));const samples=comparable?sourceSamples.filter(x=>cohort.dates.has(x.date)):sourceSamples;const reliability=computeLocalReliability(variable,samples,30);
+  if(!reliability)return {ready:false,samples,sourceSamples,cohort};
+  let rank=null,ranking=[];
+  if(comparable){ranking=cohort.ids.map(id=>{const rows=(histories[id]||[]).filter(x=>cohort.dates.has(x.date));return {modelId:id,reliability:computeLocalReliability(variable,rows,30)};}).filter(x=>x.reliability).sort((a,b)=>b.reliability.score-a.reliability.score||a.reliability.meanAbsoluteError-b.reliability.meanAbsoluteError||(getModel(a.modelId)?.name||a.modelId).localeCompare(getModel(b.modelId)?.name||b.modelId));const index=ranking.findIndex(x=>x.modelId===modelId);if(index>=0)rank={rank:index+1,modelCount:ranking.length};}
+  return {ready:true,samples,reliability,rank,ranking,baseline:computeMultiModelBiasBaseline(variable,histories,comparable?cohort:null),cohort};
+}
+function reliabilityLevelLabel(level){return {EXCELLENT:'Excellente',GOOD:'Bonne',FAIR:'Moyenne',LIMITED:'Limitée'}[level]||level;}
+function reliabilityLevelClass(level){return level==='EXCELLENT'?'high':level==='GOOD'?'high':level==='FAIR'?'medium':'low';}
+function biasTrendLabel(r){if(r.trend==='IMPROVING')return 'En amélioration';if(r.trend==='DECLINING')return 'En dégradation';if(r.trend==='STABLE')return 'Stable';return 'Historique récent insuffisant';}
+function formatBiasValue(value,variable,d=1){return `${fmt(value,d)}${biasUnit(variable)}`;}
+function formatSignedBias(value,variable){return `${value>0?'+':''}${fmt(value,1)}${biasUnit(variable)}`;}
+function biasDirectionText(r){if(Math.abs(r.meanBias)<.05)return 'globalement calibré';return r.meanBias>0?'tendance à surestimer':'tendance à sous-estimer';}
+function renderBiasHistoryChart(samples,variable){
+  if(samples.length<2)return `<div class="empty-state compact">Historique insuffisant pour tracer le graphique.</div>`;
+  const width=960,height=300,pad={l:54,r:20,t:22,b:46},values=samples.flatMap(x=>[x.forecast,x.observation]);let ymin=Math.min(...values),ymax=Math.max(...values);if(variable!=='TEMPERATURE')ymin=0;const extra=variable==='TEMPERATURE'?1:variable==='PRECIPITATION'?.5:3;ymin-=variable==='TEMPERATURE'?extra:0;ymax+=extra;if(ymax-ymin<1)ymax=ymin+1;
+  const x=i=>pad.l+i*(width-pad.l-pad.r)/Math.max(1,samples.length-1),y=v=>pad.t+(ymax-v)*(height-pad.t-pad.b)/(ymax-ymin);let grid='',labels='';
+  for(let i=0;i<=4;i++){const value=ymin+(ymax-ymin)*i/4,yy=y(value);grid+=`<line class="bias-chart-grid" x1="${pad.l}" y1="${yy}" x2="${width-pad.r}" y2="${yy}"/><text class="bias-chart-axis" x="${pad.l-8}" y="${yy+4}" text-anchor="end">${fmt(value,variable==='PRECIPITATION'?1:0)}</text>`;}
+  const every=Math.max(1,Math.floor(samples.length/5));samples.forEach((s,i)=>{if(i%every===0||i===samples.length-1)labels+=`<text class="bias-chart-axis" x="${x(i)}" y="${height-14}" text-anchor="middle">${esc(s.date.slice(5))}</text>`;});
+  const forecast=samples.map((s,i)=>`${x(i)},${y(s.forecast)}`).join(' '),observation=samples.map((s,i)=>`${x(i)},${y(s.observation)}`).join(' ');
+  return `<div class="bias-chart-shell"><div class="chart-legend"><span><i class="legend-line bias-forecast"></i>Prévision J+1</span><span><i class="legend-line bias-observation"></i>Observation</span></div><svg class="bias-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Historique prévision et observation pour ${esc(biasVariableLabel(variable))}">${grid}<polyline class="bias-chart-observation" points="${observation}"/><polyline class="bias-chart-forecast" points="${forecast}"/>${labels}</svg></div>`;
+}
+function renderPrecipitationDiagnostics(r){const p=r.precipitation;if(!p)return '';const rate=v=>Number.isFinite(v)?`${Math.round(v*100)} %`:'—';return `<section class="bias-panel"><div class="bias-panel-head"><h2>Diagnostic pluie</h2><p>Seuil d’un jour humide : 0,5 mm.</p></div><div class="bias-metrics-grid bias-metrics-three"><div class="bias-metric"><span>Taux de détection</span><strong>${rate(p.hitRate)}</strong><small>${p.hitCount} détections / ${p.observedWetDays} jours humides observés</small></div><div class="bias-metric"><span>Fausses alertes</span><strong>${rate(p.falseAlarmRate)}</strong><small>${p.falseAlarmCount} fausses alertes / ${p.forecastWetDays} jours humides prévus</small></div><div class="bias-metric"><span>Épisodes manqués</span><strong>${rate(p.missedEventRate)}</strong><small>${p.missedEventCount} jours humides non détectés</small></div></div></section>`;}
+function renderBiasDetailPage(route){
+  const city=state.cities.find(c=>c.id===route.id),model=getModel(route.modelId),variable=['TEMPERATURE','PRECIPITATION','WIND_SPEED'].includes(route.variable)?route.variable:null;if(!city||!model||!variable)return `<main class="page"><div class="empty-state"><h2>Page de biais introuvable</h2><button class="btn" data-action="back">Retour</button></div></main>`;
+  const selection=buildBiasSelectionWeb(city.id,model.id,variable),source=state.bias[city.id]||{},unit=biasUnit(variable),updated=source.updatedAt?relativeAge(new Date(source.updatedAt).toISOString(),i18n().lang):'jamais';
+  const heading=`${model.name} · ${biasVariableLabel(variable)}`;
+  if(!selection.ready)return `<main class="page bias-page"><section class="bias-page-header"><div><div class="eyebrow">Fiabilité locale J+1</div><h1>${esc(heading)}</h1><p>${esc(city.name)} · historique local sur 30 jours</p></div><button class="btn tonal" data-bias-refresh-city="${attr(city.id)}" ${state.biasRefresh.has(city.id)?'disabled':''}>${state.biasRefresh.has(city.id)?'⟳':'↻'} Actualiser l’historique</button></section><section class="bias-panel bias-empty-panel"><div class="bias-progress-ring">${selection.samples.length}<small>/14</small></div><div><h2>Calibration en cours</h2><p>${selection.samples.length} journées complètes sont disponibles pour ce modèle et cette variable. Il en faut au moins 14 pour afficher le biais et la fiabilité locale.</p><p class="small">Dernière actualisation de l’historique : ${esc(updated)}.</p></div></section></main>`;
+  const r=selection.reliability,rank=selection.rank,baseline=selection.baseline,deltaBaseline=baseline?r.meanAbsoluteError-baseline.meanAbsoluteError:null;
+  return `<main class="page bias-page">
+    <section class="bias-page-header"><div><div class="eyebrow">Fiabilité locale J+1</div><h1>${esc(heading)}</h1><p>${esc(city.name)} · ${r.sampleSize} journées comparables sur une fenêtre de ${r.windowDays} jours · historique ${esc(updated)}</p></div><button class="btn tonal" data-bias-refresh-city="${attr(city.id)}" ${state.biasRefresh.has(city.id)?'disabled':''}>${state.biasRefresh.has(city.id)?'⟳':'↻'} Actualiser l’historique</button></section>
+    <section class="bias-hero ${reliabilityLevelClass(r.level)}"><div class="bias-score-block"><span class="bias-overline">Indice local de fiabilité</span><div class="bias-score"><strong>${r.score}</strong><span>/100</span></div><div class="bias-score-track"><i style="width:${r.score}%"></i></div></div><div class="bias-hero-copy"><span class="bias-level">${reliabilityLevelLabel(r.level)}</span><h2>${esc(model.name)} est ${esc(biasDirectionText(r))} sur ${esc(city.name)}.</h2><p>L’erreur absolue moyenne est de <strong>${formatBiasValue(r.meanAbsoluteError,variable)}</strong>. Le biais signé est de <strong>${formatSignedBias(r.meanBias,variable)}</strong>.</p><div class="bias-hero-meta"><span>${rank?`Rang ${rank.rank}/${rank.modelCount} ${esc(i18n().t('models'))}`:'Pas de cohorte multi-modèles comparable'}</span><span>${r.sampleSize} jours</span><span>${esc(biasVariableLabel(variable))}</span></div></div></section>
+    <section class="bias-panel"><div class="bias-panel-head"><h2>Performance locale</h2><p>Erreur ressentie, calibration et régularité du modèle sur les mêmes journées.</p></div><div class="bias-metrics-grid"><div class="bias-metric emphasized"><span>Erreur absolue moyenne</span><strong>${formatBiasValue(r.meanAbsoluteError,variable)}</strong><small>RMSE ${formatBiasValue(r.rootMeanSquareError,variable)}</small></div><div class="bias-metric"><span>Biais moyen</span><strong>${formatSignedBias(r.meanBias,variable)}</strong><small>${esc(biasDirectionText(r))}</small></div><div class="bias-metric"><span>Jours proches</span><strong>${Math.round(r.withinToleranceRate*100)} %</strong><small>écart ≤ ${formatBiasValue(r.closeTolerance,variable)}</small></div><div class="bias-metric"><span>Variabilité de l’erreur</span><strong>${formatBiasValue(r.standardDeviation,variable)}</strong><small>écart-type des erreurs quotidiennes</small></div></div></section>
+    <section class="bias-panel"><div class="bias-panel-head"><h2>Évolution récente</h2><p>${biasTrendLabel(r)}</p></div>${Number.isFinite(r.recentMeanAbsoluteError)&&Number.isFinite(r.previousMeanAbsoluteError)?`<div class="bias-trend"><div><span>Période précédente</span><strong>${formatBiasValue(r.previousMeanAbsoluteError,variable)}</strong></div><div class="bias-trend-arrow">→</div><div><span>7 derniers jours</span><strong>${formatBiasValue(r.recentMeanAbsoluteError,variable)}</strong></div><span class="pill confidence ${r.trend==='IMPROVING'?'high':r.trend==='DECLINING'?'low':'medium'}">${biasTrendLabel(r)}</span></div>`:`<div class="banner info">Pas encore assez de recul pour comparer la période récente à la précédente.</div>`}</section>
+    ${baseline?`<section class="bias-panel"><div class="bias-panel-head"><h2>Comparaison multi-modèles</h2><p>Référence locale calculée en moyennant les prévisions des modèles sur les dates communes.</p></div><div class="bias-baseline"><div><span>${esc(model.name)}</span><strong>${formatBiasValue(r.meanAbsoluteError,variable)} MAE</strong></div><div><span>Moyenne multi-modèles</span><strong>${formatBiasValue(baseline.meanAbsoluteError,variable)} MAE</strong></div><div class="bias-baseline-result ${deltaBaseline<=0?'better':'worse'}">${deltaBaseline<=0?`${esc(model.name)} fait mieux de ${formatBiasValue(Math.abs(deltaBaseline),variable)}`:`La moyenne multi-modèles fait mieux de ${formatBiasValue(Math.abs(deltaBaseline),variable)}`}</div></div></section>`:''}
+    <section class="bias-panel"><div class="bias-panel-head"><h2>Historique prévision / observation</h2><p>Chaque point représente une journée J+1 utilisée pour les statistiques ci-dessus.</p></div>${renderBiasHistoryChart(selection.samples,variable)}</section>
+    ${renderPrecipitationDiagnostics(r)}
+    <section class="bias-panel"><div class="bias-panel-head"><h2>Répartition des erreurs</h2><p>Lecture autour de la tolérance locale de ${formatBiasValue(r.closeTolerance,variable)}.</p></div><div class="bias-distribution"><div class="under" style="--share:${Math.round(r.underToleranceUnderestimateRate*100)}%"><span>Sous-estimation</span><strong>${Math.round(r.underToleranceUnderestimateRate*100)} %</strong></div><div class="close" style="--share:${Math.round(r.closeRate*100)}%"><span>Proche</span><strong>${Math.round(r.closeRate*100)} %</strong></div><div class="over" style="--share:${Math.round(r.overToleranceOverestimateRate*100)}%"><span>Surestimation</span><strong>${Math.round(r.overToleranceOverestimateRate*100)} %</strong></div></div></section>
+    <section class="bias-panel bias-reading"><div><div class="bias-panel-head"><h2>Lecture du biais</h2></div><div class="bias-reading-value">${formatSignedBias(r.meanBias,variable)}</div><p>Le biais indique le <strong>sens moyen</strong> de l’erreur ; il ne suffit pas à mesurer la qualité. C’est pourquoi cette page affiche aussi la MAE, le RMSE, la variabilité et le taux de jours proches.</p></div><div class="bias-reading-note"><strong>${r.sampleSize} journées</strong><span>Échantillon utilisé</span><strong>${formatBiasValue(r.standardDeviation,variable)}</strong><span>Écart-type</span></div></section>
+    <p class="small bias-method-note">Indice pédagogique local, calculé sur les prévisions J+1 appariées aux observations. Il ne constitue ni une probabilité de justesse ni un indicateur de vigilance météorologique.</p>
+  </main>`;
 }
 
 function renderSettings(){
@@ -483,7 +595,7 @@ function handleAppInput(e){
   if(e.target?.id==='city-search')scheduleSearch(e.target.value);
 }
 function handleAppClick(e){
-  const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-scroll-section]');
+  const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section]');
   if(!target||!app.contains(target))return;
   if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
   if(target.dataset.cityMenu){e.stopPropagation();lastFocusedBeforeModal=document.activeElement;state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
@@ -500,6 +612,7 @@ function handleAppClick(e){
   if(target.dataset.refreshInterval){state.settings.refreshInterval=target.dataset.refreshInterval;persistSettings();render();refreshDueCities();return;}
   if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render();return;}
   if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
+  if(target.dataset.biasModel&&target.dataset.biasVariable){const cityId=target.dataset.biasCity||state.route.id;if(cityId)go(`#/city/${encodeURIComponent(cityId)}/bias/${encodeURIComponent(target.dataset.biasModel)}/${encodeURIComponent(target.dataset.biasVariable)}`);return;}
   if(target.dataset.biasRefreshCity){refreshBiasForCity(target.dataset.biasRefreshCity);return;}
   if(target.dataset.scrollSection){document.getElementById?.(target.dataset.scrollSection)?.scrollIntoView?.({behavior:'smooth',block:'start'});return;}
   if(target.dataset.cityOpen){if(e.target.closest('button'))return;go(`#/city/${encodeURIComponent(target.dataset.cityOpen)}`);}
@@ -596,7 +709,7 @@ async function refreshCity(cityId,force=false,renderUpdates=true){
 }
 function humanError(err){if(err?.name==='AbortError')return 'La requête météo a expiré.';const m=String(err?.message||err||'Erreur inconnue');if(/Failed to fetch/i.test(m))return 'Impossible de joindre Open-Meteo. Vérifiez la connexion et les règles CORS de l’hébergement.';return m;}
 
-function onRouteSettled(){if(state.route.name==='city'){const id=state.route.id;if(!state.forecasts[id])refreshCity(id,false);else scheduleIdle(()=>ensureNormals(id));}}
+function onRouteSettled(){if(state.route.name==='city'||state.route.name==='bias'){const id=state.route.id;if(!state.forecasts[id])refreshCity(id,false);else if(state.route.name==='city')scheduleIdle(()=>ensureNormals(id));}}
 function scheduleIdle(fn){if('requestIdleCallback' in window)requestIdleCallback(()=>fn(),{timeout:1200});else setTimeout(fn,80);}
 async function ensureNormals(cityId){
   const city=state.cities.find(c=>c.id===cityId);if(!city||!state.online)return;const cached=state.normals[cityId]||loadNormals(cityId);if(cached&&Date.now()-(cached.computedAt||0)<180*24*3600e3){state.normals[cityId]=cached;return;}

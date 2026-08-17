@@ -18,7 +18,7 @@ L'audit a porté sur l'interface desktop/mobile, le rendu DOM, les interactions,
 
 ### Corrections
 
-- shell desktop jusqu'à 1600 px ;
+- shell desktop jusqu'à 1560 px ;
 - vraie navigation horizontale et actions textuelles ;
 - dashboard de synthèse ;
 - grille de villes 3/2/1 colonnes responsive ;
@@ -150,20 +150,55 @@ Une passe supplémentaire a comparé la vue web à l’implémentation Android f
 - sans réseau, aucune nouvelle donnée Open-Meteo ne peut être téléchargée ;
 - GitHub Pages héberge le frontend statique : il n'ajoute pas de backend ni de stockage serveur partagé.
 
-## 11. Technical UI et équilibrage TodaySummary — corrigé
+## 11. Modern UI, heatmaps et fidélité du biais — corrigé
 
-Une nouvelle passe visuelle a été appliquée après le retour indiquant que l’interface restait trop proche d’une application mobile et que la zone de variables de la TodaySummaryCard paraissait tronquée.
+Une nouvelle passe remplace l’identité « console / instrumentation » devenue trop lourde et restaure plusieurs comportements de l’application Android qui avaient été altérés pendant les refontes précédentes.
 
-### Corrections
+### Identité visuelle
 
-- la grille `overview-layout` étire désormais la TodaySummaryCard à la hauteur totale de la colonne « À retenir » + « Scénarios » sur grand écran ;
-- la zone des quatre variables utilise une matrice 2×2 sur desktop pour exploiter la hauteur supplémentaire de manière lisible ;
-- retour automatique à une disposition plus compacte lorsque les colonnes se replient sous 1320 px ;
-- palette revue vers des bleus ardoise/cyan plus techniques, avec chrome supérieur sombre ;
-- grille de fond subtile, rayons réduits et panneaux à bordures plus franches ;
-- typographie monospace/tabulaire pour valeurs, statuts, légendes et métadonnées techniques ;
-- traitement renforcé des graphes, chronologies et tableaux comme panneaux d’instrumentation ;
-- indicateur réseau `DATA LIVE` / `LOCAL CACHE` dans la barre supérieure ;
-- cache PWA incrémenté en `v6-technical-ui`.
+- suppression du quadrillage décoratif global et des grilles de fond dans les graphes ;
+- abandon du chrome sombre systématique, des compteurs pseudo-techniques et du monospace omniprésent ;
+- palette neutre avec accent bleu/cyan, surfaces plus sobres et hiérarchie typographique de produit data moderne ;
+- topbar et panneaux allégés sans perdre la densité d’information ;
+- TodaySummaryCard toujours étirée à la hauteur cumulée de « À retenir » + « Scénarios », avec matrice 2×2 des variables sur grand écran.
 
-Les tests statiques vérifient maintenant explicitement l’étirement de la TodaySummaryCard, la matrice 2×2 des variables, la présence de la pile typographique technique et l’indicateur d’état de données.
+### Compteurs de modèles
+
+- les nombres isolés liés aux cohortes affichent désormais explicitement « modèles » ;
+- correction d’une erreur i18n où la clé `models` utilisait « scénarios/scenarios » en français et anglais ;
+- traductions corrigées en FR / EN / ES / DE / IT.
+
+### Heatmaps des tableaux
+
+La disparition des heatmaps une ligne sur deux venait du zébrage CSS des lignes paires, déclaré après la règle heatmap et donc prioritaire sur son arrière-plan. Le rendu a été corrigé afin que la variable `--heat` reste visible sur **toutes** les lignes, paires comme impaires, y compris pour la ligne courante.
+
+### Biais par modèle
+
+Le comportement a été réaligné sur `ModelBiasChip` et `ModelBiasDetailSheet` de l’application Android :
+
+- badge de biais dans l’en-tête du modèle pour température, précipitations et vent ;
+- suppression du biais répété dans chaque cellule ;
+- état `Calibration N/14 j` tant que le minimum d’historique n’est pas atteint ;
+- badge cliquable une fois prêt ;
+- route dédiée par ville / modèle / variable, compatible avec le bouton Retour du navigateur ;
+- page de détail avec score local 0–100, niveau de fiabilité, MAE/RMSE, biais signé, dispersion, jours proches, tendance récente, historique prévision/observation, distribution des erreurs, comparaison multi-modèles et diagnostics pluie ;
+- classement local calculé uniquement sur une cohorte réellement comparable partageant au moins 14 dates ;
+- score de fiabilité transposé depuis les pondérations et échelles utilisées côté Android.
+
+### PWA et non-régression
+
+- cache PWA incrémenté en `v7-modern-ui-bias` ;
+- `tests/static-audit.mjs` vérifie l’absence du décor technique précédent, la conservation des heatmaps sur les lignes alternées et la structure de la route biais ;
+- `tests/fidelity-regression.mjs` construit un historique synthétique suffisant, vérifie le badge dans l’en-tête, ouvre la page de biais et contrôle ses métriques principales ainsi que le rang exprimé en modèles.
+
+## Validation effectuée
+
+- `node --check` sur les modules, service worker et tests JavaScript ;
+- validation JSON du manifeste ;
+- `tests/smoke.mjs` : OK ;
+- `tests/ui-performance.mjs` : OK ;
+- `tests/static-audit.mjs` : OK ;
+- `tests/pages-compat.mjs` : OK ;
+- `tests/fidelity-regression.mjs` : OK ;
+- vérification des chemins statiques et de la structure du workflow Pages.
+
