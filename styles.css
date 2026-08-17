@@ -64,6 +64,7 @@ html[data-theme="dark"] {
 html { min-height: 100%; background: var(--bg); scroll-behavior: smooth; }
 body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); line-height: 1.45; }
 body.modal-open { overflow: hidden; }
+#app { overflow-anchor: none; }
 button, input, select { font: inherit; }
 button { color: inherit; }
 a { color: var(--primary); }
@@ -274,7 +275,8 @@ tr.current td:first-child { background: color-mix(in srgb, var(--primary) 6%, va
 .search-hint { padding: 8px 2px 2px; }
 
 /* Defer expensive work below the viewport without changing the visible layout. */
-.section, .city-card, .settings-section { content-visibility: auto; contain-intrinsic-size: auto 420px; }
+.city-card, .settings-section { content-visibility: auto; contain-intrinsic-size: auto 420px; }
+.detail-workspace .section { content-visibility: visible; contain: none; }
 
 @media (max-width: 1180px) {
   .city-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }

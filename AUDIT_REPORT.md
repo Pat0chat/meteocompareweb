@@ -250,3 +250,61 @@ Corrections ajoutées après retour visuel :
 - contrôle de l’ouverture d’une page biais en haut ;
 - cache PWA incrémenté en `v9-action-polish`.
 
+## 13. Stabilité globale du scroll et des clics — corrigé
+
+### Cause racine
+
+Les sauts observés n’étaient pas quatre bugs indépendants. Trois mécanismes pouvaient agir simultanément :
+
+1. le routeur hash déclenchait un rerender puis demandait une position ;
+2. le navigateur conservait sa propre restauration de scroll lors de l’historique ;
+3. `content-visibility:auto` utilisait une hauteur intrinsèque estimée pour des sections de détail recréées, puis recalculait leur hauteur réelle.
+
+Cette combinaison expliquait qu’une correction ponctuelle (`scrollTo(0, 0)` sur la page de biais) puisse être annulée ou décalée quelques instants plus tard.
+
+### Correctif de navigation
+
+- routage interne basé sur `history.pushState()` / `popstate` tout en conservant les URLs `#/…` compatibles GitHub Pages ;
+- `history.scrollRestoration = 'manual'` ;
+- sauvegarde de la position de chaque entrée avec `history.replaceState()` ;
+- vraie nouvelle route = position 0 immédiate ;
+- Retour/Avancer = restauration de la position mémorisée ;
+- suppression de la double logique `hashchange` + restauration native sur les navigateurs supportant History API.
+
+### Correctif des contrôles locaux
+
+Avant un clic qui provoque un rerender dans la même vue, MeteoCompare capture la position viewport du contrôle stable (`data-detail-tab`, `data-chart-horizon`, `data-confidence-metric`, etc.). Après reconstruction du DOM, le même contrôle est retrouvé et le scroll est corrigé du delta exact. Une ancre de section sert de fallback, puis la position absolue si aucun identifiant stable n’existe.
+
+Cela couvre notamment :
+
+- variables des tableaux ;
+- mode journalier / horaire ;
+- zoom 24 h / 72 h / 7 j du graphe ;
+- métrique température / pluie / vent ;
+- chronologie 24 h / 7 jours ;
+- thème, langue, tri et sélection des modèles.
+
+### Stabilité de mise en page
+
+- `overflow-anchor: none` sur la racine de l’application afin que le navigateur ne compense pas une seconde fois ;
+- retrait de `content-visibility:auto` sur les sections du détail ville ;
+- conservation de l’optimisation sur les cartes de villes et sections de réglages où elle ne crée pas de longues positions internes instables.
+
+### Non-régression
+
+`tests/fidelity-regression.mjs` simule maintenant une variation artificielle de position après rerender et vérifie que :
+
+- un changement de variable conserve le contrôle à la même place ;
+- un changement de zoom conserve le contrôle à la même place ;
+- une page de biais ouverte depuis le bas d’une page arrive immédiatement à `scrollY = 0` ;
+- la restauration native du navigateur est bien désactivée.
+
+Le cache PWA est incrémenté en `v10-navigation-stability`.
+
+
+
+## 14. Ouverture des pages de biais en haut — correctif renforcé
+
+Le reset précédent pouvait encore être annulé par le navigateur lorsque le bouton source restait focalisé jusqu’au remplacement asynchrone du DOM. Le routeur a donc été durci : blur du contrôle avant navigation, rendu immédiat de la nouvelle route, focus du landmark avec `preventScroll`, reset simultané de `window`, `documentElement` et `body`, puis verrouillage du haut sur les frames suivantes.
+
+Le test de fidélité simule maintenant explicitement une restauration tardive à 2400 px après le premier rendu et exige un retour à 0 à la frame suivante. Le cache PWA passe à `v11-bias-top-fix`.

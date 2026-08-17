@@ -43,3 +43,8 @@ Le comportement de l’interface de biais suit désormais la structure Android :
 - la page web remplace le `ModelBiasDetailSheet` Android tout en conservant ses informations : indice de fiabilité local, MAE/RMSE, biais moyen, dispersion, jours proches, tendance récente, historique prévision/observation, référence multi-modèles et diagnostics pluie ;
 - le classement local est calculé sur une cohorte de modèles partageant suffisamment de dates comparables ;
 - le biais sert à qualifier la fiabilité locale et n’est pas appliqué silencieusement aux valeurs de prévision affichées.
+
+## Navigation et position de page
+
+Le port web utilise toujours des routes hash `#/…` pour rester compatible avec un hébergement statique GitHub Pages, mais la navigation interne est pilotée par History API. Les vraies routes ouvrent en haut, Retour/Avancer restaurent leur position propre, et les changements d’état internes (variable, zoom, onglet) préservent le contrôle cliqué dans le viewport. Cette séparation évite les sauts de scroll provoqués auparavant par les rerenders complets et la restauration native du navigateur.
+

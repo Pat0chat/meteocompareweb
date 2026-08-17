@@ -36,13 +36,22 @@ localStorage.setItem('meteocompare.web.bias.test',JSON.stringify({forecasts:fore
 localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify({theme:'LIGHT',language:'FRENCH',enabledModelIds:mids,refreshInterval:'MANUAL',detailViewMode:'HOURLY',detailTab:'TEMPERATURE',confidenceMetric:'TEMPERATURE',chartHorizon:24,timelineMode:'HOURLY'}));
 
 const listeners={};
-const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},set innerHTML(v){this._html=v},get innerHTML(){return this._html}};
-globalThis.document={activeElement:null,documentElement:{dataset:{},lang:''},querySelector(sel){if(sel==='#app')return app;if(sel==='#toast-root')return {appendChild(){}};return null},createElement(){return {className:'',textContent:'',remove(){}}},addEventListener(){}};
+let routeLandmarkFocuses=0;const routeLandmark={hasAttribute(){return false},getAttribute(){return null},setAttribute(){},removeAttribute(){},focus(options){assert.equal(options?.preventScroll,true,'route landmark focus must never scroll the page');routeLandmarkFocuses++;}};
+const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},querySelector(){return routeLandmark},set innerHTML(v){this._html=v},get innerHTML(){return this._html}};
+let sectionLookup=new Map(),selectorLookup=new Map();
+const rootStyle={scrollBehavior:'',removeProperty(prop){if(prop==='scroll-behavior')this.scrollBehavior=''}};
+globalThis.document={activeElement:null,documentElement:{dataset:{},lang:'',scrollTop:0,style:rootStyle},body:{scrollTop:0,classList:{toggle(){}}},querySelector(sel){if(sel==='#app')return app;if(sel==='#toast-root')return {appendChild(){}};return selectorLookup.get(sel)||null},getElementById(id){return sectionLookup.get(id)||null},createElement(){return {className:'',textContent:'',remove(){}}},addEventListener(){}};
 Object.defineProperty(globalThis,'navigator',{value:{onLine:false,language:'fr-FR'},configurable:true});
-globalThis.location={hash:'#/city/test'};globalThis.history={length:1,back(){}};globalThis.confirm=()=>true;
+globalThis.location={hash:'#/city/test',href:'https://example.test/#/city/test'};
+const historyEntries=[{url:location.hash,state:null}];let historyIndex=0;
+globalThis.history={length:1,state:null,scrollRestoration:'auto',replaceState(state,_title,url){this.state=state;historyEntries[historyIndex]={url:url||location.hash,state};},pushState(state,_title,url){this.state=state;historyEntries.splice(historyIndex+1);historyEntries.push({url,state});historyIndex++;this.length=historyEntries.length;if(typeof url==='string'&&url.includes('#'))location.hash=url.slice(url.indexOf('#'));location.href='https://example.test/'+location.hash;},back(){if(historyIndex<=0)return;historyIndex--;const entry=historyEntries[historyIndex];this.state=entry.state;if(typeof entry.url==='string'&&entry.url.includes('#'))location.hash=entry.url.slice(entry.url.indexOf('#'));windowListeners.popstate?.({state:entry.state});}};globalThis.confirm=()=>true;
 const windowListeners={};
-let scrollTopCalls=0;globalThis.window={addEventListener(type,fn){windowListeners[type]=fn;},matchMedia(){return {matches:false,addEventListener(){}}},scrollTo(x,y){if(x===0&&y===0)scrollTopCalls++;}};
-globalThis.requestAnimationFrame=cb=>{cb();return 1};globalThis.queueMicrotask||=(cb=>Promise.resolve().then(cb));
+let scrollTopCalls=0;const scrollCalls=[];globalThis.window={scrollY:0,addEventListener(type,fn){windowListeners[type]=fn;},matchMedia(){return {matches:false,addEventListener(){}}},scrollTo(arg,y){const top=typeof arg==='object'?Number(arg.top)||0:Number(y)||0;this.scrollY=top;document.documentElement.scrollTop=top;scrollCalls.push(top);if(top===0)scrollTopCalls++;}};
+let rafRunning=false;const deferredRafs=[];
+globalThis.requestAnimationFrame=cb=>{if(rafRunning){deferredRafs.push(cb);return deferredRafs.length+1;}rafRunning=true;try{cb(globalThis.performance?.now?.()||0);}finally{rafRunning=false;}return 1;};
+globalThis.cancelAnimationFrame=()=>{};
+function flushDeferredRafs(){while(deferredRafs.length){const batch=deferredRafs.splice(0);for(const cb of batch){rafRunning=true;try{cb(globalThis.performance?.now?.()||0);}finally{rafRunning=false;}}}}
+globalThis.queueMicrotask||=(cb=>Promise.resolve().then(cb));
 const realSetInterval=globalThis.setInterval;globalThis.setInterval=()=>1;
 globalThis.fetch=async()=>({ok:true,json:async()=>({})});
 
@@ -77,10 +86,22 @@ assert.match(html,/data-bias-model="GFS"[^>]*data-bias-variable="TEMPERATURE"/,'
 assert.ok((html.match(/data-bias-model=/g)||[]).length>=mids.length,'each eligible model header should expose its bias action');
 assert.match(html,/class="rank-row rank-row-link"[^>]*data-bias-model=/,'Local reliability model rows must navigate to model bias pages');
 
-function clickDataset(dataset){const target={dataset,closest(){return this}};listeners.click({target});return app.innerHTML;}
-let switched=clickDataset({detailTab:'PRECIPITATION'});
+function clickDataset(dataset,section=null,controlTop=null){const target={dataset,closest(selector){if(selector==='section[id]'&&section)return section;return this}};if(Number.isFinite(controlTop))target.getBoundingClientRect=()=>({top:controlTop});listeners.click({target});return app.innerHTML;}
+function makeSection(id,top){return {id,getBoundingClientRect(){return {top}}};}
+function makeControl(top){return {getBoundingClientRect(){return {top}}};}
+
+// Same-view controls must preserve the clicked control's visual position even if the rerender changes heights above it.
+window.scrollY=900;document.documentElement.scrollTop=900;
+selectorLookup.set('[data-detail-tab="PRECIPITATION"]',makeControl(205));
+let switched=clickDataset({detailTab:'PRECIPITATION'},null,140);
+assert.equal(window.scrollY,965,'changing a table variable must keep its control at the same viewport coordinate');
 assert.match(switched,/Précipitations horaires/,'Hourly precipitation table must expose its heatmap legend');
 assert.match(switched,/heatmap-data-cell[^>]*--heat:/,'Hourly precipitation values must remain heatmapped');
+window.scrollY=1200;document.documentElement.scrollTop=1200;
+selectorLookup.set('[data-chart-horizon="72"]',makeControl(170));
+clickDataset({chartHorizon:'72'},null,110);
+assert.equal(window.scrollY,1260,'changing graph zoom must preserve the zoom control position despite layout changes');
+selectorLookup.clear();sectionLookup.clear();
 switched=clickDataset({detailTab:'WIND'});
 assert.match(switched,/Vent horaire/,'Hourly wind table must expose its heatmap legend');
 assert.match(switched,/R = rafales/,'Wind legend must explain gust notation');
@@ -89,10 +110,23 @@ assert.match(switched,/weather-legend/,'Conditions table must expose the weather
 switched=clickDataset({timelineMode:'DAILY'});
 assert.match(switched,/data-timeline-mode="DAILY"[^>]*class=|class="seg-btn active" data-timeline-mode="DAILY"/,'Timeline must be switchable to the 7-day view');
 
+let sourceBlurred=false;document.activeElement={blur(){sourceBlurred=true;}};
+window.scrollY=2400;document.documentElement.scrollTop=2400;document.body.scrollTop=2400;
 clickDataset({biasModel:'GFS',biasVariable:'TEMPERATURE',biasCity:'test'});
 assert.match(location.hash,/\/bias\/GFS\/TEMPERATURE$/,'clicking a table bias must navigate to the model bias route');
-windowListeners.hashchange?.();
-assert.ok(scrollTopCalls>0,'Opening a model bias page must reset the viewport to the top');
+assert.equal(sourceBlurred,true,'the clicked model control must lose focus before the route DOM is replaced');
+assert.equal(window.scrollY,0,'Opening a model bias page must reset the viewport immediately to the top');
+assert.equal(document.documentElement.scrollTop,0,'the document element must also be pinned to the top');
+assert.equal(document.body.scrollTop,0,'the body scroll position must also be pinned to the top for browser compatibility');
+assert.ok(routeLandmarkFocuses>0,'the new bias page must receive focus on its top landmark without scrolling');
+// Simulate a browser restoring the previously focused control after the new DOM has already rendered.
+window.scrollY=2400;document.documentElement.scrollTop=2400;document.body.scrollTop=2400;
+flushDeferredRafs();
+assert.equal(window.scrollY,0,'a delayed browser scroll restoration must be overridden on the following frame');
+assert.equal(document.documentElement.scrollTop,0,'the delayed reset must also repin the document element');
+assert.equal(document.body.scrollTop,0,'the delayed reset must also repin the body');
+assert.ok(scrollTopCalls>0,'route navigation must perform an explicit top reset');
+assert.equal(history.scrollRestoration,'manual','native browser restoration must be disabled in favor of deterministic app routing');
 const biasPage=app.innerHTML;
 assert.match(biasPage,/Fiabilité locale J\+1/,'dedicated model bias page must render');
 assert.match(biasPage,/Indice local de fiabilité/,'bias page must expose the local reliability score');

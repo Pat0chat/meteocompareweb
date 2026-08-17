@@ -1,4 +1,4 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v9-action-polish';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v11-bias-top-fix';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './assets/icon.png', './assets/icon-512.png',

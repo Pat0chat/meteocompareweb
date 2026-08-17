@@ -32,6 +32,7 @@ let searchSeq = 0;
 let autoRefreshTimer = null;
 let dueRefreshRunning = false;
 let renderQueued = false;
+let renderFrame = 0;
 let lastFocusedBeforeModal = null;
 let i18nCacheKey = null;
 let i18nCache = null;
@@ -39,6 +40,11 @@ const numberFormatters = new Map();
 const forecastViewCache = new WeakMap();
 const seriesIndexCache = new WeakMap();
 const routeScrollPositions = new Map();
+let pendingScrollDirective = null;
+let interactionScrollContext = null;
+let historyScrollRaf = 0;
+let routeTransitionToken = 0;
+const supportsHistoryRouting = typeof history?.pushState === 'function' && typeof history?.replaceState === 'function';
 
 init();
 
@@ -52,11 +58,17 @@ function init() {
   app.addEventListener('toggle', handleDetailsToggle, true);
   document.addEventListener?.('keydown', handleGlobalKeydown);
   document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible')refreshDueCities();});
-  window.addEventListener('hashchange',()=>{state.route=parseRoute();state.modal=null;cancelCitySearch();render();requestAnimationFrame(()=>{const saved=routeScrollPositions.get(routeKey(state.route));window.scrollTo?.(0,state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0));});onRouteSettled();});
+  if(supportsHistoryRouting){
+    try{ history.scrollRestoration='manual'; history.replaceState({...history.state,mcRouteKey:routeKey(state.route),mcScrollY:currentScrollY()},'',location.href); }catch{}
+    window.addEventListener('popstate',event=>handleHistoryNavigation(event));
+    window.addEventListener('scroll',scheduleHistoryScrollSnapshot,{passive:true});
+  }else{
+    window.addEventListener('hashchange',()=>{state.route=parseRoute();state.modal=null;cancelCitySearch();const saved=routeScrollPositions.get(routeKey(state.route));render({scroll:{type:'absolute',y:state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0)}});onRouteSettled();});
+  }
   window.addEventListener('online',()=>{state.online=true;render();refreshDueCities();});
   window.addEventListener('offline',()=>{state.online=false;render();});
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
-  render();
+  render({scroll:{type:'absolute',y:0}});
   hydrateForecastStorage().finally(()=>{onRouteSettled();refreshDueCities();});
   autoRefreshTimer=setInterval(refreshDueCities,60_000);
 }
@@ -77,7 +89,94 @@ function parseRoute(){
   return {name:'home'};
 }
 function routeKey(route){return route.name==='city'?`city:${route.id}`:route.name==='bias'?`bias:${route.id}:${route.modelId}:${route.variable}`:route.name;}
-function go(path){routeScrollPositions.set(routeKey(state.route),Number(window.scrollY)||0);location.hash=path;}
+function currentScrollY(){return Number(window.scrollY ?? document.documentElement?.scrollTop ?? 0)||0;}
+function scrollInstantTo(y){
+  const top=Math.max(0,Number(y)||0),root=document.documentElement,body=document.body,previous=root?.style?.scrollBehavior;
+  if(root?.style)root.style.scrollBehavior='auto';
+  try{if(root)root.scrollTop=top;if(body)body.scrollTop=top;}catch{}
+  try{window.scrollTo?.({top,left:0,behavior:'auto'});}catch{window.scrollTo?.(0,top);}
+  try{if(root)root.scrollTop=top;if(body)body.scrollTop=top;}catch{}
+  if(root?.style){if(previous)root.style.scrollBehavior=previous;else root.style.removeProperty?.('scroll-behavior');}
+}
+function scrollControlSelector(target){
+  if(!target?.dataset)return null;
+  const keys=[['confidenceMetric','data-confidence-metric'],['chartHorizon','data-chart-horizon'],['detailMode','data-detail-mode'],['detailTab','data-detail-tab'],['timelineMode','data-timeline-mode'],['theme','data-theme'],['language','data-language'],['refreshInterval','data-refresh-interval'],['modelSort','data-model-sort'],['modelToggle','data-model-toggle'],['biasRefreshCity','data-bias-refresh-city']];
+  for(const [key,attrName] of keys){if(target.dataset[key]!=null){const value=String(target.dataset[key]).replace(/\\/g,'\\\\').replace(/"/g,'\\"');return `[${attrName}="${value}"]`;}}
+  return null;
+}
+function captureScrollContext(target=null){
+  const y=currentScrollY(),selector=scrollControlSelector(target);
+  if(selector&&typeof target?.getBoundingClientRect==='function')return {type:'selector',selector,top:target.getBoundingClientRect().top,y};
+  const section=target?.closest?.('section[id]');
+  if(section?.id&&typeof section.getBoundingClientRect==='function')return {type:'anchor',id:section.id,top:section.getBoundingClientRect().top,y};
+  return {type:'absolute',y};
+}
+function focusRouteLandmark(){
+  const landmark=app?.querySelector?.('main h1, main h2, main');
+  if(!landmark)return;
+  const hadTabindex=landmark.hasAttribute?.('tabindex'),previousTabindex=landmark.getAttribute?.('tabindex');
+  if(!hadTabindex)landmark.setAttribute?.('tabindex','-1');
+  try{landmark.focus?.({preventScroll:true});}catch{}
+  if(!hadTabindex)queueMicrotask(()=>{if(previousTabindex==null)landmark.removeAttribute?.('tabindex');else landmark.setAttribute?.('tabindex',previousTabindex);});
+}
+function stabilizeRouteTop(directive){
+  if(!directive||directive.type!=='route-top')return;
+  const token=directive.token,key=directive.routeKey;
+  const stillCurrent=()=>token===routeTransitionToken&&routeKey(state.route)===key;
+  const pin=()=>{if(stillCurrent())scrollInstantTo(0);};
+  focusRouteLandmark();
+  pin();
+  queueMicrotask(pin);
+  requestAnimationFrame(()=>{pin();requestAnimationFrame(pin);});
+}
+function applyScrollDirective(directive){
+  if(!directive)return;
+  if(directive.type==='route-top'){scrollInstantTo(0);return;}
+  let anchor=null;
+  if(directive.type==='selector')anchor=document.querySelector?.(directive.selector);
+  else if(directive.type==='anchor')anchor=document.getElementById?.(directive.id);
+  if(anchor&&typeof anchor.getBoundingClientRect==='function'){
+    const delta=anchor.getBoundingClientRect().top-directive.top;
+    scrollInstantTo(currentScrollY()+delta);
+    return;
+  }
+  scrollInstantTo(directive.y);
+}
+function saveCurrentRouteScroll(){
+  const y=currentScrollY(),key=routeKey(state.route);routeScrollPositions.set(key,y);
+  if(supportsHistoryRouting){try{history.replaceState({...history.state,mcRouteKey:key,mcScrollY:y},'',location.href);}catch{}}
+}
+function scheduleHistoryScrollSnapshot(){
+  if(!supportsHistoryRouting||historyScrollRaf)return;
+  historyScrollRaf=requestAnimationFrame(()=>{historyScrollRaf=0;saveCurrentRouteScroll();});
+}
+function applyRouteFromLocation(scrollY=0,options={}){
+  state.route=parseRoute();state.modal=null;cancelCitySearch();
+  const y=Math.max(0,Number(scrollY)||0);
+  if(options.newRoute){
+    const token=++routeTransitionToken;
+    render({scroll:{type:'route-top',y:0,token,routeKey:routeKey(state.route)},immediate:true});
+  }else render({scroll:{type:'absolute',y},immediate:Boolean(options.immediate)});
+  onRouteSettled();
+}
+function handleHistoryNavigation(event){
+  const route=parseRoute(),key=routeKey(route),saved=Number(event?.state?.mcScrollY);
+  state.route=route;state.modal=null;cancelCitySearch();
+  const fallback=routeScrollPositions.get(key),y=Number.isFinite(saved)?saved:(Number.isFinite(fallback)?fallback:0);
+  render({scroll:{type:'absolute',y},immediate:true});onRouteSettled();
+}
+function go(path){
+  saveCurrentRouteScroll();
+  const hash=String(path||'#/').startsWith('#')?String(path||'#/'):`#${path}`;
+  if(location.hash===hash)return;
+  try{const active=document.activeElement;if(active&&active!==document.body&&typeof active.blur==='function')active.blur();}catch{}
+  if(supportsHistoryRouting){
+    try{history.pushState({mcRouteKey:null,mcScrollY:0},'',hash);scrollInstantTo(0);applyRouteFromLocation(0,{newRoute:true});return;}catch{}
+  }
+  routeTransitionToken++;
+  scrollInstantTo(0);
+  location.hash=hash;
+}
 function i18n(){
   const key=`${state.settings.language}|${navigator.language||''}`;
   if(key!==i18nCacheKey){i18nCacheKey=key;i18nCache=makeI18n(state.settings.language);numberFormatters.clear();}
@@ -139,15 +238,26 @@ function applyTheme(){
   document.documentElement.dataset.theme=dark?'dark':'light'; document.documentElement.lang=languageCode(state.settings.language);
 }
 
-function render(){
+function render(options={}){
+  if(options.scroll)pendingScrollDirective=options.scroll;
+  else if(!pendingScrollDirective&&app?.innerHTML)pendingScrollDirective=interactionScrollContext||captureScrollContext();
+  if(options.immediate){
+    if(renderFrame){try{globalThis.cancelAnimationFrame?.(renderFrame);}catch{}renderFrame=0;}
+    renderQueued=false;
+    renderNow();
+    return;
+  }
   if(renderQueued)return;
   renderQueued=true;
-  requestAnimationFrame(()=>{renderQueued=false;renderNow();});
+  renderFrame=requestAnimationFrame(()=>{renderFrame=0;renderQueued=false;renderNow();});
 }
 function renderNow(){
+  const scrollDirective=pendingScrollDirective;pendingScrollDirective=null;
   const {t}=i18n();
   let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='bias')content=renderBiasDetailPage(state.route); else content=renderCityDetail(state.route.id);
   app.innerHTML=`${renderTopbar()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
+  applyScrollDirective(scrollDirective);
+  stabilizeRouteTop(scrollDirective);
   document.body?.classList?.toggle?.('modal-open',Boolean(state.modal));
   if(state.modal){queueMicrotask(()=>{const input=document.querySelector('#city-search');const dialog=document.querySelector('.modal');(input||dialog?.querySelector('button,input,a,[tabindex]:not([tabindex="-1"])'))?.focus?.({preventScroll:true});});}
 }
@@ -627,6 +737,8 @@ function handleAppInput(e){
 function handleAppClick(e){
   const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section]');
   if(!target||!app.contains(target))return;
+  const previousInteractionScroll=interactionScrollContext;interactionScrollContext=captureScrollContext(target);
+  try{
   if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
   if(target.dataset.cityMenu){e.stopPropagation();lastFocusedBeforeModal=document.activeElement;state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
   if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;refreshCity(target.dataset.refreshCity,true);return;}
@@ -646,6 +758,7 @@ function handleAppClick(e){
   if(target.dataset.biasRefreshCity){refreshBiasForCity(target.dataset.biasRefreshCity);return;}
   if(target.dataset.scrollSection){document.getElementById?.(target.dataset.scrollSection)?.scrollIntoView?.({behavior:'smooth',block:'start'});return;}
   if(target.dataset.cityOpen){if(e.target.closest('button'))return;go(`#/city/${encodeURIComponent(target.dataset.cityOpen)}`);}
+  }finally{interactionScrollContext=previousInteractionScroll;}
 }
 
 function handleAction(e){

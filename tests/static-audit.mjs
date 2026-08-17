@@ -31,8 +31,15 @@ assert.match(css, /prefers-reduced-motion:\s*reduce/, 'reduced-motion preference
 
 assert.equal((app.match(/data-action="refresh-all"/g)||[]).length,1,'refresh-all must appear only as a page-level action, not duplicated in the top bar');
 assert.equal((app.match(/data-action="settings"/g)||[]).length,1,'settings must appear only once in the global navigation');
-assert.match(app, /state\.route\.name==='bias'\?0:/, 'model bias routes must reset the viewport to the top');
-assert.match(app, /routeScrollPositions\.set\(routeKey\(state\.route\)/, 'ordinary route navigation should preserve the previous route scroll position');
+assert.match(app, /history\.scrollRestoration='manual'/, 'browser-native scroll restoration must be disabled so the app has deterministic route positioning');
+assert.match(app, /applyRouteFromLocation\(0,\{newRoute:true\}\)/, 'new routes, including model bias pages, must use the dedicated top-reset transition');
+assert.match(app, /immediate:true/, 'route transitions must render immediately instead of leaving the clicked control focused for another frame');
+assert.match(app, /focusRouteLandmark/, 'new routes must move focus to the new page landmark without scrolling');
+assert.match(app, /requestAnimationFrame\(\(\)=>\{pin\(\);requestAnimationFrame\(pin\);\}\)/, 'route-top reset must survive delayed browser focus/fragment restoration');
+assert.match(app, /history\.replaceState\(\{\.\.\.history\.state,mcRouteKey:key,mcScrollY:y\}/, 'route entries must persist their scroll position for Back/Forward restoration');
+assert.match(app, /captureScrollContext\(target=null\)/, 'same-view controls must capture a stable viewport context before rerendering');
+assert.match(app, /type:'selector',selector,top:target\.getBoundingClientRect\(\)\.top/, 'interactive controls must preserve their exact viewport coordinate across rerenders');
+assert.match(app, /type:'anchor',id:section\.id/, 'section anchors must remain as a fallback for controls without a stable selector');
 assert.match(app, /chart-band-segment \$\{level\}/, 'the min-max agreement envelope must be segmented and confidence-colored');
 assert.match(css, /\.chart-band-segment\.high[^}]*fill:\s*var\(--good\)/s, 'high-agreement envelope segments must use the good color');
 assert.match(css, /\.chart-band-segment\.medium[^}]*fill:\s*var\(--medium\)/s, 'medium-agreement envelope segments must use the medium color');
@@ -56,5 +63,7 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.match(sw, /v9-action-polish/, 'service worker cache must be bumped for the visual refinement release');
+assert.match(sw, /v11-bias-top-fix/, 'service worker cache must be bumped for the bias top-route fix');
+assert.match(css, /#app \{ overflow-anchor: none; \}/, 'browser scroll anchoring must not fight the explicit viewport restoration logic');
+assert.doesNotMatch(css, /\.section, \.city-card, \.settings-section \{ content-visibility: auto/, 'detail sections must not use estimated off-screen heights that can cause scroll jumps');
 console.log('MeteoCompare Web static audit tests: OK');

@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — Action & Agreement Polish
+# MeteoCompare Web v1.8.0 — Bias Top Fix
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-action-polish
+cd meteocompare-web-v1.8.0-bias-top-fix
 python3 -m http.server 8080
 ```
 
@@ -92,6 +92,33 @@ Cette passe corrige plusieurs détails d’ergonomie et de fidélité relevés a
 - en-têtes de modèles restructurés en trois zones distinctes (nom, métadonnées, biais/calibration) afin que la pill de calibration ne recouvre plus la résolution ou la famille du modèle ;
 - pill de calibration elle-même cliquable vers la page de fiabilité locale ;
 - cache PWA incrémenté en `v9-action-polish`.
+
+
+### Passe Navigation Stability
+
+Cette passe corrige les sauts de position provoqués par les rerenders et par la concurrence entre le routeur de l’application et la restauration de scroll native du navigateur :
+
+- les changements de variable, de zoom, de mode journalier/horaire et de chronologie conservent désormais le contrôle cliqué à la même coordonnée dans le viewport ;
+- les changements de route réels (ville, paramètres, page de biais) ouvrent la nouvelle page en haut, sans animation de scroll résiduelle ;
+- les positions des entrées d’historique sont enregistrées avec `history.replaceState()` et restaurées avec Retour/Avancer ;
+- `history.scrollRestoration` est passé à `manual` pour éviter une double restauration contradictoire ;
+- le scroll programmatique est forcé en mode instantané, même si la navigation interne conserve les animations douces ;
+- le scroll anchoring automatique est désactivé sur la racine de l’application, car MeteoCompare restaure explicitement le viewport ;
+- `content-visibility:auto` a été retiré des sections de détail : leurs hauteurs ne sont plus estimées puis recalculées après un clic, ce qui supprimait une source majeure de sauts tardifs ;
+- cache PWA incrémenté en `v10-navigation-stability`.
+
+### Passe Bias Top Fix
+
+Cette passe corrige spécifiquement le cas où une page de biais pouvait encore s’ouvrir en bas malgré le reset de scroll précédent :
+
+- le contrôle source perd explicitement le focus avant le changement de route ;
+- les nouvelles routes sont rendues immédiatement au lieu d’attendre la frame suivante ;
+- le titre/landmark de la nouvelle page reçoit le focus avec `preventScroll` ;
+- le haut de page est imposé sur `window`, `documentElement` et `body` ;
+- le reset est répété sur les frames suivantes pour neutraliser une restauration tardive du navigateur ;
+- un test reproduit désormais une restauration tardive à 2400 px après le rendu et vérifie que le viewport revient à 0.
+
+Le cache PWA est incrémenté en `v11-bias-top-fix`.
 
 ## Fonctionnalités météo conservées
 
@@ -198,6 +225,8 @@ Ils couvrent notamment :
 - heatmaps présentes sur lignes paires et impaires ;
 - libellé « modèles » associé aux compteurs concernés ;
 - biais présent dans les en-têtes de modèles et navigation vers la page de détail du biais ;
+- ouverture des routes au sommet de page et restauration Retour/Avancer ;
+- conservation de la position exacte lors d’un changement de variable ou de zoom malgré une variation simulée de hauteur du DOM ;
 - métriques et historique de la page de biais par modèle.
 
 Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
