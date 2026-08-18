@@ -1,5 +1,6 @@
 import { DEFAULT_MODEL_IDS } from './models.js';
 import { APP_VERSION, BACKUP_FORMAT_VERSION } from './version.js';
+import { dailyMetricIsComparable } from './domain.js';
 
 const SETTINGS_KEY = 'meteocompare.web.settings.v1';
 const CITIES_KEY = 'meteocompare.web.cities.v1';
@@ -156,19 +157,21 @@ export function saveEvolution(cityId, entries) { writeLocalRecord(EVOLUTION_PREF
 export function recordEvolutionSnapshot(cityId, forecast) {
   const now = Date.now();
   const previous = loadEvolution(cityId).filter(x => Number.isFinite(x.capturedAt) && now - x.capturedAt <= 5*24*3600e3);
-  if (previous.some(x => Math.abs(now - x.capturedAt) < 3*3600e3)) return previous;
+  // v2 snapshots guarantee that terminal PARTIAL civil days never enter run-to-run comparisons.
+  // Force one audited snapshot after upgrade even if a legacy capture is less than three hours old.
+  if (previous.some(x => x?.qualityVersion===2 && Math.abs(now - x.capturedAt) < 3*3600e3)) return previous;
   const daily = {};
   for (const [modelId, series] of Object.entries(forecast.seriesByModel || {})) {
     series.daily.dates.forEach((date, i) => {
       daily[date] ||= {};
       daily[date][modelId] = {
-        temperature: finiteOrNull(series.daily.tempMax[i]),
-        precipitation: nonNegativeOrNull(series.daily.precipitationSum[i]),
-        wind: nonNegativeOrNull(series.daily.windSpeedMax[i]),
+        temperature: dailyMetricIsComparable(series,i,'temperature') ? finiteOrNull(series.daily.tempMax[i]) : null,
+        precipitation: dailyMetricIsComparable(series,i,'precipitation') ? nonNegativeOrNull(series.daily.precipitationSum[i]) : null,
+        wind: dailyMetricIsComparable(series,i,'wind') ? nonNegativeOrNull(series.daily.windSpeedMax[i]) : null,
       };
     });
   }
-  const next = [...previous, { capturedAt: now, daily }].sort((a,b)=>a.capturedAt-b.capturedAt).slice(-40);
+  const next = [...previous, { capturedAt: now, qualityVersion:2, daily }].sort((a,b)=>a.capturedAt-b.capturedAt).slice(-40);
   saveEvolution(cityId, next);
   return next;
 }

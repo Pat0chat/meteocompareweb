@@ -108,7 +108,7 @@ assert.ok(band.every(x=>x.timestamp>=anchor),'agreement band must exclude elapse
 assert.match(app,/cachedScenarios\(f,limit=null\).*roundedHourLocal\(f\.city\.timezone\)/,'scenario cache must roll over at the local hour');
 assert.match(app,/cachedBand\(f,metric,horizon\).*roundedHourLocal\(f\.city\.timezone\)/,'agreement cache must roll over at the local hour');
 assert.match(app,/cachedHeatmap\(f,hours\).*roundedHourLocal\(f\.city\.timezone\)/,'heatmap cache must roll over at the local hour');
-assert.match(app,/indices=s\.hourly\.timestamps[\s\S]*filter\(\(\[ts\]\)=>ts>=anchor\)/,'hourly export must exclude elapsed hours');
+assert.match(app,/indices=s\.hourly\.timestamps[\s\S]*epochMs:epochs\[i\][\s\S]*filter\(x=>Number\.isFinite\(x\.epochMs\)&&x\.epochMs>=anchorEpoch\)/,'hourly export must exclude elapsed hours using absolute instants');
 assert.match(app,/lastViewTimeKey[\s\S]*setInterval/,'long-open pages must re-render on local-hour rollover');
 
 // 9. The API-confirmed timezone is persisted back to the favorite.

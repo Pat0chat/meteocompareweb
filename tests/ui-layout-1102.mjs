@@ -3,7 +3,7 @@ import fs from 'node:fs';
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
-assert.equal(version,'1.10.4');
+assert.match(version,/^\d+\.\d+\.\d+$/);
 const marineReturn=(app.match(/return `<section class="section section-card marine-section"[\s\S]*?source-note[\s\S]*?<\/section>`;/)||[])[0]||'';
 assert.equal((marineReturn.match(/<div class=\"marine-kpi\"><span>\$\{esc\(t\('marine(?:WaveHeight|WavePeriod|WaveDirection|SwellHeight|SeaTemp)'\)\)\}<\/span>/g)||[]).length,5,'marine summary keeps five KPI cards');
 assert.ok(!marineReturn.includes("<div><span>${esc(t('marineSeaLevel'))}</span><strong>${value(h.seaLevelHeightMsl,2)} m</strong></div>"),'sea level is not duplicated in KPI row');

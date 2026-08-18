@@ -3,7 +3,7 @@ import fs from 'node:fs';
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
-assert.equal(version,'1.10.4');
+assert.match(version,/^\d+\.\d+\.\d+$/);
 assert.ok(!app.includes("<details style=\"margin-top:10px\" data-city-scenarios"),'inactive home scenarios disclosure removed');
 assert.ok(app.includes('agreement-chart-wrap'),'agreement chart wrapper is explicit');
 assert.ok(css.includes('.agreement-chart-wrap .agreement-band-hover .chart { display:block; width:100%; height:auto; min-width:0; min-height:0; }'),'agreement chart fills desktop width');

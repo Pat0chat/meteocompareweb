@@ -1558,6 +1558,8 @@ html[data-theme="dark"] {
 }
 
 /* v16 — About, PWA install, support, and explicit comparison legends */
+.topbar .android-nav { color: color-mix(in srgb, #34a853 68%, var(--muted)); text-decoration: none; }
+.topbar .android-nav:hover { color: #25883f; background: color-mix(in srgb, #34a853 9%, var(--surface-2)); }
 .topbar .support-nav { color: color-mix(in srgb, var(--primary) 78%, var(--muted)); }
 .topbar .support-nav:hover { color: #d94f70; background: color-mix(in srgb, #e84a70 8%, var(--surface-2)); }
 

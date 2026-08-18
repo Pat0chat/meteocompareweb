@@ -33,7 +33,7 @@ biasDates.forEach((date,i)=>{
     forecastsBias.push({modelId:mid,variable:'WIND_SPEED',targetDate:date,value:observedWind+[1.5,3,5,7][k]});
   });
 });
-localStorage.setItem('meteocompare.web.bias.test',JSON.stringify({forecasts:forecastsBias,observations,updatedAt:Date.now()}));
+localStorage.setItem('meteocompare.web.bias.test',JSON.stringify({reference:'ERA5',referenceLagDays:6,forecasts:forecastsBias,observations,updatedAt:Date.now()}));
 localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify({theme:'LIGHT',language:'FRENCH',enabledModelIds:mids,refreshInterval:'MANUAL',detailViewMode:'HOURLY',detailTab:'TEMPERATURE',confidenceMetric:'TEMPERATURE',chartHorizon:24,timelineMode:'HOURLY'}));
 
 const listeners={};
@@ -147,7 +147,7 @@ const biasPage=app.innerHTML;
 assert.match(biasPage,/Fiabilité locale J\+1/,'dedicated model bias page must render');
 assert.match(biasPage,/Indice local de fiabilité/,'bias page must expose the local reliability score');
 assert.match(biasPage,/Erreur absolue moyenne/,'bias page must distinguish MAE from signed bias');
-assert.match(biasPage,/Historique prévision \/ observation/,'bias page must restore forecast-vs-observation history');
+assert.match(biasPage,/Historique prévision \/ référence ERA5/,'bias page must restore forecast-vs-observation history');
 assert.match(biasPage,/Rang \d+\/\d+ modèles/,'bias page rank must explicitly label the model count');
 
 // Settings controls must not rebuild the whole page in a way that loses the

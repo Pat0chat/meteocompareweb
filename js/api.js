@@ -1,4 +1,5 @@
 import { selectedModels } from './models.js';
+import { zonedTimestampEpochs } from './domain.js';
 import { fetchOpenMeteoJson } from './api-budget.js';
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -234,6 +235,8 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
   const hourlyTime = hourlyIndices.map(i=>hourlySource[i]);
   const dailyTime = dailyIndices.map(i=>dailySource[i]);
   const single = models.length===1;
+  const resolvedTimezone=raw.timezone || city.timezone || 'UTC';
+  const hourlyEpochs=zonedTimestampEpochs(hourlyTime,resolvedTimezone);
   const seriesByModel = {};
   const modelMeta = {};
   const errors = {};
@@ -247,6 +250,7 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
       modelId:model.id,
       hourly:{
         timestamps:[...hourlyTime],
+        timestampEpochMs:[...hourlyEpochs],
         temperature2m:alignIndices(hourlyIndices,tempH).map(x=>Number.isFinite(x)?x:null),
         precipitation:alignIndices(hourlyIndices,numberList(values(hourlyRaw,'precipitation',model,single),x=>Number.isFinite(x)&&x>=0)).map(x=>Number.isFinite(x)&&x>=0?x:null),
         precipitationProbability:alignIndices(hourlyIndices,intList(values(hourlyRaw,'precipitation_probability',model,single),x=>x>=0&&x<=100)),
@@ -277,7 +281,6 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
   if (!Object.keys(seriesByModel).length) { const err=new Error('NO_USABLE_MODELS'); err.code='NO_USABLE_MODELS'; throw err; }
   const fetchedAt=new Date().toISOString();
   for(const meta of Object.values(modelMeta))meta.loadedAt=fetchedAt;
-  const resolvedTimezone=raw.timezone || city.timezone || 'UTC';
   return { city:{...city, timezone:resolvedTimezone}, timezone:resolvedTimezone, seriesByModel, modelMeta, errors, requestedModelIds:models.map(m=>m.id), fetchedAt };
 }
 
@@ -341,6 +344,9 @@ export async function fetchBiasArchive(city, startDate, endDate) {
   u.searchParams.set('latitude',String(city.latitude)); u.searchParams.set('longitude',String(city.longitude));
   u.searchParams.set('start_date',startDate); u.searchParams.set('end_date',endDate);
   u.searchParams.set('daily','temperature_2m_max,precipitation_sum,wind_speed_10m_max');
-  u.searchParams.set('timezone',city.timezone||'auto'); u.searchParams.set('wind_speed_unit','kmh'); u.searchParams.set('precipitation_unit','mm');
+  // Use one stable reanalysis reference for local forecast skill. The archive API's
+  // default may otherwise switch to recent IFS data, which is not independent of ECMWF forecasts.
+  u.searchParams.set('models','era5');
+  u.searchParams.set('timezone',city.timezone||'auto'); u.searchParams.set('temperature_unit','celsius'); u.searchParams.set('wind_speed_unit','kmh'); u.searchParams.set('precipitation_unit','mm');
   return fetchJson(u,45000,null,'archive');
 }

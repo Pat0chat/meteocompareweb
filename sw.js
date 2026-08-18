@@ -1,5 +1,5 @@
-const APP_VERSION = '1.10.4';
-const CACHE_VERSION = 'v34-marine-dashboard';
+const APP_VERSION = '1.10.6';
+const CACHE_VERSION = 'v36-play-store-nav';
 const CACHE = `meteocompare-web-${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',

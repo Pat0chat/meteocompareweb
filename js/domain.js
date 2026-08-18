@@ -60,7 +60,20 @@ export function safeTimezone(tz) {
   let valid='UTC';try{new Intl.DateTimeFormat('en',{timeZone:candidate}).format();valid=candidate;}catch{}
   timezoneValidity.set(candidate,valid);return valid;
 }
-function localEpoch(s) { if(typeof s!=='string') return NaN; const m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); if(!m)return NaN; return Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)); }
+export function localTimestampValue(s) { if(typeof s!=='string') return NaN; const m=s.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/); if(!m)return NaN; return Date.UTC(+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)); }
+const localEpoch=localTimestampValue;
+
+/** Convert a timezone-less local ISO timestamp to an absolute epoch for its IANA timezone.
+ * Multiple candidates can exist during the autumn DST fold. When a reference is supplied,
+ * the candidate closest to that expected instant is selected. */
+export function zonedLocalTimestampEpoch(localTs, timezone, referenceEpochMs=null){
+  const target=localTimestampValue(localTs);if(!Number.isFinite(target))return NaN;const tz=safeTimezone(timezone),offsets=new Set();
+  for(let h=-36;h<=36;h+=6){const probe=target+h*3600e3,p=zonedParts(new Date(probe),tz),wall=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);if(Number.isFinite(wall))offsets.add(Math.round((wall-probe)/60000)*60000);}
+  const candidates=[];for(const offset of offsets){const candidate=target-offset,p=zonedParts(new Date(candidate),tz),wall=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute);if(wall===target)candidates.push(candidate);}
+  if(!candidates.length)return NaN;if(candidates.length===1)return candidates[0];
+  const ref=Number.isFinite(referenceEpochMs)?referenceEpochMs:null;return ref==null?Math.min(...candidates):candidates.sort((a,b)=>Math.abs(a-ref)-Math.abs(b-ref)||a-b)[0];
+}
+export function zonedTimestampEpochs(timestamps,timezone){let previous=null;return (timestamps||[]).map(ts=>{const expected=previous==null?null:previous+3600e3,ms=zonedLocalTimestampEpoch(ts,timezone,expected);if(Number.isFinite(ms))previous=ms;return ms;});}
 export function addDays(dateStr, days){ const d=new Date(`${dateStr}T12:00:00Z`); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
 export function daysBetween(a,b){ return Math.round((localEpoch(b)-localEpoch(a))/86400000); }
 
@@ -71,9 +84,14 @@ export function nearestIndex(timestamps, targetLocal, maxMinutes=90) {
   return best>=0 && bestD <= maxMinutes*60000 ? best : null;
 }
 export function roundedHourLocal(timezone, now=new Date()) {
-  const p=zonedParts(now,timezone); let y=+p.year,m=+p.month,d=+p.day,h=+p.hour; if(+p.minute>30){ const q=new Date(Date.UTC(y,m-1,d,h)+3600000); y=q.getUTCFullYear();m=q.getUTCMonth()+1;d=q.getUTCDate();h=q.getUTCHours(); }
-  return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}T${String(h).padStart(2,'0')}:00`;
+  const tz=safeTimezone(timezone),p=zonedParts(now,tz),wall=`${p.year}-${p.month}-${p.day}T${p.hour}:00`,wallNow=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second),offset=wallNow-now.getTime(),start=localTimestampValue(wall)-offset;
+  if(!Number.isFinite(start))return wall;
+  const rounded=+p.minute>30?start+3600e3:start;return localHourFromEpoch(rounded,tz);
 }
+
+function localHourFromEpoch(epochMs,timezone){const p=zonedParts(new Date(epochMs),timezone);return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;}
+function roundedHourEpoch(timezone,now=new Date()){const local=roundedHourLocal(timezone,now),ms=zonedLocalTimestampEpoch(local,timezone,now.getTime());return Number.isFinite(ms)?ms:now.getTime();}
+function hourlyAxis(series,timezone){const hourly=series?.hourly||{},ts=hourly.timestamps||[],cached=hourly.timestampEpochMs;let epochs;if(Array.isArray(cached)&&cached.length===ts.length)epochs=cached;else{epochs=zonedTimestampEpochs(ts,timezone);if(Array.isArray(hourly.timestamps))hourly.timestampEpochMs=epochs;}const indexByEpoch=new Map(),rows=[];for(let i=0;i<ts.length;i++){const epochMs=epochs[i];if(!Number.isFinite(epochMs))continue;rows.push({timestamp:ts[i],epochMs,index:i});indexByEpoch.set(epochMs,i);}return {rows,indexByEpoch};}
 
 function stats(values) {
   const a=values.filter(Number.isFinite); if(!a.length)return null; const mean=a.reduce((s,v)=>s+v,0)/a.length; const variance=a.reduce((s,v)=>s+(v-mean)**2,0)/a.length;
@@ -83,7 +101,8 @@ function scoreFromStd(std,tight,wide){ if(std<=tight)return 100;if(std>=wide)ret
 function confidenceContinuous(values, tight, wide){ const s=stats(values); if(!s||s.count<2)return null;return {...s, percent:scoreFromStd(s.stdDev,tight,wide), spread:s.max-s.min}; }
 
 function dailyCompletenessEntry(series,index,metric){return series?.daily?.completeness?.[metric]?.[index]||null;}
-function dailyMetricComparable(series,index,metric){const status=dailyCompletenessEntry(series,index,metric)?.status;return status==null||status==='FULL'||status==='CURRENT'||status==='UNKNOWN';}
+export function dailyMetricIsComparable(series,index,metric){const status=dailyCompletenessEntry(series,index,metric)?.status;return status==null||status==='FULL'||status==='CURRENT'||status==='UNKNOWN';}
+const dailyMetricComparable=dailyMetricIsComparable;
 
 export function dayConfidence(forecast,date){
   const rows=Object.values(forecast.seriesByModel||{}).map(series=>{const i=series.daily.dates.indexOf(date);return i<0?null:{series,i};}).filter(Boolean);
@@ -97,7 +116,7 @@ export function dayConfidence(forecast,date){
   return {date,tempMax,tempMin,windMax,windGustMax,precipitation,overallPercent:scores.length?Math.floor(scores.reduce((a,b)=>a+b,0)/scores.length):null};
 }
 function precipitationConfidence(vals){
-  if(!vals.length)return null;const rain=vals.filter(v=>v>=1),dry=vals.filter(v=>v<1);
+  if(vals.length<2)return null;const rain=vals.filter(v=>v>=1),dry=vals.filter(v=>v<1);
   if(!rain.length){const max=Math.max(...vals);return {kind:'NO_RAIN',percent:max<.1?100:90,count:vals.length,maxAmountMm:max};}
   if(!dry.length){const s=stats(rain);return {kind:'RAIN',percent:scoreFromStd(s.stdDev,1,8),count:vals.length,minMm:s.min,maxMm:s.max,meanMm:s.mean};}
   const agreement=Math.max(rain.length,dry.length)/vals.length; const s=stats(rain);
@@ -113,9 +132,9 @@ export function hourlyCondition(series,index){
 }
 
 export function currentConditions(forecast, now=new Date()) {
-  const target=cityNowLocal(forecast.city.timezone,now); const temps=[],winds=[],clouds=[],conditionVotes=[];
+  const timezone=forecast.city?.timezone||forecast.timezone||'UTC',target=now.getTime(),temps=[],winds=[],clouds=[],conditionVotes=[];
   for(const series of Object.values(forecast.seriesByModel||{})){
-    const i=nearestIndex(series.hourly.timestamps,target,90);if(i==null)continue;
+    const axis=hourlyAxis(series,timezone);let i=null,best=Infinity;for(const row of axis.rows){const delta=Math.abs(row.epochMs-target);if(delta<best){best=delta;i=row.index;}}if(i==null||best>90*60000)continue;
     const t=series.hourly.temperature2m[i],w=series.hourly.windSpeed10m[i],c=series.hourly.cloudCover[i];
     if(Number.isFinite(t))temps.push(t);if(Number.isFinite(w))winds.push(w);if(Number.isFinite(c))clouds.push(c);
     const vote=hourlyCondition(series,i);if(vote.condition)conditionVotes.push(vote);
@@ -144,11 +163,10 @@ export function dailyMatrix(forecast){
 
 export function hourlyConfidenceBand(forecast,metric='TEMPERATURE', horizonHours=168, now=new Date()){
   const extractor= metric==='PRECIPITATION' ? s=>s.hourly.precipitation : metric==='WIND' ? s=>s.hourly.windSpeed10m : s=>s.hourly.temperature2m;
-  const thresholds=metric==='PRECIPITATION'?[1,8]:metric==='WIND'?[2,12]:[.5,3];
-  const maps=Object.values(forecast.seriesByModel||{}).map(s=>{const m=new Map();const v=extractor(s);s.hourly.timestamps.forEach((ts,i)=>{if(Number.isFinite(v[i]))m.set(ts,v[i]);});return m;});
-  const anchor=localEpoch(roundedHourLocal(forecast.city?.timezone||forecast.timezone||'UTC',now));
-  const times=[...new Set(maps.flatMap(m=>[...m.keys()]))].filter(ts=>localEpoch(ts)>=anchor).sort().slice(0,horizonHours);
-  return times.map(ts=>{const vals=maps.map(m=>m.get(ts)).filter(Number.isFinite);if(vals.length<2)return null;const s=stats(vals);return {timestamp:ts,meanValue:s.mean,minValue:s.min,maxValue:s.max,stdDev:s.stdDev,percent:scoreFromStd(s.stdDev,...thresholds),modelCount:s.count};}).filter(Boolean);
+  const thresholds=metric==='PRECIPITATION'?[1,8]:metric==='WIND'?[2,12]:[.5,3],timezone=forecast.city?.timezone||forecast.timezone||'UTC';
+  const maps=Object.values(forecast.seriesByModel||{}).map(s=>{const m=new Map(),axis=hourlyAxis(s,timezone),v=extractor(s);for(const row of axis.rows)if(Number.isFinite(v[row.index]))m.set(row.epochMs,{value:v[row.index],timestamp:row.timestamp});return m;});
+  const anchor=roundedHourEpoch(timezone,now),times=[...new Set(maps.flatMap(m=>[...m.keys()]))].filter(ms=>ms>=anchor).sort((a,b)=>a-b).slice(0,horizonHours);
+  return times.map(epochMs=>{const entries=maps.map(m=>m.get(epochMs)).filter(Boolean),vals=entries.map(x=>x.value).filter(Number.isFinite);if(vals.length<2)return null;const st=stats(vals);return {timestamp:entries[0]?.timestamp||localHourFromEpoch(epochMs,timezone),epochMs,meanValue:st.mean,minValue:st.min,maxValue:st.max,stdDev:st.stdDev,percent:scoreFromStd(st.stdDev,...thresholds),modelCount:st.count};}).filter(Boolean);
 }
 
 export function aggregateDay(forecast,date){
@@ -166,23 +184,22 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date()) {
   const series=Object.values(forecast.seriesByModel||{});
   if(!series.length)return [];
   const hourly=mode==='HOURLY';
-  const rainThreshold=hourly?.1:.2;
+  const rainThreshold=hourly?.1:.2,timezone=forecast.city?.timezone||forecast.timezone||'UTC',axes=hourly?new Map(series.map(s=>[s,hourlyAxis(s,timezone)])):null;
   const keys=hourly
-    ? [...new Set(series.flatMap(x=>x.hourly.timestamps||[]))].sort()
+    ? [...new Map(series.flatMap(s=>(axes.get(s)?.rows||[]).map(row=>[row.epochMs,{timestamp:row.timestamp,epochMs:row.epochMs}]))).values()].sort((a,b)=>a.epochMs-b.epochMs)
     : [...new Set(series.flatMap(x=>x.daily.dates||[]))].sort();
   let selected;
   if(hourly){
-    const anchor=roundedHourLocal(forecast.city.timezone,now);
-    const end=localEpoch(anchor)+24*3600000;
-    selected=keys.filter(ts=>localEpoch(ts)>=localEpoch(anchor)&&localEpoch(ts)<end);
+    const anchor=roundedHourEpoch(timezone,now),end=anchor+24*3600000;
+    selected=keys.filter(x=>x.epochMs>=anchor&&x.epochMs<end);
   }else{
-    const today=cityToday(forecast.city.timezone,now);
+    const today=cityToday(timezone,now);
     selected=keys.filter(d=>d>=today).slice(0,7);
   }
-  return selected.map(key=>{
-    const snaps=[];
+  return selected.map(slot=>{
+    const key=hourly?slot.timestamp:slot,epochMs=hourly?slot.epochMs:null,snaps=[];
     for(const s of series){
-      const i=(hourly?s.hourly.timestamps:s.daily.dates).indexOf(key);
+      const i=hourly?(axes.get(s)?.indexByEpoch.get(epochMs)??-1):s.daily.dates.indexOf(key);
       if(i<0)continue;
       const tempComparable=hourly||dailyMetricComparable(s,i,'temperature'),precipComparable=hourly||dailyMetricComparable(s,i,'precipitation'),windComparable=hourly||dailyMetricComparable(s,i,'wind'),conditionComparable=hourly||dailyMetricComparable(s,i,'condition');
       const temperature=hourly?s.hourly.temperature2m[i]:null;
@@ -230,7 +247,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date()) {
     if(Number.isFinite(conditionAgreement)){metricScores.push(conditionAgreement);if(conditionAgreement<60)divergence.push('CONDITION');}
     const consensusPercent=metricScores.length?Math.round(metricScores.reduce((a,b)=>a+b,0)/metricScores.length):null;
     return {
-      mode,key,timestamp:hourly?key:null,date:hourly?key.slice(0,10):key,temperatureC:median(temps),tempMinC:median(mins),tempMaxC:median(maxs),
+      mode,key,timestamp:hourly?key:null,epochMs:hourly?epochMs:null,date:hourly?key.slice(0,10):key,temperatureC:median(temps),tempMinC:median(mins),tempMaxC:median(maxs),
       temperatureMinAcrossModels:(hourly?temps:maxs).length?Math.min(...(hourly?temps:maxs)):null,temperatureMaxAcrossModels:(hourly?temps:maxs).length?Math.max(...(hourly?temps:maxs)):null,
       precipitationPercent:precipPercent,precipitationSource:precipSource,precipitationModelCount:robustProb?probs.length:prec.length,wetModelCount:wetVotes,
       precipitationMm:median(prec),precipitationMinAcrossModelsMm:prec.length?Math.min(...prec):null,precipitationMaxAcrossModelsMm:prec.length?Math.max(...prec):null,
@@ -245,19 +262,19 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date()) {
 export function selectRegularTimelinePoints(points,maxPoints=8,stepHours=3){
   if(!points.length)return [];
   if(points[0].mode!=='HOURLY')return points.slice(0,maxPoints);
-  const by=new Map(points.map(x=>[x.timestamp,x]));const first=points[0].timestamp;const start=localEpoch(first);
-  return Array.from({length:maxPoints},(_,slot)=>{const d=new Date(start+slot*stepHours*3600000);const ts=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}T${String(d.getUTCHours()).padStart(2,'0')}:00`;return by.get(ts)||{mode:'HOURLY',key:ts,timestamp:ts,date:ts.slice(0,10),modelCount:0,divergenceReasons:[]};});
+  if(points.every(p=>Number.isFinite(p.epochMs))){const by=new Map(points.map(p=>[p.epochMs,p])),start=points[0].epochMs;const chosen=[];for(let slot=0;slot<maxPoints;slot++){const p=by.get(start+slot*stepHours*3600000);if(p)chosen.push(p);}return chosen.length?chosen:points.filter((_,i)=>i%stepHours===0).slice(0,maxPoints);}
+  return points.filter((_,i)=>i%stepHours===0).slice(0,maxPoints);
 }
 
 export function homeHeatmap(forecast,hours=12){
-  const anchor=roundedHourLocal(forecast.city.timezone);const result=[];
-  for(let off=0;off<hours;off++){const d=new Date(localEpoch(anchor)+off*3600000);const target=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}T${String(d.getUTCHours()).padStart(2,'0')}:00`;const temps=[],probs=[];for(const s of Object.values(forecast.seriesByModel||{})){const i=nearestIndex(s.hourly.timestamps,target,30);if(i==null)continue;if(Number.isFinite(s.hourly.temperature2m[i]))temps.push(s.hourly.temperature2m[i]);if(Number.isFinite(s.hourly.precipitationProbability[i]))probs.push(s.hourly.precipitationProbability[i]);}result.push({timestamp:target,temp:stats(temps)?.mean??null,precipProbability:probs.length?Math.round(stats(probs).mean):null});}return result;
+  const timezone=forecast.city?.timezone||forecast.timezone||'UTC',anchor=roundedHourEpoch(timezone),result=[],axes=Object.values(forecast.seriesByModel||{}).map(s=>({s,axis:hourlyAxis(s,timezone)}));
+  for(let off=0;off<hours;off++){const epochMs=anchor+off*3600000,target=localHourFromEpoch(epochMs,timezone),temps=[],probs=[];for(const {s,axis} of axes){const i=axis.indexByEpoch.get(epochMs);if(i==null)continue;if(Number.isFinite(s.hourly.temperature2m[i]))temps.push(s.hourly.temperature2m[i]);if(Number.isFinite(s.hourly.precipitationProbability[i]))probs.push(s.hourly.precipitationProbability[i]);}result.push({timestamp:target,epochMs,temp:stats(temps)?.mean??null,precipProbability:probs.length?Math.round(stats(probs).mean):null});}return result;
 }
 
 const WET=new Set([CONDITION.DRIZZLE,CONDITION.RAIN,CONDITION.FREEZING_RAIN,CONDITION.SNOW,CONDITION.RAIN_SHOWERS,CONDITION.SNOW_SHOWERS,CONDITION.THUNDERSTORM]);
 export function buildScenarios(forecast,maxScenarios=3){
-  const anchor=roundedHourLocal(forecast.city.timezone);const models=[];
-  for(const [modelId,s] of Object.entries(forecast.seriesByModel||{})){const samples=[];for(let off=0;off<12;off++){const d=new Date(localEpoch(anchor)+off*3600000);const target=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}T${String(d.getUTCHours()).padStart(2,'0')}:00`;const i=nearestIndex(s.hourly.timestamps,target,30);if(i==null)continue;const condition=fromWmoCode(s.hourly.weatherCode[i]);samples.push({off,temp:s.hourly.temperature2m[i],precip:s.hourly.precipitation[i],condition:condition===CONDITION.UNKNOWN?null:condition,cloud:s.hourly.cloudCover[i],gust:s.hourly.windGusts10m[i]});}
+  const timezone=forecast.city?.timezone||forecast.timezone||'UTC',anchor=roundedHourEpoch(timezone),models=[];
+  for(const [modelId,s] of Object.entries(forecast.seriesByModel||{})){const axis=hourlyAxis(s,timezone),samples=[];for(let off=0;off<12;off++){const epochMs=anchor+off*3600000,i=axis.indexByEpoch.get(epochMs);if(i==null)continue;const condition=fromWmoCode(s.hourly.weatherCode[i]);samples.push({off,temp:s.hourly.temperature2m[i],precip:s.hourly.precipitation[i],condition:condition===CONDITION.UNKNOWN?null:condition,cloud:s.hourly.cloudCover[i],gust:s.hourly.windGusts10m[i]});}
     if(!samples.length)continue;const wet=samples.filter(x=>(x.precip||0)>=.1||WET.has(x.condition));const precipitation=samples.map(x=>x.precip).filter(Number.isFinite);const totalPrecip=samples.length===12&&precipitation.length===12?precipitation.reduce((a,b)=>a+b,0):null;let kind;
     if(samples.some(x=>x.condition===CONDITION.THUNDERSTORM))kind='THUNDERSTORM';else if(samples.some(x=>x.condition===CONDITION.FREEZING_RAIN))kind='FREEZING_RAIN';else if(samples.some(x=>[CONDITION.SNOW,CONDITION.SNOW_SHOWERS].includes(x.condition)))kind='SNOW';else if(wet.length && ((totalPrecip||0)>=2||wet.length>=3||samples.some(x=>x.condition===CONDITION.RAIN)))kind='RAIN';else if(wet.length)kind='SHOWERS';else {const clouds=samples.map(x=>x.cloud).filter(Number.isFinite).sort((a,b)=>a-b);const med=median(clouds);if(Number.isFinite(med))kind=med<30?'CLEAR':med<70?'VARIABLE_SKY':'OVERCAST';else if(samples.some(x=>[CONDITION.OVERCAST,CONDITION.FOG].includes(x.condition)))kind='OVERCAST';else if(samples.some(x=>x.condition===CONDITION.PARTLY_CLOUDY))kind='VARIABLE_SKY';else if(samples.some(x=>[CONDITION.CLEAR,CONDITION.MAINLY_CLEAR].includes(x.condition)))kind='CLEAR';else kind='DRY_UNSPECIFIED';}
     let timing='NONE';if(wet.length){const offs=wet.map(x=>x.off).sort((a,b)=>a-b);if(offs.length>=8||(offs[0]<=1&&offs.at(-1)>=9))timing='THROUGHOUT';else {const med=offs[Math.floor(offs.length/2)];timing=med<=3?'EARLY':med>=8?'LATE':'MIDDLE';}}
@@ -313,7 +330,7 @@ function weightedStats(entries){
 }
 function weightedConfidenceContinuous(entries,tight,wide){const s=weightedStats(entries);if(!s||s.count<2)return null;return {...s,percent:scoreFromStd(s.stdDev,tight,wide),spread:s.max-s.min};}
 function weightedPrecipitationConfidence(entries){
-  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0);if(!rows.length)return null;
+  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0);if(rows.length<2)return null;
   const rain=rows.filter(x=>x.value>=1),dry=rows.filter(x=>x.value<1),sum=a=>a.reduce((s,x)=>s+x.weight,0),total=sum(rows),rw=sum(rain),dw=sum(dry);
   if(!rain.length){const max=Math.max(...rows.map(x=>x.value));return {kind:'NO_RAIN',percent:max<.1?100:90,count:rows.length,maxAmountMm:max};}
   if(!dry.length){const s=weightedStats(rain);return {kind:'RAIN',percent:scoreFromStd(s.stdDev,1,8),count:rows.length,minMm:s.min,maxMm:s.max,meanMm:s.mean};}

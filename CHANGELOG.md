@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.10.6] - 2026-08-18
+
+### Added
+- Bouton Google Play dans la top bar, juste avant Soutien, vers l’application Android officielle MeteoCompare.
+
+### Changed
+- `APP_VERSION` passe à `1.10.6` et le cache PWA à `v36-play-store-nav`.
+- Aucun changement des chaînes météo auditées en 1.10.5.
+
+## [1.10.5] - 2026-08-18
+
+### Fixed
+- Conversion systématique des timestamps locaux Open-Meteo en instants absolus pour les calculs météo et Marine, y compris les heures dupliquées/supprimées lors des bascules DST.
+- Les journées terminales `PARTIAL` restent visibles comme données brutes mais sont exclues de toutes les comparaisons, évolutions et composantes d’accord nécessitant une journée civile comparable.
+- L’accord pluie exige désormais au moins deux modèles, comme les autres métriques ; un modèle isolé ne peut plus produire artificiellement 90–100 % d’accord.
+- La référence de fiabilité locale est explicitement ERA5, avec une fenêtre commune de 30 jours terminant 6 jours avant aujourd’hui et invalidation des anciennes références non identifiées.
+- Le moniteur de santé propage l’absence réelle d’un modèle actif comme état dégradé même si ses métadonnées sont fraîches, et son historique audité est versionné.
+- Les graphiques de comparaison coupent les lignes sur les données manquantes au lieu de relier artificiellement les trous.
+- Correction de la métadonnée `ICON_D2.nativeStepMinutes` à 60 min pour le produit horaire `icon_d2`.
+- Optimisation des conversions de fuseau : les instants normalisés sont mis en cache au niveau des séries, évitant une régression de performance détectée pendant l’audit.
+
+### Changed
+- Ajout d’une suite adversariale `release-data-audit-1105.mjs` couvrant multi-fuseaux, DST automne/printemps, horizons courts, ERA5, santé modèles, comparaisons et marées.
+- Cache PWA : `v35-release-audit`.
+
 ## [1.10.4] - 2026-08-18
 
 ### Changed

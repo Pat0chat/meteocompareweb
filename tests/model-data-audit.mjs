@@ -19,6 +19,7 @@ assert.equal(getModel('AROME_FRANCE_HD').maxForecastDays,2);
 assert.equal(getModel('AROME_FRANCE').maxForecastDays,2);
 assert.equal(getModel('ARPEGE_WORLD').nativeStepMinutes,60);
 assert.equal(getModel('ICON_D2').horizonHours,48);
+assert.equal(getModel('ICON_D2').nativeStepMinutes,60,'hourly icon_d2 must not be labelled as the separate 15-minute product');
 assert.equal(getModel('METNO_NORDIC').horizonHours,60);
 assert.equal(getModel('KNMI_HARMONIE_EU').horizonHours,60);
 assert.equal(getModel('HRRR_CONUS').horizonHours,18);

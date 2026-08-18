@@ -1,4 +1,5 @@
 import { fetchOpenMeteoJson } from '../api-budget.js';
+import { zonedTimestampEpochs } from '../domain.js';
 
 const MARINE_URL='https://marine-api.open-meteo.com/v1/marine';
 export const MARINE_CACHE_TTL_MS=6*3600_000;
@@ -45,27 +46,29 @@ function deriveDaily(hourly){
 export function normalizeMarine(raw,city){
   const hourlyRaw=raw?.hourly||{},gridLat=Number(raw?.latitude),gridLon=Number(raw?.longitude),distanceKm=Number.isFinite(gridLat)&&Number.isFinite(gridLon)?haversineKm(Number(city.latitude),Number(city.longitude),gridLat,gridLon):null;
   const hourly={timestamps:strings(hourlyRaw.time),waveHeight:nums(hourlyRaw.wave_height),waveDirection:nums(hourlyRaw.wave_direction),wavePeriod:nums(hourlyRaw.wave_period),swellHeight:nums(hourlyRaw.swell_wave_height),swellDirection:nums(hourlyRaw.swell_wave_direction),swellPeriod:nums(hourlyRaw.swell_wave_period),seaSurfaceTemperature:nums(hourlyRaw.sea_surface_temperature),seaLevelHeightMsl:nums(hourlyRaw.sea_level_height_msl)};
-  const result={fetchedAt:new Date().toISOString(),timezone:raw?.timezone||city.timezone||'UTC',grid:{latitude:gridLat,longitude:gridLon,distanceKm},hourly,daily:deriveDaily(hourly)};
+  const timezone=raw?.timezone||city.timezone||'UTC';hourly.timestampEpochMs=zonedTimestampEpochs(hourly.timestamps,timezone);
+  const result={fetchedAt:new Date().toISOString(),timezone,grid:{latitude:gridLat,longitude:gridLon,distanceKm},hourly,daily:deriveDaily(hourly)};
   result.usablePoints=countFinite(result.hourly.waveHeight);
   result.coastal=Number.isFinite(distanceKm)&&distanceKm<=COASTAL_MAX_DISTANCE_KM&&result.usablePoints>=6;
   return result;
 }
 
 
-export function detectTideEvents(data,{hours=72,minGapHours=3}={}){
-  const ts=data?.hourly?.timestamps||[],v=data?.hourly?.seaLevelHeightMsl||[];if(ts.length<3||v.length<3)return [];
-  const start=Date.now(),end=start+hours*3600e3,candidates=[];
-  for(let i=1;i<Math.min(ts.length,v.length)-1;i++){
-    const ms=Date.parse(ts[i]);if(!Number.isFinite(ms)||ms<start-3600e3||ms>end)continue;
+function marineEpochs(data){const ts=data?.hourly?.timestamps||[],cached=data?.hourly?.timestampEpochMs;if(Array.isArray(cached)&&cached.length===ts.length)return cached;return zonedTimestampEpochs(ts,data?.timezone||'UTC');}
+export function detectTideEvents(data,{hours=72,minGapHours=3,now=Date.now()}={}){
+  const ts=data?.hourly?.timestamps||[],epochs=marineEpochs(data),v=data?.hourly?.seaLevelHeightMsl||[];if(ts.length<3||v.length<3)return [];
+  const start=now,end=start+hours*3600e3,candidates=[];
+  for(let i=1;i<Math.min(ts.length,v.length,epochs.length)-1;i++){
+    const ms=epochs[i];if(!Number.isFinite(ms)||ms<start-3600e3||ms>end)continue;
     if(![v[i-1],v[i],v[i+1]].every(Number.isFinite))continue;
-    const high=v[i]>=v[i-1]&&v[i]>v[i+1],low=v[i]<=v[i-1]&&v[i]<v[i+1];if(high||low)candidates.push({timestamp:ts[i],value:v[i],type:high?'HIGH':'LOW'});
+    const high=v[i]>=v[i-1]&&v[i]>v[i+1],low=v[i]<=v[i-1]&&v[i]<v[i+1];if(high||low)candidates.push({timestamp:ts[i],epochMs:ms,value:v[i],type:high?'HIGH':'LOW'});
   }
-  const out=[];for(const e of candidates){const prev=out.at(-1);if(prev&&e.type===prev.type&&Date.parse(e.timestamp)-Date.parse(prev.timestamp)<minGapHours*3600e3){const better=e.type==='HIGH'?e.value>prev.value:e.value<prev.value;if(better)out[out.length-1]=e;continue;}out.push(e);}return out;
+  const out=[];for(const e of candidates){const prev=out.at(-1);if(prev&&e.type===prev.type&&e.epochMs-prev.epochMs<minGapHours*3600e3){const better=e.type==='HIGH'?e.value>prev.value:e.value<prev.value;if(better)out[out.length-1]=e;continue;}out.push(e);}return out;
 }
 export function tideRangeNext24h(data,now=Date.now()){
-  const ts=data?.hourly?.timestamps||[],v=data?.hourly?.seaLevelHeightMsl||[],vals=[];for(let i=0;i<Math.min(ts.length,v.length);i++){const ms=Date.parse(ts[i]);if(ms>=now&&ms<now+24*3600e3&&Number.isFinite(v[i]))vals.push(v[i]);}return vals.length?{min:Math.min(...vals),max:Math.max(...vals),range:Math.max(...vals)-Math.min(...vals)}:null;
+  const epochs=marineEpochs(data),v=data?.hourly?.seaLevelHeightMsl||[],vals=[];for(let i=0;i<Math.min(epochs.length,v.length);i++){const ms=epochs[i];if(ms>=now&&ms<now+24*3600e3&&Number.isFinite(v[i]))vals.push(v[i]);}return vals.length?{min:Math.min(...vals),max:Math.max(...vals),range:Math.max(...vals)-Math.min(...vals)}:null;
 }
 
 export async function fetchMarineForCity(city){const raw=await fetchOpenMeteoJson(urlFor(city),{timeoutMs:30000,category:'marine'});return normalizeMarine(raw,city);}
 export function marineCacheFresh(data){return Boolean(data?.fetchedAt&&Date.now()-Date.parse(data.fetchedAt)<MARINE_CACHE_TTL_MS);}
-export function nearestMarineIndex(data,now=Date.now()){const ts=data?.hourly?.timestamps||[];if(!ts.length)return -1;let best=-1,delta=Infinity;for(let i=0;i<ts.length;i++){const d=Math.abs(Date.parse(ts[i])-now);if(Number.isFinite(d)&&d<delta){delta=d;best=i;}}return best;}
+export function nearestMarineIndex(data,now=Date.now()){const epochs=marineEpochs(data);if(!epochs.length)return -1;let best=-1,delta=Infinity;for(let i=0;i<epochs.length;i++){const d=Math.abs(epochs[i]-now);if(Number.isFinite(d)&&d<delta){delta=d;best=i;}}return best;}
