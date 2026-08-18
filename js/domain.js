@@ -305,3 +305,24 @@ export function relativeAge(iso,locale='fr-FR'){
 
 export function median(values){const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;}
 function minFinite(v){const a=v.filter(Number.isFinite);return a.length?Math.min(...a):null;}function maxFinite(v){const a=v.filter(Number.isFinite);return a.length?Math.max(...a):null;}
+
+function weightedStats(entries){
+  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0);if(!rows.length)return null;
+  const total=rows.reduce((s,x)=>s+x.weight,0),mean=rows.reduce((s,x)=>s+x.value*x.weight,0)/total,variance=rows.reduce((s,x)=>s+x.weight*(x.value-mean)**2,0)/total;
+  return {mean,stdDev:Math.sqrt(variance),min:Math.min(...rows.map(x=>x.value)),max:Math.max(...rows.map(x=>x.value)),count:rows.length,totalWeight:total};
+}
+function weightedConfidenceContinuous(entries,tight,wide){const s=weightedStats(entries);if(!s||s.count<2)return null;return {...s,percent:scoreFromStd(s.stdDev,tight,wide),spread:s.max-s.min};}
+function weightedPrecipitationConfidence(entries){
+  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0);if(!rows.length)return null;
+  const rain=rows.filter(x=>x.value>=1),dry=rows.filter(x=>x.value<1),sum=a=>a.reduce((s,x)=>s+x.weight,0),total=sum(rows),rw=sum(rain),dw=sum(dry);
+  if(!rain.length){const max=Math.max(...rows.map(x=>x.value));return {kind:'NO_RAIN',percent:max<.1?100:90,count:rows.length,maxAmountMm:max};}
+  if(!dry.length){const s=weightedStats(rain);return {kind:'RAIN',percent:scoreFromStd(s.stdDev,1,8),count:rows.length,minMm:s.min,maxMm:s.max,meanMm:s.mean};}
+  const agreement=Math.max(rw,dw)/total,s=weightedStats(rain);return {kind:'DIVIDED',percent:Math.max(0,Math.min(100,Math.round((agreement-.5)*200))),count:rows.length,modelsForRain:rain.length,modelsAgainstRain:dry.length,rainMinMm:s.min,rainMaxMm:s.max,rainMeanMm:s.mean};
+}
+/** Agreement recomputed with optional local reliability weights. Forecast values are never altered. */
+export function weightedDayConfidence(forecast,date,weightsByVariable={}){
+  const rows=Object.entries(forecast.seriesByModel||{}).map(([modelId,series])=>{const i=series.daily.dates.indexOf(date);return i<0?null:{modelId,series,i};}).filter(Boolean);
+  const entries=(metric,key,mapKey)=>rows.filter(x=>dailyMetricComparable(x.series,x.i,metric)&&Number.isFinite(x.series.daily[key][x.i])).map(x=>({value:x.series.daily[key][x.i],weight:Number(weightsByVariable?.[mapKey]?.[x.modelId])||1,modelId:x.modelId}));
+  const tempMax=weightedConfidenceContinuous(entries('temperature','tempMax','temperature'),.5,3),tempMin=weightedConfidenceContinuous(entries('temperature','tempMin','temperature'),.5,3),windMax=weightedConfidenceContinuous(entries('wind','windSpeedMax','wind'),2,12),windGustMax=weightedConfidenceContinuous(entries('wind','windGustsMax','wind'),2,12),precipitation=weightedPrecipitationConfidence(entries('precipitation','precipitationSum','precipitation'));
+  const scores=[tempMax?.percent,tempMin?.percent,precipitation?.percent,windMax?.percent].filter(Number.isFinite);return {date,tempMax,tempMin,windMax,windGustMax,precipitation,overallPercent:scores.length?Math.floor(scores.reduce((a,b)=>a+b,0)/scores.length):null,weighted:true};
+}
