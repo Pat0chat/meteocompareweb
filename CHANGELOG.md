@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.10.4] - 2026-08-18
+
+### Changed
+- Refonte complète de la section **Mer / côte** autour de deux surfaces cohérentes au lieu d’une succession de panneaux indépendants.
+- Conservation des 5 indicateurs marins instantanés sur une seule ligne desktop, avec une hiérarchie visuelle plus proche du reste de MeteoCompare.
+- Fusion de l’évolution des vagues et de l’aperçu 7 jours dans un même bloc, avec remplacement du tableau quotidien par une bande compacte de journées.
+- Recomposition des marées : graphique principal à gauche, niveau courant / tendance / prochain extremum / marnage et prochaines marées dans un rail synthétique à droite.
+- Notes MSL, avertissement nautique et source déplacés hors du flux principal afin d’alléger la lecture.
+- Cache PWA : `v34-marine-dashboard`.
+
 All notable changes to MeteoCompare Web are documented here. Releases follow Semantic Versioning.
 
 ## [1.10.3] - 2026-08-18

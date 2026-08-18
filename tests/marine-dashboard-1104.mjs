@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+assert.equal(version,'1.10.4');
+assert.ok(app.includes('marine-dashboard') && app.includes('marine-sea-surface') && app.includes('marine-tide-surface'),'marine content is grouped into two coherent surfaces');
+assert.ok(app.includes('marine-outlook') && app.includes('marine-days'),'7-day outlook is integrated with sea-state evolution');
+assert.ok(app.includes('marine-tide-layout') && app.includes('marine-tide-rail'),'tide chart and key information share one workspace');
+assert.ok(app.includes('marine-level-hero') && app.includes('marine-tide-facts') && app.includes('marine-next-tides'),'tide summary and events form one concise rail');
+assert.ok(app.includes('marine-footer-note'),'technical disclaimer and source are consolidated in the footer');
+assert.ok(!app.includes('marine-tide-panel'),'legacy stacked tide panel is no longer rendered');
+assert.ok(!app.includes('<h3>${esc(t(\'marineDailyOutlook\'))}</h3><div class="table-wrap"><table class="marine-table"'),'legacy daily table is removed from the marine render');
+assert.ok(css.includes('grid-template-columns:minmax(0,1.7fr) minmax(250px,.62fr)'),'desktop tide layout prioritizes the chart while keeping a readable rail');
+assert.ok(css.includes('grid-template-columns:repeat(7,minmax(110px,1fr))'),'daily outlook uses a compact seven-day strip');
+console.log('marine-dashboard-1104: ok');
