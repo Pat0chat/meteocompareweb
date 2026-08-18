@@ -7,8 +7,8 @@ const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 const api=fs.readFileSync(new URL('../js/api.js',import.meta.url),'utf8');
 
-assert.match(api,/searchParams\.set\('forecast_hours', String\(maxDays \* 24\)\)/,'hourly API requests must use a rolling forecast_hours window');
-assert.match(api,/usable<18[\s\S]*fetchSingleModelHourly\(city,iconD2\)/,'ICON-D2 must have a targeted fallback when a batched hourly series is suspiciously short');
+assert.match(api,/searchParams\.set\('forecast_hours',[\s\S]*forecastHours/,'hourly API requests must use a rolling forecast_hours window');
+assert.match(api,/const suspicious=models\.filter[\s\S]*recoveryAttempted/,'short-series recovery must be generic instead of ICON-D2-specific');
 assert.match(app,/class="evolution-table-head"/,'forecast evolution must use one analytical matrix instead of a card grid');
 assert.match(app,/data-evolution-variable=/,'forecast evolution must allow switching variable without multiplying cards');
 assert.match(app,/class="evolution-track"/,'forecast evolution must render revision trajectories');
@@ -19,28 +19,28 @@ assert.match(app,/reliability\.score/,'local reliability compact ranking must ex
 assert.match(css,/\.evolution-row \{ display:grid/,'evolution rows must be aligned as a desktop analysis matrix');
 assert.match(css,/\.reliability-table-head,\.reliability-rank-row/,'local reliability must use a compact table-like layout');
 
-// Simulate the precise ICON-D2 failure mode: the multi-model response contains
-// only 3 temperature hours for ICON-D2, while the targeted fallback returns 48.
+// Simulate the precise ICON-D2 failure mode inside a 7-day multi-model
+// response: GFS is complete for 168 hours, ICON-D2 has only 3 usable hours.
 const city={id:'strasbourg',name:'Strasbourg',latitude:48.5734,longitude:7.7521,timezone:'Europe/Paris'};
-const batchedTimes=Array.from({length:48},(_,i)=>`2026-08-${String(18+Math.floor(i/24)).padStart(2,'0')}T${String(i%24).padStart(2,'0')}:00`);
+const batchedTimes=Array.from({length:168},(_,i)=>{const d=new Date(Date.UTC(2026,7,18,i));return d.toISOString().slice(0,13)+':00';});
 const batched={timezone:'Europe/Paris',hourly:{time:batchedTimes,
   temperature_2m_icon_d2:batchedTimes.map((_,i)=>i<3?20+i:null),
   temperature_2m_ncep_gfs_seamless:batchedTimes.map((_,i)=>19+i/10),
-  precipitation_icon_d2:batchedTimes.map(()=>0),precipitation_ncep_gfs_seamless:batchedTimes.map(()=>0),
+  precipitation_icon_d2:batchedTimes.map((_,i)=>i<3?0:null),precipitation_ncep_gfs_seamless:batchedTimes.map(()=>0),
   wind_speed_10m_icon_d2:batchedTimes.map((_,i)=>i<3?10:null),wind_speed_10m_ncep_gfs_seamless:batchedTimes.map(()=>12),
   weather_code_icon_d2:batchedTimes.map((_,i)=>i<3?1:null),weather_code_ncep_gfs_seamless:batchedTimes.map(()=>1)
 }};
-const fallback={timezone:'Europe/Paris',hourly:{time:batchedTimes,
-  temperature_2m:batchedTimes.map((_,i)=>20+i/20),precipitation:batchedTimes.map(()=>0),wind_speed_10m:batchedTimes.map(()=>10),weather_code:batchedTimes.map(()=>1)
+const fallbackTimes=batchedTimes.slice(0,48),fallback={timezone:'Europe/Paris',hourly:{time:fallbackTimes,
+  temperature_2m:fallbackTimes.map((_,i)=>20+i/20),precipitation:fallbackTimes.map(()=>0),wind_speed_10m:fallbackTimes.map(()=>10),weather_code:fallbackTimes.map(()=>1)
 }};
 const urls=[];globalThis.fetch=async url=>{urls.push(String(url));return {ok:true,json:async()=>urls.length===1?batched:fallback};};
 const f=await fetchForecast(city,['ICON_D2','GFS'],7);
-assert.equal(urls.length,2,'a short ICON-D2 batched series should trigger one and only one targeted fallback');
+assert.equal(urls.length,2,'a short ICON-D2 batched series should trigger one recovery request');
 assert.match(urls[0],/forecast_hours=168/,'the main 7-day request must expose 168 rolling hourly slots');
-assert.match(urls[1],/models=icon_d2/,'fallback must request ICON-D2 alone');
-assert.match(urls[1],/forecast_hours=48/,'ICON-D2 fallback must request its documented 48-hour horizon');
-assert.equal(f.seriesByModel.ICON_D2.hourly.temperature2m.filter(Number.isFinite).length,48,'the longer ICON-D2 fallback must replace the short batched hourly series');
-assert.equal(f.modelMeta.ICON_D2.fallbackHourly,true,'fallback provenance must be retained in model metadata');
+assert.match(urls[1],/models=icon_d2/,'recovery must request only the suspicious ICON-D2 cohort');
+assert.match(urls[1],/forecast_hours=48/,'ICON-D2 recovery must request its documented 48-hour horizon');
+assert.equal(f.seriesByModel.ICON_D2.hourly.temperature2m.filter(Number.isFinite).length,48,'the longer ICON-D2 recovery must replace the short batched hourly series');
+assert.equal(f.modelMeta.ICON_D2.recoveredFromBatch,true,'recovery provenance must be retained in model metadata');
 
 for(const [lang,missing] of Object.entries(webTranslationAudit()))assert.deepEqual(missing,[],`missing web translations for ${lang}`);
 console.log('MeteoCompare Web ICON-D2 + evolution + reliability tests: OK');

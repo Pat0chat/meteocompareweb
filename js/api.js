@@ -42,55 +42,109 @@ export async function searchCities(query, language='fr', signal=null) {
   }));
 }
 
-export async function fetchForecast(city, enabledModelIds, requestedDays=7) {
-  const models = selectedModels(enabledModelIds);
-  if (!models.length) { const err=new Error('NO_MODELS_ENABLED'); err.code='NO_MODELS_ENABLED'; throw err; }
-  const maxDays = Math.max(1, Math.min(Math.max(...models.map(m=>m.maxForecastDays)), requestedDays));
+function forecastUrl(city, models, forecastDays, forecastHours, includeDaily=true) {
   const u = new URL(FORECAST_URL);
   u.searchParams.set('latitude', String(city.latitude));
   u.searchParams.set('longitude', String(city.longitude));
   u.searchParams.set('models', models.map(m=>m.apiKey).join(','));
   u.searchParams.set('hourly', HOURLY_VARS);
-  u.searchParams.set('daily', DAILY_VARS);
+  if (includeDaily) u.searchParams.set('daily', DAILY_VARS);
   u.searchParams.set('timezone', city.timezone || 'auto');
-  u.searchParams.set('forecast_days', String(maxDays));
-  // Hourly data must use a rolling window from the current hour. Using only
-  // forecast_days creates calendar-day windows and can leave short-horizon
-  // regional models (notably ICON-D2) with only the tail of their forecast in
-  // the detailed hourly table late in the day.
-  u.searchParams.set('forecast_hours', String(maxDays * 24));
+  u.searchParams.set('forecast_days', String(Math.max(1, forecastDays)));
+  // A rolling hourly window avoids losing most of short regional models late in
+  // the civil day. Daily fields stay calendar based via forecast_days.
+  u.searchParams.set('forecast_hours', String(Math.max(1, forecastHours)));
   u.searchParams.set('wind_speed_unit','kmh');
   u.searchParams.set('temperature_unit','celsius');
   u.searchParams.set('precipitation_unit','mm');
-  const raw = await fetchJson(u);
-  const normalized = normalizeBatchedForecast(raw, city, models);
-  // ICON-D2 occasionally arrives as an unusually short series in a batched
-  // multi-model response. A rolling forecast_hours window fixes the normal
-  // calendar clipping case. If the series is still suspiciously short, retry
-  // that model alone and keep it only when it actually improves coverage.
-  const iconD2=models.find(m=>m.id==='ICON_D2');
-  if(iconD2&&models.length>1){
-    const current=normalized.seriesByModel.ICON_D2,usable=current?.hourly?.temperature2m?.filter(Number.isFinite).length||0;
-    if(current&&usable<18){
-      try{
-        const fallback=await fetchSingleModelHourly(city,iconD2);
-        const replacement=fallback.seriesByModel.ICON_D2,replacementCount=replacement?.hourly?.temperature2m?.filter(Number.isFinite).length||0;
-        if(replacement&&replacementCount>usable){
-          normalized.seriesByModel.ICON_D2={...current,hourly:replacement.hourly};
-          normalized.modelMeta.ICON_D2={...(normalized.modelMeta.ICON_D2||{}),...(fallback.modelMeta.ICON_D2||{}),fallbackHourly:true};
-        }
-      }catch{/* Keep the batched series: fallback is strictly best-effort. */}
-    }
-  }
-  return normalized;
+  return u;
 }
 
-async function fetchSingleModelHourly(city,model){
-  const u=new URL(FORECAST_URL);
-  u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));u.searchParams.set('models',model.apiKey);
-  u.searchParams.set('hourly',HOURLY_VARS);u.searchParams.set('timezone',city.timezone||'auto');u.searchParams.set('forecast_hours',String(model.horizonHours||model.maxForecastDays*24));
-  u.searchParams.set('wind_speed_unit','kmh');u.searchParams.set('temperature_unit','celsius');u.searchParams.set('precipitation_unit','mm');
-  return normalizeBatchedForecast(await fetchJson(u),city,[model]);
+function modelRecoveryHours(model, requestedHours) {
+  return Math.max(1, Math.min(requestedHours, model.recoveryRequestHours || model.horizonHours || model.maxForecastDays*24));
+}
+
+export function hourlySeriesHealth(series, model, requestedHours) {
+  const hourly=series?.hourly||{}, expected=Math.max(1,Math.min(Number(requestedHours)||hourly.timestamps?.length||1,model.horizonHours||requestedHours||1));
+  const count=a=>Array.isArray(a)?a.filter(Number.isFinite).length:0;
+  const counts={temperature:count(hourly.temperature2m),precipitation:count(hourly.precipitation),wind:count(hourly.windSpeed10m)};
+  const criticalMin=Math.min(counts.temperature,counts.precipitation,counts.wind),criticalTotal=counts.temperature+counts.precipitation+counts.wind;
+  // This guard is deliberately tolerant: it detects severe truncation or a
+  // missing critical variable, not a few unavailable boundary hours.
+  const minimum=Math.min(expected,Math.max(8,Math.floor(expected*.55)));
+  return {expected,minimum,counts,criticalMin,criticalTotal,ratio:Math.min(1,criticalMin/expected),degraded:criticalMin<minimum,score:criticalMin*1000+criticalTotal};
+}
+
+function hasFullCivilDayAxis(timestamps,date){
+  const day=(timestamps||[]).filter(ts=>typeof ts==='string'&&ts.slice(0,10)===date);
+  if(day.length<23||day.length>25)return false;
+  return day.some(ts=>ts.slice(11,16)==='00:00')&&day.some(ts=>ts.slice(11,16)==='23:00');
+}
+
+export function sanitizeIncompleteFutureDaily(series) {
+  const h=series?.hourly,d=series?.daily;if(!h?.timestamps?.length||!d?.dates?.length)return series;
+  // Today is intentionally left untouched: the rolling hourly window starts at
+  // the current hour while provider daily aggregates still describe the whole
+  // civil day. For future days, invalidate each daily metric family only when
+  // its critical hourly footprint is incomplete. This prevents (for example) a
+  // truncated precipitation series from contaminating daily rain agreement even
+  // if temperature happened to be complete.
+  for(let di=1;di<d.dates.length;di++){
+    const date=d.dates[di];if(!hasFullCivilDayAxis(h.timestamps,date))continue;
+    const indices=[];for(let i=0;i<h.timestamps.length;i++)if(h.timestamps[i]?.slice(0,10)===date)indices.push(i);
+    const complete=a=>indices.length>=23&&indices.length<=25&&indices.every(i=>Number.isFinite(a?.[i]));
+    const tempComplete=complete(h.temperature2m),precipComplete=complete(h.precipitation),windComplete=complete(h.windSpeed10m),weatherComplete=complete(h.weatherCode);
+    if(!tempComplete)for(const key of ['tempMax','tempMin'])if(Array.isArray(d[key]))d[key][di]=null;
+    if(!precipComplete)for(const key of ['precipitationSum','precipitationProbabilityMax'])if(Array.isArray(d[key]))d[key][di]=null;
+    if(!windComplete)for(const key of ['windSpeedMax','windGustsMax','windDirection10mDominant'])if(Array.isArray(d[key]))d[key][di]=null;
+    if(!weatherComplete&&Array.isArray(d.weatherCode))d.weatherCode[di]=null;
+  }
+  return series;
+}
+
+async function fetchModelGroup(city, models, forecastDays, forecastHours) {
+  const raw=await fetchJson(forecastUrl(city,models,forecastDays,forecastHours,true));
+  return normalizeBatchedForecast(raw,city,models,forecastHours);
+}
+
+export async function fetchForecast(city, enabledModelIds, requestedDays=7) {
+  const models = selectedModels(enabledModelIds);
+  if (!models.length) { const err=new Error('NO_MODELS_ENABLED'); err.code='NO_MODELS_ENABLED'; throw err; }
+  const maxDays = Math.max(1, Math.min(Math.max(...models.map(m=>m.maxForecastDays)), requestedDays));
+  const requestHours=maxDays*24;
+  const normalized=await fetchModelGroup(city,models,maxDays,requestHours);
+
+  // Multi-model payloads can occasionally contain a severely truncated series
+  // for an otherwise available model. Detect this generically for every model
+  // using temperature + precipitation + wind, then retry only the suspicious
+  // cohort in one smaller request. Missing regional models are *not* retried:
+  // they are normally outside their geographic domain.
+  const suspicious=models.filter(m=>normalized.seriesByModel[m.id]&&normalized.modelMeta[m.id]?.hourlyHealth?.degraded);
+  if(suspicious.length){
+    const recoveryHours=Math.max(...suspicious.map(m=>modelRecoveryHours(m,requestHours)));
+    const recoveryDays=Math.max(1,Math.min(requestedDays,Math.max(...suspicious.map(m=>m.maxForecastDays)),Math.ceil(recoveryHours/24)));
+    try{
+      const recovery=await fetchModelGroup(city,suspicious,recoveryDays,recoveryHours);
+      for(const model of suspicious){
+        const id=model.id,beforeMeta=normalized.modelMeta[id],afterMeta=recovery.modelMeta[id],before=beforeMeta?.hourlyHealth,after=afterMeta?.hourlyHealth;
+        if(beforeMeta)beforeMeta.recoveryAttempted=true;
+        if(recovery.seriesByModel[id]&&after&&(!before||after.score>before.score)){
+          const replacement=recovery.seriesByModel[id],current=normalized.seriesByModel[id];
+          normalized.seriesByModel[id]={...replacement,daily:replacement?.daily?.dates?.length?replacement.daily:current.daily};
+          normalized.modelMeta[id]={...afterMeta,recoveryAttempted:true,recoveredFromBatch:true,healthBefore:before||null};
+        }
+      }
+    }catch{
+      for(const model of suspicious)if(normalized.modelMeta[model.id])normalized.modelMeta[model.id].recoveryAttempted=true;
+      // Recovery is best-effort; keep the usable portion of the original batch.
+    }
+  }
+  for(const model of models){
+    const meta=normalized.modelMeta[model.id];if(!meta)continue;
+    const health=hourlySeriesHealth(normalized.seriesByModel[model.id],model,requestHours);meta.hourlyHealth=health;
+    if(health.degraded)meta.dataWarning='PARTIAL_HOURLY_SERIES';else delete meta.dataWarning;
+  }
+  return normalized;
 }
 
 function values(raw, baseKey, model, single, allowShared=false) {
@@ -141,7 +195,7 @@ function seriesCoverage(series) {
   return { firstTimestamp:values[0]||null, lastTimestamp:values.at(-1)||null };
 }
 
-export function normalizeBatchedForecast(raw, city, models) {
+export function normalizeBatchedForecast(raw, city, models, requestedHours=null) {
   const hourlyRaw = raw.hourly || {};
   const dailyRaw = raw.daily || {};
   const hourlySource = Array.isArray(hourlyRaw.time) ? hourlyRaw.time.map(x=>typeof x==='string'?x:'') : [];
@@ -187,8 +241,9 @@ export function normalizeBatchedForecast(raw, city, models) {
         sunset:alignIndices(dailyIndices,strings(values(dailyRaw,'sunset',model,single,true))),
       }
     };
-    const coverage=seriesCoverage(seriesByModel[model.id]);
-    modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage };
+    sanitizeIncompleteFutureDaily(seriesByModel[model.id]);
+    const coverage=seriesCoverage(seriesByModel[model.id]),health=hourlySeriesHealth(seriesByModel[model.id],model,requestedHours||hourlyTime.length);
+    modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage, hourlyHealth:health, nativeStepMinutes:model.nativeStepMinutes||60, updateMinutes:model.updateMinutes||null };
   }
   if (!Object.keys(seriesByModel).length) { const err=new Error('NO_USABLE_MODELS'); err.code='NO_USABLE_MODELS'; throw err; }
   const fetchedAt=new Date().toISOString();
@@ -206,14 +261,50 @@ export async function fetchClimateNormals(city, startDate, endDate) {
   return fetchJson(u, 45000);
 }
 
-export async function fetchPreviousRuns(city, models, startDate, endDate) {
+function previousRunSeries(hourly,base,model,single){
+  const lead=`${base}_previous_day1`,keys=[];
+  for(const key of [model.apiKey,...model.aliases])keys.push(`${lead}_${key}`,`${base}_${key}_previous_day1`);
+  if(single)keys.push(lead);
+  for(const key of keys)if(Array.isArray(hourly?.[key]))return hourly[key];
+  return null;
+}
+function previousRunHealth(raw,model,single){
+  const h=raw?.hourly||{},expected=Array.isArray(h.time)?h.time.filter(x=>typeof x==='string'&&x).length:0,count=a=>Array.isArray(a)?a.filter(Number.isFinite).length:0;
+  const counts={temperature:count(previousRunSeries(h,'temperature_2m',model,single)),precipitation:count(previousRunSeries(h,'precipitation',model,single)),wind:count(previousRunSeries(h,'wind_speed_10m',model,single))};
+  const criticalMin=Math.min(counts.temperature,counts.precipitation,counts.wind),minimum=expected?Math.min(expected,Math.max(8,Math.floor(expected*.55))):0;
+  return {expected,minimum,counts,criticalMin,degraded:expected>0&&criticalMin<minimum,hasAny:Object.values(counts).some(Boolean)};
+}
+function previousRunsUrl(city,models,startDate,endDate){
   const u = new URL(PREVIOUS_RUNS_URL);
   u.searchParams.set('latitude',String(city.latitude)); u.searchParams.set('longitude',String(city.longitude));
   u.searchParams.set('models',models.map(m=>m.apiKey).join(','));
   u.searchParams.set('hourly','temperature_2m_previous_day1,precipitation_previous_day1,wind_speed_10m_previous_day1');
   u.searchParams.set('timezone',city.timezone||'auto'); u.searchParams.set('start_date',startDate); u.searchParams.set('end_date',endDate);
   u.searchParams.set('wind_speed_unit','kmh'); u.searchParams.set('temperature_unit','celsius'); u.searchParams.set('precipitation_unit','mm');
-  return fetchJson(u,45000);
+  return u;
+}
+function mergePreviousRunModel(target,recovery,model,recoverySingle){
+  const th=target.hourly||{},rh=recovery.hourly||{},targetTimes=Array.isArray(th.time)?th.time:[],recoveryTimes=Array.isArray(rh.time)?rh.time:[],index=new Map(recoveryTimes.map((x,i)=>[x,i]));
+  for(const base of ['temperature_2m','precipitation','wind_speed_10m']){
+    const src=previousRunSeries(rh,base,model,recoverySingle);if(!src)continue;
+    const aligned=targetTimes.map(ts=>{const i=index.get(ts);return i==null?null:(src[i]??null);});
+    th[`${base}_previous_day1_${model.apiKey}`]=aligned;
+  }
+  target.hourly=th;return target;
+}
+
+export async function fetchPreviousRuns(city, models, startDate, endDate) {
+  const raw=await fetchJson(previousRunsUrl(city,models,startDate,endDate),45000),single=models.length===1;
+  const suspicious=models.filter(m=>{const h=previousRunHealth(raw,m,single);return h.hasAny&&h.degraded;});
+  if(!suspicious.length)return raw;
+  try{
+    const recovery=await fetchJson(previousRunsUrl(city,suspicious,startDate,endDate),45000),recoverySingle=suspicious.length===1;
+    for(const model of suspicious){
+      const before=previousRunHealth(raw,model,single),after=previousRunHealth(recovery,model,recoverySingle);
+      if(after.criticalMin>before.criticalMin)mergePreviousRunModel(raw,recovery,model,recoverySingle);
+    }
+  }catch{/* Historical recovery is best-effort; incomplete civil days are rejected downstream. */}
+  return raw;
 }
 
 export async function fetchBiasArchive(city, startDate, endDate) {

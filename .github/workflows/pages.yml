@@ -35,6 +35,7 @@ jobs:
           node tests/pwa-about-legends.mjs
           node tests/interactive-legends.mjs
           node tests/evolution-reliability-icon.mjs
+          node tests/model-data-audit.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

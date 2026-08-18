@@ -17,15 +17,15 @@ for(const lang of ['en','es','de','it']){
   assert.deepEqual(missing,[],`missing Android-derived translations for ${lang}`);
 }
 
-// 1b. The web model catalogue must remain byte-for-byte coherent with the Android v1.8.0 source contract.
+// 1b. The web model catalogue keeps Android IDs/API keys/resolutions/horizons, while request-day ceilings follow the current provider contract where the web audit found Android metadata too broad (AROME = 2 days).
 const expectedModels=[
-  ['AROME_FRANCE_HD','meteofrance_arome_france_hd',1.5,3,48],['AROME_FRANCE','meteofrance_arome_france',2.5,3,48],['ARPEGE_EUROPE','meteofrance_arpege_europe',11,4,96],['ARPEGE_WORLD','meteofrance_arpege_world',25,4,96],
+  ['AROME_FRANCE_HD','meteofrance_arome_france_hd',1.5,2,48],['AROME_FRANCE','meteofrance_arome_france',2.5,2,48],['ARPEGE_EUROPE','meteofrance_arpege_europe',11,4,96],['ARPEGE_WORLD','meteofrance_arpege_world',25,4,96],
   ['ICON_EU','icon_eu',7,5,120],['ICON_GLOBAL','icon_global',11,8,180],['GFS','ncep_gfs_seamless',13,16,384],['ECMWF','ecmwf_ifs025',25,15,360],['UKMO_GLOBAL','ukmo_global_deterministic_10km',10,7,168],
   ['ECMWF_AIFS','ecmwf_aifs025_single',28,15,360],['GEM_GLOBAL','cmc_gem_gdps',15,10,240],['ICON_D2','icon_d2',2,2,48],['HRRR_CONUS','ncep_hrrr_conus',3,2,18],['METNO_NORDIC','metno_nordic',1,3,60],
   ['KNMI_HARMONIE_EU','knmi_harmonie_arome_europe',5.5,3,60],['BOM_ACCESS','bom_access_global',15,10,240],['CMA_GRAPES','cma_grapes_global',15,10,240]
 ];
 assert.equal(WEATHER_MODELS.length,17,'web must expose the same 17 weather models as Android');
-assert.deepEqual(WEATHER_MODELS.map(m=>[m.id,m.apiKey,m.resolutionKm,m.maxForecastDays,m.horizonHours]),expectedModels,'model API keys/resolution/request ceiling/native horizon must match Android');
+assert.deepEqual(WEATHER_MODELS.map(m=>[m.id,m.apiKey,m.resolutionKm,m.maxForecastDays,m.horizonHours]),expectedModels,'model API keys/resolution/provider request ceiling/native horizon must match the audited contract');
 assert.deepEqual(DEFAULT_MODEL_IDS,['AROME_FRANCE_HD','ARPEGE_EUROPE','ICON_EU','GFS','ECMWF','UKMO_GLOBAL','ECMWF_AIFS'],'default model selection must match Android');
 
 // 2. Every literal translation key used by app.js resolves instead of leaking the key name.
@@ -156,5 +156,5 @@ assert.match(api,/err\.code='OPEN_METEO_ERROR'/,'provider-declared failures must
 assert.match(app,/function invalidateWeatherRefreshes\(\)\{cityRefreshTokens\.clear\(\);state\.loading\.clear\(\);\}/,'model configuration changes must invalidate in-flight weather loads');
 assert.match(app,/requestedModelIds[\s\S]*sameModels/,'forecast freshness must include the requested model cohort, not only age');
 
-assert.match(sw,/v18-evolution-reliability-icon/,'PWA cache version must match the graph redesign release');
+assert.ok(Number(sw.match(/shell-v(\d+)-/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
 console.log('MeteoCompare Web stability + i18n audit tests: OK');
