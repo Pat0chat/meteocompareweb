@@ -245,6 +245,15 @@ it:{
   resultsCount:'{count} risultati', noCityResults:'Nessuna città trovata.'
 }}
 for(const lang of ['fr','en','es','de','it'])Object.assign(WEB_STRINGS[lang],AUDIT_STRINGS[lang]);
+const GRAPH_STRINGS={
+fr:{chartRange:'Plage affichée',chartError:'Écart',chartLastGap:'Dernier écart',chartForecastObservationGap:'Écart prévision ↔ observation'},
+en:{chartRange:'Displayed range',chartError:'Error',chartLastGap:'Latest gap',chartForecastObservationGap:'Forecast ↔ observation gap'},
+es:{chartRange:'Rango mostrado',chartError:'Error',chartLastGap:'Última diferencia',chartForecastObservationGap:'Diferencia previsión ↔ observación'},
+de:{chartRange:'Angezeigter Bereich',chartError:'Abweichung',chartLastGap:'Letzte Abweichung',chartForecastObservationGap:'Abstand Prognose ↔ Beobachtung'},
+it:{chartRange:'Intervallo visualizzato',chartError:'Errore',chartLastGap:'Ultimo scarto',chartForecastObservationGap:'Scarto previsione ↔ osservazione'}
+};
+for(const lang of ['fr','en','es','de','it'])Object.assign(WEB_STRINGS[lang],GRAPH_STRINGS[lang]);
+
 
 
 export function languageCode(pref) {

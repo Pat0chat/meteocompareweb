@@ -56,6 +56,6 @@ assert.match(app,/plan\.forecastRanges[\s\S]*plan\.observationRanges/,'refresh m
 assert.match(storage,/density: 'COMFORTABLE'/,'density preference must have a stable default');
 assert.match(app,/data-density=/,'density must be configurable');
 assert.match(css,/html\[data-density="compact"\]/,'compact visual mode must alter layout density');
-assert.match(sw,/v14-stability-i18n-audit/,'PWA cache must be bumped for the stability/i18n audit');
+assert.match(sw,/v15-graph-redesign/,'PWA cache must be bumped for the graph redesign');
 
 console.log('MeteoCompare Web analysis feature tests: OK');

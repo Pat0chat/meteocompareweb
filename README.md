@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — Stability & i18n Audit
+# MeteoCompare Web v1.8.0 — Graph Redesign
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-stability-i18n-audit
+cd meteocompare-web-v1.8.0-graph-redesign
 python3 -m http.server 8080
 ```
 
@@ -173,6 +173,22 @@ Cette passe stabilise la barre de contexte sticky, audite la cohérence des donn
 - formatage Android étendu à `%d`, `%s`, `%f`, arguments positionnels, précisions comme `%1$.1f` et échappement `%%` ;
 - manifeste PWA localisé par langue et métadonnées HTML synchronisées à chaque changement de langue ;
 - cache PWA incrémenté en `v14-stability-i18n-audit`.
+
+
+### Passe Graph Redesign
+
+Cette passe reprend les principaux graphes afin d’en faire de vrais outils d’analyse visuelle plutôt que de simples polylignes :
+
+- **bande d’accord horaire** : zone de tracé structurée, axes X/Y gradués, unité visible, plage affichée, valeur courante, accord de fin d’horizon, marqueurs inspectables et enveloppe min–max toujours colorée selon la convergence ;
+- **comparaison ciblée de modèles** : échelle Y calculée sur des pas lisibles, repères temporels verticaux, points inspectables, plages min/max et légende enrichie avec la dernière valeur de chaque modèle ;
+- **comparaison de villes** : mêmes conventions visuelles, plus zones de fond vert/ambre/rouge pour le graphe d’accord global ;
+- **historique de biais** : deux séries mieux distinguées, points prévision/observation, traits verticaux représentant l’erreur quotidienne et synthèse MAE / dernier écart ;
+- grilles volontairement limitées **aux zones de tracé** : pas de retour au quadrillage décoratif de l’ancienne interface ;
+- courbes non lissées afin de ne pas inventer de valeurs intermédiaires ou masquer un pic météo ;
+- nouveaux libellés de graphes traduits en FR / EN / ES / DE / IT ;
+- test `chart-redesign.mjs` ajouté au workflow GitHub Pages.
+
+Le cache PWA est incrémenté en `v15-graph-redesign`.
 
 ## Fonctionnalités météo conservées
 

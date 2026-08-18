@@ -403,3 +403,42 @@ Sept suites automatisées passent ensemble : `smoke`, `ui-performance`, `static-
 L’environnement d’exécution bloque la navigation d’un Chromium headless vers le serveur local (`ERR_BLOCKED_BY_ADMINISTRATOR`) et n’autorise pas les appels Open-Meteo réels. La validation navigateur/réseau live n’est donc pas revendiquée : les contrats d’API, calculs, DOM et interactions sont couverts par les tests synthétiques et comparés au code Android fourni.
 
 Le cache PWA est incrémenté en `v14-stability-i18n-audit`.
+
+
+## 17. Graph Redesign — lisibilité et profondeur analytique
+
+Les graphes du port web étaient fonctionnels mais trop proches de tracés SVG minimaux. Cette passe ajoute un langage visuel commun sans modifier les données sous-jacentes.
+
+### Bande d’accord
+
+- graduations Y sur une échelle arrondie (« nice scale ») ;
+- repères X verticaux limités à quelques échéances lisibles ;
+- unités dans la zone de tracé ;
+- résumé courant / plage / accord ;
+- points inspectables avec la valeur, l’échéance et l’accord ;
+- enveloppe min–max conservée en segments colorés vert/ambre/rouge ;
+- limites min/max discrètes et moyenne davantage hiérarchisée.
+
+### Comparaisons de modèles et de villes
+
+- axes complets et grille secondaire ;
+- plage min–max affichée ;
+- dernière valeur reprise dans la légende ;
+- marqueurs inspectables ;
+- pour la comparaison de villes en accord global, arrière-plan découpé en zones ≥80 %, 50–79 % et <50 %.
+
+### Historique de biais
+
+Le graphe prévision/observation montre désormais l’erreur quotidienne directement : chaque paire de points est reliée verticalement. Les écarts de surestimation et sous-estimation utilisent deux teintes distinctes, tandis que le haut du graphe rappelle MAE et dernier écart.
+
+### Fidélité des données
+
+Les courbes ne sont pas lissées : les segments joignent les observations/prévisions réellement disponibles. Ce choix évite d’introduire une interpolation visuelle pouvant masquer une rupture ou suggérer des valeurs qui n’existent pas dans les données.
+
+### Validation
+
+Une huitième suite, `chart-redesign.mjs`, vérifie les nouvelles structures SVG/CSS, les traductions des libellés de graphes et la version du cache PWA. Les huit suites passent ensemble, tous les modules JavaScript et le service worker passent `node --check`, et `styles.css` est parsé avec PostCSS sans erreur.
+
+Un essai de capture Chromium headless a été tenté dans l’environnement d’exécution, mais le processus Chromium n’a pas terminé correctement (contraintes DBus/sandbox de l’environnement). La validation visuelle live n’est donc pas revendiquée ; la structure, les proportions et les états sont contrôlés par les tests et le CSS généré.
+
+Le cache PWA passe à `v15-graph-redesign`.

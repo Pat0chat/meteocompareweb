@@ -69,7 +69,7 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.match(sw, /v14-stability-i18n-audit/, 'service worker cache must be bumped for the centralized history-refresh policy');
+assert.match(sw, /v15-graph-redesign/, 'service worker cache must be bumped for the graph redesign');
 assert.match(css, /#app \{ overflow-anchor: none; \}/, 'browser scroll anchoring must not fight the explicit viewport restoration logic');
 assert.doesNotMatch(css, /\.section, \.city-card, \.settings-section \{ content-visibility: auto/, 'detail sections must not use estimated off-screen heights that can cause scroll jumps');
 console.log('MeteoCompare Web static audit tests: OK');

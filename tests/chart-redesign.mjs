@@ -1,0 +1,25 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+const i18n=fs.readFileSync(new URL('../js/i18n.js',import.meta.url),'utf8');
+const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
+
+assert.match(app,/function chartScale\(/,'shared nice chart scaling exists');
+assert.match(app,/function chartTickIndices\(/,'shared x tick selection exists');
+assert.match(app,/chart-plot-bg/,'plots use a dedicated plot surface');
+assert.match(app,/compare-grid vertical/,'comparison charts expose vertical guides');
+assert.match(app,/compare-point/,'comparison charts expose hoverable data points');
+assert.match(app,/agreement-zone high/,'city agreement chart exposes confidence zones');
+assert.match(app,/bias-error-connector/,'bias chart renders forecast-observation gaps');
+assert.match(app,/chartLastGap/,'bias chart exposes latest error summary');
+assert.match(app,/chartRange/,'charts expose their displayed range');
+assert.match(css,/v15 — analytical chart redesign/,'chart redesign CSS is present');
+assert.match(css,/\.chart-pro-head/,'professional chart header styling exists');
+assert.match(css,/\.chart-point:hover/,'chart points have hover feedback');
+assert.match(css,/\.compare-legend\.rich/,'comparison legends include richer values');
+assert.match(css,/\.bias-error-connector\.over/,'bias overestimation gaps are styled');
+assert.match(i18n,/const GRAPH_STRINGS=/,'new chart labels are translated');
+for (const lang of ['fr','en','es','de','it']) assert.match(i18n,new RegExp(`${lang}:\\{chartRange:`),`${lang} chart translations exist`);
+assert.match(sw,/v15-graph-redesign/,'PWA cache version was bumped');
+console.log('MeteoCompare Web chart redesign tests: OK');
