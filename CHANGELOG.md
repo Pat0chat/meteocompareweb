@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.7] - 2026-08-18
+
+### Changed
+- Graphe des marées en pleine largeur, avec hauteur utile accrue et rail de synthèse déplacé sous le tracé.
+- En-têtes des tableaux détaillés normalisés sur des rangées fixes pour aligner noms de modèles, description/résolution, horizon/couverture, avertissement et biais.
+- `APP_VERSION` passe à `1.10.7` et le cache PWA à `v37-tides-table-alignment`.
+
 ## [1.10.6] - 2026-08-18
 
 ### Added
@@ -24,6 +31,7 @@
 ### Changed
 - Ajout d’une suite adversariale `release-data-audit-1105.mjs` couvrant multi-fuseaux, DST automne/printemps, horizons courts, ERA5, santé modèles, comparaisons et marées.
 - Cache PWA : `v35-release-audit`.
+- Rapport complet : `RELEASE_AUDIT_1.10.5.md`.
 
 ## [1.10.4] - 2026-08-18
 

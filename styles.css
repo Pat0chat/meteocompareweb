@@ -2066,3 +2066,110 @@ html[data-theme="dark"] {
   .marine-surface-head { flex-direction:column; gap:8px; }
   .marine-surface .tide-range { align-self:flex-start; }
 }
+
+
+/* v1.10.7 — full-size tide workspace + vertically aligned detailed-model headers */
+/* Every model header uses identical reserved tracks so wrapped names, metadata,
+   run coverage and optional warnings cannot shift the bias pill vertically. */
+.model-header-stack {
+  grid-template-rows: 1.9rem 2.05rem 2.65rem 1.45rem;
+  gap: 4px;
+  align-content: start;
+}
+.model-header-stack[data-has-bias="true"] {
+  grid-template-rows: 1.9rem 2.05rem 2.65rem 1.45rem 1.95rem;
+}
+.model-header-slot,
+.model-description-slot,
+.model-run-slot,
+.model-warning-slot,
+.model-bias-slot {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.model-header-slot { align-items: center; }
+.model-header-stack .model-header {
+  width: 100%;
+  max-width: 132px;
+  margin: 0;
+  line-height: 1.18;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.model-header-stack .model-meta {
+  width: 100%;
+  max-width: 132px;
+  min-height: 0;
+  margin: 0;
+  line-height: 1.25;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.model-header-stack .model-run {
+  width: 100%;
+  max-width: 132px;
+  min-height: 0;
+  margin: 0;
+  line-height: 1.25;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.model-warning-slot { align-items: center; }
+.model-warning-slot .model-data-warning { margin: 0; }
+.model-bias-slot { min-height: 0; padding-top: 0; align-items: center; }
+.model-bias-slot .table-bias-chip,
+.model-bias-slot .bias-unavailable { margin: 0; }
+
+/* The tide chart is the dominant element: full panel width, with the compact
+   summary rail below it rather than consuming horizontal chart space. */
+.marine-tide-layout {
+  grid-template-columns: minmax(0,1fr);
+  align-items: stretch;
+}
+.marine-tide-chart-zone {
+  min-width: 0;
+  width: 100%;
+  padding: 4px 10px 8px;
+}
+.marine-tide-chart-zone .marine-chart-integrated {
+  width: 100%;
+  padding: 8px 4px 2px;
+}
+.marine-tide-chart-zone .tide-chart {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 8 / 3;
+}
+.marine-tide-rail {
+  display: grid;
+  grid-template-columns: minmax(190px,.75fr) minmax(240px,.9fr) minmax(320px,1.35fr);
+  border-left: 0;
+  border-top: 1px solid color-mix(in srgb,var(--border) 72%,transparent);
+}
+.marine-level-hero,
+.marine-tide-facts { border-bottom: 0; }
+.marine-tide-facts {
+  border-left: 1px solid color-mix(in srgb,var(--border) 66%,transparent);
+  border-right: 1px solid color-mix(in srgb,var(--border) 66%,transparent);
+}
+@media(max-width:760px){
+  .marine-tide-rail { display:block; }
+  .marine-tide-facts { border-left:0; border-right:0; border-bottom:1px solid color-mix(in srgb,var(--border) 66%,transparent); }
+  .marine-level-hero { border-bottom:1px solid color-mix(in srgb,var(--border) 66%,transparent); }
+  .marine-tide-chart-zone { overflow-x:auto; padding-inline:7px; }
+  .marine-tide-chart-zone .marine-chart-integrated { min-width:680px; }
+  .marine-tide-chart-zone .tide-chart { min-width:660px; aspect-ratio:8 / 3; }
+}
