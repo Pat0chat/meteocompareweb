@@ -21,5 +21,5 @@ assert.match(css,/\.compare-legend\.rich/,'comparison legends include richer val
 assert.match(css,/\.bias-error-connector\.over/,'bias overestimation gaps are styled');
 assert.match(i18n,/const GRAPH_STRINGS=/,'new chart labels are translated');
 for (const lang of ['fr','en','es','de','it']) assert.match(i18n,new RegExp(`${lang}:\\{chartRange:`),`${lang} chart translations exist`);
-assert.match(sw,/v17-hover-legends/,'PWA cache version was bumped');
+assert.match(sw,/v18-evolution-reliability-icon/,'PWA cache version was bumped');
 console.log('MeteoCompare Web chart redesign tests: OK');

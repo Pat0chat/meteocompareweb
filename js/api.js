@@ -54,11 +54,43 @@ export async function fetchForecast(city, enabledModelIds, requestedDays=7) {
   u.searchParams.set('daily', DAILY_VARS);
   u.searchParams.set('timezone', city.timezone || 'auto');
   u.searchParams.set('forecast_days', String(maxDays));
+  // Hourly data must use a rolling window from the current hour. Using only
+  // forecast_days creates calendar-day windows and can leave short-horizon
+  // regional models (notably ICON-D2) with only the tail of their forecast in
+  // the detailed hourly table late in the day.
+  u.searchParams.set('forecast_hours', String(maxDays * 24));
   u.searchParams.set('wind_speed_unit','kmh');
   u.searchParams.set('temperature_unit','celsius');
   u.searchParams.set('precipitation_unit','mm');
   const raw = await fetchJson(u);
-  return normalizeBatchedForecast(raw, city, models);
+  const normalized = normalizeBatchedForecast(raw, city, models);
+  // ICON-D2 occasionally arrives as an unusually short series in a batched
+  // multi-model response. A rolling forecast_hours window fixes the normal
+  // calendar clipping case. If the series is still suspiciously short, retry
+  // that model alone and keep it only when it actually improves coverage.
+  const iconD2=models.find(m=>m.id==='ICON_D2');
+  if(iconD2&&models.length>1){
+    const current=normalized.seriesByModel.ICON_D2,usable=current?.hourly?.temperature2m?.filter(Number.isFinite).length||0;
+    if(current&&usable<18){
+      try{
+        const fallback=await fetchSingleModelHourly(city,iconD2);
+        const replacement=fallback.seriesByModel.ICON_D2,replacementCount=replacement?.hourly?.temperature2m?.filter(Number.isFinite).length||0;
+        if(replacement&&replacementCount>usable){
+          normalized.seriesByModel.ICON_D2={...current,hourly:replacement.hourly};
+          normalized.modelMeta.ICON_D2={...(normalized.modelMeta.ICON_D2||{}),...(fallback.modelMeta.ICON_D2||{}),fallbackHourly:true};
+        }
+      }catch{/* Keep the batched series: fallback is strictly best-effort. */}
+    }
+  }
+  return normalized;
+}
+
+async function fetchSingleModelHourly(city,model){
+  const u=new URL(FORECAST_URL);
+  u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));u.searchParams.set('models',model.apiKey);
+  u.searchParams.set('hourly',HOURLY_VARS);u.searchParams.set('timezone',city.timezone||'auto');u.searchParams.set('forecast_hours',String(model.horizonHours||model.maxForecastDays*24));
+  u.searchParams.set('wind_speed_unit','kmh');u.searchParams.set('temperature_unit','celsius');u.searchParams.set('precipitation_unit','mm');
+  return normalizeBatchedForecast(await fetchJson(u),city,[model]);
 }
 
 function values(raw, baseKey, model, single, allowShared=false) {

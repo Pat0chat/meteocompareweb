@@ -88,7 +88,7 @@ assert.equal(cssVars.get('--city-context-height'),'58px','sticky layout must res
 assert.match(html,/4 modèles/,'model counts must be explicit rather than bare numbers');
 assert.match(html,/data-bias-model="GFS"[^>]*data-bias-variable="TEMPERATURE"/,'temperature bias must be clickable from the GFS model header');
 assert.ok((html.match(/data-bias-model=/g)||[]).length>=mids.length,'each eligible model header should expose its bias action');
-assert.match(html,/class="rank-row rank-row-link"[^>]*data-bias-model=/,'Local reliability model rows must navigate to model bias pages');
+assert.match(html,/class="reliability-rank-row"[^>]*data-bias-model=/,'Local reliability model rows must navigate to model bias pages');
 
 function clickDataset(dataset,section=null,controlTop=null){const target={dataset,closest(selector){if(selector==='section[id]'&&section)return section;return this}};if(Number.isFinite(controlTop))target.getBoundingClientRect=()=>({top:controlTop});listeners.click({target});return app.innerHTML;}
 function makeSection(id,top){return {id,getBoundingClientRect(){return {top}}};}
