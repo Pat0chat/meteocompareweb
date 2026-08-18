@@ -151,23 +151,22 @@ async function idbListEntries() {
     } catch { resolve(out); }
   });
 }
+async function mapLimited(items,limit,worker){
+  const out=new Array(items.length);let cursor=0;
+  const runners=Array.from({length:Math.min(Math.max(1,limit),items.length)},async()=>{while(cursor<items.length){const i=cursor++;out[i]=await worker(items[i],i);}});
+  await Promise.all(runners);return out;
+}
 async function cacheStorageStats(){
   if(typeof caches==='undefined')return {bytes:0,entries:0,caches:[]};
   const result={bytes:0,entries:0,caches:[]};
   try {
-    for(const name of await caches.keys()){
+    const names=await caches.keys();
+    const rows=await mapLimited(names,3,async name=>{
       const cache=await caches.open(name),requests=await cache.keys();
-      let cacheBytes=0;
-      for(const req of requests){
-        try {
-          const res=await cache.match(req);
-          const header=Number(res?.headers?.get?.('content-length'));
-          const bytes=Number.isFinite(header)&&header>=0?header:(res?((await res.clone().arrayBuffer()).byteLength||0):0);
-          cacheBytes+=bytes;
-        } catch {}
-      }
-      result.entries+=requests.length;result.bytes+=cacheBytes;result.caches.push({name,entries:requests.length,bytes:cacheBytes});
-    }
+      const sizes=await mapLimited(requests,6,async req=>{try{const res=await cache.match(req),header=Number(res?.headers?.get?.('content-length'));return Number.isFinite(header)&&header>=0?header:(res?((await res.clone().arrayBuffer()).byteLength||0):0);}catch{return 0;}});
+      return {name,entries:requests.length,bytes:sizes.reduce((a,b)=>a+b,0)};
+    });
+    for(const row of rows){result.entries+=row.entries;result.bytes+=row.bytes;result.caches.push(row);}
   } catch {}
   return result;
 }

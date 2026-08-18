@@ -38,7 +38,15 @@ GitHub Pages peut également être utilisé derrière un domaine personnalisé. 
 
 ## Installation PWA
 
-Le site contient `manifest.webmanifest` et `sw.js`. Sur un hébergement HTTPS tel que GitHub Pages, un navigateur compatible peut proposer l'installation de MeteoCompare comme application web.
+Le site contient `manifest.webmanifest` et `sw.js`. Sur un hébergement HTTPS tel que GitHub Pages, les navigateurs compatibles peuvent installer MeteoCompare comme application web.
+
+La page **À propos → Installer la version web** fournit désormais une expérience d'installation adaptative :
+
+- lorsque le navigateur expose `beforeinstallprompt`, un bouton **Installer MeteoCompare** déclenche le dialogue natif ;
+- sinon, MeteoCompare affiche la procédure à suivre dans le navigateur (menu d'installation, ajout à l'écran d'accueil, ou bouton d'application web de Firefox Windows récent) ;
+- si l'application est déjà lancée en mode standalone, l'état « déjà installé » est affiché.
+
+Le navigateur reste l'autorité qui réalise réellement l'installation ; le bouton MeteoCompare ne contourne jamais les capacités du navigateur.
 
 Le service worker :
 
@@ -71,6 +79,11 @@ node tests/pages-compat.mjs
 node tests/fidelity-regression.mjs
 node tests/analysis-suite.mjs
 node tests/stability-i18n-audit.mjs
+node tests/chart-redesign.mjs
+node tests/pwa-about-legends.mjs
+node tests/interactive-legends.mjs
+node tests/evolution-reliability-icon.mjs
+node tests/model-data-audit.mjs
 ```
 
 Ils couvrent notamment :
@@ -126,7 +139,7 @@ Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 - `manifest.webmanifest`, `manifest.{fr,en,es,de,it}.webmanifest`, `sw.js` : PWA et métadonnées localisées ;
 - `.github/workflows/pages.yml` : publication GitHub Pages ;
 - `.nojekyll` : compatibilité de publication statique ;
-- `tests/` : 7 suites de non-régression, performance, audit, fidélité UI, i18n et Pages.
+- `tests/` : 12 suites de non-régression, performance, audit, fidélité UI/données, graphes, PWA, i18n et Pages.
 
 ## Confidentialité
 

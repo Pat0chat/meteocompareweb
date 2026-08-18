@@ -1834,3 +1834,11 @@ html[data-theme="dark"] {
 @media (max-width:1260px){ .storage-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); } .storage-category-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:900px){ .storage-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } .storage-technical-grid,.privacy-grid { grid-template-columns:1fr 1fr; } }
 @media (max-width:620px){ .storage-kpis,.storage-category-grid,.storage-technical-grid,.privacy-grid { grid-template-columns:1fr; } .privacy-danger { align-items:flex-start; flex-direction:column; } .storage-measured-note { text-align:left; } }
+
+/* v21 — performance audit + interactive hourly agreement inspection. */
+.agreement-band-hover .chart-hover-marker.mean { --series: var(--primary); }
+.agreement-band-hover .chart-hover-marker.range-min,
+.agreement-band-hover .chart-hover-marker.range-max { --series: color-mix(in srgb, var(--text) 62%, transparent); fill: var(--surface); }
+.agreement-band-hover .chart-pro-head small { display:block; margin-top:2px; color:var(--muted); font-size:.62rem; font-weight:650; }
+.agreement-band-hover:not(.is-hovering) .chart-pro-head strong { color:var(--muted); }
+.agreement-band-hover.is-hovering .chart-pro-head { background: color-mix(in srgb, var(--surface) 94%, var(--primary) 6%); }

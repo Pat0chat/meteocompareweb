@@ -37,6 +37,7 @@ jobs:
           node tests/evolution-reliability-icon.mjs
           node tests/model-data-audit.mjs
           node tests/local-data-center.mjs
+          node tests/global-performance-audit.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

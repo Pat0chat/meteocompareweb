@@ -1,4 +1,4 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v20-local-data-center';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v21-performance-agreement-hover';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',
