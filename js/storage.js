@@ -9,7 +9,13 @@ const BIAS_PREFIX = 'meteocompare.web.bias.';
 const ANALYTICS_OPTOUT_KEY = 'meteocompare.web.analytics.optout.v1';
 const DB_NAME = 'meteocompare.web.large-cache.v1';
 const DB_STORE = 'cache';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+export const DATA_SCHEMA_VERSION = 3;
+const RECORD_MARKER = 'meteocompare.local-record';
+const storageIssues = new Map();
+function storageIssue(code,detail={}){const key=`${code}|${detail.key||''}`;storageIssues.set(key,{code,detail,at:Date.now()});}
+export function getStorageIssues(){return [...storageIssues.values()];}
+export function clearStorageIssues(){storageIssues.clear();}
 
 export const defaultSettings = {
   enabledModelIds: DEFAULT_MODEL_IDS,
@@ -31,19 +37,59 @@ function safeParse(raw, fallback) {
 }
 function safeSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-  catch (err) { console.warn(`Stockage local indisponible pour ${key}:`, err); return false; }
+  catch (err) {
+    const quota=err?.name==='QuotaExceededError'||err?.name==='NS_ERROR_DOM_QUOTA_REACHED';
+    storageIssue(quota?'STORAGE_QUOTA':'LOCAL_STORAGE_UNAVAILABLE',{key,message:String(err?.message||err||'')});
+    console.warn(`Stockage local indisponible pour ${key}:`, err); return false;
+  }
 }
 function safeRemove(key) { try { localStorage.removeItem(key); } catch {} }
 
+function recordKindForKey(key){
+  if(key===SETTINGS_KEY)return 'settings';if(key===CITIES_KEY)return 'cities';
+  if(key.startsWith(FORECAST_PREFIX))return 'forecast';if(key.startsWith(EVOLUTION_PREFIX))return 'evolution';
+  if(key.startsWith(NORMALS_PREFIX))return 'normals';if(key.startsWith(BIAS_PREFIX))return 'bias';return null;
+}
+function recordContext(key){const kind=recordKindForKey(key);if(!kind)return {kind:null,cityId:null};const prefixes={forecast:FORECAST_PREFIX,evolution:EVOLUTION_PREFIX,normals:NORMALS_PREFIX,bias:BIAS_PREFIX};return {kind,cityId:prefixes[kind]?key.slice(prefixes[kind].length):null};}
+function envelope(kind,payload,{cityId=null,storedAt=Date.now()}={}){return {marker:RECORD_MARKER,schemaVersion:DATA_SCHEMA_VERSION,kind,cityId,storedAt,payload};}
+function isEnvelope(value){return Boolean(value&&typeof value==='object'&&value.marker===RECORD_MARKER&&Number.isFinite(value.schemaVersion)&&'payload' in value);}
+function migrateV1ToV2(kind,payload,context={}){return {marker:RECORD_MARKER,schemaVersion:2,kind,cityId:context.cityId||null,storedAt:Date.now(),payload};}
+function migrateV2ToV3(record,context={}){return {...record,marker:RECORD_MARKER,schemaVersion:3,kind:record.kind||context.kind,cityId:record.cityId??context.cityId??null,storedAt:Number(record.storedAt)||Date.now()};}
+function migrateRecord(kind,value,context={}){
+  let record=isEnvelope(value)?value:migrateV1ToV2(kind,value,context),fromVersion=isEnvelope(value)?Number(value.schemaVersion):1;
+  if(record.schemaVersion===1)record=migrateV1ToV2(kind,record.payload??record,context);
+  if(record.schemaVersion===2)record=migrateV2ToV3(record,context);
+  if(record.schemaVersion>DATA_SCHEMA_VERSION)return {record,payload:null,fromVersion,valid:false,error:'FUTURE_SCHEMA'};
+  if(record.schemaVersion!==DATA_SCHEMA_VERSION)return {record,payload:null,fromVersion,valid:false,error:'UNSUPPORTED_SCHEMA'};
+  return {record,payload:record.payload,fromVersion,migrated:fromVersion!==DATA_SCHEMA_VERSION,valid:true};
+}
+function validatePayload(kind,payload){
+  if(kind==='settings')return Boolean(payload&&typeof payload==='object'&&!Array.isArray(payload));
+  if(kind==='cities')return Array.isArray(payload)&&payload.every(x=>x&&typeof x==='object'&&x.id!=null);
+  if(kind==='forecast')return Boolean(payload&&typeof payload==='object'&&payload.city&&payload.seriesByModel&&typeof payload.seriesByModel==='object'&&Object.keys(payload.seriesByModel).length&&typeof payload.fetchedAt==='string');
+  if(kind==='evolution')return Array.isArray(payload)&&payload.every(x=>x&&Number.isFinite(x.capturedAt)&&x.daily&&typeof x.daily==='object');
+  if(kind==='normals')return Boolean(payload&&typeof payload==='object'&&payload.normals&&typeof payload.normals==='object');
+  if(kind==='bias')return Boolean(payload&&typeof payload==='object'&&Array.isArray(payload.forecasts)&&Array.isArray(payload.observations));
+  return true;
+}
+function readLocalRecord(key,kind,fallback){
+  const raw=safeParse(localStorage.getItem(key),null);if(raw==null)return fallback;
+  const ctx={...recordContext(key),kind};const migrated=migrateRecord(kind,raw,ctx);
+  if(!migrated.valid||!validatePayload(kind,migrated.payload)){storageIssue('CORRUPT_LOCAL_RECORD',{key,kind,error:migrated.error||'INVALID_PAYLOAD'});return fallback;}
+  if(migrated.migrated)safeSet(key,migrated.record);
+  return migrated.payload;
+}
+function writeLocalRecord(key,kind,payload){const ctx=recordContext(key);return safeSet(key,envelope(kind,payload,{cityId:ctx.cityId}));}
+
 function openDb() {
-  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  if (typeof indexedDB === 'undefined') { storageIssue('INDEXEDDB_UNAVAILABLE',{message:'IndexedDB API unavailable'}); return Promise.resolve(null); }
   return new Promise(resolve => {
     let req;
-    try { req=indexedDB.open(DB_NAME, DB_VERSION); } catch { resolve(null); return; }
+    try { req=indexedDB.open(DB_NAME, DB_VERSION); } catch(err) { storageIssue('INDEXEDDB_UNAVAILABLE',{message:String(err?.message||err||'open failed')}); resolve(null); return; }
     req.onupgradeneeded=()=>{ const db=req.result; if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE); };
     req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>resolve(null);
-    req.onblocked=()=>resolve(null);
+    req.onerror=()=>{storageIssue('INDEXEDDB_UNAVAILABLE',{message:String(req.error?.message||'open failed')});resolve(null);};
+    req.onblocked=()=>{storageIssue('INDEXEDDB_BLOCKED',{});resolve(null);};
   });
 }
 let dbPromise=null;
@@ -54,7 +100,7 @@ async function idbGet(key){
 }
 async function idbPut(key,value){
   const database=await db(); if(!database)return false;
-  return new Promise(resolve=>{try{const tx=database.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(value,key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false);tx.onabort=()=>resolve(false);}catch{resolve(false);}});
+  return new Promise(resolve=>{try{const tx=database.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(value,key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>{const err=tx.error;storageIssue(err?.name==='QuotaExceededError'?'STORAGE_QUOTA':'INDEXEDDB_WRITE_FAILED',{key,message:String(err?.message||'')});resolve(false);};tx.onabort=()=>{const err=tx.error;storageIssue(err?.name==='QuotaExceededError'?'STORAGE_QUOTA':'INDEXEDDB_WRITE_FAILED',{key,message:String(err?.message||'')});resolve(false);};}catch(err){storageIssue('INDEXEDDB_WRITE_FAILED',{key,message:String(err?.message||err||'')});resolve(false);}});
 }
 async function idbDelete(key){
   const database=await db(); if(!database)return false;
@@ -62,31 +108,31 @@ async function idbDelete(key){
 }
 
 export function loadSettings() {
-  const parsed = safeParse(localStorage.getItem(SETTINGS_KEY), {});
+  const parsed = readLocalRecord(SETTINGS_KEY,'settings',{});
   return { ...defaultSettings, ...parsed, enabledModelIds: Array.isArray(parsed.enabledModelIds) && parsed.enabledModelIds.length ? parsed.enabledModelIds : DEFAULT_MODEL_IDS };
 }
-export function saveSettings(settings) { safeSet(SETTINGS_KEY, settings); }
-export function loadCities() { const v=safeParse(localStorage.getItem(CITIES_KEY), []); return Array.isArray(v)?v:[]; }
-export function saveCities(cities) { safeSet(CITIES_KEY, cities); }
+export function saveSettings(settings) { writeLocalRecord(SETTINGS_KEY,'settings',settings); }
+export function loadCities() { const v=readLocalRecord(CITIES_KEY,'cities',[]); return Array.isArray(v)?v:[]; }
+export function saveCities(cities) { writeLocalRecord(CITIES_KEY,'cities',cities); }
 
 /* Forecast payloads are the largest records (17 models × hourly arrays).
    Keep legacy localStorage reads for migration, but persist new payloads in IndexedDB
    so several cities do not exhaust the small synchronous localStorage quota. */
-export function loadForecast(cityId) { return safeParse(localStorage.getItem(FORECAST_PREFIX + cityId), null); }
+export function loadForecast(cityId) { return readLocalRecord(FORECAST_PREFIX+cityId,'forecast',null); }
 export async function loadForecastAsync(cityId) {
   const key=FORECAST_PREFIX+cityId;
   const legacy=loadForecast(cityId);
   if(legacy){
-    if(await idbPut(key,legacy))safeRemove(key);
+    if(await idbPut(key,envelope('forecast',legacy,{cityId})))safeRemove(key);
     return legacy;
   }
-  return idbGet(key);
+  const stored=await idbGet(key);if(stored==null)return null;const migrated=migrateRecord('forecast',stored,{kind:'forecast',cityId});if(!migrated.valid||!validatePayload('forecast',migrated.payload)){storageIssue('CORRUPT_IDB_RECORD',{key,kind:'forecast'});return null;}if(migrated.migrated)void idbPut(key,migrated.record);return migrated.payload;
 }
 export async function saveForecast(cityId, forecast) {
   const key=FORECAST_PREFIX+cityId;
-  if(typeof indexedDB==='undefined'){safeSet(key,forecast);return;}
-  const ok=await idbPut(key,forecast);
-  if(ok)safeRemove(key);else safeSet(key,forecast);
+  if(typeof indexedDB==='undefined'){writeLocalRecord(key,'forecast',forecast);storageIssue('INDEXEDDB_UNAVAILABLE',{key});return;}
+  const ok=await idbPut(key,envelope('forecast',forecast,{cityId}));
+  if(ok)safeRemove(key);else writeLocalRecord(key,'forecast',forecast);
 }
 export function deleteForecast(cityId) { const key=FORECAST_PREFIX+cityId; safeRemove(key); void idbDelete(key); }
 export function deleteCityData(cityId) {
@@ -96,8 +142,8 @@ export function deleteCityData(cityId) {
   deleteForecast(cityId);
 }
 
-export function loadEvolution(cityId) { const v=safeParse(localStorage.getItem(EVOLUTION_PREFIX+cityId), []); return Array.isArray(v)?v:[]; }
-export function saveEvolution(cityId, entries) { safeSet(EVOLUTION_PREFIX+cityId, entries); }
+export function loadEvolution(cityId) { const v=readLocalRecord(EVOLUTION_PREFIX+cityId,'evolution',[]); return Array.isArray(v)?v:[]; }
+export function saveEvolution(cityId, entries) { writeLocalRecord(EVOLUTION_PREFIX+cityId,'evolution',entries); }
 
 export function recordEvolutionSnapshot(cityId, forecast) {
   const now = Date.now();
@@ -119,10 +165,10 @@ export function recordEvolutionSnapshot(cityId, forecast) {
   return next;
 }
 
-export function loadNormals(cityId) { return safeParse(localStorage.getItem(NORMALS_PREFIX+cityId), null); }
-export function saveNormals(cityId, payload) { safeSet(NORMALS_PREFIX+cityId, payload); }
-export function loadBias(cityId) { return safeParse(localStorage.getItem(BIAS_PREFIX+cityId), { forecasts:[], observations:[], updatedAt:null }); }
-export function saveBias(cityId, data) { safeSet(BIAS_PREFIX+cityId, data); }
+export function loadNormals(cityId) { return readLocalRecord(NORMALS_PREFIX+cityId,'normals',null); }
+export function saveNormals(cityId, payload) { writeLocalRecord(NORMALS_PREFIX+cityId,'normals',payload); }
+export function loadBias(cityId) { return readLocalRecord(BIAS_PREFIX+cityId,'bias',{ forecasts:[], observations:[], updatedAt:null }); }
+export function saveBias(cityId, data) { writeLocalRecord(BIAS_PREFIX+cityId,'bias',data); }
 
 function finiteOrNull(v){ return Number.isFinite(v)?v:null; }
 function nonNegativeOrNull(v){ return Number.isFinite(v)&&v>=0?v:null; }
@@ -138,7 +184,7 @@ function serializedBytes(value) {
 function localStorageRecord(key) {
   try {
     const raw=localStorage.getItem(key);
-    return raw==null?null:{key,raw,bytes:textBytes(key)+textBytes(raw),value:safeParse(raw,null)};
+    if(raw==null)return null;const parsed=safeParse(raw,null),ctx=recordContext(key),mig=ctx.kind?migrateRecord(ctx.kind,parsed,ctx):null;return {key,raw,bytes:textBytes(key)+textBytes(raw),value:mig?.valid?mig.payload:parsed,record:parsed,schemaVersion:mig?.record?.schemaVersion??null};
   } catch { return null; }
 }
 async function idbListEntries() {
@@ -147,7 +193,7 @@ async function idbListEntries() {
     const out=[];
     try {
       const tx=database.transaction(DB_STORE,'readonly'),store=tx.objectStore(DB_STORE),req=store.openCursor();
-      req.onsuccess=()=>{const cursor=req.result;if(!cursor){resolve(out);return;}out.push({key:String(cursor.key),value:cursor.value,bytes:textBytes(String(cursor.key))+serializedBytes(cursor.value)});cursor.continue();};
+      req.onsuccess=()=>{const cursor=req.result;if(!cursor){resolve(out);return;}{const key=String(cursor.key),raw=cursor.value,ctx=recordContext(key),mig=ctx.kind?migrateRecord(ctx.kind,raw,ctx):null;out.push({key,value:mig?.valid?mig.payload:raw,raw,bytes:textBytes(key)+serializedBytes(raw),schemaVersion:mig?.record?.schemaVersion??null});}cursor.continue();};
       req.onerror=()=>resolve(out);
     } catch { resolve(out); }
   });
@@ -209,6 +255,31 @@ export async function inspectLocalData(cities=[]) {
   const appBytes=localStorageBytes+indexedDbBytes+pwaCache.bytes;
   const cityRows=[...cityMap.values()].map(row=>({...row,totalBytes:row.forecastBytes+row.normalsBytes+row.biasBytes+row.evolutionBytes,isFavorite:(cities||[]).some(c=>String(c.id)===row.id)})).sort((a,b)=>b.totalBytes-a.totalBytes);
   return {generatedAt:Date.now(),appBytes,localStorageBytes,localStorageEntries,indexedDbBytes,indexedDbEntries:idbEntries.length,pwaCacheBytes:pwaCache.bytes,pwaCacheEntries:pwaCache.entries,pwaCaches:pwaCache.caches,origin,categories:category,cities:cityRows};
+}
+
+
+export async function verifyLocalDataIntegrity(cities=[], {repair=false}={}) {
+  const favoriteIds=new Set((cities||[]).map(c=>String(c.id))),issues=[],repairs=[];let checked=0,migrated=0,invalid=0,orphans=0,duplicates=0;
+  const add=(code,detail={})=>issues.push({code,detail});
+  const handleLocal=(key,parsed)=>{
+    const ctx=recordContext(key);if(!ctx.kind)return;checked++;
+    const mig=migrateRecord(ctx.kind,parsed,ctx),valid=mig.valid&&validatePayload(ctx.kind,mig.payload);
+    if(!valid){invalid++;add('INVALID_RECORD',{key,kind:ctx.kind,error:mig.error||'INVALID_PAYLOAD'});if(repair){safeRemove(key);repairs.push({action:'REMOVE_INVALID',key});}return;}
+    if(mig.migrated){migrated++;add('LEGACY_SCHEMA',{key,kind:ctx.kind,from:mig.fromVersion,to:DATA_SCHEMA_VERSION});if(repair&&writeLocalRecord(key,ctx.kind,mig.payload))repairs.push({action:'MIGRATE',key});}
+    if(ctx.cityId&&!favoriteIds.has(String(ctx.cityId))){orphans++;add('ORPHAN_RECORD',{key,kind:ctx.kind,cityId:ctx.cityId});if(repair){safeRemove(key);repairs.push({action:'REMOVE_ORPHAN',key});}}
+  };
+  try{const keys=Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)).filter(Boolean);for(const key of keys){if(!key.startsWith('meteocompare.web.')||key===ANALYTICS_OPTOUT_KEY)continue;handleLocal(key,safeParse(localStorage.getItem(key),null));}}catch(err){add('LOCAL_STORAGE_SCAN_FAILED',{message:String(err?.message||err||'')});}
+  const idbEntries=await idbListEntries();
+  for(const rec of idbEntries){const key=rec.key,ctx=recordContext(key);if(!ctx.kind)continue;checked++;const mig=migrateRecord(ctx.kind,rec.raw,ctx),valid=mig.valid&&validatePayload(ctx.kind,mig.payload);
+    if(!valid){invalid++;add('INVALID_RECORD',{key,kind:ctx.kind,store:'indexedDB',error:mig.error||'INVALID_PAYLOAD'});if(repair){await idbDelete(key);repairs.push({action:'REMOVE_INVALID',key,store:'indexedDB'});}continue;}
+    if(mig.migrated){migrated++;add('LEGACY_SCHEMA',{key,kind:ctx.kind,store:'indexedDB',from:mig.fromVersion,to:DATA_SCHEMA_VERSION});if(repair&&await idbPut(key,mig.record))repairs.push({action:'MIGRATE',key,store:'indexedDB'});}
+    if(ctx.cityId&&!favoriteIds.has(String(ctx.cityId))){orphans++;add('ORPHAN_RECORD',{key,kind:ctx.kind,cityId:ctx.cityId,store:'indexedDB'});if(repair){await idbDelete(key);repairs.push({action:'REMOVE_ORPHAN',key,store:'indexedDB'});}}
+    if(ctx.kind==='forecast'){
+      const legacyKey=FORECAST_PREFIX+ctx.cityId;try{if(localStorage.getItem(legacyKey)!=null){duplicates++;add('DUPLICATE_FORECAST',{key:legacyKey,cityId:ctx.cityId});if(repair){safeRemove(legacyKey);repairs.push({action:'REMOVE_DUPLICATE',key:legacyKey});}}}catch{}
+    }
+  }
+  const runtime=getStorageIssues();for(const item of runtime)add(item.code,item.detail);
+  return {checkedAt:Date.now(),schemaVersion:DATA_SCHEMA_VERSION,healthy:issues.length===0,repair,recordsChecked:checked,issueCount:issues.length,migrated,invalid,orphans,duplicates,issues,repairs};
 }
 
 export async function clearAllData() {

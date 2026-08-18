@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),css=read('styles.css'),api=read('js/api.js'),storage=read('js/storage.js'),sw=read('sw.js');
+const app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css'),api=read('js/api.js'),storage=read('js/storage.js'),sw=read('sw.js');
 
 // 1 — desktop tables: sticky header + first column.
 assert.match(css,/\.forecast-table thead th \{ position:sticky; top:0;/,'table headers must remain visible');
 assert.match(css,/\.forecast-table th:first-child,[\s\S]*position:sticky; left:0;/,'first table column must remain visible');
 
 // 2 — targeted 2–4 model comparison.
-assert.match(app,/function renderTargetedModelComparison/,'targeted model comparison must exist');
+assert.match(comparison,/export function renderTargetedModelComparison/,'targeted model comparison must exist in its lazy module');
+assert.match(app,/import\('\.\/features\/comparison\.js'\)/,'comparison module must be lazy loaded');
 assert.match(app,/targetedComparisonMax4/,'comparison must enforce the 4-model limit through i18n');
-assert.match(app,/data-compare-model=/,'model comparison selector must be interactive');
+assert.match(comparison,/data-compare-model=/,'model comparison selector must be interactive');
 
 // 3 — disagreement analysis by variable.
 assert.match(app,/function disagreementAnalysis/,'disagreement analysis must be computed');
@@ -38,7 +39,7 @@ assert.match(app,/temperatureBias[\s\S]*precipitationBias[\s\S]*windBias/,'expor
 
 // 7 — compare 2 or 3 cities.
 assert.match(app,/name:'compare'/,'city comparison must have a dedicated route');
-assert.match(app,/function renderCityComparison/,'city comparison page must exist');
+assert.match(comparison,/export function renderCityComparison/,'city comparison page must exist in its lazy module');
 assert.match(app,/cityComparisonMax3/,'city comparison must enforce the 3-city limit through i18n');
 
 // 8 — visible cache/offline age.

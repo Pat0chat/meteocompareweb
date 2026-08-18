@@ -41,6 +41,7 @@ jobs:
           node tests/minimal-analytics.mjs
           node tests/settings-short-models.mjs
           node tests/run-metadata-hosting.mjs
+          node tests/robust-core.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

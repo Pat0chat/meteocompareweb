@@ -1,0 +1,75 @@
+import { cityToday, roundedHourLocal } from '../domain.js';
+import { getModel } from '../models.js';
+
+function niceStep(raw){
+  if(!Number.isFinite(raw)||raw<=0)return 1;
+  const power=Math.pow(10,Math.floor(Math.log10(raw))),fraction=raw/power;
+  const nice=fraction<=1?1:fraction<=2?2:fraction<=5?5:10;
+  return nice*power;
+}
+function chartScale(values,{includeZero=false,agreement=false,ticks=5,minSpan=.5,padding=.08}={}){
+  const nums=values.filter(Number.isFinite);if(!nums.length)return {min:0,max:1,ticks:[0,1]};
+  if(agreement)return {min:0,max:100,ticks:[0,25,50,75,100]};
+  let rawMin=Math.min(...nums),rawMax=Math.max(...nums);if(includeZero){rawMin=Math.min(0,rawMin);rawMax=Math.max(0,rawMax);}
+  if(rawMax-rawMin<minSpan){const mid=(rawMin+rawMax)/2;rawMin=mid-minSpan/2;rawMax=mid+minSpan/2;}
+  const padded=(rawMax-rawMin)*padding;rawMin-=padded;rawMax+=padded;
+  const step=niceStep((rawMax-rawMin)/Math.max(2,ticks-1));let min=Math.floor(rawMin/step)*step,max=Math.ceil(rawMax/step)*step;
+  if(includeZero){min=Math.min(0,min);max=Math.max(0,max);}const out=[];for(let v=min,guard=0;v<=max+step*.25&&guard<12;v+=step,guard++)out.push(Math.abs(v)<step/1000?0:v);
+  return {min,max,ticks:out};
+}
+function chartTickIndices(length,maxTicks=7){if(length<=1)return [0];const step=Math.max(1,Math.ceil((length-1)/(maxTicks-1))),out=[];for(let i=0;i<length;i+=step)out.push(i);if(out[out.length-1]!==length-1)out.push(length-1);return out;}
+function chartMetricUnit(metric){return metric==='TEMPERATURE'?'°C':metric==='PRECIPITATION'?'mm':metric==='AGREEMENT'?'%':'km/h';}
+function chartMetricDigits(metric){return metric==='PRECIPITATION'?1:0;}
+function svgLinePath(points){const valid=points.filter(Boolean);return valid.length?valid.map((p,i)=>`${i?'L':'M'} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(' '):'';}
+function medianValue(values){const v=values.filter(Number.isFinite).sort((a,b)=>a-b);if(!v.length)return null;const m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;}
+function metricForTab(tab){return tab==='PRECIPITATION'?'PRECIPITATION':tab==='WIND'?'WIND':'TEMPERATURE';}
+
+function cityComparisonMetricValue(f,date,metric,ctx){const a=ctx.cachedAggregateDay(f,date);return metric==='TEMPERATURE'?medianValue(a.data.map(x=>x.tempMax)):metric==='PRECIPITATION'?medianValue(a.data.map(x=>x.precip)):metric==='WIND'?medianValue(a.data.map(x=>x.wind)):a.confidence?.overallPercent;}
+function pointTitle(label,key,value,unit,ctx){return `${label} · ${key} · ${ctx.fmt(value,unit==='mm'?1:0)} ${unit}`;}
+
+function renderCityComparisonMetric(cities,metric,ctx){
+  const {t,locale,state,esc,attr,fmt,dateLabel}=ctx,forecastPairs=cities.map(c=>({city:c,f:state.forecasts[c.id]})).filter(x=>x.f);
+  if(forecastPairs.length<2)return `<div class="empty-state compact">${esc(t('cityCompareNoData'))}</div>`;
+  const sets=forecastPairs.map(({f})=>new Set(Object.values(f.seriesByModel||{}).flatMap(series=>series?.daily?.dates||[]).filter(d=>d>=cityToday(f.city.timezone))));
+  const dates=[...(sets[0]||new Set())].filter(d=>sets.every(set=>set.has(d))).sort().slice(0,7);
+  if(dates.length<2)return `<div class="empty-state compact">${esc(t('cityCompareNoData'))}</div>`;
+  const rows=forecastPairs.map(x=>({city:x.city,values:dates.map(d=>cityComparisonMetricValue(x.f,d,metric,ctx))})),all=rows.flatMap(r=>r.values).filter(Number.isFinite);if(!all.length)return `<div class="empty-state compact">${esc(t('noAvailableValue'))}</div>`;
+  const width=780,height=292,pad={l:60,r:24,t:28,b:52},unit=chartMetricUnit(metric),digits=chartMetricDigits(metric),scale=chartScale(all,{includeZero:metric==='PRECIPITATION'||metric==='WIND',agreement:metric==='AGREEMENT',ticks:5,minSpan:metric==='TEMPERATURE'?2:1}),x=i=>pad.l+i*(width-pad.l-pad.r)/Math.max(1,dates.length-1),y=v=>pad.t+(scale.max-v)*(height-pad.t-pad.b)/(scale.max-scale.min),colors=['#2563eb','#0f9f8f','#7c3aed'];
+  const yGrid=scale.ticks.map(v=>{const yy=y(v);return `<line class="compare-grid" x1="${pad.l}" y1="${yy}" x2="${width-pad.r}" y2="${yy}"/><text class="compare-label compare-y-label" x="${pad.l-10}" y="${yy+4}" text-anchor="end">${fmt(v,digits)}</text>`;}).join('');
+  const xTicks=chartTickIndices(dates.length,7),xGrid=xTicks.map(i=>`<line class="compare-grid vertical" x1="${x(i)}" y1="${pad.t}" x2="${x(i)}" y2="${height-pad.b}"/><text class="compare-label" x="${x(i)}" y="${height-18}" text-anchor="middle">${esc(dateLabel(dates[i],locale))}</text>`).join('');
+  const zones=metric==='AGREEMENT'?`<rect class="agreement-zone high" x="${pad.l}" y="${y(100)}" width="${width-pad.l-pad.r}" height="${y(80)-y(100)}"/><rect class="agreement-zone medium" x="${pad.l}" y="${y(80)}" width="${width-pad.l-pad.r}" height="${y(50)-y(80)}"/><rect class="agreement-zone low" x="${pad.l}" y="${y(50)}" width="${width-pad.l-pad.r}" height="${y(0)-y(50)}"/>`:'';
+  const seriesSvg=rows.map((r,ri)=>{const pts=r.values.map((v,i)=>Number.isFinite(v)?[x(i),y(v)]:null),path=svgLinePath(pts),dots=r.values.map((v,i)=>Number.isFinite(v)?`<circle class="compare-point" style="--series:${colors[ri%colors.length]}" cx="${x(i)}" cy="${y(v)}" r="4"><title>${esc(pointTitle(r.city.name,dateLabel(dates[i],locale),v,unit,ctx))}</title></circle>`:'').join('');return `<path class="compare-line" style="--series:${colors[ri%colors.length]}" d="${path}"/>${dots}`;}).join('');
+  const hoverMarkers=rows.map((r,i)=>`<circle class="chart-hover-marker" data-hover-marker="${i}" style="--series:${colors[i%colors.length]}" cx="${pad.l}" cy="${pad.t}" r="5"/>`).join('');
+  const legendKey=metric==='TEMPERATURE'?'legendCityTemperature':metric==='PRECIPITATION'?'legendCityPrecipitation':metric==='WIND'?'legendCityWind':'legendCityAgreement';
+  const legend=rows.map((r,i)=>`<span data-hover-series="${i}"><i style="--series:${colors[i%colors.length]}"></i><b>${esc(r.city.name)}</b><strong class="legend-live-value"><em data-hover-value>—</em></strong></span>`).join('');
+  const finiteMin=Math.min(...all),finiteMax=Math.max(...all),hoverValues=rows.map(r=>r.values.map(v=>Number.isFinite(v)?v:null));
+  return `<div class="city-compare-chart chart-pro hover-chart-shell"><div class="chart-pro-head"><div><span>${esc(t('chartRange'))}</span><strong>${fmt(finiteMin,digits)}–${fmt(finiteMax,digits)} ${unit}</strong></div><span class="chart-unit">${unit}</span></div><svg data-hover-chart="city" data-hover-keys="${attr(JSON.stringify(dates))}" data-hover-values="${attr(JSON.stringify(hoverValues))}" data-hover-mode="DAILY" data-hover-unit="${attr(unit)}" data-hover-digits="${digits}" data-plot-left="${pad.l}" data-plot-right="${width-pad.r}" data-plot-top="${pad.t}" data-plot-bottom="${height-pad.b}" data-scale-min="${scale.min}" data-scale-max="${scale.max}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attr(t('cityComparison'))}"><rect class="chart-plot-bg" x="${pad.l}" y="${pad.t}" width="${width-pad.l-pad.r}" height="${height-pad.t-pad.b}" rx="8"/>${zones}${yGrid}${xGrid}<text class="chart-axis-unit" x="${pad.l}" y="${pad.t-10}">${unit}</text>${seriesSvg}<line class="chart-hover-crosshair" data-hover-crosshair x1="${pad.l}" x2="${pad.l}" y1="${pad.t}" y2="${height-pad.b}"/>${hoverMarkers}</svg><div class="chart-hover-status" data-hover-status>${esc(t('chartHoverHint'))}</div><div class="compare-legend-explainer"><strong>${esc(t('legendHowToRead'))}</strong><span>${esc(t(legendKey))}</span></div><div class="compare-legend rich">${legend}</div></div>`;
+}
+
+export function renderCityComparison(route,ctx){
+  const {t,state,esc}=ctx,cities=(route.ids||[]).map(id=>state.cities.find(c=>c.id===id)).filter(Boolean).slice(0,3);
+  if(cities.length<2)return `<main class="page"><section class="page-header"><div><div class="eyebrow">${esc(t('crossAnalysis'))}</div><h1>${esc(t('compareCities'))}</h1><p>${esc(t('selectCitiesHint'))}</p></div></section><div class="empty-state"><button class="btn primary" data-action="open-city-compare">${esc(t('chooseCities'))}</button></div></main>`;
+  return `<main class="page compare-page"><section class="page-header"><div><div class="eyebrow">${esc(t('crossAnalysis'))}</div><h1>${esc(t('cityComparison'))}</h1><p>${cities.map(c=>esc(c.name)).join(' · ')} · ${esc(t('sameIndicators7d'))}</p></div><div class="page-actions"><button class="btn subtle" data-action="copy-link">${esc(t('share'))}</button><button class="btn tonal" data-action="open-city-compare">${esc(t('modify'))}</button></div></section><div class="city-compare-grid"><section class="section-card"><h2>${esc(t('medianMaxTemperature'))}</h2>${renderCityComparisonMetric(cities,'TEMPERATURE',ctx)}</section><section class="section-card"><h2>${esc(t('precipitation'))}</h2>${renderCityComparisonMetric(cities,'PRECIPITATION',ctx)}</section><section class="section-card"><h2>${esc(t('wind'))}</h2>${renderCityComparisonMetric(cities,'WIND',ctx)}</section><section class="section-card"><h2>${esc(t('globalAgreement'))}</h2>${renderCityComparisonMetric(cities,'AGREEMENT',ctx)}</section></div></main>`;
+}
+
+function comparisonSeries(f,modelId,tab,mode){
+  const s=f.seriesByModel?.[modelId];if(!s)return [];const metric=metricForTab(tab);
+  if(mode==='HOURLY'){const anchor=roundedHourLocal(f.city.timezone);return s.hourly.timestamps.map((ts,i)=>({key:ts,value:metric==='TEMPERATURE'?s.hourly.temperature2m[i]:metric==='PRECIPITATION'?s.hourly.precipitation[i]:s.hourly.windSpeed10m[i]})).filter(x=>x.key>=anchor&&Number.isFinite(x.value)).slice(0,48);}
+  const today=cityToday(f.city.timezone);return s.daily.dates.map((date,i)=>({key:date,value:metric==='TEMPERATURE'?s.daily.tempMax[i]:metric==='PRECIPITATION'?s.daily.precipitationSum[i]:s.daily.windSpeedMax[i]})).filter(x=>x.key>=today&&Number.isFinite(x.value)).slice(0,7);
+}
+function renderTargetedComparisonChart(f,ids,tab,mode,ctx){
+  const {t,locale,esc,attr,fmt,dateLabel,timeLabel}=ctx,metric=metricForTab(tab),metricLabel=t(metric==='TEMPERATURE'?'comparisonMetricTemperature':metric==='PRECIPITATION'?'comparisonMetricPrecipitation':'comparisonMetricWind'),unit=chartMetricUnit(metric),digits=chartMetricDigits(metric),series=ids.map(id=>({id,values:comparisonSeries(f,id,tab,mode)})).filter(x=>x.values.length>1);if(series.length<2)return '';
+  const keys=[...new Set(series.flatMap(x=>x.values.map(v=>v.key)))].sort(),all=series.flatMap(x=>x.values.map(v=>v.value));if(keys.length<2||!all.length)return '';const width=920,height=286,p={l:58,r:22,t:26,b:48},scale=chartScale(all,{includeZero:metric!=='TEMPERATURE',ticks:5,minSpan:metric==='TEMPERATURE'?2:1}),x=i=>p.l+i*(width-p.l-p.r)/(keys.length-1),y=v=>p.t+(scale.max-v)*(height-p.t-p.b)/(scale.max-scale.min),colors=['#2563eb','#0f9f8f','#7c3aed','#e07a19'];
+  const aligned=series.map(row=>{const by=new Map(row.values.map(v=>[v.key,v.value]));return keys.map(k=>Number.isFinite(by.get(k))?by.get(k):null);});
+  const yGrid=scale.ticks.map(v=>`<line class="compare-grid" x1="${p.l}" y1="${y(v)}" x2="${width-p.r}" y2="${y(v)}"/><text class="compare-label compare-y-label" x="${p.l-9}" y="${y(v)+4}" text-anchor="end">${fmt(v,digits)}</text>`).join(''),tickIdx=chartTickIndices(keys.length,7),xGrid=tickIdx.map(i=>`<line class="compare-grid vertical" x1="${x(i)}" y1="${p.t}" x2="${x(i)}" y2="${height-p.b}"/><text class="compare-label" x="${x(i)}" y="${height-17}" text-anchor="middle">${esc(mode==='HOURLY'?timeLabel(keys[i]):dateLabel(keys[i],locale))}</text>`).join('');
+  const pointStep=Math.max(1,Math.ceil(keys.length/24)),lines=series.map((row,si)=>{const values=aligned[si],pts=values.map((v,i)=>Number.isFinite(v)?[x(i),y(v)]:null),path=svgLinePath(pts),dots=values.map((v,i)=>Number.isFinite(v)&&(i%pointStep===0||i===keys.length-1)?`<circle class="compare-point" style="--series:${colors[si]}" cx="${x(i)}" cy="${y(v)}" r="3.8"><title>${esc(pointTitle(getModel(row.id)?.name||row.id,mode==='HOURLY'?`${dateLabel(keys[i].slice(0,10),locale)} ${timeLabel(keys[i])}`:dateLabel(keys[i],locale),v,unit,ctx))}</title></circle>`:'').join('');return `<path class="compare-line" style="--series:${colors[si]}" d="${path}"/>${dots}`;}).join('');
+  const hoverMarkers=series.map((row,si)=>`<circle class="chart-hover-marker" data-hover-marker="${si}" style="--series:${colors[si]}" cx="${p.l}" cy="${p.t}" r="5"/>`).join('');
+  const legendHelp=t(mode==='HOURLY'?'legendModelHourly':'legendModelDaily');
+  const legend=series.map((row,si)=>`<span data-hover-series="${si}"><i style="--series:${colors[si]}"></i><b>${esc(getModel(row.id)?.name||row.id)}</b><strong class="legend-live-value"><em data-hover-value>—</em></strong></span>`).join(''),min=Math.min(...all),max=Math.max(...all);
+  return `<div class="target-compare-chart chart-pro hover-chart-shell"><div class="target-compare-title"><div><strong>${esc(t('directComparison',{metric:metricLabel}))}</strong><span>${esc(mode==='HOURLY'?t('first48Hours'):t('dayMode7'))}</span></div><div class="chart-mini-stat"><span>${esc(t('chartRange'))}</span><b>${fmt(min,digits)}–${fmt(max,digits)} ${unit}</b></div></div><svg data-hover-chart="model" data-hover-keys="${attr(JSON.stringify(keys))}" data-hover-values="${attr(JSON.stringify(aligned))}" data-hover-mode="${attr(mode)}" data-hover-unit="${attr(unit)}" data-hover-digits="${digits}" data-plot-left="${p.l}" data-plot-right="${width-p.r}" data-plot-top="${p.t}" data-plot-bottom="${height-p.b}" data-scale-min="${scale.min}" data-scale-max="${scale.max}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attr(t('compareModelsAria',{count:series.length}))}"><rect class="chart-plot-bg" x="${p.l}" y="${p.t}" width="${width-p.l-p.r}" height="${height-p.t-p.b}" rx="8"/>${yGrid}${xGrid}<text class="chart-axis-unit" x="${p.l}" y="${p.t-10}">${unit}</text>${lines}<line class="chart-hover-crosshair" data-hover-crosshair x1="${p.l}" x2="${p.l}" y1="${p.t}" y2="${height-p.b}"/>${hoverMarkers}</svg><div class="chart-hover-status" data-hover-status>${esc(t('chartHoverHint'))}</div><div class="compare-legend-explainer"><strong>${esc(t('legendHowToRead'))}</strong><span>${esc(legendHelp)}</span></div><div class="compare-legend rich">${legend}</div></div>`;
+}
+
+export function renderTargetedModelComparison(f,tab,mode,ctx){
+  const {t,esc,attr,visibleModelIds,selectedModelIds}=ctx,ids=visibleModelIds(f),selected=selectedModelIds.filter(id=>ids.includes(id));
+  return `<details class="target-compare" ${selected.length>=2?'open':''}><summary><span>${esc(t('compareTwoToFour'))}</span><span class="pill">${esc(t('selectedModelsCount',{count:selected.length}))}</span></summary><div class="target-compare-body"><div class="model-compare-picker">${ids.map(id=>{const on=selected.includes(id),m=getModel(id);return `<button class="compare-model-chip ${on?'active':''}" aria-pressed="${on}" data-compare-model="${attr(id)}">${esc(m?.name||id)}<small>${m?.resolutionKm||'?'} km</small></button>`;}).join('')}</div>${selected.length>=2?renderTargetedComparisonChart(f,selected,tab,mode,ctx):`<div class="small">${esc(t('noTargetSelection'))} ${esc(t('temporarySelectionHint'))}</div>`}</div></details>`;
+}

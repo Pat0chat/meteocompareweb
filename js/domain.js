@@ -275,28 +275,13 @@ export function aggregateNormals(raw,startDate,endDate){
   const complete=years.size>=10&&validDates.size>=Math.ceil(expected*.95)&&pairs>=Math.ceil(expected*.95);const normals=Object.fromEntries([...acc].map(([k,x])=>[k,{tempMaxNormal:x.sumMax/x.n,tempMinNormal:x.sumMin/x.n,count:x.n}]));return {complete,normals};
 }
 
-export function normalizePreviousRuns(raw,city,models,startDate,endDate){
-  const h=raw?.hourly||{};const timeline=(h.time||[]).map((ts,i)=>({ts,i,date:typeof ts==='string'?ts.slice(0,10):''})).filter(x=>x.date>=startDate&&x.date<=endDate);const expected=timeline.reduce((m,x)=>(m[x.date]=(m[x.date]||0)+1,m),{});const records=[];const single=models.length===1;
-  const lookup=(base,model)=>{const lead=`${base}_previous_day1`;const keys=[];for(const key of [model.apiKey,...model.aliases]){keys.push(`${lead}_${key}`,`${base}_${key}_previous_day1`);}if(single)keys.push(lead);for(const k of keys)if(Array.isArray(h[k]))return h[k];return [];};
-  for(const model of models){const series={TEMPERATURE:lookup('temperature_2m',model),PRECIPITATION:lookup('precipitation',model),WIND_SPEED:lookup('wind_speed_10m',model)};const byDate=new Map();for(const x of timeline){let a=byDate.get(x.date);if(!a){a={TEMPERATURE:[],PRECIPITATION:[],WIND_SPEED:[]};byDate.set(x.date,a);}for(const v of Object.keys(series)){const z=series[v][x.i];if(Number.isFinite(z)&&(v==='TEMPERATURE'||z>=0))a[v].push(z);}}
-    for(const [date,a] of byDate){const n=expected[date];if(n<23||n>25)continue;const values={TEMPERATURE:a.TEMPERATURE.length===n?Math.max(...a.TEMPERATURE):null,PRECIPITATION:a.PRECIPITATION.length===n?a.PRECIPITATION.reduce((s,v)=>s+v,0):null,WIND_SPEED:a.WIND_SPEED.length===n?Math.max(...a.WIND_SPEED):null};for(const [variable,value] of Object.entries(values))if(Number.isFinite(value))records.push({modelId:model.id,variable,targetDate:date,issuedDate:addDays(date,-1),value});}
-  }
-  return records;
-}
 
-export function normalizeBiasObservations(raw,startDate,endDate){
-  const d=raw?.daily||{};const out=[];(d.time||[]).forEach((date,i)=>{if(date<startDate||date>endDate)return;const vals={TEMPERATURE:d.temperature_2m_max?.[i],PRECIPITATION:d.precipitation_sum?.[i],WIND_SPEED:d.wind_speed_10m_max?.[i]};for(const [variable,value] of Object.entries(vals))if(Number.isFinite(value)&&(variable==='TEMPERATURE'||value>=0))out.push({variable,targetDate:date,value});});return out;
-}
 
-export function computeBiases(biasData,today,windowDays=30){
-  const start=addDays(today,-windowDays);const obs=new Map((biasData.observations||[]).map(x=>[`${x.variable}|${x.targetDate}`,x.value]));const grouped=new Map();for(const f of biasData.forecasts||[]){if(f.targetDate<start||f.targetDate>=today)continue;const o=obs.get(`${f.variable}|${f.targetDate}`);if(!Number.isFinite(o))continue;const key=`${f.modelId}|${f.variable}`;const m=grouped.get(key)||new Map();m.set(f.targetDate,f.value-o);grouped.set(key,m);}const out={};for(const [key,map] of grouped){const vals=[...map.values()];const [modelId,variable]=key.split('|');out[modelId]||={};if(vals.length<14){out[modelId][variable]={sampleSize:vals.length,ready:false};continue;}const mean=vals.reduce((a,b)=>a+b,0)/vals.length;const sd=vals.length>1?Math.sqrt(vals.reduce((s,v)=>s+(v-mean)**2,0)/(vals.length-1)):0;out[modelId][variable]={sampleSize:vals.length,ready:true,meanBias:mean,stdDev:sd,windowDays};}return out;
-}
 
-export function buildEvolution(forecast,storedSnapshots){
-  const parsedForecastTime=Date.parse(forecast?.fetchedAt||'');const now=Number.isFinite(parsedForecastTime)?parsedForecastTime:Date.now();const targets=[24,48,72];const chosen=targets.map(h=>storedSnapshots.map(s=>({...s,ageHours:Math.round((now-s.capturedAt)/3600000)})).filter(s=>s.ageHours>=Math.max(3,h-10)&&s.ageHours<=h+12).sort((a,b)=>Math.abs(a.ageHours-h)-Math.abs(b.ageHours-h))[0]).filter(Boolean);const referenceDate=new Date(now);const today=cityToday(forecast.city.timezone,referenceDate);const dates=[...new Set(Object.values(forecast.seriesByModel||{}).flatMap(s=>s.daily.dates))].filter(d=>d>=today).sort().slice(0,7);const vars=['temperature','precipitation','wind'];const days=[];
-  for(const date of dates){const current={};for(const [mid,s] of Object.entries(forecast.seriesByModel||{})){const i=s.daily.dates.indexOf(date);if(i<0)continue;current[mid]={temperature:s.daily.tempMax[i],precipitation:s.daily.precipitationSum[i],wind:s.daily.windSpeedMax[i]};}const variables={};for(const variable of vars){const curr=Object.fromEntries(Object.entries(current).filter(([,v])=>Number.isFinite(v[variable])).map(([m,v])=>[m,v[variable]]));const history=chosen.map(s=>({ageHours:s.ageHours,capturedAt:s.capturedAt,values:Object.fromEntries(Object.entries(s.daily?.[date]||{}).filter(([,v])=>Number.isFinite(v?.[variable])).map(([m,v])=>[m,v[variable]]))})).filter(x=>Object.keys(x.values).length);if(!history.length||Object.keys(curr).length<2)continue;let common=new Set(Object.keys(curr));const retained=[];for(const h of history.sort((a,b)=>a.ageHours-b.ageHours)){const next=new Set(Object.keys(h.values).filter(m=>common.has(m)));if(next.size>=2){common=next;retained.push(h);}}if(!retained.length||common.size<2)continue;const cv=Object.fromEntries([...common].map(m=>[m,curr[m]]));const prev=retained.map(h=>({ageHours:h.ageHours,capturedAt:h.capturedAt,values:Object.fromEntries([...common].map(m=>[m,h.values[m]])),median:median([...common].map(m=>h.values[m]))}));const comparison=prev[0];const deltas=[...common].map(m=>cv[m]-comparison.values[m]);const stable=variable==='temperature'?.5:variable==='precipitation'?1:3;const inc=deltas.filter(x=>x>stable).length,dec=deltas.filter(x=>x<-stable).length,sta=deltas.length-inc-dec,required=Math.ceil(deltas.length*.6);const trend=inc>=required?'INCREASING':dec>=required?'DECREASING':sta>=required?'STABLE':'VOLATILE';variables[variable]={currentMedian:median(Object.values(cv)),previous:prev,trend,medianDelta:median(deltas),medianAbsDelta:median(deltas.map(Math.abs)),comparedModels:deltas.length};}if(Object.keys(variables).length)days.push({date,variables});}
-  return {days};
-}
+
+
+
+
 
 export function reliabilityRanking(biases,variable='TEMPERATURE'){
   return Object.entries(biases).map(([modelId,v])=>({modelId,bias:v[variable]})).filter(x=>x.bias?.ready).sort((a,b)=>Math.abs(a.bias.meanBias)-Math.abs(b.bias.meanBias)||a.bias.stdDev-b.bias.stdDev);

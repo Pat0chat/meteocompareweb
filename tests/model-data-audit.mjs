@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fetchForecast, fetchPreviousRuns, normalizeBatchedForecast, hourlySeriesHealth } from '../js/api.js';
-import { normalizePreviousRuns, aggregateDay } from '../js/domain.js';
+import { aggregateDay } from '../js/domain.js';
+import { normalizePreviousRuns } from '../js/features/bias.js';
 import { WEATHER_MODELS, getModel } from '../js/models.js';
 import { webTranslationAudit } from '../js/i18n.js';
 

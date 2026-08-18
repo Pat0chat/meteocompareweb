@@ -96,12 +96,14 @@ function makeControl(top){return {getBoundingClientRect(){return {top}}};}
 
 // Real rerenders must translate the complete city-detail surface, not only the settings screen.
 for(const [pref,lang] of [['ENGLISH','en'],['SPANISH','es'],['GERMAN','de'],['ITALIAN','it']]){
-  const translated=clickDataset({language:pref}),tr=makeI18n(pref);
+  clickDataset({language:pref});
+  await Promise.resolve(); await Promise.resolve();
+  const translated=app.innerHTML,tr=makeI18n(pref);
   assert.equal(document.documentElement.lang,lang,`document language must switch to ${lang}`);
   for(const key of ['overview','forecastTimeline','confidenceBand','reliability','detailedComparison','shareView','refreshWeather'])
     assert.ok(translated.includes(tr.t(key)),`${key} must rerender in ${lang}`);
 }
-clickDataset({language:'FRENCH'});
+clickDataset({language:'FRENCH'}); await Promise.resolve(); await Promise.resolve();
 
 // Same-view controls must preserve the clicked control's visual position even if the rerender changes heights above it.
 window.scrollY=900;document.documentElement.scrollTop=900;
@@ -126,6 +128,7 @@ assert.match(switched,/data-timeline-mode="DAILY"[^>]*class=|class="seg-btn acti
 let sourceBlurred=false;document.activeElement={blur(){sourceBlurred=true;}};
 window.scrollY=2400;document.documentElement.scrollTop=2400;document.body.scrollTop=2400;
 clickDataset({biasModel:'GFS',biasVariable:'TEMPERATURE',biasCity:'test'});
+for(let i=0;i<20&&app.innerHTML.includes('feature-loading');i++) await new Promise(r=>setTimeout(r,5));
 assert.match(location.hash,/\/bias\/GFS\/TEMPERATURE$/,'clicking a table bias must navigate to the model bias route');
 assert.equal(sourceBlurred,true,'the clicked model control must lose focus before the route DOM is replaced');
 assert.equal(window.scrollY,0,'Opening a model bias page must reset the viewport immediately to the top');
@@ -164,7 +167,7 @@ clickDataset({modelSort:'FINESSE'},null,210);flushDeferredRafs();
 assert.equal(window.scrollY,1560,'model sorting may relayout the list but must keep the clicked control at the same viewport coordinate');
 window.scrollY=1600;document.documentElement.scrollTop=1600;
 selectorLookup.set('[data-language="ENGLISH"]',makeControl(285));
-clickDataset({language:'ENGLISH'},null,235);flushDeferredRafs();
+clickDataset({language:'ENGLISH'},null,235);await Promise.resolve();await Promise.resolve();flushDeferredRafs();
 assert.equal(window.scrollY,1650,'language changes must preserve the Settings control position after translated layout changes');
 
 globalThis.setInterval=realSetInterval;

@@ -7,6 +7,7 @@ const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const app=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
 const storage=fs.readFileSync(path.join(root,'js/storage.js'),'utf8');
 const i18n=fs.readFileSync(path.join(root,'js/i18n.js'),'utf8');
+const locales=Object.fromEntries(['fr','en','es','de','it'].map(lang=>[lang,fs.readFileSync(path.join(root,'js/locales',`${lang}.js`),'utf8')]));
 const css=fs.readFileSync(path.join(root,'styles.css'),'utf8');
 const sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
 
@@ -24,8 +25,7 @@ assert.match(storage,/cacheStorageStats/,'CacheStorage inventory missing');
 assert.match(css,/\.storage-kpis/,'Local data page styles missing');
 assert.ok(Number(sw.match(/shell-v(\d+)-/)?.[1]||0)>=20,'PWA cache version must not regress below v20');
 for(const key of ['localDataNav','localDataTitle','storageEstimatedApp','storageDatabase','storageBias','storageEvolution','privacyEraseTitle']){
-  const hits=(i18n.match(new RegExp(`${key}:`,'g'))||[]).length;
-  assert.ok(hits>=5,`${key} is not translated in all five web languages`);
+  for(const lang of ['fr','en','es','de','it']) assert.match(locales[lang],new RegExp(`\"${key}\":`),`${key} is not translated in ${lang}`);
 }
 
 class LocalStorageMock {

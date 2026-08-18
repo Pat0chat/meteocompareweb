@@ -2,7 +2,9 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { WEATHER_MODELS } from '../js/models.js';
-import { aggregateDay, hourlyConfidenceBand, buildScenarios, buildTimelinePoints, computeBiases, buildEvolution, cityToday, addDays } from '../js/domain.js';
+import { aggregateDay, hourlyConfidenceBand, buildScenarios, buildTimelinePoints, cityToday, addDays } from '../js/domain.js';
+import { computeBiases } from '../js/features/bias.js';
+import { buildEvolution } from '../js/features/evolution.js';
 
 const appSource=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const storageSource=fs.readFileSync(new URL('../js/storage.js',import.meta.url),'utf8');

@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import { webTranslationAudit, hasTranslation } from '../js/i18n.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),workflow=read('.github/workflows/pages.yml');
+const app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css'),sw=read('sw.js'),workflow=read('.github/workflows/pages.yml');
 
 // Explicit graph legend semantics.
-assert.match(app,/legendModelHourly/,'model comparison explains what the legend values mean');
-assert.match(app,/legendCityTemperature/,'city comparison explains temperature aggregation');
-assert.match(app,/legendCityPrecipitation/,'city comparison explains precipitation aggregation');
-assert.match(app,/legendCityWind/,'city comparison explains wind aggregation');
-assert.match(app,/legendCityAgreement/,'city comparison explains agreement semantics');
-assert.match(app,/data-hover-chart=\"model\"/,'model comparison exposes an interactive hover chart');
-assert.match(app,/data-hover-chart=\"city\"/,'city comparison exposes an interactive hover chart');
+assert.match(comparison,/legendModelHourly/,'model comparison explains what the legend values mean');
+assert.match(comparison,/legendCityTemperature/,'city comparison explains temperature aggregation');
+assert.match(comparison,/legendCityPrecipitation/,'city comparison explains precipitation aggregation');
+assert.match(comparison,/legendCityWind/,'city comparison explains wind aggregation');
+assert.match(comparison,/legendCityAgreement/,'city comparison explains agreement semantics');
+assert.match(comparison,/data-hover-chart=\"model\"/,'model comparison exposes an interactive hover chart');
+assert.match(comparison,/data-hover-chart=\"city\"/,'city comparison exposes an interactive hover chart');
 assert.match(app,/chartHoverAt/,'comparison legends expose the selected forecast date/time');
 assert.match(css,/\.compare-legend-explainer/,'comparison legend explainer styling exists');
 assert.match(css,/\.legend-live-value/,'interactive legend values have dedicated styling');

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { normalizeBatchedForecast } from '../js/api.js';
-import { dayConfidence, normalizePreviousRuns, aggregateNormals } from '../js/domain.js';
+import { dayConfidence, aggregateNormals } from '../js/domain.js';
+import { normalizePreviousRuns } from '../js/features/bias.js';
 import { getModel } from '../js/models.js';
 
 const city={id:'1',name:'Paris',country:'France',admin1:'Île-de-France',latitude:48.85,longitude:2.35,timezone:'Europe/Paris'};

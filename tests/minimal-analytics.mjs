@@ -56,10 +56,11 @@ const privacy=fs.readFileSync(new URL('../PRIVACY.md',import.meta.url),'utf8');
 // This will be updated by the version patch; keep a regression guard against the old zero-analytics statement.
 assert.ok(!privacy.includes('Aucun analytics, aucun\ntracking'));
 const i18n=fs.readFileSync(new URL('../js/i18n.js',import.meta.url),'utf8');
-assert.match(i18n,/analyticsPurposeTitle:'Finalité limitée'/);
-assert.match(i18n,/fréquentation et la charge du site/);
-assert.match(i18n,/analyticsCnilNote:'Cadre CNIL/);
-assert.match(i18n,/statistiques anonymes/);
+const frLocale=fs.readFileSync(new URL('../js/locales/fr.js',import.meta.url),'utf8');
+assert.match(frLocale,/\"analyticsPurposeTitle\":\"Finalité limitée\"/);
+assert.match(frLocale,/fréquentation et la charge du site/);
+assert.match(frLocale,/\"analyticsCnilNote\":\"Cadre CNIL/);
+assert.match(frLocale,/statistiques anonymes/);
 assert.match(app,/analytics-purpose-note/);
 assert.match(app,/analytics-cnil-note/);
 assert.match(app,/cookies-solutions-pour-les-outils-de-mesure-daudience/);

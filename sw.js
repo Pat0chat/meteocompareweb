@@ -1,8 +1,10 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v27-inferred-icons-clean';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v28-robust-core';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',
-  './js/models.js', './js/storage.js', './js/api.js', './js/domain.js', './js/android_strings.js', './js/i18n.js', './js/analytics-config.js', './js/analytics.js', './js/app.js'
+  './js/models.js', './js/storage.js', './js/api.js', './js/domain.js', './js/i18n.js', './js/errors.js', './js/analytics-config.js', './js/analytics.js', './js/app.js',
+  './js/locales/fr.js', './js/locales/en.js', './js/locales/es.js', './js/locales/de.js', './js/locales/it.js',
+  './js/features/bias.js', './js/features/evolution.js', './js/features/diagnostics.js', './js/features/comparison.js'
 ];
 
 self.addEventListener('install', event => {
