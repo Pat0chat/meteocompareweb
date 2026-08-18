@@ -1896,3 +1896,78 @@ html[data-theme="dark"] {
 .health-table{min-width:1320px}.health-table th:first-child,.health-table td:first-child{min-width:150px}.health-table td,.health-table th{vertical-align:top}.health-table td small,.health-table th small{display:block;margin-top:3px;white-space:nowrap}.health-monitor .diagnostic-summary{margin-bottom:12px}
 @media(max-width:900px){.tide-events{grid-template-columns:1fr 1fr}.weighted-consensus{grid-template-columns:1fr auto}}
 @media(max-width:560px){.tide-events{grid-template-columns:1fr}}
+
+
+/* v1.10.1 — home cleanup, full-width agreement chart, richer marine charts and About page */
+.agreement-chart-wrap { padding-inline: 0; }
+.agreement-chart-wrap .agreement-band-hover { width: 100%; min-width: 0; }
+.agreement-chart-wrap .agreement-band-hover .chart { width: 100%; min-width: 0; }
+.agreement-chart-wrap .chart-pro-head { margin-inline: 10px; }
+
+.marine-chart-block { margin: .9rem 0 1.15rem; }
+.marine-chart-title { display:flex; justify-content:space-between; gap:12px; align-items:baseline; margin:0 3px 7px; }
+.marine-chart-title strong { font-size:.8rem; }
+.marine-chart-title span { color:var(--muted); font-size:.68rem; }
+.marine-chart { width:100%; height:auto; min-height:190px; display:block; margin:0; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+.wave-chart { min-height:190px; }
+.tide-chart { min-height:240px; }
+.marine-plot-bg { fill:color-mix(in srgb,var(--surface-2) 58%,var(--surface)); stroke:color-mix(in srgb,var(--border) 78%,transparent); stroke-width:1; }
+.marine-grid { stroke:color-mix(in srgb,var(--border) 72%,transparent); stroke-width:1; vector-effect:non-scaling-stroke; }
+.marine-grid.vertical { stroke-dasharray:2 5; opacity:.72; }
+.marine-axis { fill:var(--muted); font-size:10px; font-variant-numeric:tabular-nums; }
+.marine-axis.secondary { fill:var(--subtle); font-size:9px; }
+.marine-axis.mean-label { font-size:9px; font-weight:700; }
+.marine-wave-line { fill:none; stroke:var(--accent,var(--primary)); stroke-width:3; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
+.marine-wave-area { fill:url(#marineWaveFill); opacity:.72; }
+.marine-wave-fill-start { stop-color:var(--primary); stop-opacity:.24; }
+.marine-wave-fill-end { stop-color:var(--primary); stop-opacity:.02; }
+.marine-tide-line { fill:none; stroke:#1677a6; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
+.marine-tide-area { fill:url(#marineTideFill); opacity:.78; }
+.marine-tide-fill-start { stop-color:#1677a6; stop-opacity:.24; }
+.marine-tide-fill-end { stop-color:#1677a6; stop-opacity:.025; }
+.marine-mean-line { stroke:color-mix(in srgb,var(--muted) 65%,transparent); stroke-width:1.2; stroke-dasharray:6 5; vector-effect:non-scaling-stroke; }
+.tide-marker circle { fill:var(--surface); stroke-width:2.5; vector-effect:non-scaling-stroke; }
+.tide-marker text { fill:var(--text); font-size:9px; font-weight:760; paint-order:stroke; stroke:var(--surface); stroke-width:3px; stroke-linejoin:round; }
+.tide-marker.high circle { stroke:#1677a6; }
+.tide-marker.low circle { stroke:#7d73c8; }
+.tide-chart-legend { display:flex; flex-wrap:wrap; gap:12px; margin:8px 3px 0; color:var(--muted); font-size:.66rem; }
+.tide-chart-legend span { display:inline-flex; align-items:center; gap:6px; }
+.tide-chart-legend i.line { width:18px; height:2px; background:#1677a6; border-radius:99px; }
+.tide-chart-legend i.dot { width:8px; height:8px; border-radius:50%; border:2px solid currentColor; background:var(--surface); }
+.tide-chart-legend i.dot.high { color:#1677a6; }
+.tide-chart-legend i.dot.low { color:#7d73c8; }
+.tide-chart-legend i.dash { width:18px; height:0; border-top:1px dashed var(--muted); }
+.tide-summary-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:12px 0 10px; }
+.tide-summary-grid > div { display:grid; gap:3px; padding:10px 11px; border:1px solid var(--border); border-radius:10px; background:var(--surface); min-width:0; }
+.tide-summary-grid span { color:var(--muted); font-size:.68rem; font-weight:720; }
+.tide-summary-grid strong { font-size:.92rem; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tide-summary-grid small { color:var(--subtle); font-size:.62rem; line-height:1.35; }
+.marine-chart-empty { margin:.8rem 0; border:1px dashed var(--border); border-radius:10px; }
+
+.about-hero-badges { display:flex; flex-wrap:wrap; gap:7px; margin-top:15px; }
+.about-hero-badges span,.about-mini-badge { display:inline-flex; align-items:center; min-height:25px; padding:4px 8px; border:1px solid color-mix(in srgb,var(--primary) 20%,var(--border)); border-radius:999px; background:color-mix(in srgb,var(--primary-soft) 60%,var(--surface)); color:color-mix(in srgb,var(--primary) 78%,var(--text)); font-size:.62rem; font-weight:780; letter-spacing:.02em; }
+.about-method { margin-bottom:14px; }
+.about-method .section-head { margin-bottom:14px; }
+.about-method-flow { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.about-method-flow article { display:grid; grid-template-columns:auto 1fr; gap:11px; align-items:start; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--surface-2); }
+.about-step-index { width:28px; height:28px; display:grid; place-items:center; border-radius:8px; background:var(--primary); color:white; font-size:.72rem; font-weight:850; }
+.about-method-flow h3 { margin:1px 0 5px; font-size:.82rem; }
+.about-method-flow p { margin:0; color:var(--muted); font-size:.73rem; line-height:1.55; }
+.about-principle-card { display:flex; flex-direction:column; }
+.about-callout { margin-top:auto; padding:9px 10px; border-left:2px solid var(--primary); border-radius:0 8px 8px 0; background:color-mix(in srgb,var(--primary-soft) 48%,transparent); color:var(--muted); font-size:.7rem; line-height:1.5; }
+.about-callout.warning { border-left-color:var(--medium); background:color-mix(in srgb,var(--medium) 7%,var(--surface)); }
+.about-source-detail { margin-top:auto !important; padding-top:12px; }
+.about-help .section-head p { max-width:760px; }
+
+@media(max-width:900px){
+  .tide-summary-grid { grid-template-columns:1fr 1fr; }
+  .about-method-flow { grid-template-columns:1fr; }
+}
+@media(max-width:760px){
+  .agreement-chart-wrap .agreement-band-hover .chart { min-width:720px; }
+  .agreement-chart-wrap { overflow-x:auto; }
+  .marine-chart-title { align-items:flex-start; flex-direction:column; gap:2px; }
+  .marine-chart { min-width:720px; }
+  .marine-chart-block { overflow-x:auto; padding-bottom:2px; }
+}
+@media(max-width:560px){ .tide-summary-grid { grid-template-columns:1fr; } }

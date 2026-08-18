@@ -1,5 +1,5 @@
-const APP_VERSION = '1.10.0';
-const CACHE_VERSION = 'v30-tides-health-weighted';
+const APP_VERSION = '1.10.1';
+const CACHE_VERSION = 'v31-ui-marine-about';
 const CACHE = `meteocompare-web-${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
