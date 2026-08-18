@@ -40,6 +40,7 @@ jobs:
           node tests/global-performance-audit.mjs
           node tests/minimal-analytics.mjs
           node tests/settings-short-models.mjs
+          node tests/run-metadata-hosting.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

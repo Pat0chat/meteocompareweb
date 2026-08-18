@@ -202,14 +202,35 @@ function modelRunTimestamp(raw, model) {
   for (const value of direct) { const parsed=parseIsoCandidate(value); if(parsed)return parsed; }
   return null;
 }
-function seriesCoverage(series) {
-  const hourly=series?.hourly, values=[];
-  if(!hourly?.timestamps?.length)return { firstTimestamp:null, lastTimestamp:null };
-  for(let i=0;i<hourly.timestamps.length;i++){
-    const usable=[hourly.temperature2m?.[i],hourly.precipitation?.[i],hourly.windSpeed10m?.[i],hourly.weatherCode?.[i]].some(v=>Number.isFinite(v));
-    if(usable)values.push(hourly.timestamps[i]);
+function finiteCoverage(timestamps, values) {
+  if(!Array.isArray(timestamps)||!timestamps.length||!Array.isArray(values))return {firstTimestamp:null,lastTimestamp:null,count:0};
+  let firstTimestamp=null,lastTimestamp=null,count=0;
+  const n=Math.min(timestamps.length,values.length);
+  for(let i=0;i<n;i++){
+    if(!Number.isFinite(values[i])||typeof timestamps[i]!=='string'||!timestamps[i])continue;
+    if(firstTimestamp==null)firstTimestamp=timestamps[i];
+    lastTimestamp=timestamps[i];count++;
   }
-  return { firstTimestamp:values[0]||null, lastTimestamp:values.at(-1)||null };
+  return {firstTimestamp,lastTimestamp,count};
+}
+function seriesCoverage(series) {
+  const hourly=series?.hourly,timestamps=hourly?.timestamps||[];
+  const byVariable={
+    temperature:finiteCoverage(timestamps,hourly?.temperature2m),
+    precipitation:finiteCoverage(timestamps,hourly?.precipitation),
+    wind:finiteCoverage(timestamps,hourly?.windSpeed10m),
+    conditions:finiteCoverage(timestamps,hourly?.weatherCode),
+  };
+  // The generic coverage is deliberately conservative: it ends at the last
+  // timestamp where all three critical numerical variables are present. This
+  // prevents an optional weather-code tail from advertising a longer useful
+  // horizon than the detailed temperature/rain/wind tables actually contain.
+  let firstTimestamp=null,lastTimestamp=null,count=0;
+  for(let i=0;i<timestamps.length;i++){
+    const usable=[hourly?.temperature2m?.[i],hourly?.precipitation?.[i],hourly?.windSpeed10m?.[i]].every(Number.isFinite);
+    if(!usable)continue;if(firstTimestamp==null)firstTimestamp=timestamps[i];lastTimestamp=timestamps[i];count++;
+  }
+  return {firstTimestamp,lastTimestamp,count,coverageByVariable:byVariable};
 }
 
 export function normalizeBatchedForecast(raw, city, models, requestedHours=null) {

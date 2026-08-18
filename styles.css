@@ -132,6 +132,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .city-place { color: var(--muted); font-size: .82rem; margin-top: 3px; }
 .weather-now { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; }
 .weather-icon { font-size: 2.2rem; line-height: 1; filter: saturate(.92); }
+.condition-icon { position:relative; display:inline-grid; place-items:center; width:max-content; min-width:1.55em; min-height:1.55em; border-radius:999px; vertical-align:middle; }
+.condition-icon.is-inferred { padding:.12em; outline:1px dashed color-mix(in srgb,var(--primary) 68%,var(--border-strong)); outline-offset:2px; background:color-mix(in srgb,var(--primary) 7%,var(--surface)); }
 .current-temp { font-size: 2rem; font-weight: 820; letter-spacing: -.045em; }
 .now-meta { color: var(--muted); font-size: .82rem; }
 .metric-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

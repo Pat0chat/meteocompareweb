@@ -19,7 +19,7 @@ assert.match(app,/data-agreement-time=/,'agreement timeline must open analysis a
 
 // 4 — run/data freshness, honest when exact run is unavailable.
 assert.match(api,/function modelRunTimestamp/,'API normalization must attempt to retain run metadata');
-assert.match(app,/runExactUnavailable/,'UI must explicitly disclose unavailable run timestamps through i18n');
+assert.doesNotMatch(app,/t\('runExactUnavailable'\)/,'tables should not repeat an unhelpful exact-run-unavailable label');
 assert.match(app,/function modelRunInfo/,'per-model freshness metadata must be rendered');
 
 // 5 — shareable URL state.
