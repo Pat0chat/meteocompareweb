@@ -106,3 +106,10 @@ Tant que la version reste 1.x, l'engagement "zéro collecte" est maintenu.
 
 Pour toute question sur cette politique :
 [github.com/Pat0chat/MeteoCompare/issues](https://github.com/Pat0chat/MeteoCompare/issues)
+
+
+## Précision — stockage de la version web
+
+La version web stocke les favoris et préférences dans `localStorage`, et les gros caches météo dans IndexedDB. Les normales ERA5, snapshots d’évolution et historiques de biais restent également locaux au navigateur.
+
+Lorsque vous supprimez une ville favorite, MeteoCompare Web supprime aussi les données locales associées à cette ville : cache de prévision, normales, snapshots d’évolution et historique de biais. « Effacer les données locales » invalide en plus les requêtes encore en cours afin qu’une réponse réseau tardive ne puisse pas recréer un cache supprimé.

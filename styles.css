@@ -1418,3 +1418,26 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
 .topbar-system-status.cached .system-led { background:var(--medium); box-shadow:0 0 0 3px color-mix(in srgb,var(--medium) 11%,transparent); }
 .topbar-system-status.stale .system-led { background:var(--low); box-shadow:0 0 0 3px color-mix(in srgb,var(--low) 11%,transparent); }
 .model-header-stack { grid-template-rows:auto auto auto auto; }
+
+/* Shared sticky geometry: the city context bar and forecast navigation never overlap. */
+:root {
+  --topbar-height: 66px;
+  --city-context-height: 0px;
+  --sticky-context-gap: 10px;
+}
+.city-context-bar {
+  top: calc(var(--topbar-height) + 2px) !important;
+}
+.detail-sidebar {
+  top: calc(var(--topbar-height) + var(--city-context-height) + var(--sticky-context-gap)) !important;
+  max-height: calc(100vh - var(--topbar-height) - var(--city-context-height) - 22px);
+  overflow:auto;
+}
+.detail-workspace section[id] {
+  scroll-margin-top: calc(var(--topbar-height) + var(--city-context-height) + 24px) !important;
+}
+@media (max-width: 980px) {
+  .city-context-bar { top:auto !important; }
+  .detail-sidebar { top:auto !important; max-height:none; overflow:visible; }
+  .detail-workspace section[id] { scroll-margin-top: calc(var(--topbar-height) + 14px) !important; }
+}

@@ -30,6 +30,7 @@ jobs:
           node tests/pages-compat.mjs
           node tests/fidelity-regression.mjs
           node tests/analysis-suite.mjs
+          node tests/stability-i18n-audit.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

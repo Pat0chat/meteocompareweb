@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { makeI18n } from '../js/i18n.js';
 
 class MemoryStorage { constructor(){this.map=new Map()} getItem(k){return this.map.has(k)?this.map.get(k):null} setItem(k,v){this.map.set(String(k),String(v))} removeItem(k){this.map.delete(k)} key(i){return [...this.map.keys()][i]??null} get length(){return this.map.size} }
 const storage=new MemoryStorage();
@@ -37,9 +38,10 @@ localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify({theme:'LIGHT
 
 const listeners={};
 let routeLandmarkFocuses=0;const routeLandmark={hasAttribute(){return false},getAttribute(){return null},setAttribute(){},removeAttribute(){},focus(options){assert.equal(options?.preventScroll,true,'route landmark focus must never scroll the page');routeLandmarkFocuses++;}};
-const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},querySelector(){return routeLandmark},set innerHTML(v){this._html=v},get innerHTML(){return this._html}};
+const stickyTopbar={getBoundingClientRect(){return {height:72}}},stickyContext={getBoundingClientRect(){return {height:58}}};
+const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},querySelector(sel){if(sel==='.topbar')return stickyTopbar;if(sel==='.city-context-bar')return stickyContext;return routeLandmark},set innerHTML(v){this._html=v},get innerHTML(){return this._html}};
 let sectionLookup=new Map(),selectorLookup=new Map();
-const rootStyle={scrollBehavior:'',removeProperty(prop){if(prop==='scroll-behavior')this.scrollBehavior=''}};
+const cssVars=new Map();const rootStyle={scrollBehavior:'',setProperty(prop,value){cssVars.set(prop,value)},removeProperty(prop){if(prop==='scroll-behavior')this.scrollBehavior='';cssVars.delete(prop)}};
 globalThis.document={activeElement:null,documentElement:{dataset:{},lang:'',scrollTop:0,style:rootStyle},body:{scrollTop:0,classList:{toggle(){}}},querySelector(sel){if(sel==='#app')return app;if(sel==='#toast-root')return {appendChild(){}};return selectorLookup.get(sel)||null},getElementById(id){return sectionLookup.get(id)||null},createElement(){return {className:'',textContent:'',remove(){}}},addEventListener(){}};
 Object.defineProperty(globalThis,'navigator',{value:{onLine:false,language:'fr-FR'},configurable:true});
 globalThis.location={hash:'#/city/test',href:'https://example.test/#/city/test'};
@@ -80,6 +82,8 @@ assert.match(html,/class="table-legend heatmap-legend"/,'Temperature table must 
 assert.match(html,/class="heatmap-data-cell"[^>]*style="--heat:/,'Table cells must carry heatmap styling');
 assert.match(html,/class="detail-workspace"/,'Desktop detail view must use a workspace layout');
 assert.match(html,/class="detail-sidebar"/,'Desktop detail view must expose a navigation rail');
+assert.equal(cssVars.get('--topbar-height'),'72px','sticky layout must measure the real topbar height');
+assert.equal(cssVars.get('--city-context-height'),'58px','sticky layout must reserve the real context-bar height so overview is never covered');
 
 assert.match(html,/4 modèles/,'model counts must be explicit rather than bare numbers');
 assert.match(html,/data-bias-model="GFS"[^>]*data-bias-variable="TEMPERATURE"/,'temperature bias must be clickable from the GFS model header');
@@ -89,6 +93,15 @@ assert.match(html,/class="rank-row rank-row-link"[^>]*data-bias-model=/,'Local r
 function clickDataset(dataset,section=null,controlTop=null){const target={dataset,closest(selector){if(selector==='section[id]'&&section)return section;return this}};if(Number.isFinite(controlTop))target.getBoundingClientRect=()=>({top:controlTop});listeners.click({target});return app.innerHTML;}
 function makeSection(id,top){return {id,getBoundingClientRect(){return {top}}};}
 function makeControl(top){return {getBoundingClientRect(){return {top}}};}
+
+// Real rerenders must translate the complete city-detail surface, not only the settings screen.
+for(const [pref,lang] of [['ENGLISH','en'],['SPANISH','es'],['GERMAN','de'],['ITALIAN','it']]){
+  const translated=clickDataset({language:pref}),tr=makeI18n(pref);
+  assert.equal(document.documentElement.lang,lang,`document language must switch to ${lang}`);
+  for(const key of ['overview','forecastTimeline','confidenceBand','reliability','detailedComparison','shareView','refreshWeather'])
+    assert.ok(translated.includes(tr.t(key)),`${key} must rerender in ${lang}`);
+}
+clickDataset({language:'FRENCH'});
 
 // Same-view controls must preserve the clicked control's visual position even if the rerender changes heights above it.
 window.scrollY=900;document.documentElement.scrollTop=900;

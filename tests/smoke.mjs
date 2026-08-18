@@ -37,6 +37,7 @@ assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.hourly.cloudCover,[40,70],'AROM
 assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.daily.sunrise,['2026-08-17T06:35','2026-08-18T06:36'],'shared sunrise should be accepted');
 assert.equal(f.modelMeta.AROME_FRANCE_HD.runTimestamp,'2026-08-17T00:00:00.000Z','run metadata should be retained when the API exposes it');
 assert.equal(f.modelMeta.AROME_FRANCE_HD.lastTimestamp,'2026-08-17T02:00','per-model temporal coverage should be retained');
+assert.deepEqual(f.requestedModelIds,['AROME_FRANCE_HD','GFS'],'forecast cache must remember the exact requested model cohort');
 const conf=dayConfidence(f,'2026-08-18');
 assert.equal(conf.precipitation.kind,'DIVIDED');
 assert.equal(conf.precipitation.modelsForRain,1);

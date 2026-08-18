@@ -1,6 +1,6 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v13-analysis-suite';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v14-stability-i18n-audit';
 const SHELL = [
-  './', './index.html', './styles.css', './manifest.webmanifest',
+  './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',
   './js/models.js', './js/storage.js', './js/api.js', './js/domain.js', './js/android_strings.js', './js/i18n.js', './js/app.js'
 ];

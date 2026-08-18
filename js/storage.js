@@ -88,6 +88,12 @@ export async function saveForecast(cityId, forecast) {
   if(ok)safeRemove(key);else safeSet(key,forecast);
 }
 export function deleteForecast(cityId) { const key=FORECAST_PREFIX+cityId; safeRemove(key); void idbDelete(key); }
+export function deleteCityData(cityId) {
+  safeRemove(EVOLUTION_PREFIX+cityId);
+  safeRemove(NORMALS_PREFIX+cityId);
+  safeRemove(BIAS_PREFIX+cityId);
+  deleteForecast(cityId);
+}
 
 export function loadEvolution(cityId) { const v=safeParse(localStorage.getItem(EVOLUTION_PREFIX+cityId), []); return Array.isArray(v)?v:[]; }
 export function saveEvolution(cityId, entries) { safeSet(EVOLUTION_PREFIX+cityId, entries); }

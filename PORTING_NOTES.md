@@ -53,3 +53,15 @@ Le port web utilise toujours des routes hash `#/…` pour rester compatible avec
 ## Politique web de reconstruction du biais
 
 Contrairement à une lecture de prévision ordinaire, la reconstruction manuelle de l’historique J+1 peut effectuer de nombreux appels d’archives. Dans la version web, cette opération est volontairement centralisée dans les Paramètres et déclenchée ville par ville. Les écrans de fiabilité et les pages de biais n’effectuent pas cette reconstruction lors de leur consultation.
+
+
+## Stability & i18n Audit
+
+- Offsets sticky calculés dynamiquement à partir des hauteurs réelles ; plus de recouvrement entre barre de contexte et navigation locale.
+- Heure courante locale utilisée de façon cohérente par tableaux, bandes d’accord, comparaisons et exports.
+- Fuseau Forecast API resynchronisé vers le favori.
+- Cohorte de modèles demandée mémorisée dans le cache et vérifiée avant de déclarer une prévision fraîche.
+- Réponses asynchrones invalidées par jetons lors de suppression/effacement/changement de modèles.
+- Suppression d’une ville = purge complète des caches et historiques associés.
+- Moteur i18n unifié FR/EN/ES/DE/IT, avec catalogue Android complet + clés web + formats positionnels/float/percent.
+- Métadonnées PWA localisées.

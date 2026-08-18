@@ -1,4 +1,4 @@
-# MeteoCompare Web v1.8.0 — Analysis Suite
+# MeteoCompare Web v1.8.0 — Stability & i18n Audit
 
 Cette arborescence est le port web de MeteoCompare Android v1.8.0. Elle conserve les fonctions météo de l'application fournie, mais supprime volontairement les widgets Android Glance, qui n'ont pas d'équivalent pertinent sur un site web.
 
@@ -9,7 +9,7 @@ Cette révision ajoute une interface pensée pour ordinateur, un audit technique
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.8.0-analysis-suite
+cd meteocompare-web-v1.8.0-stability-i18n-audit
 python3 -m http.server 8080
 ```
 
@@ -152,6 +152,28 @@ Cette passe implémente les dix améliorations d’analyse et d’ergonomie pré
 
 Le cache PWA est incrémenté en `v13-analysis-suite`.
 
+
+### Passe Stability & i18n Audit
+
+Cette passe stabilise la barre de contexte sticky, audite la cohérence des données et remplace le système multilingue fragmenté par un moteur unique :
+
+- offsets sticky calculés depuis la hauteur réelle de la topbar et de la barre de contexte ; la navigation « Vue d’ensemble » reste toujours sous ces deux couches, même avec une traduction qui passe sur deux lignes ;
+- horizons horaires alignés sur l’heure locale courante : tableaux, bande d’accord, comparaison ciblée et exports n’incluent plus silencieusement les heures déjà écoulées ;
+- fuseau horaire confirmé par Open-Meteo resynchronisé dans le favori après actualisation ;
+- évolution H−24/H−48/H−72 calculée par rapport au snapshot affiché, ce qui reste cohérent avec un cache ancien/hors ligne ;
+- comparaison multi-ville basée sur l’intersection réelle des dates disponibles, sans dépendre arbitrairement de l’horizon du premier modèle ;
+- classement « Fiabilité locale » aligné sur le même score de fiabilité que la page modèle, avec cohorte de dates comparables ;
+- suppression d’une ville = purge de sa prévision, de ses normales ERA5, snapshots d’évolution et historique de biais ;
+- jetons de génération par ville pour ignorer les réponses réseau devenues obsolètes après suppression, effacement ou changement de sélection de modèles ;
+- protection équivalente des normales ERA5 contre les réponses tardives et nettoyage d’un Forecast supersédé sans toucher aux historiques indépendants ;
+- directions cardinales localisées et unité du biais pluie réalignée sur l’application Android (`mm`) ;
+- une prévision mise en cache mémorise désormais la cohorte de modèles demandée ; une ancienne cohorte n’est plus considérée fraîche après modification des modèles actifs ;
+- catalogue web FR/EN/ES/DE/IT unifié avec les 519 clés du catalogue Android par langue ;
+- toasts, confirmations, erreurs réseau, recherche, comparaison, exports, états de cache/run, titres/ARIA et métadonnées PWA passent tous par le même moteur de traduction ;
+- formatage Android étendu à `%d`, `%s`, `%f`, arguments positionnels, précisions comme `%1$.1f` et échappement `%%` ;
+- manifeste PWA localisé par langue et métadonnées HTML synchronisées à chaque changement de langue ;
+- cache PWA incrémenté en `v14-stability-i18n-audit`.
+
 ## Fonctionnalités météo conservées
 
 - favoris : recherche, ajout, retrait et affichage multi-ville ;
@@ -194,7 +216,7 @@ Les correctifs de la passe précédente sont conservés et complétés :
 - scénarios de l'accueil calculés à la demande ;
 - rafraîchissement global limité à deux appels météo simultanés ;
 - un seul rendu au début/à la fin d'un rafraîchissement multi-ville, au lieu de rerendre toute l'application pour chaque ville ;
-- `content-visibility` sur les sections lourdes hors écran ;
+- `content-visibility` uniquement sur les zones où il ne perturbe pas la stabilité du scroll ;
 - gros payloads météo déplacés de `localStorage` vers **IndexedDB** afin d'éviter les quotas faibles et le coût du stockage synchrone.
 
 Les favoris, paramètres et petits index restent dans `localStorage`. Une ancienne prévision stockée par la version précédente est migrée automatiquement vers IndexedDB lors du chargement.
@@ -237,6 +259,7 @@ node tests/static-audit.mjs
 node tests/pages-compat.mjs
 node tests/fidelity-regression.mjs
 node tests/analysis-suite.mjs
+node tests/stability-i18n-audit.mjs
 ```
 
 Ils couvrent notamment :
@@ -268,7 +291,14 @@ Ils couvrent notamment :
 - état de vue partageable dans l’URL ;
 - exports CSV/JSON ;
 - planification incrémentale de l’historique de biais ;
-- mode de densité compacte.
+- mode de densité compacte ;
+- exhaustivité des catalogues FR/EN/ES/DE/IT et rerendu réel de l’interface dans les cinq langues ;
+- géométrie sticky calculée dynamiquement ;
+- exclusion des heures passées des vues horaires ;
+- cohérence du fuseau confirmé par l’API ;
+- purge complète des données d’une ville ;
+- protection contre les réponses réseau obsolètes ;
+- cohérence entre cache météo et cohorte de modèles actifs.
 
 Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 
@@ -282,10 +312,10 @@ Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 - `js/storage.js` : réglages/favoris + cache IndexedDB ;
 - `js/i18n.js` : interface multilingue ;
 - `js/app.js` : rendu, routeur et interactions ;
-- `manifest.webmanifest`, `sw.js` : PWA ;
+- `manifest.webmanifest`, `manifest.{fr,en,es,de,it}.webmanifest`, `sw.js` : PWA et métadonnées localisées ;
 - `.github/workflows/pages.yml` : publication GitHub Pages ;
 - `.nojekyll` : compatibilité de publication statique ;
-- `tests/` : non-régression, performance, audit, fidélité UI et Pages.
+- `tests/` : 7 suites de non-régression, performance, audit, fidélité UI, i18n et Pages.
 
 ## Confidentialité
 

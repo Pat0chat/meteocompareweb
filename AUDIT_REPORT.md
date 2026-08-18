@@ -344,3 +344,62 @@ La reconstruction de l’historique J+1 peut déclencher de nombreuses requêtes
 Le test statique vérifie désormais que l’action coûteuse n’est présente que dans la zone de gestion dédiée, que l’action globale n’existe plus et que les pages de modèle n’exposent plus « Actualiser l’historique ».
 
 Le cache PWA passe à `v12-history-refresh-policy`.
+
+## 16. Stability & i18n Audit — cohérence, courses réseau et multilingue
+
+### Barre sticky et navigation locale
+
+La barre de contexte ville et la navigation « Vue d’ensemble » utilisaient des offsets indépendants. Une barre plus haute — notamment après traduction — pouvait masquer le premier élément de navigation. Les hauteurs réelles sont désormais mesurées après rendu et exposées via variables CSS partagées. Un `ResizeObserver` recalcule les offsets si la topbar ou la barre de contexte change de hauteur.
+
+### Cohérence temporelle et fuseaux
+
+- les vues horaires partent de l’heure locale courante arrondie au début d’heure ;
+- la bande d’accord, le tableau horaire, les comparaisons et les exports ne reprennent plus les heures déjà passées de la journée ;
+- les clés de cache de vue intègrent l’heure locale, et une minuterie invalide le rendu au changement d’heure ;
+- le fuseau renvoyé par l’API Forecast devient la référence et est resynchronisé dans le favori ;
+- l’évolution de prévision utilise la date/heure du snapshot affiché comme référence, ce qui rend un cache ancien auto-cohérent hors ligne ;
+- la comparaison de villes travaille sur l’intersection des dates réellement disponibles.
+
+### Cohérence fiabilité / biais
+
+Le résumé « Fiabilité locale » est désormais classé avec le même score que la page détaillée : cohorte de dates comparables, score local, puis MAE. La page synthétique et la page modèle ne peuvent donc plus ordonner différemment une même cohorte à cause d’un tri simplifié sur le biais signé.
+
+### Stockage et courses asynchrones
+
+- supprimer une ville purge prévision IndexedDB/fallback, normales ERA5, snapshots d’évolution et historique de biais ;
+- les actualisations météo et biais portent un jeton de génération par ville ; une réponse arrivée après suppression/effacement est ignorée ;
+- un changement de modèles actifs invalide les requêtes météo en vol et déclenche une cohorte cohérente ;
+- les prévisions mémorisent `requestedModelIds` et une prévision d’une ancienne sélection n’est plus considérée fraîche ;
+- l’hydratation IndexedDB vérifie qu’une ville existe encore avant de réinjecter son cache.
+
+### Audit multilingue complet
+
+Le précédent port mélangeait catalogue Android, dictionnaire web et chaînes françaises codées en dur. Le nouveau moteur centralise :
+
+- les 519 clés Android dans chacune des cinq langues ;
+- toutes les clés spécifiques web dans FR/EN/ES/DE/IT ;
+- pluriels/paramètres et formats Android `%d`, `%s`, `%f`, `%1$d`, `%1$.1f`, `%%` ;
+- interface statique et dynamique, toasts, confirmations, erreurs, recherche, diagnostics, exports, titres/ARIA et états de cache/run ;
+- `<html lang>`, titre, description et manifeste PWA localisé après changement de langue.
+
+Le test d’audit échoue si une clé web manque dans une langue, si une clé du catalogue Android manque, si un format positionnel reste non résolu ou si un ancien libellé français connu réapparaît dans le rendu applicatif. Le test de fidélité clique réellement les sélecteurs EN/ES/DE/IT et contrôle le rerendu de plusieurs sections majeures.
+
+### Défauts supplémentaires trouvés pendant l’audit
+
+- déclaration tardive de l’observateur sticky pouvant provoquer une erreur d’initialisation : corrigée ;
+- classe DOM de l’indicateur pluie de chronologie différente de sa classe CSS : corrigée ;
+- constante du seuil de biais référencée avant initialisation pendant le premier rendu : corrigée ;
+- réponse d’une ancienne sélection de modèles pouvant revenir après modification des réglages : corrigée.
+- nettoyage d’une réponse météo supersédée pouvant supprimer par erreur les historiques/normales en plus du cache Forecast : corrigé, le nettoyage est désormais limité au cache Forecast ;
+- réponse ERA5 tardive après suppression/effacement pouvant recréer des normales : corrigée par jeton de génération ;
+- plan de reconstruction de biais pouvant reprendre des modèles désormais désactivés depuis un ancien cache : corrigé ;
+- erreurs HTTP/Open-Meteo structurées et traduites au lieu d’exposer systématiquement un message technique brut ;
+- unité de biais pluie réalignée sur Android (`mm`) et directions cardinales localisées selon la langue.
+
+### Validation
+
+Sept suites automatisées passent ensemble : `smoke`, `ui-performance`, `static-audit`, `pages-compat`, `fidelity-regression`, `analysis-suite` et `stability-i18n-audit`. Tous les modules JavaScript/service worker passent `node --check`, les manifestes sont des JSON valides et `styles.css` est parsé sans erreur.
+
+L’environnement d’exécution bloque la navigation d’un Chromium headless vers le serveur local (`ERR_BLOCKED_BY_ADMINISTRATOR`) et n’autorise pas les appels Open-Meteo réels. La validation navigateur/réseau live n’est donc pas revendiquée : les contrats d’API, calculs, DOM et interactions sont couverts par les tests synthétiques et comparés au code Android fourni.
+
+Le cache PWA est incrémenté en `v14-stability-i18n-audit`.

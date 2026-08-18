@@ -22,9 +22,9 @@ async function fetchJson(url, timeoutMs=30000, externalSignal=null) {
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: controller.signal, headers:{ 'Accept':'application/json' } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) { const err=new Error(`HTTP ${res.status}`); err.code='HTTP_ERROR'; err.status=res.status; throw err; }
     const json = await res.json();
-    if (json?.error) throw new Error(json.reason || 'Open-Meteo error');
+    if (json?.error) { const err=new Error(json.reason || 'Open-Meteo error'); err.code='OPEN_METEO_ERROR'; err.reason=json.reason||''; throw err; }
     return json;
   } finally { clearTimeout(timer); externalSignal?.removeEventListener?.('abort',abortFromExternal); }
 }
@@ -44,7 +44,7 @@ export async function searchCities(query, language='fr', signal=null) {
 
 export async function fetchForecast(city, enabledModelIds, requestedDays=7) {
   const models = selectedModels(enabledModelIds);
-  if (!models.length) throw new Error('Aucun modèle météo activé.');
+  if (!models.length) { const err=new Error('NO_MODELS_ENABLED'); err.code='NO_MODELS_ENABLED'; throw err; }
   const maxDays = Math.max(1, Math.min(Math.max(...models.map(m=>m.maxForecastDays)), requestedDays));
   const u = new URL(FORECAST_URL);
   u.searchParams.set('latitude', String(city.latitude));
@@ -127,7 +127,7 @@ export function normalizeBatchedForecast(raw, city, models) {
     const tempMax = numberList(values(dailyRaw,'temperature_2m_max',model,single));
     const tempMin = numberList(values(dailyRaw,'temperature_2m_min',model,single));
     const usable = (tempH||[]).some(Number.isFinite) || (tempMax||[]).some(Number.isFinite) || (tempMin||[]).some(Number.isFinite);
-    if (!usable) { errors[model.id]='Indisponible ou hors zone'; continue; }
+    if (!usable) { errors[model.id]='MODEL_UNAVAILABLE'; continue; }
     seriesByModel[model.id] = {
       modelId:model.id,
       hourly:{
@@ -158,10 +158,11 @@ export function normalizeBatchedForecast(raw, city, models) {
     const coverage=seriesCoverage(seriesByModel[model.id]);
     modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage };
   }
-  if (!Object.keys(seriesByModel).length) throw new Error('Aucun modèle n’a renvoyé de données exploitables pour cette ville.');
+  if (!Object.keys(seriesByModel).length) { const err=new Error('NO_USABLE_MODELS'); err.code='NO_USABLE_MODELS'; throw err; }
   const fetchedAt=new Date().toISOString();
   for(const meta of Object.values(modelMeta))meta.loadedAt=fetchedAt;
-  return { city:{...city, timezone: city.timezone || raw.timezone || 'UTC'}, timezone:raw.timezone || city.timezone || 'UTC', seriesByModel, modelMeta, errors, fetchedAt };
+  const resolvedTimezone=raw.timezone || city.timezone || 'UTC';
+  return { city:{...city, timezone:resolvedTimezone}, timezone:resolvedTimezone, seriesByModel, modelMeta, errors, requestedModelIds:models.map(m=>m.id), fetchedAt };
 }
 
 export async function fetchClimateNormals(city, startDate, endDate) {

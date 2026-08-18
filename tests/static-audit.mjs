@@ -24,7 +24,7 @@ assert.match(css, /tr:nth-child\(even\) td\.heatmap-data-cell\[style\*="--heat"\
 assert.match(app, /data-timeline-mode="HOURLY"/, 'rich timeline must expose 24h mode');
 assert.match(app, /data-timeline-mode="DAILY"/, 'rich timeline must expose daily mode');
 assert.doesNotMatch(app, /href="#today-summary"/, 'hash routing must not be overwritten by section anchors');
-assert.equal((app.match(/Saisissez au moins 3 caractères\./g)||[]).length,1,'search hint must not be duplicated');
+assert.equal((app.match(/searchMinChars/g)||[]).length,1,'search hint must be centralized through one i18n key');
 assert.match(css, /--content-max:\s*1560px/, 'modern desktop layout should use a wide canvas');
 assert.match(css, /@media \(max-width: 560px\)/, 'mobile fallback must remain responsive');
 assert.match(css, /prefers-reduced-motion:\s*reduce/, 'reduced-motion preference must be supported');
@@ -54,9 +54,9 @@ assert.match(css, /Modern professional UI/, 'the modern professional visual laye
 assert.match(css, /professional-hero::before, \.professional-hero::after \{ display: none; \}/, 'decorative hero grids must be disabled');
 assert.match(css, /\.chart-wrap \{ background: var\(--surface\); background-image: none; \}/, 'chart containers must not use decorative graph-paper backgrounds');
 assert.match(css, /\.topbar-system-status/, 'the data availability status must remain visible without terminal styling');
-assert.match(app, /Données en ligne/, 'top bar should use human-readable online status text');
+assert.match(app, /onlineData/, 'top bar should use the localized online status text');
 assert.match(app, /class="settings-section settings-wide history-management"/, 'costly bias-history refresh must be centralized in Settings');
-assert.match(app, /Opération coûteuse/, 'history management must clearly warn that archive reconstruction is costly');
+assert.match(app, /costlyOperation/, 'history management must clearly warn that archive reconstruction is costly through i18n');
 assert.match(app, /function renderBiasHistoryManagementRow/, 'Settings must expose per-city history management rather than a global refresh-everything action');
 assert.match(app, /class="btn tonal history-refresh-action" data-bias-refresh-city=/, 'history refresh must remain available per city from the dedicated Settings area');
 assert.doesNotMatch(app, /data-action="refresh-bias-all"/, 'the expensive refresh-all action must not be exposed');
@@ -69,7 +69,7 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.match(sw, /v13-analysis-suite/, 'service worker cache must be bumped for the centralized history-refresh policy');
+assert.match(sw, /v14-stability-i18n-audit/, 'service worker cache must be bumped for the centralized history-refresh policy');
 assert.match(css, /#app \{ overflow-anchor: none; \}/, 'browser scroll anchoring must not fight the explicit viewport restoration logic');
 assert.doesNotMatch(css, /\.section, \.city-card, \.settings-section \{ content-visibility: auto/, 'detail sections must not use estimated off-screen heights that can cause scroll jumps');
 console.log('MeteoCompare Web static audit tests: OK');

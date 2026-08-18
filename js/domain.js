@@ -128,11 +128,13 @@ export function dailyMatrix(forecast){
   return dates.map(date=>({date,models:Object.fromEntries(Object.entries(forecast.seriesByModel||{}).map(([modelId,s])=>{const x=dailyCondition(s,date);const i=s.daily.dates.indexOf(date);return [modelId,{...x,precipProbabilityMax:i>=0?s.daily.precipitationProbabilityMax[i]:null,cloudCoverMean:dailyCloudCoverMean(s,date)}];}))}));
 }
 
-export function hourlyConfidenceBand(forecast,metric='TEMPERATURE', horizonHours=168){
+export function hourlyConfidenceBand(forecast,metric='TEMPERATURE', horizonHours=168, now=new Date()){
   const extractor= metric==='PRECIPITATION' ? s=>s.hourly.precipitation : metric==='WIND' ? s=>s.hourly.windSpeed10m : s=>s.hourly.temperature2m;
   const thresholds=metric==='PRECIPITATION'?[1,8]:metric==='WIND'?[2,12]:[.5,3];
   const maps=Object.values(forecast.seriesByModel||{}).map(s=>{const m=new Map();const v=extractor(s);s.hourly.timestamps.forEach((ts,i)=>{if(Number.isFinite(v[i]))m.set(ts,v[i]);});return m;});
-  const times=[...new Set(maps.flatMap(m=>[...m.keys()]))].sort().slice(0,horizonHours);return times.map(ts=>{const vals=maps.map(m=>m.get(ts)).filter(Number.isFinite);if(vals.length<2)return null;const s=stats(vals);return {timestamp:ts,meanValue:s.mean,minValue:s.min,maxValue:s.max,stdDev:s.stdDev,percent:scoreFromStd(s.stdDev,...thresholds),modelCount:s.count};}).filter(Boolean);
+  const anchor=localEpoch(roundedHourLocal(forecast.city?.timezone||forecast.timezone||'UTC',now));
+  const times=[...new Set(maps.flatMap(m=>[...m.keys()]))].filter(ts=>localEpoch(ts)>=anchor).sort().slice(0,horizonHours);
+  return times.map(ts=>{const vals=maps.map(m=>m.get(ts)).filter(Number.isFinite);if(vals.length<2)return null;const s=stats(vals);return {timestamp:ts,meanValue:s.mean,minValue:s.min,maxValue:s.max,stdDev:s.stdDev,percent:scoreFromStd(s.stdDev,...thresholds),modelCount:s.count};}).filter(Boolean);
 }
 
 export function aggregateDay(forecast,date){
@@ -271,7 +273,7 @@ export function computeBiases(biasData,today,windowDays=30){
 }
 
 export function buildEvolution(forecast,storedSnapshots){
-  const now=Date.now();const targets=[24,48,72];const chosen=targets.map(h=>storedSnapshots.map(s=>({...s,ageHours:Math.round((now-s.capturedAt)/3600000)})).filter(s=>s.ageHours>=Math.max(3,h-10)&&s.ageHours<=h+12).sort((a,b)=>Math.abs(a.ageHours-h)-Math.abs(b.ageHours-h))[0]).filter(Boolean);const today=cityToday(forecast.city.timezone);const dates=[...new Set(Object.values(forecast.seriesByModel||{}).flatMap(s=>s.daily.dates))].filter(d=>d>=today).sort().slice(0,7);const vars=['temperature','precipitation','wind'];const days=[];
+  const parsedForecastTime=Date.parse(forecast?.fetchedAt||'');const now=Number.isFinite(parsedForecastTime)?parsedForecastTime:Date.now();const targets=[24,48,72];const chosen=targets.map(h=>storedSnapshots.map(s=>({...s,ageHours:Math.round((now-s.capturedAt)/3600000)})).filter(s=>s.ageHours>=Math.max(3,h-10)&&s.ageHours<=h+12).sort((a,b)=>Math.abs(a.ageHours-h)-Math.abs(b.ageHours-h))[0]).filter(Boolean);const referenceDate=new Date(now);const today=cityToday(forecast.city.timezone,referenceDate);const dates=[...new Set(Object.values(forecast.seriesByModel||{}).flatMap(s=>s.daily.dates))].filter(d=>d>=today).sort().slice(0,7);const vars=['temperature','precipitation','wind'];const days=[];
   for(const date of dates){const current={};for(const [mid,s] of Object.entries(forecast.seriesByModel||{})){const i=s.daily.dates.indexOf(date);if(i<0)continue;current[mid]={temperature:s.daily.tempMax[i],precipitation:s.daily.precipitationSum[i],wind:s.daily.windSpeedMax[i]};}const variables={};for(const variable of vars){const curr=Object.fromEntries(Object.entries(current).filter(([,v])=>Number.isFinite(v[variable])).map(([m,v])=>[m,v[variable]]));const history=chosen.map(s=>({ageHours:s.ageHours,capturedAt:s.capturedAt,values:Object.fromEntries(Object.entries(s.daily?.[date]||{}).filter(([,v])=>Number.isFinite(v?.[variable])).map(([m,v])=>[m,v[variable]]))})).filter(x=>Object.keys(x.values).length);if(!history.length||Object.keys(curr).length<2)continue;let common=new Set(Object.keys(curr));const retained=[];for(const h of history.sort((a,b)=>a.ageHours-b.ageHours)){const next=new Set(Object.keys(h.values).filter(m=>common.has(m)));if(next.size>=2){common=next;retained.push(h);}}if(!retained.length||common.size<2)continue;const cv=Object.fromEntries([...common].map(m=>[m,curr[m]]));const prev=retained.map(h=>({ageHours:h.ageHours,capturedAt:h.capturedAt,values:Object.fromEntries([...common].map(m=>[m,h.values[m]])),median:median([...common].map(m=>h.values[m]))}));const comparison=prev[0];const deltas=[...common].map(m=>cv[m]-comparison.values[m]);const stable=variable==='temperature'?.5:variable==='precipitation'?1:3;const inc=deltas.filter(x=>x>stable).length,dec=deltas.filter(x=>x<-stable).length,sta=deltas.length-inc-dec,required=Math.ceil(deltas.length*.6);const trend=inc>=required?'INCREASING':dec>=required?'DECREASING':sta>=required?'STABLE':'VOLATILE';variables[variable]={currentMedian:median(Object.values(cv)),previous:prev,trend,medianDelta:median(deltas),medianAbsDelta:median(deltas.map(Math.abs)),comparedModels:deltas.length};}if(Object.keys(variables).length)days.push({date,variables});}
   return {days};
 }
@@ -281,11 +283,20 @@ export function reliabilityRanking(biases,variable='TEMPERATURE'){
 }
 
 export function windArrow(direction,speed){ if(!Number.isFinite(direction)||!Number.isFinite(speed)||speed<=5)return '';return {deg:(direction+180)%360,char:'↑'}; }
-export function formatWindDirection(direction){if(!Number.isFinite(direction))return '';const dirs=['N','NE','E','SE','S','SO','O','NO'];return dirs[Math.round(direction/45)%8];}
+export function formatWindDirection(direction){if(!Number.isFinite(direction))return '';const dirs=['N','NE','E','SE','S','SW','W','NW'];return dirs[Math.round(direction/45)%8];}
 
 export function dateLabel(date,locale='fr-FR',style='short'){const d=new Date(`${date}T12:00:00Z`),key=`${locale}|${style}`;let f=dateLabelFormatters.get(key);if(!f){f=new Intl.DateTimeFormat(locale,{...(style==='long'?{weekday:'long',day:'numeric',month:'long'}:{weekday:'short',day:'numeric',month:'short'}),timeZone:'UTC'});dateLabelFormatters.set(key,f);}return f.format(d);}
 export function timeLabel(localTs){return typeof localTs==='string'&&localTs.includes('T')?localTs.slice(11,16):'—';}
-export function relativeAge(iso,locale='fr'){if(!iso)return '';const ms=Date.now()-Date.parse(iso);if(ms<0)return locale==='fr'?'à l’instant':'just now';const min=Math.floor(ms/60000);if(min<1)return locale==='fr'?'à l’instant':'just now';if(min<60)return locale==='fr'?`il y a ${min} min`:`${min} min ago`;const h=Math.floor(min/60);if(h<24)return locale==='fr'?`il y a ${h} h`:`${h} h ago`;const d=Math.floor(h/24);return locale==='fr'?`il y a ${d} j`:`${d} d ago`;}
+export function relativeAge(iso,locale='fr-FR'){
+  if(!iso)return '';
+  const parsed=Date.parse(iso);if(!Number.isFinite(parsed))return '';
+  const ms=Date.now()-parsed,rtf=new Intl.RelativeTimeFormat(locale,{numeric:'auto'});
+  const abs=Math.abs(ms);
+  if(abs<60_000)return rtf.format(0,'second');
+  if(abs<3_600_000)return rtf.format(-Math.round(ms/60_000),'minute');
+  if(abs<86_400_000)return rtf.format(-Math.round(ms/3_600_000),'hour');
+  return rtf.format(-Math.round(ms/86_400_000),'day');
+}
 
 export function median(values){const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;}
 function minFinite(v){const a=v.filter(Number.isFinite);return a.length?Math.min(...a):null;}function maxFinite(v){const a=v.filter(Number.isFinite);return a.length?Math.max(...a):null;}
