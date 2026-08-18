@@ -6,6 +6,7 @@ const FORECAST_PREFIX = 'meteocompare.web.forecast.';
 const EVOLUTION_PREFIX = 'meteocompare.web.evolution.';
 const NORMALS_PREFIX = 'meteocompare.web.normals.era5-v1.';
 const BIAS_PREFIX = 'meteocompare.web.bias.';
+const ANALYTICS_OPTOUT_KEY = 'meteocompare.web.analytics.optout.v1';
 const DB_NAME = 'meteocompare.web.large-cache.v1';
 const DB_STORE = 'cache';
 const DB_VERSION = 1;
@@ -187,6 +188,7 @@ export async function inspectLocalData(cities=[]) {
       };
       if(key===CITIES_KEY){category.favorites.bytes+=rec.bytes;category.favorites.entries++;}
       else if(key===SETTINGS_KEY){category.settings.bytes+=rec.bytes;category.settings.entries++;category.settings.items=rec.value&&typeof rec.value==='object'?Object.keys(rec.value).length:0;}
+      else if(key===ANALYTICS_OPTOUT_KEY){category.settings.bytes+=rec.bytes;category.settings.entries++;category.settings.items++;}
       else if(key.startsWith(FORECAST_PREFIX)){const id=key.slice(FORECAST_PREFIX.length),models=Object.keys(rec.value?.seriesByModel||{}).length;category.forecasts.bytes+=rec.bytes;category.forecasts.entries++;category.forecasts.items+=models;addCity(FORECAST_PREFIX,'forecastBytes','forecastEntries','forecastModels',models);}
       else if(key.startsWith(NORMALS_PREFIX)){category.normals.bytes+=rec.bytes;category.normals.entries++;category.normals.items++;addCity(NORMALS_PREFIX,'normalsBytes','normalsEntries',null,0);}
       else if(key.startsWith(BIAS_PREFIX)){const forecasts=Array.isArray(rec.value?.forecasts)?rec.value.forecasts.length:0,observations=Array.isArray(rec.value?.observations)?rec.value.observations.length:0;category.bias.bytes+=rec.bytes;category.bias.entries++;category.bias.items+=forecasts+observations;addCity(BIAS_PREFIX,'biasBytes','biasEntries','biasForecasts',forecasts);const row=cityMap.get(key.slice(BIAS_PREFIX.length));row.biasObservations+=observations;}

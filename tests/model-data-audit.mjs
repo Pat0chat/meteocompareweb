@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fetchForecast, fetchPreviousRuns, normalizeBatchedForecast, hourlySeriesHealth } from '../js/api.js';
-import { normalizePreviousRuns } from '../js/domain.js';
+import { normalizePreviousRuns, aggregateDay } from '../js/domain.js';
 import { WEATHER_MODELS, getModel } from '../js/models.js';
 import { webTranslationAudit } from '../js/i18n.js';
 
@@ -39,6 +39,14 @@ const criticalHealth=hourlySeriesHealth({hourly:{
 assert.equal(criticalHealth.degraded,true,'a truncated critical precipitation series must degrade model health');
 assert.equal(criticalHealth.counts.temperature,48);
 assert.equal(criticalHealth.counts.precipitation,4);
+
+// A short regional model with a balanced tail must not be labelled partial just
+// because fewer than 48 future hours remain from the latest run boundary.
+const balancedShort=hourlySeriesHealth({hourly:{
+  temperature2m:Array(18).fill(12),precipitation:Array(18).fill(0),windSpeed10m:Array(18).fill(15)
+}},iconHealthModel,48);
+assert.equal(balancedShort.degraded,false,'balanced short-range tails should remain healthy');
+assert.equal(balancedShort.shortRegional,true);
 
 const hours=(n,start='2026-08-18T00:00:00Z')=>Array.from({length:n},(_,i)=>new Date(Date.parse(start)+i*3600e3).toISOString().slice(0,16));
 const suffix=(base,m)=>`${base}_${m.apiKey}`;
@@ -106,9 +114,18 @@ assert.equal(outside.errors.ICON_D2,'MODEL_UNAVAILABLE');
 // Future daily aggregates from a short/partial horizon must not enter daily
 // agreement. Today remains valid because the rolling hourly request starts now.
 const arome=getModel('AROME_FRANCE'),twoDays=hours(48),partialTemp=modelArray(48,28,i=>15+i/10),partial={timezone:'Europe/Paris',hourly:{time:twoDays,temperature_2m:partialTemp,precipitation:modelArray(48,28,()=>0),wind_speed_10m:modelArray(48,28,()=>10),weather_code:modelArray(48,28,()=>1)},daily:{time:['2026-08-18','2026-08-19'],temperature_2m_max:[26,29],temperature_2m_min:[15,16],precipitation_sum:[0,4],wind_speed_10m_max:[18,25],wind_gusts_10m_max:[30,40],wind_direction_10m_dominant:[180,190],weather_code:[1,61],sunrise:['2026-08-18T06:30','2026-08-19T06:31'],sunset:['2026-08-18T20:55','2026-08-19T20:53']}};
-const p=normalizeBatchedForecast(partial,city,[arome],48).seriesByModel.AROME_FRANCE;
+const partialForecast=normalizeBatchedForecast(partial,city,[arome],48),p=partialForecast.seriesByModel.AROME_FRANCE;
 assert.equal(p.daily.tempMax[0],26,'today daily aggregate should remain provider-authored');
-for(const key of ['tempMax','tempMin','precipitationSum','windSpeedMax','windGustsMax','windDirection10mDominant','weatherCode'])assert.equal(p.daily[key][1],null,`partial future daily ${key} must be excluded`);
+assert.equal(p.daily.tempMax[1],29,'terminal partial-day values should remain visible instead of being destroyed');
+assert.equal(p.daily.precipitationSum[1],4,'partial precipitation total should remain inspectable in the detailed table');
+assert.equal(p.daily.completeness.temperature[1].status,'PARTIAL');
+assert.equal(p.daily.completeness.temperature[1].availableHours,4);
+assert.equal(p.daily.completeness.temperature[1].expectedHours,24);
+assert.equal(p.daily.completeness.precipitation[1].status,'PARTIAL');
+const partialAggregate=aggregateDay(partialForecast,'2026-08-19');
+assert.equal(partialAggregate.tempMax,null,'partial terminal temperature must be excluded from multi-model daily aggregate');
+assert.equal(partialAggregate.precip,null,'partial terminal precipitation must be excluded from multi-model daily aggregate');
+assert.equal(partialAggregate.wind,null,'partial terminal wind must be excluded from multi-model daily aggregate');
 assert.equal(p.daily.sunrise[1],'2026-08-19T06:31','astronomical fields are independent of model horizon');
 
 
@@ -126,8 +143,11 @@ const rainOnlyPartial={timezone:'Europe/Paris',hourly:{time:twoDays,
 const rp=normalizeBatchedForecast(rainOnlyPartial,city,[arome],48).seriesByModel.AROME_FRANCE;
 assert.equal(rp.daily.tempMax[1],29,'valid future temperature aggregate should survive rain-only truncation');
 assert.equal(rp.daily.windSpeedMax[1],25,'valid future wind aggregate should survive rain-only truncation');
-assert.equal(rp.daily.precipitationSum[1],null,'partial future precipitation aggregate must be excluded');
-assert.equal(rp.daily.precipitationProbabilityMax[1],null,'partial future precipitation probability must be excluded');
+assert.equal(rp.daily.precipitationSum[1],4,'partial future precipitation remains visible for inspection');
+assert.equal(rp.daily.precipitationProbabilityMax[1],80,'provider probability remains visible even when that terminal day is partial');
+assert.equal(rp.daily.completeness.temperature[1].status,'FULL');
+assert.equal(rp.daily.completeness.wind[1].status,'FULL');
+assert.equal(rp.daily.completeness.precipitation[1].status,'PARTIAL');
 
 
 // Previous Runs uses the same defensive strategy. A model with a partially

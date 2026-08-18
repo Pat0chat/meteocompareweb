@@ -84,6 +84,7 @@ node tests/pwa-about-legends.mjs
 node tests/interactive-legends.mjs
 node tests/evolution-reliability-icon.mjs
 node tests/model-data-audit.mjs
+node tests/settings-short-models.mjs
 ```
 
 Ils couvrent notamment :
@@ -135,14 +136,20 @@ Voir aussi `AUDIT_REPORT.md` pour le détail de la passe d'audit.
 - `js/domain.js` : calculs météo, accord, scénarios, biais, ERA5, évolution ;
 - `js/storage.js` : réglages/favoris + cache IndexedDB ;
 - `js/i18n.js` : interface multilingue ;
+- `js/analytics-config.js` : activation explicite de la mesure d’audience ;
+- `js/analytics.js` : pageviews expurgées + événements PWA minimaux ;
 - `js/app.js` : rendu, routeur et interactions ;
 - `manifest.webmanifest`, `manifest.{fr,en,es,de,it}.webmanifest`, `sw.js` : PWA et métadonnées localisées ;
 - `.github/workflows/pages.yml` : publication GitHub Pages ;
 - `.nojekyll` : compatibilité de publication statique ;
-- `tests/` : 12 suites de non-régression, performance, audit, fidélité UI/données, graphes, PWA, i18n et Pages.
+- `tests/` : 16 suites de non-régression, performance, audit, fidélité UI/données, graphes, PWA, i18n, analytics et Pages.
 
-## Confidentialité
+## Confidentialité et mesure d’audience
 
-Aucun secret ni clé API n'est embarqué. Les requêtes météo sont envoyées directement depuis le navigateur vers Open-Meteo. Les villes, réglages et caches MeteoCompare restent dans le stockage local du navigateur.
+Aucun secret ni clé API n'est embarqué. Les requêtes météo sont envoyées directement depuis le navigateur vers Open-Meteo. Les villes, réglages, caches, biais et snapshots MeteoCompare restent dans le stockage local du navigateur.
 
-La licence et la politique de confidentialité du projet source restent incluses (`LICENSE`, `PRIVACY.md`).
+La version web intègre une **mesure d’audience minimale facultative** basée sur l’Events API de Plausible : pageviews sur des routes expurgées (`/city`, `/bias`, etc.), clic sur le bouton d’installation PWA et installation PWA détectée. Sa finalité est limitée à la mesure de la fréquentation/charge, au dimensionnement de l’hébergement et au suivi des installations PWA détectées. Aucun nom de ville, coordonnée, modèle, prévision, biais ou historique n’est ajouté aux événements. Aucun cookie analytics ni identifiant persistant n’est créé par MeteoCompare, et ces statistiques ne sont pas réutilisées pour la publicité ou le profilage.
+
+Par sécurité, `js/analytics-config.js` est livré avec `enabled: false`. Après création de ton site Plausible, renseigne son `domain` exact puis passe `enabled` à `true`. Voir `ANALYTICS.md` pour la procédure, les limites du comptage PWA, GPC/DNT et le rappel CNIL : l’éventuelle exemption de consentement dépend de conditions strictes et de la configuration réelle du fournisseur au déploiement.
+
+La politique complète est dans `PRIVACY.md`.

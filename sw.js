@@ -1,8 +1,8 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v21-performance-agreement-hover';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v24-settings-short-models';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',
-  './js/models.js', './js/storage.js', './js/api.js', './js/domain.js', './js/android_strings.js', './js/i18n.js', './js/app.js'
+  './js/models.js', './js/storage.js', './js/api.js', './js/domain.js', './js/android_strings.js', './js/i18n.js', './js/analytics-config.js', './js/analytics.js', './js/app.js'
 ];
 
 self.addEventListener('install', event => {

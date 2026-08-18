@@ -82,13 +82,17 @@ function stats(values) {
 function scoreFromStd(std,tight,wide){ if(std<=tight)return 100;if(std>=wide)return 0;return Math.floor(100*(1-(std-tight)/(wide-tight))); }
 function confidenceContinuous(values, tight, wide){ const s=stats(values); if(!s||s.count<2)return null;return {...s, percent:scoreFromStd(s.stdDev,tight,wide), spread:s.max-s.min}; }
 
+function dailyCompletenessEntry(series,index,metric){return series?.daily?.completeness?.[metric]?.[index]||null;}
+function dailyMetricComparable(series,index,metric){const status=dailyCompletenessEntry(series,index,metric)?.status;return status==null||status==='FULL'||status==='CURRENT'||status==='UNKNOWN';}
+
 export function dayConfidence(forecast,date){
   const rows=Object.values(forecast.seriesByModel||{}).map(series=>{const i=series.daily.dates.indexOf(date);return i<0?null:{series,i};}).filter(Boolean);
-  const tempMax=confidenceContinuous(rows.map(x=>x.series.daily.tempMax[x.i]),.5,3);
-  const tempMin=confidenceContinuous(rows.map(x=>x.series.daily.tempMin[x.i]),.5,3);
-  const windMax=confidenceContinuous(rows.map(x=>x.series.daily.windSpeedMax[x.i]),2,12);
-  const windGustMax=confidenceContinuous(rows.map(x=>x.series.daily.windGustsMax[x.i]),2,12);
-  const precipitation=precipitationConfidence(rows.map(x=>x.series.daily.precipitationSum[x.i]).filter(Number.isFinite));
+  const metricValues=(metric,key)=>rows.filter(x=>dailyMetricComparable(x.series,x.i,metric)).map(x=>x.series.daily[key][x.i]);
+  const tempMax=confidenceContinuous(metricValues('temperature','tempMax'),.5,3);
+  const tempMin=confidenceContinuous(metricValues('temperature','tempMin'),.5,3);
+  const windMax=confidenceContinuous(metricValues('wind','windSpeedMax'),2,12);
+  const windGustMax=confidenceContinuous(metricValues('wind','windGustsMax'),2,12);
+  const precipitation=precipitationConfidence(metricValues('precipitation','precipitationSum').filter(Number.isFinite));
   const scores=[tempMax?.percent,tempMin?.percent,precipitation?.percent,windMax?.percent].filter(Number.isFinite);
   return {date,tempMax,tempMin,windMax,windGustMax,precipitation,overallPercent:scores.length?Math.floor(scores.reduce((a,b)=>a+b,0)/scores.length):null};
 }
@@ -138,9 +142,11 @@ export function hourlyConfidenceBand(forecast,metric='TEMPERATURE', horizonHours
 }
 
 export function aggregateDay(forecast,date){
-  const data=[];for(const [modelId,s] of Object.entries(forecast.seriesByModel||{})){const i=s.daily.dates.indexOf(date);if(i<0)continue;data.push({modelId,tempMax:s.daily.tempMax[i],tempMin:s.daily.tempMin[i],precip:s.daily.precipitationSum[i],wind:s.daily.windSpeedMax[i],gust:s.daily.windGustsMax[i],direction:s.daily.windDirection10mDominant[i],precipProb:s.daily.precipitationProbabilityMax[i],condition:dailyCondition(s,date).condition,sunrise:s.daily.sunrise[i],sunset:s.daily.sunset[i]});}
-  const mean=k=>stats(data.map(x=>x[k]))?.mean??null; const range=k=>{const s=stats(data.map(x=>x[k]));return s?[s.min,s.max]:[null,null]};
-  const votes=data.map(x=>x.condition).filter(Boolean);let condition=null;if(votes.length){const c=new Map();votes.forEach(v=>c.set(v,(c.get(v)||0)+1));const max=Math.max(...c.values());condition=[...c].filter(([,v])=>v===max).map(([k])=>k).sort((a,b)=>conditionInfo(b).severity-conditionInfo(a).severity)[0];}
+  const data=[];for(const [modelId,s] of Object.entries(forecast.seriesByModel||{})){const i=s.daily.dates.indexOf(date);if(i<0)continue;data.push({modelId,tempMax:s.daily.tempMax[i],tempMin:s.daily.tempMin[i],precip:s.daily.precipitationSum[i],wind:s.daily.windSpeedMax[i],gust:s.daily.windGustsMax[i],direction:s.daily.windDirection10mDominant[i],precipProb:s.daily.precipitationProbabilityMax[i],condition:dailyCondition(s,date).condition,sunrise:s.daily.sunrise[i],sunset:s.daily.sunset[i],comparable:{temperature:dailyMetricComparable(s,i,'temperature'),precipitation:dailyMetricComparable(s,i,'precipitation'),wind:dailyMetricComparable(s,i,'wind'),condition:dailyMetricComparable(s,i,'condition')}});}
+  const metricForKey=k=>['tempMax','tempMin'].includes(k)?'temperature':['wind','gust','direction'].includes(k)?'wind':k==='condition'?'condition':'precipitation';
+  const values=k=>data.filter(x=>x.comparable[metricForKey(k)]).map(x=>x[k]);
+  const mean=k=>stats(values(k))?.mean??null; const range=k=>{const s=stats(values(k));return s?[s.min,s.max]:[null,null]};
+  const votes=data.filter(x=>x.comparable.condition).map(x=>x.condition).filter(Boolean);let condition=null;if(votes.length){const c=new Map();votes.forEach(v=>c.set(v,(c.get(v)||0)+1));const max=Math.max(...c.values());condition=[...c].filter(([,v])=>v===max).map(([k])=>k).sort((a,b)=>conditionInfo(b).severity-conditionInfo(a).severity)[0];}
   return {date,data,tempMax:mean('tempMax'),tempMin:mean('tempMin'),precip:mean('precip'),wind:mean('wind'),gust:mean('gust'),tempMaxRange:range('tempMax'),tempMinRange:range('tempMin'),precipRange:range('precip'),windRange:range('wind'),gustRange:range('gust'),condition,confidence:dayConfidence(forecast,date),sunrise:data.find(x=>x.sunrise)?.sunrise||null,sunset:data.find(x=>x.sunset)?.sunset||null};
 }
 
@@ -167,15 +173,16 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date()) {
     for(const s of series){
       const i=(hourly?s.hourly.timestamps:s.daily.dates).indexOf(key);
       if(i<0)continue;
+      const tempComparable=hourly||dailyMetricComparable(s,i,'temperature'),precipComparable=hourly||dailyMetricComparable(s,i,'precipitation'),windComparable=hourly||dailyMetricComparable(s,i,'wind'),conditionComparable=hourly||dailyMetricComparable(s,i,'condition');
       const temperature=hourly?s.hourly.temperature2m[i]:null;
-      const tempMin=hourly?null:s.daily.tempMin[i];
-      const tempMax=hourly?null:s.daily.tempMax[i];
-      const precipitation=hourly?s.hourly.precipitation[i]:s.daily.precipitationSum[i];
-      const precipitationProbability=hourly?s.hourly.precipitationProbability[i]:s.daily.precipitationProbabilityMax[i];
-      const cloudCover=hourly?s.hourly.cloudCover[i]:dailyCloudCoverMean(s,key);
-      const wind=hourly?s.hourly.windSpeed10m[i]:s.daily.windSpeedMax[i];
-      const windGust=hourly?s.hourly.windGusts10m[i]:s.daily.windGustsMax[i];
-      const native=fromWmoCode(hourly?s.hourly.weatherCode[i]:s.daily.weatherCode[i]);
+      const tempMin=hourly?null:(tempComparable?s.daily.tempMin[i]:null);
+      const tempMax=hourly?null:(tempComparable?s.daily.tempMax[i]:null);
+      const precipitation=hourly?s.hourly.precipitation[i]:(precipComparable?s.daily.precipitationSum[i]:null);
+      const precipitationProbability=hourly?s.hourly.precipitationProbability[i]:(precipComparable?s.daily.precipitationProbabilityMax[i]:null);
+      const cloudCover=hourly?s.hourly.cloudCover[i]:(conditionComparable?dailyCloudCoverMean(s,key):null);
+      const wind=hourly?s.hourly.windSpeed10m[i]:(windComparable?s.daily.windSpeedMax[i]:null);
+      const windGust=hourly?s.hourly.windGusts10m[i]:(windComparable?s.daily.windGustsMax[i]:null);
+      const native=fromWmoCode(hourly?s.hourly.weatherCode[i]:(conditionComparable?s.daily.weatherCode[i]:null));
       const condition=(native&&native!==CONDITION.UNKNOWN)?native:inferCondition(precipitation,temperature??tempMin,cloudCover);
       if([temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN))
         snaps.push({temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,condition});

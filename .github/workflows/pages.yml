@@ -38,6 +38,8 @@ jobs:
           node tests/model-data-audit.mjs
           node tests/local-data-center.mjs
           node tests/global-performance-audit.mjs
+          node tests/minimal-analytics.mjs
+          node tests/settings-short-models.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

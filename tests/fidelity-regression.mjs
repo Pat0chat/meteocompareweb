@@ -147,6 +147,26 @@ assert.match(biasPage,/Erreur absolue moyenne/,'bias page must distinguish MAE f
 assert.match(biasPage,/Historique prévision \/ observation/,'bias page must restore forecast-vs-observation history');
 assert.match(biasPage,/Rang \d+\/\d+ modèles/,'bias page rank must explicitly label the model count');
 
+// Settings controls must not rebuild the whole page in a way that loses the
+// user's viewport. Local toggles stay put; controls requiring a rerender are
+// re-anchored to the clicked control over the following layout frames.
+clickDataset({action:'settings'});flushDeferredRafs();
+assert.equal(location.hash,'#/settings');
+window.scrollY=1350;document.documentElement.scrollTop=1350;
+clickDataset({modelToggle:'GFS'},null,245);
+assert.equal(window.scrollY,1350,'toggling a weather model in Settings must not move the page');
+window.scrollY=1420;document.documentElement.scrollTop=1420;
+clickDataset({theme:'DARK'},null,190);
+assert.equal(window.scrollY,1420,'changing the theme in Settings must not move the page');
+window.scrollY=1510;document.documentElement.scrollTop=1510;
+selectorLookup.set('[data-model-sort="FINESSE"]',makeControl(260));
+clickDataset({modelSort:'FINESSE'},null,210);flushDeferredRafs();
+assert.equal(window.scrollY,1560,'model sorting may relayout the list but must keep the clicked control at the same viewport coordinate');
+window.scrollY=1600;document.documentElement.scrollTop=1600;
+selectorLookup.set('[data-language="ENGLISH"]',makeControl(285));
+clickDataset({language:'ENGLISH'},null,235);flushDeferredRafs();
+assert.equal(window.scrollY,1650,'language changes must preserve the Settings control position after translated layout changes');
+
 globalThis.setInterval=realSetInterval;
 if(process.env.SNAPSHOT){ const fs=await import('node:fs'); fs.writeFileSync(process.env.SNAPSHOT,`<!doctype html><html data-theme=\"light\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><link rel=\"stylesheet\" href=\"styles.css\"></head><body><div id=\"app\">${html}</div></body></html>`); }
 console.log('MeteoCompare Web fidelity regression tests: OK');

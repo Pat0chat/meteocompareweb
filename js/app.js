@@ -3,6 +3,7 @@ import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadF
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
 import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, normalizePreviousRuns, normalizeBiasObservations, computeBiases, buildEvolution, windArrow, dateLabel, timeLabel, relativeAge, dailyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, roundedHourLocal } from './domain.js';
 import { makeI18n, languageCode } from './i18n.js';
+import { analyticsStatus, trackPageView, trackAnalyticsEvent, setAnalyticsOptOut } from './analytics.js';
 
 const state = {
   settings: loadSettings(),
@@ -61,6 +62,7 @@ let pendingScrollDirective = null;
 let interactionScrollContext = null;
 let historyScrollRaf = 0;
 let routeTransitionToken = 0;
+let localScrollStabilizationToken = 0;
 const supportsHistoryRouting = typeof history?.pushState === 'function' && typeof history?.replaceState === 'function';
 const BIAS_MIN_SAMPLES=14;
 const cityRefreshTokens=new Map();
@@ -81,7 +83,7 @@ function init() {
     navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service worker:', err));
   }
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(state.route.name==='about')render();});
-  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;toast(i18n().t('pwaInstallSuccess'));if(state.route.name==='about')render();});
+  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;void trackAnalyticsEvent('PWA Installed',state.route);toast(i18n().t('pwaInstallSuccess'));if(state.route.name==='about')render();});
   app.addEventListener('click', handleAppClick);
   app.addEventListener('input', handleAppInput);
   app.addEventListener('toggle', handleDetailsToggle, true);
@@ -95,12 +97,13 @@ function init() {
     window.addEventListener('popstate',event=>handleHistoryNavigation(event));
     window.addEventListener('scroll',scheduleHistoryScrollSnapshot,{passive:true});
   }else{
-    window.addEventListener('hashchange',()=>{state.route=parseRoute();applyRouteViewState(state.route);state.modal=null;cancelCitySearch();const saved=routeScrollPositions.get(routeKey(state.route));render({scroll:{type:'absolute',y:state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0)}});onRouteSettled();});
+    window.addEventListener('hashchange',()=>{state.route=parseRoute();applyRouteViewState(state.route);state.modal=null;cancelCitySearch();const saved=routeScrollPositions.get(routeKey(state.route));render({scroll:{type:'absolute',y:state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0)}});void trackPageView(state.route);onRouteSettled();});
   }
   window.addEventListener('online',()=>{state.online=true;render();refreshDueCities();});
   window.addEventListener('offline',()=>{state.online=false;render();});
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
   render({scroll:{type:'absolute',y:0}});
+  void trackPageView(state.route);
   hydrateForecastStorage().finally(()=>{onRouteSettled();refreshDueCities();});
   lastViewTimeKey=viewTimeKey();
   autoRefreshTimer=setInterval(()=>{const nextKey=viewTimeKey();if(lastViewTimeKey!==null&&nextKey!==lastViewTimeKey)render();lastViewTimeKey=nextKey;refreshDueCities();},60_000);
@@ -204,6 +207,14 @@ function applyScrollDirective(directive){
   }
   scrollInstantTo(directive.y);
 }
+function stabilizeLocalScroll(directive){
+  if(!directive||directive.type==='route-top'||(!directive.selector&&!directive.id))return false;
+  let anchor=null;if(directive.type==='selector')anchor=document.querySelector?.(directive.selector);else if(directive.type==='anchor')anchor=document.getElementById?.(directive.id);
+  if(!anchor||typeof anchor.getBoundingClientRect!=='function')return false;
+  const targetY=Math.max(0,currentScrollY()+anchor.getBoundingClientRect().top-directive.top),token=++localScrollStabilizationToken;
+  const pin=()=>{if(token===localScrollStabilizationToken)scrollInstantTo(targetY);};
+  pin();queueMicrotask(pin);requestAnimationFrame(()=>{pin();requestAnimationFrame(pin);});return true;
+}
 function saveCurrentRouteScroll(){
   const y=currentScrollY(),key=routeKey(state.route);routeScrollPositions.set(key,y);
   if(supportsHistoryRouting){try{history.replaceState({...history.state,mcRouteKey:key,mcScrollY:y},'',location.href);}catch{}}
@@ -216,16 +227,19 @@ function applyRouteFromLocation(scrollY=0,options={}){
   state.route=parseRoute();applyRouteViewState(state.route);state.modal=null;cancelCitySearch();
   const y=Math.max(0,Number(scrollY)||0);
   if(options.newRoute){
+    localScrollStabilizationToken++;
     const token=++routeTransitionToken;
     render({scroll:{type:'route-top',y:0,token,routeKey:routeKey(state.route)},immediate:true});
   }else render({scroll:{type:'absolute',y},immediate:Boolean(options.immediate)});
+  if(options.newRoute)void trackPageView(state.route);
   onRouteSettled();
 }
 function handleHistoryNavigation(event){
+  localScrollStabilizationToken++;
   const route=parseRoute(),key=routeKey(route),saved=Number(event?.state?.mcScrollY);
   state.route=route;applyRouteViewState(route);state.modal=null;cancelCitySearch();
   const fallback=routeScrollPositions.get(key),y=Number.isFinite(saved)?saved:(Number.isFinite(fallback)?fallback:0);
-  render({scroll:{type:'absolute',y},immediate:true});onRouteSettled();
+  render({scroll:{type:'absolute',y},immediate:true});void trackPageView(state.route);onRouteSettled();
 }
 function go(path){
   saveCurrentRouteScroll();
@@ -366,7 +380,7 @@ function renderNow(){
   let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='data')content=renderLocalDataPage(); else if(state.route.name==='about')content=renderAbout(); else if(state.route.name==='bias')content=renderBiasDetailPage(state.route); else if(state.route.name==='compare')content=renderCityComparison(state.route); else content=renderCityDetail(state.route.id);
   app.innerHTML=`${renderTopbar()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
   syncStickyOffsets();
-  applyScrollDirective(scrollDirective);
+  if(!stabilizeLocalScroll(scrollDirective))applyScrollDirective(scrollDirective);
   stabilizeRouteTop(scrollDirective);
   document.body?.classList?.toggle?.('modal-open',Boolean(state.modal));
   if(state.modal){queueMicrotask(()=>{const input=document.querySelector('#city-search');const dialog=document.querySelector('.modal');(input||dialog?.querySelector('button,input,a,[tabindex]:not([tabindex="-1"])'))?.focus?.({preventScroll:true});});}
@@ -388,7 +402,7 @@ function rerenderCitySection(sectionId){
   else return false;
   const directive=interactionScrollContext||captureScrollContext();
   target.outerHTML=html;
-  applyScrollDirective(directive);
+  if(!stabilizeLocalScroll(directive))applyScrollDirective(directive);
   return true;
 }
 function rerenderCitySectionOrPage(sectionId){if(!rerenderCitySection(sectionId))render();}
@@ -736,12 +750,15 @@ function renderDailyTable(f,tab,biases,normals=null){
   return `<div class="table-wrap"><table class="forecast-table"><thead><tr><th>${esc(t('day'))}</th>${ids.map(id=>{const m=getModel(id);return `<th title="${m?.family||''} · ${m?.resolutionKm||'?'} km">${renderForecastModelHeader(id,tab,biases,f.city.id||state.route.id,true)}</th>`;}).join('')}</tr></thead><tbody>${dates.map(date=>`<tr class="${date===today?'current':''}"><td><strong>${esc(dateLabel(date,i18n().locale,'long'))}</strong>${date===today?`<span class="cell-sub">${esc(t('currentDay'))}</span>`:''}</td>${ids.map(id=>renderDailyCell(f.seriesByModel[id],date,tab,biases?.[id],normals?.[date.slice(5)])).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
+function dailyCellCompleteness(s,i,tab){const metric=tab==='TEMPERATURE'?'temperature':tab==='PRECIPITATION'?'precipitation':tab==='WIND'?'wind':'condition';return s?.daily?.completeness?.[metric]?.[i]||null;}
+function dailyPartialNote(info){if(info?.status!=='PARTIAL')return '';const {t}=i18n(),available=Number(info.availableHours)||0,expected=Number(info.expectedHours)||24;return `<span class="cell-sub partial-day-note" title="${attr(t('partialDayValueTitle',{available,expected}))}">◐ ${esc(t('partialDayValue',{available,expected}))}</span>`;}
+
 function renderDailyCell(s,date,tab,modelBias,normal=null){
-  const i=seriesIndexes(s).daily.get(date)??-1;if(i<0)return '<td class="no-data">—</td>';
-  if(tab==='CONDITIONS'){const x=dailyCondition(s,date),ci=localizedConditionInfo(x.condition),prob=s.daily.precipitationProbabilityMax[i],cloud=dailyCloudCoverMean(s,date);const isWet=['RAIN','RAIN_SHOWERS','THUNDERSTORM','FREEZING_RAIN','SNOW','SNOW_SHOWERS'].includes(x.condition);const badge=isWet?(Number.isFinite(prob)?prob+'%':null):(['PARTLY_CLOUDY','OVERCAST'].includes(x.condition)&&Number.isFinite(cloud)?cloud+'%':null);return `<td title="${esc(ci.label)}${x.inferred?' · '+i18n().t('conditionInferred'):''}">${conditionMarkup(x.condition,'small')}<span class="condition-label">${esc(ci.label)}</span>${badge?`<span class="cell-sub">${badge}</span>`:''}${x.inferred?`<span class="cell-sub">${esc(i18n().t('inferred'))}</span>`:''}</td>`;}
-  if(tab==='TEMPERATURE'){const max=s.daily.tempMax[i],min=s.daily.tempMin[i];const maxClass=temperatureNormalClass(max,normal?.tempMaxNormal),minClass=temperatureNormalClass(min,normal?.tempMinNormal);return `<td class="normal-temp-cell"><span class="${maxClass}">${Number.isFinite(max)?fmt(max,1)+'°':'—'}</span><span class="temp-separator"> / </span><span class="${minClass}">${Number.isFinite(min)?fmt(min,1)+'°':'—'}</span></td>`;}
-  if(tab==='PRECIPITATION'){const p=s.daily.precipitationSum[i],prob=s.daily.precipitationProbabilityMax[i];const style=Number.isFinite(p)?dailyIntensityStyle('PRECIPITATION',p):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(p)?fmt(p,1)+' mm':'—'}${Number.isFinite(prob)?`<span class="cell-sub">${esc(i18n().t('maxProbability',{value:prob}))}</span>`:''}</td>`;}
-  const w=s.daily.windSpeedMax[i],g=s.daily.windGustsMax[i],dir=s.daily.windDirection10mDominant[i],arrow=windArrow(dir,w);const style=Number.isFinite(w)?dailyIntensityStyle('WIND',w):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(dir)?`<span class="cell-sub">${esc(localizedWindDirection(dir))}${Number.isFinite(g)?` · ${esc(i18n().t('gustAbbr'))} ${fmt(g)}`:''}</span>`:''}</td>`;
+  const i=seriesIndexes(s).daily.get(date)??-1;if(i<0)return '<td class="no-data">—</td>';const partial=dailyPartialNote(dailyCellCompleteness(s,i,tab));
+  if(tab==='CONDITIONS'){const x=dailyCondition(s,date),ci=localizedConditionInfo(x.condition),prob=s.daily.precipitationProbabilityMax[i],cloud=dailyCloudCoverMean(s,date);const isWet=['RAIN','RAIN_SHOWERS','THUNDERSTORM','FREEZING_RAIN','SNOW','SNOW_SHOWERS'].includes(x.condition);const badge=isWet?(Number.isFinite(prob)?prob+'%':null):(['PARTLY_CLOUDY','OVERCAST'].includes(x.condition)&&Number.isFinite(cloud)?cloud+'%':null);return `<td title="${esc(ci.label)}${x.inferred?' · '+i18n().t('conditionInferred'):''}">${conditionMarkup(x.condition,'small')}<span class="condition-label">${esc(ci.label)}</span>${badge?`<span class="cell-sub">${badge}</span>`:''}${x.inferred?`<span class="cell-sub">${esc(i18n().t('inferred'))}</span>`:''}${partial}</td>`;}
+  if(tab==='TEMPERATURE'){const max=s.daily.tempMax[i],min=s.daily.tempMin[i];const maxClass=temperatureNormalClass(max,normal?.tempMaxNormal),minClass=temperatureNormalClass(min,normal?.tempMinNormal);return `<td class="normal-temp-cell"><span class="${maxClass}">${Number.isFinite(max)?fmt(max,1)+'°':'—'}</span><span class="temp-separator"> / </span><span class="${minClass}">${Number.isFinite(min)?fmt(min,1)+'°':'—'}</span>${partial}</td>`;}
+  if(tab==='PRECIPITATION'){const p=s.daily.precipitationSum[i],prob=s.daily.precipitationProbabilityMax[i];const style=Number.isFinite(p)?dailyIntensityStyle('PRECIPITATION',p):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(p)?fmt(p,1)+' mm':'—'}${Number.isFinite(prob)?`<span class="cell-sub">${esc(i18n().t('maxProbability',{value:prob}))}</span>`:''}${partial}</td>`;}
+  const w=s.daily.windSpeedMax[i],g=s.daily.windGustsMax[i],dir=s.daily.windDirection10mDominant[i],arrow=windArrow(dir,w);const style=Number.isFinite(w)?dailyIntensityStyle('WIND',w):'';return `<td class="heatmap-data-cell" ${style}>${Number.isFinite(w)?fmt(w)+' km/h':'—'} ${arrow?`<span class="wind-arrow" style="transform:rotate(${arrow.deg}deg)">${arrow.char}</span>`:''}${Number.isFinite(dir)?`<span class="cell-sub">${esc(localizedWindDirection(dir))}${Number.isFinite(g)?` · ${esc(i18n().t('gustAbbr'))} ${fmt(g)}`:''}</span>`:''}${partial}</td>`;
 }
 
 function temperatureNormalClass(value,normal){if(!Number.isFinite(value)||!Number.isFinite(normal))return 'temp-normal';const d=value-normal;return d>2?'temp-above':d<-2?'temp-below':'temp-normal';}
@@ -874,7 +891,7 @@ async function refreshLocalDataStats(){
   finally{state.localDataLoading=false;if(state.route.name==='data')render();}
 }
 function renderLocalDataPage(){
-  const {t,locale}=i18n(),stats=state.localDataStats;
+  const {t,locale}=i18n(),stats=state.localDataStats,analytics=analyticsStatus();
   if(!stats&&!state.localDataLoading&&!state.localDataError)queueMicrotask(()=>refreshLocalDataStats());
   const ratio=storageRatio(stats),originUsage=stats?.origin?.usage,quota=stats?.origin?.quota;
   const categories=stats?.categories||{};
@@ -902,7 +919,7 @@ function renderLocalDataPage(){
     ${topCards}${stats?`<div class="storage-measured-note">${esc(t('storageMeasuredAt',{date:generated}))} · ${esc(stats.origin.persisted===true?t('storagePersistent'):stats.origin.persisted===false?t('storageNotPersistent'):t('storagePersistenceUnknown'))}</div>`:''}
     ${categoryCards}${cityTable}
     ${stats?`<section class="section-card storage-section storage-technical"><div class="section-head"><div><div class="section-eyebrow">${esc(t('storageTechnicalEyebrow'))}</div><h2>${esc(t('storageTechnical'))}</h2><p>${esc(t('storageTechnicalIntro'))}</p></div></div><div class="storage-technical-grid"><div><span>IndexedDB · meteocompare.web.large-cache.v1</span><strong>${esc(formatBytes(stats.indexedDbBytes))}</strong><small>${esc(t('storageRecords',{count:stats.indexedDbEntries}))}</small></div><div><span>localStorage</span><strong>${esc(formatBytes(stats.localStorageBytes))}</strong><small>${esc(t('storageRecords',{count:stats.localStorageEntries}))}</small></div><div><span>CacheStorage</span><strong>${esc(formatBytes(stats.pwaCacheBytes))}</strong><small>${esc(t('storageFiles',{count:stats.pwaCacheEntries}))}</small></div><div><span>${esc(t('storageBrowserOrigin'))}</span><strong>${Number.isFinite(originUsage)?esc(formatBytes(originUsage)):'—'}</strong><small>${Number.isFinite(quota)?esc(t('storageOfQuota',{quota:formatBytes(quota)})):esc(t('storageQuotaUnavailable'))}</small></div></div>${cacheDetails}<p class="storage-method-note">${esc(t('storageMethodNote'))}</p></section>`:''}
-    <section class="section-card storage-section privacy-panel"><div class="section-head"><div><div class="section-eyebrow">${esc(t('privacy'))}</div><h2>${esc(t('privacy'))}</h2><p>${esc(t('webPrivacyBody'))}</p></div></div><div class="privacy-grid"><article><h3>${esc(t('privacyLocalTitle'))}</h3><p>${esc(t('privacyLocalBody'))}</p></article><article><h3>${esc(t('privacyNetworkTitle'))}</h3><p>${esc(t('privacyNetworkBody'))}</p></article><article><h3>${esc(t('privacyTrackingTitle'))}</h3><p>${esc(t('privacyTrackingBody'))}</p></article></div><div class="privacy-danger"><div><strong>${esc(t('privacyEraseTitle'))}</strong><p>${esc(t('privacyEraseBody'))}</p></div><button class="btn danger" data-action="clear-data">${esc(t('clearLocalData'))}</button></div></section>
+    <section class="section-card storage-section privacy-panel"><div class="section-head"><div><div class="section-eyebrow">${esc(t('privacy'))}</div><h2>${esc(t('privacy'))}</h2><p>${esc(t('webPrivacyBody'))}</p></div></div><div class="privacy-grid"><article><h3>${esc(t('privacyLocalTitle'))}</h3><p>${esc(t('privacyLocalBody'))}</p></article><article><h3>${esc(t('privacyNetworkTitle'))}</h3><p>${esc(t('privacyNetworkBody'))}</p></article><article><h3>${esc(t('privacyTrackingTitle'))}</h3><p>${esc(t('privacyTrackingBody'))}</p></article></div><div class="analytics-privacy-card"><div><div class="analytics-status-line"><strong>${esc(t('analyticsTitle'))}</strong><span class="status-pill ${analytics.active?'active':analytics.configured?'muted':'warning'}">${esc(analytics.active?t('analyticsActive'):analytics.privacySignal?t('analyticsPrivacySignal'):analytics.optedOut?t('analyticsDisabled'):t('analyticsNotConfigured'))}</span></div><p>${esc(t('analyticsPrivacyDetail'))}</p><small>${esc(t('analyticsEventsDetail'))}</small><div class="analytics-purpose-note"><strong>${esc(t('analyticsPurposeTitle'))}</strong><p>${esc(t('analyticsPurposeDetail'))}</p></div><div class="analytics-cnil-note"><p>${esc(t('analyticsCnilNote'))}</p><a href="https://www.cnil.fr/fr/cookies-solutions-pour-les-outils-de-mesure-daudience" target="_blank" rel="noopener noreferrer">CNIL ↗</a></div></div>${analytics.configured&&!analytics.privacySignal?`<button class="btn tonal" data-action="toggle-analytics">${esc(analytics.optedOut?t('analyticsEnable'):t('analyticsDisable'))}</button>`:''}</div><div class="privacy-danger"><div><strong>${esc(t('privacyEraseTitle'))}</strong><p>${esc(t('privacyEraseBody'))}</p></div><button class="btn danger" data-action="clear-data">${esc(t('clearLocalData'))}</button></div></section>
   </main>`;
 }
 
@@ -1015,6 +1032,18 @@ function handleDetailsToggle(e){
 function handleAppInput(e){
   if(e.target?.id==='city-search')scheduleSearch(e.target.value);
 }
+
+function updateSettingsChoiceButtons(attr,value){
+  document.querySelectorAll?.(`[${attr}]`).forEach(btn=>{const active=btn.getAttribute(attr)===String(value);btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',String(active));});
+}
+function refreshSettingsHistoryRows(){
+  if(state.route.name!=='settings')return;const list=document.querySelector?.('.history-refresh-list');if(!list)return;
+  const directive=interactionScrollContext||captureScrollContext();
+  list.innerHTML=state.cities.length?state.cities.map(city=>renderBiasHistoryManagementRow(city)).join(''):`<div class="empty-state compact">${esc(i18n().t('addCityForHistory'))}</div>`;
+  if(!stabilizeLocalScroll(directive))applyScrollDirective(directive);
+}
+function routeShowsWeatherActivity(){return ['home','city','compare','bias'].includes(state.route.name);}
+
 function handleAppClick(e){
   const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section],[data-compare-model],[data-export-format],[data-agreement-time],[data-density],[data-city-compare-toggle],[data-evolution-variable],[data-reliability-variable]');
   if(!target||!app.contains(target))return;
@@ -1032,12 +1061,12 @@ function handleAppClick(e){
   if(target.dataset.timelineMode){state.settings.timelineMode=target.dataset.timelineMode;persistSettings();syncCityViewUrl();rerenderCitySectionOrPage('timeline');return;}
   if(target.dataset.evolutionVariable){state.evolutionVariable=target.dataset.evolutionVariable;rerenderCitySectionOrPage('evolution');return;}
   if(target.dataset.reliabilityVariable){state.reliabilityVariable=target.dataset.reliabilityVariable;rerenderCitySectionOrPage('reliability');return;}
-  if(target.dataset.theme){state.settings.theme=target.dataset.theme;persistSettings();applyTheme();render();return;}
-  if(target.dataset.language){state.settings.language=target.dataset.language;i18nCacheKey=null;persistSettings();render();return;}
-  if(target.dataset.refreshInterval){state.settings.refreshInterval=target.dataset.refreshInterval;persistSettings();render();refreshDueCities();return;}
-  if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render();return;}
+  if(target.dataset.theme){state.settings.theme=target.dataset.theme;persistSettings();updateSettingsChoiceButtons('data-theme',target.dataset.theme);return;}
+  if(target.dataset.language){state.settings.language=target.dataset.language;i18nCacheKey=null;persistSettings();render({scroll:interactionScrollContext,immediate:true});return;}
+  if(target.dataset.refreshInterval){state.settings.refreshInterval=target.dataset.refreshInterval;persistSettings();updateSettingsChoiceButtons('data-refresh-interval',target.dataset.refreshInterval);void refreshDueCities();return;}
+  if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render({scroll:interactionScrollContext,immediate:true});return;}
   if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
-  if(target.dataset.density){state.settings.density=target.dataset.density;persistSettings();applyTheme();render();return;}
+  if(target.dataset.density){state.settings.density=target.dataset.density;persistSettings();updateSettingsChoiceButtons('data-density',target.dataset.density);return;}
   if(target.dataset.compareModel){const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'));return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();rerenderCitySectionOrPage('details');return;}
   if(target.dataset.exportFormat){exportCityData(state.route.id,target.dataset.exportFormat);return;}
   if(target.dataset.agreementTime){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id,focusTimestamp:target.dataset.agreementTime};render();return;}
@@ -1056,7 +1085,7 @@ function handleAction(e){
   else if(action==='settings')go('#/settings');
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}
   else if(action==='about')go('#/about');
-  else if(action==='install-pwa'){if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{if(choice?.outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();}).catch(()=>toast(pwaInstallGuidance().text));}
+  else if(action==='install-pwa'){if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}void trackAnalyticsEvent('PWA Install Click',state.route);const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{if(choice?.outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();}).catch(()=>toast(pwaInstallGuidance().text));}
   else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast(i18n().t('linkCopied'))).catch(()=>prompt(i18n().t('copyLinkPrompt'),url));else prompt(i18n().t('copyLinkPrompt'),url);}
   else if(action==='open-city-compare'){lastFocusedBeforeModal=document.activeElement;const initial=state.route.name==='compare'?(state.route.ids||[]):state.cities.slice(0,Math.min(2,state.cities.length)).map(c=>c.id);state.modal={type:'cityCompare',selectedIds:[...initial]};render();}
   else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'));return;}state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
@@ -1067,6 +1096,7 @@ function handleAction(e){
   else if(action==='why-confidence'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id};render();}
   else if(action==='donate'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'donate'};render();}
   else if(action==='refresh-local-data'){state.localDataStats=null;state.localDataError=null;void refreshLocalDataStats();}
+  else if(action==='toggle-analytics'){const status=analyticsStatus();setAnalyticsOptOut(!status.optedOut);if(status.optedOut)void trackPageView(state.route);render();}
   else if(action==='clear-data'){if(confirm(i18n().t('clearDataConfirm'))){cityRefreshTokens.clear();biasRefreshTokens.clear();normalsRefreshTokens.clear();state.loading.clear();state.biasRefresh.clear();clearAllData().finally(()=>location.reload());}}
 }
 
@@ -1123,21 +1153,21 @@ async function performSearch(query,seq=searchSeq){
 function addCityFromSearch(id){const city=state.modal?.results?.find(c=>c.id===id);if(!city)return;cancelCitySearch();if(!state.cities.some(c=>c.id===city.id)){state.cities.push(city);saveCities(state.cities);state.evolution[city.id]=[];state.bias[city.id]={forecasts:[],observations:[],updatedAt:null};}state.modal=null;render();refreshCity(city.id,true);}
 function removeCity(id){cityRefreshTokens.delete(id);biasRefreshTokens.delete(id);normalsRefreshTokens.delete(id);localAnalysisLoaded.bias.delete(id);localAnalysisLoaded.evolution.delete(id);localAnalysisLoaded.normals.delete(id);state.loading.delete(id);state.biasRefresh.delete(id);state.cities=state.cities.filter(c=>c.id!==id);saveCities(state.cities);delete state.forecasts[id];delete state.errors[id];delete state.evolution[id];delete state.bias[id];delete state.normals[id];deleteCityData(id);state.modal=null;if((state.route.name==='city'||state.route.name==='bias')&&state.route.id===id)go('#/');else render();}
 function invalidateWeatherRefreshes(){cityRefreshTokens.clear();state.loading.clear();}
-function toggleModel(id){const set=new Set(state.settings.enabledModelIds);if(set.has(id)){if(set.size<=1){toast(i18n().t('atLeastOneModel'));return;}set.delete(id);}else set.add(id);state.settings.enabledModelIds=WEATHER_MODELS.filter(m=>set.has(m.id)).map(m=>m.id);invalidateWeatherRefreshes();persistSettings();render();toast(i18n().t('modelSelectionUpdated'));if(state.online)void refreshAll(true);}
+function toggleModel(id){const set=new Set(state.settings.enabledModelIds);if(set.has(id)){if(set.size<=1){toast(i18n().t('atLeastOneModel'));return;}set.delete(id);}else set.add(id);state.settings.enabledModelIds=WEATHER_MODELS.filter(m=>set.has(m.id)).map(m=>m.id);invalidateWeatherRefreshes();persistSettings();const on=set.has(id),btn=document.querySelector?.(`[data-model-toggle="${String(id).replace(/"/g,'\\"')}"]`);if(btn){btn.classList.toggle('on',on);btn.setAttribute('aria-checked',String(on));}refreshSettingsHistoryRows();toast(i18n().t('modelSelectionUpdated'));if(state.online)void refreshAll(true);}
 
 function refreshIntervalMinutes(){return REFRESH_INTERVALS.find(x=>x.id===state.settings.refreshInterval)?.minutes??60;}
 function isForecastFresh(f){const minutes=refreshIntervalMinutes();if(!f?.fetchedAt)return false;const requested=Array.isArray(f.requestedModelIds)&&f.requestedModelIds.length?f.requestedModelIds:[...new Set([...Object.keys(f.seriesByModel||{}),...Object.keys(f.errors||{})])],current=state.settings.enabledModelIds||[],sameModels=requested.length===current.length&&[...requested].sort().every((id,i)=>id===[...current].sort()[i]);if(!sameModels)return false;if(minutes===0)return true;const age=Date.now()-Date.parse(f.fetchedAt);return age>=0&&age<minutes*60000;}
 async function refreshDueCities(){
   if(!state.online||dueRefreshRunning)return;const minutes=refreshIntervalMinutes();if(minutes===0)return;
   const due=state.cities.filter(city=>{const f=state.forecasts[city.id];return !f||!isForecastFresh(f);});
-  if(!due.length)return;dueRefreshRunning=true;render();
-  try{for(const city of due)await refreshCity(city.id,false,false);}finally{dueRefreshRunning=false;render();}
+  if(!due.length)return;dueRefreshRunning=true;const showActivity=routeShowsWeatherActivity();if(showActivity)render();
+  try{for(const city of due)await refreshCity(city.id,false,false);}finally{dueRefreshRunning=false;if(showActivity)render();}
 }
 async function refreshAll(force=false){
   const cities=[...state.cities];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0;
-  const tasks=Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force,false);}});
-  render();
-  try{await Promise.all(tasks);}finally{render();}
+  const tasks=Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force,false);}}),showActivity=routeShowsWeatherActivity();
+  if(showActivity)render();
+  try{await Promise.all(tasks);}finally{if(showActivity)render();}
 }
 async function refreshCity(cityId,force=false,renderUpdates=true){
   const city=state.cities.find(c=>c.id===cityId);if(!city||state.loading.has(cityId))return;if(!state.online){if(!state.forecasts[cityId])state.errors[cityId]=i18n().t('offlineNoCache');if(renderUpdates)render();return;}if(!force&&state.forecasts[cityId]&&isForecastFresh(state.forecasts[cityId]))return;

@@ -66,39 +66,56 @@ function modelRecoveryHours(model, requestedHours) {
 
 export function hourlySeriesHealth(series, model, requestedHours) {
   const hourly=series?.hourly||{}, expected=Math.max(1,Math.min(Number(requestedHours)||hourly.timestamps?.length||1,model.horizonHours||requestedHours||1));
+  const critical={temperature:hourly.temperature2m,precipitation:hourly.precipitation,wind:hourly.windSpeed10m};
   const count=a=>Array.isArray(a)?a.filter(Number.isFinite).length:0;
-  const counts={temperature:count(hourly.temperature2m),precipitation:count(hourly.precipitation),wind:count(hourly.windSpeed10m)};
-  const criticalMin=Math.min(counts.temperature,counts.precipitation,counts.wind),criticalTotal=counts.temperature+counts.precipitation+counts.wind;
-  // This guard is deliberately tolerant: it detects severe truncation or a
-  // missing critical variable, not a few unavailable boundary hours.
-  const minimum=Math.min(expected,Math.max(8,Math.floor(expected*.55)));
-  return {expected,minimum,counts,criticalMin,criticalTotal,ratio:Math.min(1,criticalMin/expected),degraded:criticalMin<minimum,score:criticalMin*1000+criticalTotal};
+  const counts=Object.fromEntries(Object.entries(critical).map(([key,a])=>[key,count(a)]));
+  const criticalMin=Math.min(...Object.values(counts)),criticalMax=Math.max(...Object.values(counts)),criticalTotal=Object.values(counts).reduce((a,b)=>a+b,0);
+  // Short regional models are often clipped by the latest run boundary rather
+  // than by a neat 48 h rolling window. A balanced 18-30 h tail is therefore
+  // useful data, not a broken series. We still detect truly tiny responses and
+  // one critical variable ending much earlier than the others.
+  const shortRegional=(model.horizonHours||expected)<=60;
+  const minimum=Math.min(expected,shortRegional?Math.max(8,Math.floor(expected*.25)):Math.max(24,Math.floor(expected*.55)));
+  const imbalanceTolerance=Math.max(3,Math.ceil(criticalMax*.18));
+  const severeShort=criticalMax<minimum;
+  const variableImbalance=criticalMax>=8&&(criticalMax-criticalMin)>imbalanceTolerance;
+  const sparseCritical=criticalMax>=8&&criticalMin<Math.max(6,Math.floor(criticalMax*.72));
+  const degraded=severeShort||variableImbalance||sparseCritical;
+  return {expected,minimum,counts,criticalMin,criticalMax,criticalTotal,ratio:Math.min(1,criticalMin/expected),degraded,severeShort,variableImbalance,sparseCritical,shortRegional,score:criticalMin*1000+criticalTotal};
 }
 
-function hasFullCivilDayAxis(timestamps,date){
-  const day=(timestamps||[]).filter(ts=>typeof ts==='string'&&ts.slice(0,10)===date);
-  if(day.length<23||day.length>25)return false;
-  return day.some(ts=>ts.slice(11,16)==='00:00')&&day.some(ts=>ts.slice(11,16)==='23:00');
+function civilDayAxis(timestamps,date){
+  const indices=[];for(let i=0;i<(timestamps||[]).length;i++)if(typeof timestamps[i]==='string'&&timestamps[i].slice(0,10)===date)indices.push(i);
+  const first=indices.length?timestamps[indices[0]]:'' ,last=indices.length?timestamps[indices.at(-1)]:'';
+  const full=indices.length>=23&&indices.length<=25&&first?.slice(11,16)==='00:00'&&last?.slice(11,16)==='23:00';
+  return {indices,full,expectedHours:full?indices.length:indices.length};
+}
+
+function metricCompleteness(axis,values,current=false){
+  if(!axis.indices.length)return {status:'UNKNOWN',availableHours:0,expectedHours:0};
+  if(current)return {status:'CURRENT',availableHours:axis.indices.filter(i=>Number.isFinite(values?.[i])).length,expectedHours:axis.expectedHours};
+  const availableHours=axis.indices.filter(i=>Number.isFinite(values?.[i])).length;
+  if(!availableHours)return {status:'UNAVAILABLE',availableHours:0,expectedHours:axis.expectedHours};
+  const complete=axis.full&&availableHours===axis.indices.length;
+  return {status:complete?'FULL':'PARTIAL',availableHours,expectedHours:axis.expectedHours};
 }
 
 export function sanitizeIncompleteFutureDaily(series) {
   const h=series?.hourly,d=series?.daily;if(!h?.timestamps?.length||!d?.dates?.length)return series;
-  // Today is intentionally left untouched: the rolling hourly window starts at
-  // the current hour while provider daily aggregates still describe the whole
-  // civil day. For future days, invalidate each daily metric family only when
-  // its critical hourly footprint is incomplete. This prevents (for example) a
-  // truncated precipitation series from contaminating daily rain agreement even
-  // if temperature happened to be complete.
-  for(let di=1;di<d.dates.length;di++){
-    const date=d.dates[di];if(!hasFullCivilDayAxis(h.timestamps,date))continue;
-    const indices=[];for(let i=0;i<h.timestamps.length;i++)if(h.timestamps[i]?.slice(0,10)===date)indices.push(i);
-    const complete=a=>indices.length>=23&&indices.length<=25&&indices.every(i=>Number.isFinite(a?.[i]));
-    const tempComplete=complete(h.temperature2m),precipComplete=complete(h.precipitation),windComplete=complete(h.windSpeed10m),weatherComplete=complete(h.weatherCode);
-    if(!tempComplete)for(const key of ['tempMax','tempMin'])if(Array.isArray(d[key]))d[key][di]=null;
-    if(!precipComplete)for(const key of ['precipitationSum','precipitationProbabilityMax'])if(Array.isArray(d[key]))d[key][di]=null;
-    if(!windComplete)for(const key of ['windSpeedMax','windGustsMax','windDirection10mDominant'])if(Array.isArray(d[key]))d[key][di]=null;
-    if(!weatherComplete&&Array.isArray(d.weatherCode))d.weatherCode[di]=null;
+  // Do not destroy provider daily values for the terminal partial day of a
+  // short-range model. Instead annotate whether each metric is comparable as a
+  // complete civil day. Detailed tables may still display partial-day values,
+  // while cross-model daily agreement ignores them.
+  const currentDate=h.timestamps.find(ts=>typeof ts==='string'&&ts)?.slice(0,10)||d.dates[0]||null;
+  const completeness={temperature:[],precipitation:[],wind:[],condition:[]};
+  for(let di=0;di<d.dates.length;di++){
+    const date=d.dates[di],axis=civilDayAxis(h.timestamps,date),current=date===currentDate;
+    completeness.temperature[di]=metricCompleteness(axis,h.temperature2m,current);
+    completeness.precipitation[di]=metricCompleteness(axis,h.precipitation,current);
+    completeness.wind[di]=metricCompleteness(axis,h.windSpeed10m,current);
+    completeness.condition[di]=metricCompleteness(axis,h.weatherCode,current);
   }
+  d.completeness=completeness;
   return series;
 }
 
