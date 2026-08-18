@@ -1,4 +1,4 @@
-const CACHE = 'meteocompare-web-v1.8.0-shell-v15-graph-redesign';
+const CACHE = 'meteocompare-web-v1.8.0-shell-v16-about-pwa-legends';
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',

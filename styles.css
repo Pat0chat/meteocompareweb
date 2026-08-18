@@ -1553,3 +1553,115 @@ html[data-theme="dark"] {
   .chart-mini-stat { justify-items: start; text-align: left; }
   .compare-legend.rich span { flex: 1 1 calc(50% - 8px); }
 }
+
+/* v16 — About, PWA install, support, and explicit comparison legends */
+.topbar .support-nav { color: color-mix(in srgb, var(--primary) 78%, var(--muted)); }
+.topbar .support-nav:hover { color: #d94f70; background: color-mix(in srgb, #e84a70 8%, var(--surface-2)); }
+
+.compare-legend-explainer {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 8px 12px;
+  margin: 6px 4px 7px;
+  padding: 8px 10px;
+  border-left: 2px solid color-mix(in srgb, var(--primary) 50%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 42%, transparent);
+  border-radius: 0 7px 7px 0;
+}
+.compare-legend-explainer strong { font-size: .65rem; color: var(--text); white-space: nowrap; }
+.compare-legend-explainer span { color: var(--muted); font-size: .65rem; line-height: 1.45; }
+.compare-legend.rich span { align-items: center; }
+.compare-legend.rich span > strong {
+  margin-left: 7px;
+  display: grid;
+  gap: 0;
+  min-width: 70px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+  line-height: 1.15;
+}
+.compare-legend.rich span > strong small {
+  color: var(--subtle);
+  font-size: .52rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .035em;
+}
+.compare-legend.rich span > strong em {
+  color: var(--text);
+  font-size: .66rem;
+  font-style: normal;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.about-page { padding-bottom: 44px; }
+.about-hero {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 28px;
+  margin: 30px 0 18px;
+  padding: 28px 30px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(135deg, color-mix(in srgb,var(--primary-soft) 64%,var(--surface)) 0%, var(--surface) 62%);
+  box-shadow: var(--shadow-sm);
+}
+.about-hero h1 { margin: 3px 0 8px; font-size: clamp(2rem,4vw,3.25rem); letter-spacing: -.045em; }
+.about-hero p { margin: 0; max-width: 850px; color: var(--muted); font-size: .94rem; line-height: 1.65; }
+.about-app-icon { width: 86px; height: 86px; border-radius: 20px; box-shadow: 0 12px 28px rgba(15,23,42,.14); }
+.about-layout { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+.about-layout .section-card { min-height: 170px; }
+.about-intro-card { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.about-section-icon { width: 40px; height: 40px; display: grid; place-items: center; color: var(--primary); background: var(--primary-soft); border-radius: 10px; }
+.about-layout h2,.about-help h2 { margin: 0 0 7px; font-size: 1.05rem; }
+.about-layout p,.help-card p { margin: 0; color: var(--muted); font-size: .79rem; line-height: 1.58; }
+.about-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 13px; }
+.pwa-badge,.android-badge { padding: 4px 7px; border-radius: 7px; font-size: .61rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+.pwa-badge { color: var(--primary); background: var(--primary-soft); border-color: color-mix(in srgb,var(--primary) 22%,var(--border)); }
+.android-badge { color: #178844; background: color-mix(in srgb,#34a853 10%,var(--surface)); border-color: color-mix(in srgb,#34a853 28%,var(--border)); }
+.install-status { display: flex; gap: 9px; align-items: flex-start; margin: 12px 0; padding: 10px 11px; border-radius: 9px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); font-size: .75rem; line-height: 1.45; }
+.install-status.ready { color: var(--text); background: color-mix(in srgb,var(--primary-soft) 70%,var(--surface)); border-color: color-mix(in srgb,var(--primary) 24%,var(--border)); }
+.install-status.installed { color: var(--good); }
+.about-help { margin-top: 14px; }
+.help-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; }
+.help-card { padding: 13px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.help-card h3 { margin: 0 0 6px; font-size: .78rem; }
+
+.support-modal { width: min(720px,100%); }
+.support-intro { margin: 0 0 15px; color: var(--muted); line-height: 1.55; }
+.donation-grid { display: grid; gap: 9px; }
+.donation-card { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 13px 14px; color: var(--text); text-decoration: none; border: 1px solid var(--border); border-radius: 11px; background: var(--surface); transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.donation-card:hover { border-color: color-mix(in srgb,var(--primary) 34%,var(--border)); background: var(--surface-2); transform: translateY(-1px); }
+.donation-icon { font-size: 1.25rem; }
+.donation-card span:nth-child(2) { display: grid; gap: 2px; }
+.donation-card strong { font-size: .83rem; }
+.donation-card small { color: var(--muted); font-size: .7rem; line-height: 1.4; }
+.donation-disclaimer { margin-top: 14px; padding: 10px 11px; color: var(--muted); font-size: .7rem; line-height: 1.5; background: var(--surface-2); border-radius: 8px; }
+
+@media (max-width: 1180px) {
+  .help-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .about-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .about-hero { grid-template-columns: 1fr; padding: 22px; }
+  .about-app-icon { width: 64px; height: 64px; }
+  .help-grid { grid-template-columns: 1fr; }
+  .compare-legend-explainer { grid-template-columns: 1fr; gap: 3px; }
+  .compare-legend.rich span > strong { min-width: 64px; }
+}
+@media (max-width:1180px) {
+  .topbar-nav { display:flex; gap:1px; padding:2px; }
+  .topbar .nav-btn { padding-inline:9px; font-size:.76rem; }
+  .brand { min-width:165px; }
+  .brand-subtitle { display:none; }
+}
+@media (max-width:860px) {
+  .topbar-nav { margin-left:auto; }
+  .topbar .nav-btn { width:38px; padding:0; justify-content:center; }
+  .topbar .nav-btn > span:last-child { display:none; }
+  .topbar-system-status { display:none; }
+  .topbar-spacer { display:none; }
+}

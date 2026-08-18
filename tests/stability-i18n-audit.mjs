@@ -156,5 +156,5 @@ assert.match(api,/err\.code='OPEN_METEO_ERROR'/,'provider-declared failures must
 assert.match(app,/function invalidateWeatherRefreshes\(\)\{cityRefreshTokens\.clear\(\);state\.loading\.clear\(\);\}/,'model configuration changes must invalidate in-flight weather loads');
 assert.match(app,/requestedModelIds[\s\S]*sameModels/,'forecast freshness must include the requested model cohort, not only age');
 
-assert.match(sw,/v15-graph-redesign/,'PWA cache version must match the graph redesign release');
+assert.match(sw,/v16-about-pwa-legends/,'PWA cache version must match the graph redesign release');
 console.log('MeteoCompare Web stability + i18n audit tests: OK');
