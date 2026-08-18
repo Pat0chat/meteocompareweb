@@ -2,6 +2,14 @@
 
 All notable changes to MeteoCompare Web are documented here. Releases follow Semantic Versioning.
 
+## [1.10.3] - 2026-08-18
+
+### Fixed
+- Settings no longer uses `content-visibility: auto`, preventing estimated off-screen section heights from turning into real heights on click/focus and moving the viewport.
+- Native scroll anchoring is disabled inside the Settings grid so it cannot fight MeteoCompare's explicit viewport preservation.
+- Theme, density, refresh interval and local weighting controls now re-pin the clicked control after layout-affecting updates.
+- Model toggles, model sorting and language changes retain the existing selector-based scroll stabilization without the previous CSS virtualization conflict.
+
 ## [1.10.2] - 2026-08-18
 
 ### Fixed

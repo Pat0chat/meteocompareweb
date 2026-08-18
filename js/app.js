@@ -1193,13 +1193,13 @@ function handleAppClick(e){
   if(target.dataset.timelineMode){state.settings.timelineMode=target.dataset.timelineMode;persistSettings();syncCityViewUrl();rerenderCitySectionOrPage('timeline');return;}
   if(target.dataset.evolutionVariable){state.evolutionVariable=target.dataset.evolutionVariable;rerenderCitySectionOrPage('evolution');return;}
   if(target.dataset.reliabilityVariable){state.reliabilityVariable=target.dataset.reliabilityVariable;rerenderCitySectionOrPage('reliability');return;}
-  if(target.dataset.localWeighting){state.settings.localWeightedConsensus=target.dataset.localWeighting==='on';persistSettings();updateSettingsChoiceButtons('data-local-weighting',target.dataset.localWeighting);return;}
-  if(target.dataset.theme){state.settings.theme=target.dataset.theme;persistSettings();updateSettingsChoiceButtons('data-theme',target.dataset.theme);return;}
+  if(target.dataset.localWeighting){state.settings.localWeightedConsensus=target.dataset.localWeighting==='on';persistSettings();updateSettingsChoiceButtons('data-local-weighting',target.dataset.localWeighting);stabilizeLocalScroll(interactionScrollContext);return;}
+  if(target.dataset.theme){state.settings.theme=target.dataset.theme;persistSettings();updateSettingsChoiceButtons('data-theme',target.dataset.theme);stabilizeLocalScroll(interactionScrollContext);return;}
   if(target.dataset.language){const nextLanguage=target.dataset.language,directive=interactionScrollContext;void changeLanguage(nextLanguage,directive);return;}
-  if(target.dataset.refreshInterval){state.settings.refreshInterval=target.dataset.refreshInterval;persistSettings();updateSettingsChoiceButtons('data-refresh-interval',target.dataset.refreshInterval);void refreshDueCities();return;}
+  if(target.dataset.refreshInterval){state.settings.refreshInterval=target.dataset.refreshInterval;persistSettings();updateSettingsChoiceButtons('data-refresh-interval',target.dataset.refreshInterval);stabilizeLocalScroll(interactionScrollContext);void refreshDueCities();return;}
   if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render({scroll:interactionScrollContext,immediate:true});return;}
   if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
-  if(target.dataset.density){state.settings.density=target.dataset.density;persistSettings();updateSettingsChoiceButtons('data-density',target.dataset.density);return;}
+  if(target.dataset.density){state.settings.density=target.dataset.density;persistSettings();updateSettingsChoiceButtons('data-density',target.dataset.density);stabilizeLocalScroll(interactionScrollContext);return;}
   if(target.dataset.compareModel){const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'));return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();rerenderCitySectionOrPage('details');return;}
   if(target.dataset.exportFormat){exportCityData(state.route.id,target.dataset.exportFormat);return;}
   if(target.dataset.agreementTime){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id,focusTimestamp:target.dataset.agreementTime};render();return;}

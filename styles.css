@@ -239,7 +239,7 @@ tr.current td:first-child { background: color-mix(in srgb, var(--primary) 6%, va
 .scenario-main { font-size: .82rem; font-weight: 760; }
 .scenario-sub { color: var(--muted); font-size: .71rem; margin-top: 2px; }
 
-.settings-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; padding-bottom: 24px; }
+.settings-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; padding-bottom: 24px; overflow-anchor: none; }
 .settings-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding: 20px; }
 .settings-section.settings-wide { grid-column: 1 / -1; }
 .settings-section h2 { margin: 0 0 6px; font-size: 1.04rem; }
@@ -276,8 +276,8 @@ tr.current td:first-child { background: color-mix(in srgb, var(--primary) 6%, va
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .search-hint { padding: 8px 2px 2px; }
 
-/* Defer expensive work below the viewport without changing the visible layout. */
-.city-card, .settings-section { content-visibility: auto; contain-intrinsic-size: auto 420px; }
+/* Defer expensive work on repeated home cards only. Settings stays fully laid out: estimated intrinsic heights on a long interactive form cause visible scroll jumps when a section is activated or rerendered. */
+.city-card { content-visibility: auto; contain-intrinsic-size: auto 420px; }
 .detail-workspace .section { content-visibility: visible; contain: none; }
 
 @media (max-width: 1180px) {

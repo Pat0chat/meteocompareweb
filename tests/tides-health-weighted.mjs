@@ -28,5 +28,5 @@ const metadataOnly=structuredClone(report);metadataOnly.rows[0].healthStatus='ME
 
 const app=fs.readFileSync('js/app.js','utf8'),sw=fs.readFileSync('sw.js','utf8'),html=fs.readFileSync('index.html','utf8'),storage=fs.readFileSync('js/storage.js','utf8');
 for(const token of ['localWeightedConsensus','weightedDayConfidence','refreshModelHealthData','marineTides','data-local-weighting'])assert.ok(app.includes(token),token);
-assert.ok(sw.includes("v32-layout-cleanup"));assert.ok(html.includes('openmeteo-data-spatial.b-cdn.net'));assert.ok(storage.includes('meteocompare.web.health.'));
+assert.ok(sw.includes("v33-settings-scroll-stability"));assert.ok(html.includes('openmeteo-data-spatial.b-cdn.net'));assert.ok(storage.includes('meteocompare.web.health.'));
 console.log('tides-health-weighted: OK');
