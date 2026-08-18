@@ -1665,3 +1665,48 @@ html[data-theme="dark"] {
   .topbar-system-status { display:none; }
   .topbar-spacer { display:none; }
 }
+
+/* Interactive comparison legends: values follow the hovered/touched forecast time. */
+.hover-chart-shell svg[data-hover-chart] { cursor: crosshair; touch-action: pan-y; }
+.chart-hover-crosshair {
+  stroke: color-mix(in srgb, var(--text) 52%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  pointer-events: none;
+}
+.chart-hover-marker {
+  fill: var(--surface);
+  stroke: var(--series);
+  stroke-width: 2.2;
+  vector-effect: non-scaling-stroke;
+  opacity: 0;
+  pointer-events: none;
+}
+.hover-chart-shell.is-hovering .chart-hover-crosshair,
+.hover-chart-shell.is-hovering .chart-hover-marker.active { opacity: 1; }
+.chart-hover-status {
+  min-height: 26px;
+  margin: 5px 4px 2px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--accent) 12%);
+  color: var(--muted);
+  font-size: .66rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  transition: color .14s ease, background .14s ease;
+}
+.hover-chart-shell.is-hovering .chart-hover-status {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 78%, var(--accent) 22%);
+}
+.compare-legend.rich .legend-live-value { display: none; }
+.hover-chart-shell.is-hovering .compare-legend.rich .legend-live-value { display: inline-grid; }
+.compare-legend.rich .legend-live-value small { white-space: nowrap; }
+.compare-legend.rich .legend-live-value em { white-space: nowrap; }
+@media (pointer: coarse) {
+  .hover-chart-shell svg[data-hover-chart] { touch-action: pan-y; }
+  .chart-hover-marker { stroke-width: 2.8; }
+}

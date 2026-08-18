@@ -11,10 +11,11 @@ assert.match(app,/legendCityTemperature/,'city comparison explains temperature a
 assert.match(app,/legendCityPrecipitation/,'city comparison explains precipitation aggregation');
 assert.match(app,/legendCityWind/,'city comparison explains wind aggregation');
 assert.match(app,/legendCityAgreement/,'city comparison explains agreement semantics');
-assert.match(app,/legendValueAt/,'comparison legends label each terminal value with its actual forecast date/time');
-assert.match(app,/dateLabel\(lastEntry\.key/,'model legend exposes the timestamp associated with its displayed value');
+assert.match(app,/data-hover-chart=\"model\"/,'model comparison exposes an interactive hover chart');
+assert.match(app,/data-hover-chart=\"city\"/,'city comparison exposes an interactive hover chart');
+assert.match(app,/chartHoverAt/,'comparison legends expose the selected forecast date/time');
 assert.match(css,/\.compare-legend-explainer/,'comparison legend explainer styling exists');
-assert.match(css,/\.compare-legend\.rich span > strong small/,'terminal-value labels are visually distinct');
+assert.match(css,/\.legend-live-value/,'interactive legend values have dedicated styling');
 
 // About + support navigation.
 assert.match(app,/parts\[0\]==='about'/,'about route exists');
@@ -34,7 +35,7 @@ assert.match(app,/promptEvent\.prompt\(\)/,'install action invokes the browser i
 assert.match(app,/appinstalled/,'installed state is observed');
 assert.match(app,/pwaInstallFirefoxWindows/,'Firefox Windows native web-app guidance is handled');
 assert.match(app,/pwaInstallIos/,'iOS manual installation guidance is handled');
-assert.match(sw,/v16-about-pwa-legends/,'PWA shell cache was bumped');
+assert.match(sw,/v17-hover-legends/,'PWA shell cache was bumped');
 
 // New strings remain complete in all supported languages.
 const audit=webTranslationAudit();

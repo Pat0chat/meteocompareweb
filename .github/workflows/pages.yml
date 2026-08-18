@@ -33,6 +33,7 @@ jobs:
           node tests/stability-i18n-audit.mjs
           node tests/chart-redesign.mjs
           node tests/pwa-about-legends.mjs
+          node tests/interactive-legends.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6
