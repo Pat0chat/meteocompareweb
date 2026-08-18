@@ -1,0 +1,65 @@
+name: Release MeteoCompare
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tagged source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Validate tag and application version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          APP_VERSION="$(tr -d '\r\n' < VERSION)"
+          test "$TAG" = "$APP_VERSION" || { echo "Tag v$TAG != VERSION $APP_VERSION"; exit 1; }
+      - name: Run full regression suite
+        run: |
+          set -e
+          for test in tests/*.mjs; do echo "==> $test"; node "$test"; done
+      - name: Build release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(tr -d '\r\n' < VERSION)"
+          ROOT="meteocompare-web-v${VERSION}"
+          rm -rf release "$ROOT"
+          mkdir -p "$ROOT" release
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'release' ./ "$ROOT/"
+          zip -qr "release/${ROOT}.zip" "$ROOT"
+          sha256sum "release/${ROOT}.zip" > "release/${ROOT}.zip.sha256"
+      - name: Generate release changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)"
+          ARGS=(--method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" -f "tag_name=${GITHUB_REF_NAME}")
+          if [ -n "$PREVIOUS_TAG" ]; then ARGS+=(-f "previous_tag_name=${PREVIOUS_TAG}"); fi
+          gh api "${ARGS[@]}" --jq .body > "release/CHANGELOG-${GITHUB_REF_NAME}.md"
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: meteocompare-${{ github.ref_name }}
+          path: release/*
+          retention-days: 90
+      - name: Publish versioned release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" release/*.zip release/*.sha256 \
+            --title "MeteoCompare ${GITHUB_REF_NAME}" \
+            --notes-file "release/CHANGELOG-${GITHUB_REF_NAME}.md" \
+            --verify-tag

@@ -1,4 +1,5 @@
 import { selectedModels } from './models.js';
+import { fetchOpenMeteoJson } from './api-budget.js';
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
@@ -14,20 +15,10 @@ const DAILY_VARS = [
   'wind_speed_10m_max','wind_gusts_10m_max','wind_direction_10m_dominant','weather_code','sunrise','sunset'
 ].join(',');
 
-async function fetchJson(url, timeoutMs=30000, externalSignal=null) {
-  const controller = new AbortController();
-  const abortFromExternal=()=>controller.abort();
-  if(externalSignal?.aborted)controller.abort();
-  else externalSignal?.addEventListener?.('abort',abortFromExternal,{once:true});
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: controller.signal, headers:{ 'Accept':'application/json' } });
-    if (!res.ok) { const err=new Error(`HTTP ${res.status}`); err.code='HTTP_ERROR'; err.status=res.status; throw err; }
-    const json = await res.json();
-    if (json?.error) { const err=new Error(json.reason || 'Open-Meteo error'); err.code='OPEN_METEO_ERROR'; err.reason=json.reason||''; throw err; }
-    return json;
-  } finally { clearTimeout(timer); externalSignal?.removeEventListener?.('abort',abortFromExternal); }
+async function fetchJson(url, timeoutMs=30000, externalSignal=null, category='other', cacheTtlMs=0) {
+  return fetchOpenMeteoJson(url,{timeoutMs,signal:externalSignal,category,cacheTtlMs,dedupe:!externalSignal});
 }
+
 
 export async function searchCities(query, language='fr', signal=null) {
   const u = new URL(GEOCODING_URL);
@@ -35,7 +26,7 @@ export async function searchCities(query, language='fr', signal=null) {
   u.searchParams.set('count','10');
   u.searchParams.set('language', language || 'fr');
   u.searchParams.set('format','json');
-  const data = await fetchJson(u,30000,signal);
+  const data = await fetchJson(u,30000,signal,'geocoding',5*60_000);
   return (data.results || []).map(r => ({
     id:String(r.id), name:r.name, admin1:r.admin1 || '', country:r.country || '', latitude:r.latitude, longitude:r.longitude,
     timezone:r.timezone || null,
@@ -120,7 +111,7 @@ export function sanitizeIncompleteFutureDaily(series) {
 }
 
 async function fetchModelGroup(city, models, forecastDays, forecastHours) {
-  const raw=await fetchJson(forecastUrl(city,models,forecastDays,forecastHours,true));
+  const raw=await fetchJson(forecastUrl(city,models,forecastDays,forecastHours,true),30000,null,'forecast');
   return normalizeBatchedForecast(raw,city,models,forecastHours);
 }
 
@@ -296,7 +287,7 @@ export async function fetchClimateNormals(city, startDate, endDate) {
   u.searchParams.set('start_date',startDate); u.searchParams.set('end_date',endDate);
   u.searchParams.set('daily','temperature_2m_max,temperature_2m_min'); u.searchParams.set('timezone',city.timezone||'auto');
   u.searchParams.set('models','era5'); u.searchParams.set('temperature_unit','celsius');
-  return fetchJson(u, 45000);
+  return fetchJson(u,45000,null,'archive');
 }
 
 function previousRunSeries(hourly,base,model,single){
@@ -332,11 +323,11 @@ function mergePreviousRunModel(target,recovery,model,recoverySingle){
 }
 
 export async function fetchPreviousRuns(city, models, startDate, endDate) {
-  const raw=await fetchJson(previousRunsUrl(city,models,startDate,endDate),45000),single=models.length===1;
+  const raw=await fetchJson(previousRunsUrl(city,models,startDate,endDate),45000,null,'previous-runs'),single=models.length===1;
   const suspicious=models.filter(m=>{const h=previousRunHealth(raw,m,single);return h.hasAny&&h.degraded;});
   if(!suspicious.length)return raw;
   try{
-    const recovery=await fetchJson(previousRunsUrl(city,suspicious,startDate,endDate),45000),recoverySingle=suspicious.length===1;
+    const recovery=await fetchJson(previousRunsUrl(city,suspicious,startDate,endDate),45000,null,'previous-runs'),recoverySingle=suspicious.length===1;
     for(const model of suspicious){
       const before=previousRunHealth(raw,model,single),after=previousRunHealth(recovery,model,recoverySingle);
       if(after.criticalMin>before.criticalMin)mergePreviousRunModel(raw,recovery,model,recoverySingle);
@@ -351,5 +342,5 @@ export async function fetchBiasArchive(city, startDate, endDate) {
   u.searchParams.set('start_date',startDate); u.searchParams.set('end_date',endDate);
   u.searchParams.set('daily','temperature_2m_max,precipitation_sum,wind_speed_10m_max');
   u.searchParams.set('timezone',city.timezone||'auto'); u.searchParams.set('wind_speed_unit','kmh'); u.searchParams.set('precipitation_unit','mm');
-  return fetchJson(u,45000);
+  return fetchJson(u,45000,null,'archive');
 }

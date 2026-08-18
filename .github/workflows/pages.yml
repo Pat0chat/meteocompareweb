@@ -24,24 +24,11 @@ jobs:
 
       - name: Run regression tests
         run: |
-          node tests/smoke.mjs
-          node tests/ui-performance.mjs
-          node tests/static-audit.mjs
-          node tests/pages-compat.mjs
-          node tests/fidelity-regression.mjs
-          node tests/analysis-suite.mjs
-          node tests/stability-i18n-audit.mjs
-          node tests/chart-redesign.mjs
-          node tests/pwa-about-legends.mjs
-          node tests/interactive-legends.mjs
-          node tests/evolution-reliability-icon.mjs
-          node tests/model-data-audit.mjs
-          node tests/local-data-center.mjs
-          node tests/global-performance-audit.mjs
-          node tests/minimal-analytics.mjs
-          node tests/settings-short-models.mjs
-          node tests/run-metadata-hosting.mjs
-          node tests/robust-core.mjs
+          set -e
+          for test in tests/*.mjs; do
+            echo "==> $test"
+            node "$test"
+          done
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

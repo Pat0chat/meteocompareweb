@@ -23,7 +23,7 @@ assert.match(storage,/navigator\.storage\?\.estimate/,'StorageManager usage/quot
 assert.match(storage,/idbListEntries/,'IndexedDB inventory missing');
 assert.match(storage,/cacheStorageStats/,'CacheStorage inventory missing');
 assert.match(css,/\.storage-kpis/,'Local data page styles missing');
-assert.ok(Number(sw.match(/shell-v(\d+)-/)?.[1]||0)>=20,'PWA cache version must not regress below v20');
+assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1]||0)>=20,'PWA cache version must not regress below v20');
 for(const key of ['localDataNav','localDataTitle','storageEstimatedApp','storageDatabase','storageBias','storageEvolution','privacyEraseTitle']){
   for(const lang of ['fr','en','es','de','it']) assert.match(locales[lang],new RegExp(`\"${key}\":`),`${key} is not translated in ${lang}`);
 }

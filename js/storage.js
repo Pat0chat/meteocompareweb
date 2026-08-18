@@ -1,4 +1,5 @@
 import { DEFAULT_MODEL_IDS } from './models.js';
+import { APP_VERSION, BACKUP_FORMAT_VERSION } from './version.js';
 
 const SETTINGS_KEY = 'meteocompare.web.settings.v1';
 const CITIES_KEY = 'meteocompare.web.cities.v1';
@@ -6,6 +7,7 @@ const FORECAST_PREFIX = 'meteocompare.web.forecast.';
 const EVOLUTION_PREFIX = 'meteocompare.web.evolution.';
 const NORMALS_PREFIX = 'meteocompare.web.normals.era5-v1.';
 const BIAS_PREFIX = 'meteocompare.web.bias.';
+const MARINE_PREFIX = 'meteocompare.web.marine.';
 const ANALYTICS_OPTOUT_KEY = 'meteocompare.web.analytics.optout.v1';
 const DB_NAME = 'meteocompare.web.large-cache.v1';
 const DB_STORE = 'cache';
@@ -48,9 +50,9 @@ function safeRemove(key) { try { localStorage.removeItem(key); } catch {} }
 function recordKindForKey(key){
   if(key===SETTINGS_KEY)return 'settings';if(key===CITIES_KEY)return 'cities';
   if(key.startsWith(FORECAST_PREFIX))return 'forecast';if(key.startsWith(EVOLUTION_PREFIX))return 'evolution';
-  if(key.startsWith(NORMALS_PREFIX))return 'normals';if(key.startsWith(BIAS_PREFIX))return 'bias';return null;
+  if(key.startsWith(NORMALS_PREFIX))return 'normals';if(key.startsWith(BIAS_PREFIX))return 'bias';if(key.startsWith(MARINE_PREFIX))return 'marine';return null;
 }
-function recordContext(key){const kind=recordKindForKey(key);if(!kind)return {kind:null,cityId:null};const prefixes={forecast:FORECAST_PREFIX,evolution:EVOLUTION_PREFIX,normals:NORMALS_PREFIX,bias:BIAS_PREFIX};return {kind,cityId:prefixes[kind]?key.slice(prefixes[kind].length):null};}
+function recordContext(key){const kind=recordKindForKey(key);if(!kind)return {kind:null,cityId:null};const prefixes={forecast:FORECAST_PREFIX,evolution:EVOLUTION_PREFIX,normals:NORMALS_PREFIX,bias:BIAS_PREFIX,marine:MARINE_PREFIX};return {kind,cityId:prefixes[kind]?key.slice(prefixes[kind].length):null};}
 function envelope(kind,payload,{cityId=null,storedAt=Date.now()}={}){return {marker:RECORD_MARKER,schemaVersion:DATA_SCHEMA_VERSION,kind,cityId,storedAt,payload};}
 function isEnvelope(value){return Boolean(value&&typeof value==='object'&&value.marker===RECORD_MARKER&&Number.isFinite(value.schemaVersion)&&'payload' in value);}
 function migrateV1ToV2(kind,payload,context={}){return {marker:RECORD_MARKER,schemaVersion:2,kind,cityId:context.cityId||null,storedAt:Date.now(),payload};}
@@ -70,6 +72,7 @@ function validatePayload(kind,payload){
   if(kind==='evolution')return Array.isArray(payload)&&payload.every(x=>x&&Number.isFinite(x.capturedAt)&&x.daily&&typeof x.daily==='object');
   if(kind==='normals')return Boolean(payload&&typeof payload==='object'&&payload.normals&&typeof payload.normals==='object');
   if(kind==='bias')return Boolean(payload&&typeof payload==='object'&&Array.isArray(payload.forecasts)&&Array.isArray(payload.observations));
+  if(kind==='marine')return Boolean(payload&&typeof payload==='object'&&typeof payload.fetchedAt==='string'&&payload.hourly&&Array.isArray(payload.hourly.timestamps));
   return true;
 }
 function readLocalRecord(key,kind,fallback){
@@ -139,6 +142,7 @@ export function deleteCityData(cityId) {
   safeRemove(EVOLUTION_PREFIX+cityId);
   safeRemove(NORMALS_PREFIX+cityId);
   safeRemove(BIAS_PREFIX+cityId);
+  safeRemove(MARINE_PREFIX+cityId);
   deleteForecast(cityId);
 }
 
@@ -169,6 +173,9 @@ export function loadNormals(cityId) { return readLocalRecord(NORMALS_PREFIX+city
 export function saveNormals(cityId, payload) { writeLocalRecord(NORMALS_PREFIX+cityId,'normals',payload); }
 export function loadBias(cityId) { return readLocalRecord(BIAS_PREFIX+cityId,'bias',{ forecasts:[], observations:[], updatedAt:null }); }
 export function saveBias(cityId, data) { writeLocalRecord(BIAS_PREFIX+cityId,'bias',data); }
+export function loadMarine(cityId) { return readLocalRecord(MARINE_PREFIX+cityId,'marine',null); }
+export function saveMarine(cityId, data) { writeLocalRecord(MARINE_PREFIX+cityId,'marine',data); }
+export function deleteMarine(cityId) { safeRemove(MARINE_PREFIX+cityId); }
 
 function finiteOrNull(v){ return Number.isFinite(v)?v:null; }
 function nonNegativeOrNull(v){ return Number.isFinite(v)&&v>=0?v:null; }
@@ -217,12 +224,12 @@ async function cacheStorageStats(){
   } catch {}
   return result;
 }
-function emptyCityStorage(id,name=''){return {id,name,forecastBytes:0,forecastEntries:0,forecastModels:0,normalsBytes:0,normalsEntries:0,biasBytes:0,biasEntries:0,biasForecasts:0,biasObservations:0,evolutionBytes:0,evolutionEntries:0,evolutionSnapshots:0,totalBytes:0};}
+function emptyCityStorage(id,name=''){return {id,name,forecastBytes:0,forecastEntries:0,forecastModels:0,normalsBytes:0,normalsEntries:0,biasBytes:0,biasEntries:0,biasForecasts:0,biasObservations:0,evolutionBytes:0,evolutionEntries:0,evolutionSnapshots:0,marineBytes:0,marineEntries:0,totalBytes:0};}
 
 export async function inspectLocalData(cities=[]) {
   const cityMap=new Map((cities||[]).map(city=>[String(city.id),emptyCityStorage(String(city.id),city.name||String(city.id))]));
   const category={
-    favorites:{bytes:0,entries:0,items:(cities||[]).length},settings:{bytes:0,entries:0,items:0},forecasts:{bytes:0,entries:0,items:0},normals:{bytes:0,entries:0,items:0},bias:{bytes:0,entries:0,items:0},evolution:{bytes:0,entries:0,items:0},other:{bytes:0,entries:0,items:0}
+    favorites:{bytes:0,entries:0,items:(cities||[]).length},settings:{bytes:0,entries:0,items:0},forecasts:{bytes:0,entries:0,items:0},normals:{bytes:0,entries:0,items:0},bias:{bytes:0,entries:0,items:0},evolution:{bytes:0,entries:0,items:0},marine:{bytes:0,entries:0,items:0},other:{bytes:0,entries:0,items:0}
   };
   let localStorageBytes=0,localStorageEntries=0;
   try {
@@ -239,6 +246,7 @@ export async function inspectLocalData(cities=[]) {
       else if(key.startsWith(NORMALS_PREFIX)){category.normals.bytes+=rec.bytes;category.normals.entries++;category.normals.items++;addCity(NORMALS_PREFIX,'normalsBytes','normalsEntries',null,0);}
       else if(key.startsWith(BIAS_PREFIX)){const forecasts=Array.isArray(rec.value?.forecasts)?rec.value.forecasts.length:0,observations=Array.isArray(rec.value?.observations)?rec.value.observations.length:0;category.bias.bytes+=rec.bytes;category.bias.entries++;category.bias.items+=forecasts+observations;addCity(BIAS_PREFIX,'biasBytes','biasEntries','biasForecasts',forecasts);const row=cityMap.get(key.slice(BIAS_PREFIX.length));row.biasObservations+=observations;}
       else if(key.startsWith(EVOLUTION_PREFIX)){const snapshots=Array.isArray(rec.value)?rec.value.length:0;category.evolution.bytes+=rec.bytes;category.evolution.entries++;category.evolution.items+=snapshots;addCity(EVOLUTION_PREFIX,'evolutionBytes','evolutionEntries','evolutionSnapshots',snapshots);}
+      else if(key.startsWith(MARINE_PREFIX)){category.marine.bytes+=rec.bytes;category.marine.entries++;category.marine.items++;addCity(MARINE_PREFIX,'marineBytes','marineEntries',null,0);}
       else {category.other.bytes+=rec.bytes;category.other.entries++;}
     }
   } catch {}
@@ -253,7 +261,7 @@ export async function inspectLocalData(cities=[]) {
   try { const est=await navigator.storage?.estimate?.();origin.usage=Number.isFinite(est?.usage)?est.usage:null;origin.quota=Number.isFinite(est?.quota)?est.quota:null; } catch {}
   try { const persisted=await navigator.storage?.persisted?.();origin.persisted=typeof persisted==='boolean'?persisted:null; } catch {}
   const appBytes=localStorageBytes+indexedDbBytes+pwaCache.bytes;
-  const cityRows=[...cityMap.values()].map(row=>({...row,totalBytes:row.forecastBytes+row.normalsBytes+row.biasBytes+row.evolutionBytes,isFavorite:(cities||[]).some(c=>String(c.id)===row.id)})).sort((a,b)=>b.totalBytes-a.totalBytes);
+  const cityRows=[...cityMap.values()].map(row=>({...row,totalBytes:row.forecastBytes+row.normalsBytes+row.biasBytes+row.evolutionBytes+row.marineBytes,isFavorite:(cities||[]).some(c=>String(c.id)===row.id)})).sort((a,b)=>b.totalBytes-a.totalBytes);
   return {generatedAt:Date.now(),appBytes,localStorageBytes,localStorageEntries,indexedDbBytes,indexedDbEntries:idbEntries.length,pwaCacheBytes:pwaCache.bytes,pwaCacheEntries:pwaCache.entries,pwaCaches:pwaCache.caches,origin,categories:category,cities:cityRows};
 }
 
@@ -280,6 +288,38 @@ export async function verifyLocalDataIntegrity(cities=[], {repair=false}={}) {
   }
   const runtime=getStorageIssues();for(const item of runtime)add(item.code,item.detail);
   return {checkedAt:Date.now(),schemaVersion:DATA_SCHEMA_VERSION,healthy:issues.length===0,repair,recordsChecked:checked,issueCount:issues.length,migrated,invalid,orphans,duplicates,issues,repairs};
+}
+
+
+function backupPayloadFor(prefix,cityId,kind,fallback=null){return readLocalRecord(prefix+cityId,kind,fallback);}
+export async function createLocalBackup(cities=[], options={}) {
+  const include={forecasts:Boolean(options.forecasts),normals:Boolean(options.normals),bias:Boolean(options.bias),evolution:Boolean(options.evolution),marine:Boolean(options.marine)};
+  const data={settings:loadSettings(),cities:loadCities(),forecasts:{},normals:{},bias:{},evolution:{},marine:{}};
+  for(const city of cities||[]){const id=String(city.id);
+    if(include.forecasts){const f=await loadForecastAsync(id);if(f)data.forecasts[id]=f;}
+    if(include.normals){const v=loadNormals(id);if(v)data.normals[id]=v;}
+    if(include.bias){const v=loadBias(id);if((v?.forecasts?.length||0)||(v?.observations?.length||0))data.bias[id]=v;}
+    if(include.evolution){const v=loadEvolution(id);if(v?.length)data.evolution[id]=v;}
+    if(include.marine){const v=loadMarine(id);if(v)data.marine[id]=v;}
+  }
+  let analyticsOptOut=false;try{analyticsOptOut=localStorage.getItem(ANALYTICS_OPTOUT_KEY)==='1';}catch{}
+  return {type:'meteocompare-backup',formatVersion:BACKUP_FORMAT_VERSION,dataSchemaVersion:DATA_SCHEMA_VERSION,appVersion:APP_VERSION,exportedAt:new Date().toISOString(),includes:include,privacy:{analyticsOptOut},data};
+}
+function validBackup(value){return Boolean(value&&value.type==='meteocompare-backup'&&Number(value.formatVersion)>=1&&Number(value.formatVersion)<=BACKUP_FORMAT_VERSION&&value.data&&typeof value.data==='object'&&Array.isArray(value.data.cities)&&value.data.settings&&typeof value.data.settings==='object');}
+function cleanImportedSettings(settings){const out={};for(const key of Object.keys(defaultSettings))if(key in (settings||{}))out[key]=settings[key];return {...defaultSettings,...out,enabledModelIds:Array.isArray(out.enabledModelIds)&&out.enabledModelIds.length?out.enabledModelIds:DEFAULT_MODEL_IDS};}
+export async function restoreLocalBackup(value,{replace=true}={}){
+  if(!validBackup(value)){const err=new Error('INVALID_BACKUP');err.code='INVALID_BACKUP';throw err;}
+  if(Number(value.dataSchemaVersion)>DATA_SCHEMA_VERSION){const err=new Error('BACKUP_FUTURE_SCHEMA');err.code='BACKUP_FUTURE_SCHEMA';throw err;}
+  let currentAnalyticsOptOut=false;try{currentAnalyticsOptOut=localStorage.getItem(ANALYTICS_OPTOUT_KEY)==='1';}catch{}
+  const backupAnalyticsOptOut=value?.privacy?.analyticsOptOut===true;
+  if(replace)await clearAllData();
+  // A restore must never silently relax a privacy choice: opt-out wins if set on either device/backup.
+  if(currentAnalyticsOptOut||backupAnalyticsOptOut)try{localStorage.setItem(ANALYTICS_OPTOUT_KEY,'1');}catch{}
+  const cities=value.data.cities.filter(x=>x&&x.id!=null&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))).map(x=>({...x,id:String(x.id)}));
+  const settings=cleanImportedSettings(value.data.settings);saveSettings(settings);saveCities(cities);
+  const ids=new Set(cities.map(c=>String(c.id))),writeMap=async(map,writer)=>{for(const [id,payload] of Object.entries(map||{}))if(ids.has(String(id))&&payload!=null)await writer(String(id),payload);};
+  await writeMap(value.data.forecasts,saveForecast);await writeMap(value.data.normals,(id,v)=>saveNormals(id,v));await writeMap(value.data.bias,(id,v)=>saveBias(id,v));await writeMap(value.data.evolution,(id,v)=>saveEvolution(id,v));await writeMap(value.data.marine,(id,v)=>saveMarine(id,v));
+  return {cities:cities.length,settings:true,forecasts:Object.keys(value.data.forecasts||{}).length,normals:Object.keys(value.data.normals||{}).length,bias:Object.keys(value.data.bias||{}).length,evolution:Object.keys(value.data.evolution||{}).length,marine:Object.keys(value.data.marine||{}).length};
 }
 
 export async function clearAllData() {

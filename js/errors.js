@@ -3,6 +3,7 @@ const DEFAULTS={
   OPEN_METEO_UNAVAILABLE:{severity:'error',titleKey:'errorWeatherServiceTitle',messageKey:'openMeteoUnreachable',actions:['retry','use-cache']},
   HTTP_ERROR:{severity:'error',titleKey:'errorWeatherServiceTitle',messageKey:'openMeteoHttpError',actions:['retry','use-cache']},
   OPEN_METEO_ERROR:{severity:'error',titleKey:'errorWeatherServiceTitle',messageKey:'openMeteoRejected',actions:['retry','use-cache']},
+  LOCAL_API_BUDGET_EXCEEDED:{severity:'warning',titleKey:'errorWeatherServiceTitle',messageKey:'apiBudgetExceeded',actions:['use-cache','local-data']},
   NO_USABLE_MODELS:{severity:'error',titleKey:'errorNoModelsTitle',messageKey:'noUsableModels',actions:['retry','diagnostics']},
   NO_MODELS_ENABLED:{severity:'warning',titleKey:'errorNoModelsTitle',messageKey:'noModelsEnabled',actions:['settings']},
   STALE_CACHE:{severity:'warning',titleKey:'errorStaleCacheTitle',messageKey:'errorStaleCacheBody',actions:['retry','use-cache']},

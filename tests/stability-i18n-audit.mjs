@@ -7,7 +7,7 @@ import { buildEvolution } from '../js/features/evolution.js';
 import { WEATHER_MODELS, DEFAULT_MODEL_IDS } from '../js/models.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),api=read('js/api.js'),css=read('styles.css'),sw=read('sw.js');
+const app=read('js/app.js'),api=read('js/api.js'),apiBudget=read('js/api-budget.js'),css=read('styles.css'),sw=read('sw.js');
 
 // 1. Every web key and every inherited Android key exists in all five supported languages.
 const webAudit=webTranslationAudit();
@@ -145,17 +145,17 @@ assert.equal(storage.loadForecast('delete-me'),null,'removing city must delete f
 // 12. Local reliability summary must rank with the same score/MAE logic as the model detail page.
 assert.match(app,/function reliabilitySummaryRanking\(cityId,variable\)/,'local reliability summary ranking helper must exist');
 assert.match(app,/b\.reliability\.score-a\.reliability\.score\|\|a\.reliability\.meanAbsoluteError-b\.reliability\.meanAbsoluteError/,'summary ranking must use local reliability score, then MAE');
-assert.match(app,/delete state\.normals\[id\];deleteCityData\(id\)/,'removing a city must purge all persisted per-city caches');
+assert.match(app,/delete state\.normals\[id\];[\s\S]{0,160}deleteCityData\(id\)/,'removing a city must purge all persisted per-city caches');
 assert.match(app,/cityRefreshTokens\.get\(cityId\)!==token\|\|!state\.cities\.some\(c=>c\.id===cityId\)/,'stale weather responses must be ignored after city removal/config changes');
 assert.match(app,/biasRefreshTokens\.get\(cityId\)===token/,'bias history writes must be guarded by a per-city generation token');
 assert.match(app,/normalsRefreshTokens\.get\(cityId\)===token/,'ERA5 normal writes must be guarded against clear/delete races');
 assert.match(app,/if\(!cityRefreshTokens\.get\(cityId\)\|\|!state\.cities\.some\(c=>c\.id===cityId\)\)deleteForecast\(cityId\)/,'stale weather cleanup must only remove the forecast cache, never unrelated bias/normals/evolution data');
 assert.doesNotMatch(app,/await saveForecast\(cityId,f\);[^\n]*deleteCityData\(cityId\)/,'a superseded weather save must not purge unrelated per-city history');
 assert.match(app,/availableIds\.filter\(id=>enabledIds\.has\(id\)\)/,'bias refresh planning must use the currently enabled model cohort');
-assert.match(api,/err\.code='HTTP_ERROR'/,'HTTP failures must use structured error codes for localization');
-assert.match(api,/err\.code='OPEN_METEO_ERROR'/,'provider-declared failures must use structured error codes for localization');
+assert.match(api+apiBudget,/err\.code='HTTP_ERROR'/,'HTTP failures must use structured error codes for localization');
+assert.match(api+apiBudget,/err\.code='OPEN_METEO_ERROR'/,'provider-declared failures must use structured error codes for localization');
 assert.match(app,/function invalidateWeatherRefreshes\(\)\{cityRefreshTokens\.clear\(\);state\.loading\.clear\(\);\}/,'model configuration changes must invalidate in-flight weather loads');
 assert.match(app,/requestedModelIds[\s\S]*sameModels/,'forecast freshness must include the requested model cohort, not only age');
 
-assert.ok(Number(sw.match(/shell-v(\d+)-/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
+assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
 console.log('MeteoCompare Web stability + i18n audit tests: OK');

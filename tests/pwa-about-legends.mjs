@@ -35,12 +35,12 @@ assert.match(app,/promptEvent\.prompt\(\)/,'install action invokes the browser i
 assert.match(app,/appinstalled/,'installed state is observed');
 assert.match(app,/pwaInstallFirefoxWindows/,'Firefox Windows native web-app guidance is handled');
 assert.match(app,/pwaInstallIos/,'iOS manual installation guidance is handled');
-assert.ok(Number(sw.match(/shell-v(\d+)-/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
+assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
 
 // New strings remain complete in all supported languages.
 const audit=webTranslationAudit();
 for(const lang of ['fr','en','es','de','it']) assert.deepEqual(audit[lang],[],`missing web translations in ${lang}`);
 for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']) for(const key of ['aboutTitle','helpTitle','pwaTitle','installPwa','legendHowToRead','supportBodyDetailed','donationDisclaimer']) assert.ok(hasTranslation(pref,key),`${key} missing in ${pref}`);
 
-assert.match(workflow,/pwa-about-legends\.mjs/,'GitHub Pages workflow runs the PWA/About/legends regression suite');
+assert.match(workflow,/(?:pwa-about-legends\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow runs the PWA/About/legends regression suite');
 console.log('MeteoCompare Web PWA + About + legend semantics tests: OK');
