@@ -36,6 +36,7 @@ jobs:
           node tests/interactive-legends.mjs
           node tests/evolution-reliability-icon.mjs
           node tests/model-data-audit.mjs
+          node tests/local-data-center.mjs
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

@@ -126,6 +126,90 @@ export function saveBias(cityId, data) { safeSet(BIAS_PREFIX+cityId, data); }
 function finiteOrNull(v){ return Number.isFinite(v)?v:null; }
 function nonNegativeOrNull(v){ return Number.isFinite(v)&&v>=0?v:null; }
 
+
+function textBytes(text) {
+  const value=String(text??'');
+  try { return new TextEncoder().encode(value).byteLength; } catch { return value.length*2; }
+}
+function serializedBytes(value) {
+  try { return textBytes(JSON.stringify(value)); } catch { return 0; }
+}
+function localStorageRecord(key) {
+  try {
+    const raw=localStorage.getItem(key);
+    return raw==null?null:{key,raw,bytes:textBytes(key)+textBytes(raw),value:safeParse(raw,null)};
+  } catch { return null; }
+}
+async function idbListEntries() {
+  const database=await db(); if(!database)return [];
+  return new Promise(resolve=>{
+    const out=[];
+    try {
+      const tx=database.transaction(DB_STORE,'readonly'),store=tx.objectStore(DB_STORE),req=store.openCursor();
+      req.onsuccess=()=>{const cursor=req.result;if(!cursor){resolve(out);return;}out.push({key:String(cursor.key),value:cursor.value,bytes:textBytes(String(cursor.key))+serializedBytes(cursor.value)});cursor.continue();};
+      req.onerror=()=>resolve(out);
+    } catch { resolve(out); }
+  });
+}
+async function cacheStorageStats(){
+  if(typeof caches==='undefined')return {bytes:0,entries:0,caches:[]};
+  const result={bytes:0,entries:0,caches:[]};
+  try {
+    for(const name of await caches.keys()){
+      const cache=await caches.open(name),requests=await cache.keys();
+      let cacheBytes=0;
+      for(const req of requests){
+        try {
+          const res=await cache.match(req);
+          const header=Number(res?.headers?.get?.('content-length'));
+          const bytes=Number.isFinite(header)&&header>=0?header:(res?((await res.clone().arrayBuffer()).byteLength||0):0);
+          cacheBytes+=bytes;
+        } catch {}
+      }
+      result.entries+=requests.length;result.bytes+=cacheBytes;result.caches.push({name,entries:requests.length,bytes:cacheBytes});
+    }
+  } catch {}
+  return result;
+}
+function emptyCityStorage(id,name=''){return {id,name,forecastBytes:0,forecastEntries:0,forecastModels:0,normalsBytes:0,normalsEntries:0,biasBytes:0,biasEntries:0,biasForecasts:0,biasObservations:0,evolutionBytes:0,evolutionEntries:0,evolutionSnapshots:0,totalBytes:0};}
+
+export async function inspectLocalData(cities=[]) {
+  const cityMap=new Map((cities||[]).map(city=>[String(city.id),emptyCityStorage(String(city.id),city.name||String(city.id))]));
+  const category={
+    favorites:{bytes:0,entries:0,items:(cities||[]).length},settings:{bytes:0,entries:0,items:0},forecasts:{bytes:0,entries:0,items:0},normals:{bytes:0,entries:0,items:0},bias:{bytes:0,entries:0,items:0},evolution:{bytes:0,entries:0,items:0},other:{bytes:0,entries:0,items:0}
+  };
+  let localStorageBytes=0,localStorageEntries=0;
+  try {
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);if(!key||!key.startsWith('meteocompare.web.'))continue;
+      const rec=localStorageRecord(key);if(!rec)continue;localStorageBytes+=rec.bytes;localStorageEntries++;
+      const addCity=(prefix,field,entryField,itemsField,items=0)=>{
+        const id=key.slice(prefix.length);if(!cityMap.has(id))cityMap.set(id,emptyCityStorage(id,id));const row=cityMap.get(id);row[field]+=rec.bytes;row[entryField]++;if(itemsField)row[itemsField]+=items;row.totalBytes+=rec.bytes;
+      };
+      if(key===CITIES_KEY){category.favorites.bytes+=rec.bytes;category.favorites.entries++;}
+      else if(key===SETTINGS_KEY){category.settings.bytes+=rec.bytes;category.settings.entries++;category.settings.items=rec.value&&typeof rec.value==='object'?Object.keys(rec.value).length:0;}
+      else if(key.startsWith(FORECAST_PREFIX)){const id=key.slice(FORECAST_PREFIX.length),models=Object.keys(rec.value?.seriesByModel||{}).length;category.forecasts.bytes+=rec.bytes;category.forecasts.entries++;category.forecasts.items+=models;addCity(FORECAST_PREFIX,'forecastBytes','forecastEntries','forecastModels',models);}
+      else if(key.startsWith(NORMALS_PREFIX)){category.normals.bytes+=rec.bytes;category.normals.entries++;category.normals.items++;addCity(NORMALS_PREFIX,'normalsBytes','normalsEntries',null,0);}
+      else if(key.startsWith(BIAS_PREFIX)){const forecasts=Array.isArray(rec.value?.forecasts)?rec.value.forecasts.length:0,observations=Array.isArray(rec.value?.observations)?rec.value.observations.length:0;category.bias.bytes+=rec.bytes;category.bias.entries++;category.bias.items+=forecasts+observations;addCity(BIAS_PREFIX,'biasBytes','biasEntries','biasForecasts',forecasts);const row=cityMap.get(key.slice(BIAS_PREFIX.length));row.biasObservations+=observations;}
+      else if(key.startsWith(EVOLUTION_PREFIX)){const snapshots=Array.isArray(rec.value)?rec.value.length:0;category.evolution.bytes+=rec.bytes;category.evolution.entries++;category.evolution.items+=snapshots;addCity(EVOLUTION_PREFIX,'evolutionBytes','evolutionEntries','evolutionSnapshots',snapshots);}
+      else {category.other.bytes+=rec.bytes;category.other.entries++;}
+    }
+  } catch {}
+  const idbEntries=await idbListEntries();let indexedDbBytes=0;
+  for(const rec of idbEntries){
+    indexedDbBytes+=rec.bytes;
+    if(rec.key.startsWith(FORECAST_PREFIX)){const id=rec.key.slice(FORECAST_PREFIX.length),models=Object.keys(rec.value?.seriesByModel||{}).length;if(!cityMap.has(id))cityMap.set(id,emptyCityStorage(id,id));const row=cityMap.get(id);row.forecastBytes+=rec.bytes;row.forecastEntries++;row.forecastModels+=models;row.totalBytes+=rec.bytes;category.forecasts.bytes+=rec.bytes;category.forecasts.entries++;category.forecasts.items+=models;}
+    else {category.other.bytes+=rec.bytes;category.other.entries++;}
+  }
+  const pwaCache=await cacheStorageStats();
+  let origin={usage:null,quota:null,persisted:null};
+  try { const est=await navigator.storage?.estimate?.();origin.usage=Number.isFinite(est?.usage)?est.usage:null;origin.quota=Number.isFinite(est?.quota)?est.quota:null; } catch {}
+  try { const persisted=await navigator.storage?.persisted?.();origin.persisted=typeof persisted==='boolean'?persisted:null; } catch {}
+  const appBytes=localStorageBytes+indexedDbBytes+pwaCache.bytes;
+  const cityRows=[...cityMap.values()].map(row=>({...row,totalBytes:row.forecastBytes+row.normalsBytes+row.biasBytes+row.evolutionBytes,isFavorite:(cities||[]).some(c=>String(c.id)===row.id)})).sort((a,b)=>b.totalBytes-a.totalBytes);
+  return {generatedAt:Date.now(),appBytes,localStorageBytes,localStorageEntries,indexedDbBytes,indexedDbEntries:idbEntries.length,pwaCacheBytes:pwaCache.bytes,pwaCacheEntries:pwaCache.entries,pwaCaches:pwaCache.caches,origin,categories:category,cities:cityRows};
+}
+
 export async function clearAllData() {
   try { Object.keys(localStorage).filter(k=>k.startsWith('meteocompare.web.')).forEach(k=>safeRemove(k)); } catch {}
   if(typeof indexedDB==='undefined')return;
