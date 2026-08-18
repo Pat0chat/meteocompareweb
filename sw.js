@@ -1,6 +1,7 @@
-const APP_VERSION = '1.10.7';
-const CACHE_VERSION = 'v37-tides-table-alignment';
-const CACHE = `meteocompare-web-${APP_VERSION}-shell-${CACHE_VERSION}`;
+const APP_VERSION = '1.10.8';
+const CACHE_VERSION = 'v38-full-local-clear';
+const CACHE_PREFIX = 'meteocompare-web-';
+const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',
@@ -16,7 +17,7 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key.startsWith(CACHE_PREFIX) && key !== CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });

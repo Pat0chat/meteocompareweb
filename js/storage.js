@@ -14,6 +14,7 @@ const ANALYTICS_OPTOUT_KEY = 'meteocompare.web.analytics.optout.v1';
 const DB_NAME = 'meteocompare.web.large-cache.v1';
 const DB_STORE = 'cache';
 const DB_VERSION = 2;
+const PWA_CACHE_PREFIX = 'meteocompare-web-';
 export const DATA_SCHEMA_VERSION = 3;
 const RECORD_MARKER = 'meteocompare.local-record';
 const storageIssues = new Map();
@@ -223,7 +224,7 @@ async function cacheStorageStats(){
   if(typeof caches==='undefined')return {bytes:0,entries:0,caches:[]};
   const result={bytes:0,entries:0,caches:[]};
   try {
-    const names=await caches.keys();
+    const names=(await caches.keys()).filter(name=>String(name).startsWith(PWA_CACHE_PREFIX));
     const rows=await mapLimited(names,3,async name=>{
       const cache=await caches.open(name),requests=await cache.keys();
       const sizes=await mapLimited(requests,6,async req=>{try{const res=await cache.match(req),header=Number(res?.headers?.get?.('content-length'));return Number.isFinite(header)&&header>=0?header:(res?((await res.clone().arrayBuffer()).byteLength||0):0);}catch{return 0;}});
@@ -333,17 +334,42 @@ export async function restoreLocalBackup(value,{replace=true}={}){
   return {cities:cities.length,settings:true,forecasts:Object.keys(value.data.forecasts||{}).length,normals:Object.keys(value.data.normals||{}).length,bias:Object.keys(value.data.bias||{}).length,evolution:Object.keys(value.data.evolution||{}).length,marine:Object.keys(value.data.marine||{}).length,health:Object.keys(value.data.health||{}).length};
 }
 
-export async function clearAllData() {
-  try { Object.keys(localStorage).filter(k=>k.startsWith('meteocompare.web.')).forEach(k=>safeRemove(k)); } catch {}
-  if(typeof indexedDB==='undefined')return;
-  try {
-    const database=await db();
-    database?.close?.();
-    dbPromise=null;
-    await new Promise(resolve=>{
-      let req;
-      try{req=indexedDB.deleteDatabase(DB_NAME);}catch{resolve();return;}
-      req.onsuccess=req.onerror=req.onblocked=()=>resolve();
-    });
-  } catch {}
+export async function clearPwaRuntime() {
+  let cachesDeleted=0,registrationsUnregistered=0;
+  if(typeof caches!=='undefined'){
+    try{
+      const names=(await caches.keys()).filter(name=>String(name).startsWith(PWA_CACHE_PREFIX));
+      const results=await Promise.all(names.map(name=>caches.delete(name).catch(()=>false)));
+      cachesDeleted=results.filter(Boolean).length;
+    }catch{}
+  }
+  try{
+    if(typeof navigator!=='undefined'&&navigator.serviceWorker?.getRegistrations){
+      const base=(typeof document!=='undefined'&&document.baseURI)||(typeof location!=='undefined'&&location.href)||null;
+      const appScope=base?new URL('./',base).href:null;
+      const registrations=await navigator.serviceWorker.getRegistrations();
+      for(const registration of registrations){
+        if(appScope&&registration?.scope!==appScope)continue;
+        try{if(await registration.unregister())registrationsUnregistered++;}catch{}
+      }
+    }
+  }catch{}
+  return {cachesDeleted,registrationsUnregistered};
+}
+
+export async function clearAllData({includePwa=false}={}) {
+  try { const keys=Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)).filter(k=>k&&k.startsWith('meteocompare.web.'));keys.forEach(k=>safeRemove(k)); } catch {}
+  if(typeof indexedDB!=='undefined'){
+    try {
+      const database=await db();
+      database?.close?.();
+      dbPromise=null;
+      await new Promise(resolve=>{
+        let req;
+        try{req=indexedDB.deleteDatabase(DB_NAME);}catch{resolve();return;}
+        req.onsuccess=req.onerror=req.onblocked=()=>resolve();
+      });
+    } catch {}
+  }
+  return includePwa?clearPwaRuntime():{cachesDeleted:0,registrationsUnregistered:0};
 }

@@ -148,8 +148,8 @@ assert.doesNotMatch(appSource,/findIndex\(x=>Date\.parse\(x\)/);
 assert.match(appSource,/BIAS_REFERENCE_LAG_DAYS=6/);
 assert.match(appSource,/data-agreement-epoch/, 'agreement drill-down must preserve absolute DST-safe instants');
 const releaseVersion=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim(),swSource=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
-assert.equal(releaseVersion,'1.10.7');
-assert.match(swSource,/const APP_VERSION = '1\.10\.7'/);
-assert.match(swSource,/const CACHE_VERSION = 'v37-tides-table-alignment'/);
+assert.equal(releaseVersion,'1.10.8');
+assert.match(swSource,/const APP_VERSION = '1\.10\.8'/);
+assert.match(swSource,/const CACHE_VERSION = 'v38-full-local-clear'/);
 
-console.log('MeteoCompare Web 1.10.7 release data-chain audit: OK');
+console.log('MeteoCompare Web 1.10.8 release data-chain audit: OK');

@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.8] - 2026-08-18
+
+### Fixed
+- “Delete all local data” now also removes MeteoCompare CacheStorage entries and unregisters the service worker for the current app scope.
+- The first reload after a full clear skips PWA registration so the storage screen can accurately show a clean state.
+- Local storage diagnostics count only MeteoCompare-namespaced CacheStorage entries instead of every cache on the browser origin.
+- Service-worker activation only removes obsolete MeteoCompare caches and no longer risks deleting unrelated caches that share the same origin.
+
 ## [1.10.7] - 2026-08-18
 
 ### Changed

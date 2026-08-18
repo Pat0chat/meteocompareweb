@@ -1,5 +1,5 @@
 import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels } from './models.js';
-import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, deleteMarine, loadModelHealth, saveModelHealth, createLocalBackup, restoreLocalBackup, clearAllData, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
+import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, deleteMarine, loadModelHealth, saveModelHealth, createLocalBackup, restoreLocalBackup, clearAllData, clearPwaRuntime, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
 import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, windArrow, dateLabel, timeLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, roundedHourLocal, weightedDayConfidence, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch } from './domain.js';
 import { makeI18n, languageCode, ensureLanguage } from './i18n.js';
@@ -67,6 +67,10 @@ let i18nCacheKey = null;
 let i18nCache = null;
 let deferredInstallPrompt = null;
 let pwaInstalled = Boolean(window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
+const PWA_CLEAR_RELOAD_GUARD = 'meteocompare.skip-pwa-registration-after-clear.v1';
+let pwaPostClearCleanup=Promise.resolve();
+function consumePwaClearReloadGuard(){try{const skip=sessionStorage.getItem(PWA_CLEAR_RELOAD_GUARD)==='1';if(skip)sessionStorage.removeItem(PWA_CLEAR_RELOAD_GUARD);return skip;}catch{return false;}}
+function armPwaClearReloadGuard(){try{sessionStorage.setItem(PWA_CLEAR_RELOAD_GUARD,'1');}catch{}}
 const numberFormatters = new Map();
 const forecastViewCache = new WeakMap();
 const seriesIndexCache = new WeakMap();
@@ -109,7 +113,9 @@ init();
 
 function init() {
   applyTheme();
-  if ('serviceWorker' in navigator) {
+  const skipPwaRegistration=consumePwaClearReloadGuard();
+  if(skipPwaRegistration)pwaPostClearCleanup=clearPwaRuntime();
+  if (!skipPwaRegistration && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(err => console.warn('Service worker:', err));
   }
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(state.route.name==='about')render();});
@@ -993,7 +999,7 @@ function localDataCategoryCard(icon,title,description,bytes,entries,itemsLabel='
 }
 async function refreshLocalDataStats(){
   if(state.localDataLoading)return;state.localDataLoading=true;state.localDataError=null;if(state.route.name==='data')render();
-  try{state.localDataStats=await inspectLocalData(state.cities);}catch(err){state.localDataError=err?.message||String(err);}
+  try{await pwaPostClearCleanup;state.localDataStats=await inspectLocalData(state.cities);}catch(err){state.localDataError=err?.message||String(err);}
   finally{state.localDataLoading=false;if(state.route.name==='data')render();}
 }
 
@@ -1265,7 +1271,7 @@ function handleAction(e){
   else if(action==='repair-integrity'){if(confirm(i18n().t('integrityRepairConfirm')))void runIntegrityCheck(true);}
   else if(action==='export-backup'){void exportLocalBackupFile();}
   else if(action==='import-backup'){document.getElementById('backup-file-input')?.click();}
-  else if(action==='clear-data'){if(confirm(i18n().t('clearDataConfirm'))){cityRefreshTokens.clear();biasRefreshTokens.clear();normalsRefreshTokens.clear();state.loading.clear();state.biasRefresh.clear();clearAllData().finally(()=>location.reload());}}
+  else if(action==='clear-data'){if(confirm(i18n().t('clearDataConfirm'))){cityRefreshTokens.clear();biasRefreshTokens.clear();normalsRefreshTokens.clear();state.loading.clear();state.biasRefresh.clear();armPwaClearReloadGuard();clearAllData({includePwa:true}).finally(()=>location.reload());}}
 }
 
 function persistSettings(){saveSettings(state.settings);applyTheme();}

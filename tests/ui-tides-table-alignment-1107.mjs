@@ -6,8 +6,8 @@ const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
-assert.equal(version,'1.10.7');
-assert.match(sw,/const CACHE_VERSION = 'v37-tides-table-alignment'/);
+assert.equal(version,'1.10.8');
+assert.match(sw,/const CACHE_VERSION = 'v38-full-local-clear'/);
 assert.ok(app.includes('const w=960,h=360,pad={l:58,r:26,t:30,b:50}'),'tide SVG uses the expanded 8:3 plotting canvas');
 assert.ok(css.includes('.marine-tide-layout {\n  grid-template-columns: minmax(0,1fr);'),'tide chart occupies the full workspace width');
 assert.ok(css.includes('aspect-ratio: 8 / 3;'),'tide chart gets a stable full-width/full-height ratio');
@@ -21,4 +21,4 @@ assert.ok(css.includes('grid-template-rows: 1.9rem 2.05rem 2.65rem 1.45rem 1.95r
 assert.ok(css.includes('-webkit-line-clamp: 2;'),'long model names/metadata cannot push lower slots down');
 assert.ok(css.includes('-webkit-line-clamp: 3;'),'long run/horizon coverage cannot push bias pills down');
 
-console.log('MeteoCompare Web 1.10.7 tide + table alignment regression: OK');
+console.log('MeteoCompare Web 1.10.8 tide + table alignment regression: OK');
