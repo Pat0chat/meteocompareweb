@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.10.11] - 2026-08-19
+
+### Changed
+- Harmonized visible copy across the complete web UI in French, English, Spanish, German and Italian.
+- Standardized terminology around model convergence and local historical reliability.
+- Shortened help, diagnostics, privacy, API, PWA, marine and reliability copy without removing material information.
+- Removed redundant internal section eyebrows and localized the remaining hard-coded API limit label.
+- Added shared typography/alignment rules so cards, controls, actions and tables keep stable text axes across languages.
+- Follow-up typography audit on the same `1.10.11` version: compact UI text now uses a canonical scale with a 0.70rem readability floor; chart labels are normalized to 10/10.5px.
+- Removed legacy micro-sizes down to 0.52rem and consolidated more than 70 historical font-size values into a short role-based scale without changing weather logic.
+- No weather-data pipeline or Consensus v2 calculation changed.
+- `APP_VERSION` is now `1.10.11`; PWA shell cache is `v41-copy-polish`.
+
 ## [1.10.10] - 2026-08-19
 
 ### Clarity

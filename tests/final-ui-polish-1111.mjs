@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const root=new URL('../',import.meta.url);
+const app=fs.readFileSync(new URL('js/app.js',root),'utf8');
+const css=fs.readFileSync(new URL('styles.css',root),'utf8');
+const version=fs.readFileSync(new URL('VERSION',root),'utf8').trim();
+const versionJs=fs.readFileSync(new URL('js/version.js',root),'utf8');
+assert.equal(version,'1.10.11','final polish must remain on 1.10.11');
+assert.match(versionJs,/APP_VERSION = '1\.10\.11'/);
+assert.match(app,/class="summary-solar-pair"/,'TodaySummary must group solar chips');
+assert.match(app,/class="summary-solar-chip"/,'TodaySummary solar chips must use dedicated geometry');
+assert.match(css,/\.summary-context-chips > \.summary-solar-pair\s*\{/,'solar pair layout rule missing');
+assert.match(css,/flex:\s*0 0 auto/,'solar pair must wrap as a single unit');
+assert.match(css,/min-height:\s*26px/,'shared badge baseline missing');
+assert.match(css,/final visual consistency pass/,'final design polish layer missing');
+console.log('MeteoCompare Web final UI polish 1.10.11: OK');

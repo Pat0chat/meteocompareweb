@@ -2389,3 +2389,98 @@ html[data-theme="dark"] {
   /* Do not shrink explanatory copy below the desktop readability floor on mobile. */
   :where(.section-head p,.settings-section>p,.setting-control p,.about-reading-grid p,.about-install-grid p,.privacy-grid p) { font-size: var(--type-body-compact); }
 }
+
+/* v1.10.11 — final visual consistency pass (same app version) */
+/* TodaySummary: sunrise and sunset are one visual unit and can only wrap together. */
+.summary-context-chips {
+  align-items: center;
+  row-gap: 7px;
+}
+.summary-context-chips > span:not(.summary-solar-pair),
+.summary-solar-chip {
+  box-sizing: border-box;
+  min-height: 26px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.summary-context-chips > .summary-solar-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.summary-solar-pair > .summary-solar-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--type-micro);
+  font-weight: 600;
+}
+
+/* Shared component geometry: equal control and badge baselines across views. */
+:where(.btn,.nav-btn,.seg-btn,.chip,.icon-btn) {
+  box-sizing: border-box;
+}
+:where(.btn,.nav-btn) { min-height: 36px; }
+.icon-btn { min-width: 36px; min-height: 36px; display: inline-grid; place-items: center; }
+:where(.pill,.status-pill,.hero-meta span,.about-hero-badges span,.about-mini-badge,.about-version,.tide-range,.marine-trend-pill) {
+  box-sizing: border-box;
+  min-height: 26px;
+  line-height: 1.2;
+  align-items: center;
+}
+
+/* Final vertical rhythm: panels, headers and explanatory text use the same cadence. */
+:where(.section-card,.settings-section,.summary-card,.sidebar-card,.bias-panel,.marine-surface,.storage-kpi) {
+  border-color: var(--border);
+}
+:where(.section-card,.settings-section,.bias-panel,.marine-surface) > :first-child { margin-top: 0; }
+:where(.section-card,.settings-section,.bias-panel,.marine-surface) > :last-child { margin-bottom: 0; }
+:where(.section-head,.settings-section-head,.about-section-head,.bias-panel-head,.marine-surface-head) {
+  min-height: 0;
+}
+:where(.section-head,.settings-section-head,.about-section-head,.bias-panel-head,.marine-surface-head) p {
+  margin-bottom: 0;
+}
+.section { margin-top: 20px; }
+
+/* Cards: consistent content axes and restrained interaction without visual jumping. */
+:where(.city-card,.storage-category-card,.privacy-grid article,.about-method-flow article,.about-reading-grid article,.about-install-grid article,.reliability-column,.scenario) {
+  transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+:where(.storage-category-card,.privacy-grid article,.about-method-flow article,.about-reading-grid article,.about-install-grid article) {
+  align-content: start;
+}
+
+/* Tables and dense data views: common row rhythm and numerical baseline. */
+:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) th,
+:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) td {
+  line-height: 1.35;
+}
+:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) tbody tr:last-child > * {
+  border-bottom: 0;
+}
+:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) td:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keep section actions visually attached to their heading on wide screens. */
+@media (min-width: 761px) {
+  :where(.section-actions,.page-actions,.page-header-actions) { flex: 0 0 auto; }
+  .summary-header { align-items: center; }
+  .summary-now > div:last-child { min-width: 0; }
+}
+
+@media (max-width: 520px) {
+  .summary-context-chips > .summary-solar-pair { gap: 4px; max-width: 100%; }
+  .summary-solar-pair > .summary-solar-chip { padding-inline: 6px; }
+}
