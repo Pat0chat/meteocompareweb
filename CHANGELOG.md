@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.10.10] - 2026-08-19
+
+### Clarity
+- Regroupe Paramètres en quatre blocs logiques et raccourcit les explications dans les cinq langues.
+- Simplifie Données locales : trois KPI principaux, trois groupes de données et une zone avancée repliable pour les diagnostics techniques.
+- Réduit la section confidentialité visible tout en conservant les informations analytics/CNIL sous un détail repliable.
+- Recompose À propos autour de la méthode, de la convergence, de la fiabilité historique, des valeurs brutes, des sources/limites et de l’installation.
+- Ajoute un test de régression dédié à la clarté et à la complétude i18n.
+- Aucun changement du moteur météo Consensus v2.
+- `APP_VERSION` passe à `1.10.10` et le cache PWA à `v40-clarity-pages`.
+
 ## [1.10.9] - 2026-08-19
 
 ### Consensus v2
