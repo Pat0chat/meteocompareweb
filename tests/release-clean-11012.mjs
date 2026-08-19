@@ -14,10 +14,10 @@ const css=read('styles.css');
 assert.equal(version,'1.10.12');
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.match(sw,/CACHE_VERSION = 'v42-release-clean'/);
+assert.match(sw,/CACHE_VERSION = 'v43-marine-polish'/);
 
 // Settings must use intrinsic flow: no fake spacer tracks or auto-pushed actions.
-assert.match(css,/\.settings-control-grid\{[^}]*grid-template-columns:repeat\(auto-fit,minmax\(260px,360px\)\)[^}]*align-items:start[^}]*justify-content:start/);
+assert.match(css,/\.settings-control-grid\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)[^}]*align-items:start[^}]*width:100%/);
 assert.match(css,/\.setting-control\{[\s\S]*display:grid;[\s\S]*gap:10px;[\s\S]*align-content:start;/);
 assert.doesNotMatch(css,/\.setting-control[^}]*height:\s*100%/);
 assert.doesNotMatch(css,/\.setting-control\s*>\s*\.option-row[^}]*margin-top:\s*auto/);

@@ -1975,9 +1975,6 @@ html[data-theme="dark"] {
 .marine-surface .tide-range { align-self:center; flex:0 0 auto; border:1px solid color-mix(in srgb,var(--primary) 20%,var(--border)); background:color-mix(in srgb,var(--primary) 7%,var(--surface)); font-size:.74rem; }
 .marine-chart-integrated { margin:0; padding:8px 10px 2px; }
 .marine-chart-integrated .marine-chart { border:0; border-radius:0; background:transparent; min-height:0; }
-.marine-chart-caption { display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:2px 4px 0; }
-.marine-chart-caption span { color:var(--text); font-size:.7rem; font-weight:730; }
-.marine-chart-caption small { color:var(--subtle); font-size:.7rem; }
 .marine-outlook { border-top:1px solid color-mix(in srgb,var(--border) 76%,transparent); }
 .marine-outlook-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:12px 15px 10px; }
 .marine-outlook-head strong { font-size:.8rem; }
@@ -2006,6 +2003,10 @@ html[data-theme="dark"] {
 .marine-tide-facts { display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid color-mix(in srgb,var(--border) 66%,transparent); }
 .marine-tide-facts > div { min-width:0; padding:12px 13px; }
 .marine-tide-facts > div + div { border-left:1px solid color-mix(in srgb,var(--border) 66%,transparent); }
+.marine-tide-facts.single { grid-template-columns:1fr; }
+.marine-tide-facts.single > div { padding:12px 14px; }
+.marine-next-tides-block { min-width:0; }
+.marine-next-tides-head { padding:10px 13px 6px; color:var(--muted); font-size:.7rem; font-weight:760; text-transform:uppercase; letter-spacing:.045em; }
 .marine-tide-facts span { display:block; color:var(--muted); font-size:.7rem; font-weight:720; }
 .marine-tide-facts strong { display:block; margin-top:4px; font-size:.76rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .marine-tide-facts small { display:block; margin-top:3px; color:var(--subtle); font-size:.7rem; line-height:1.35; }
@@ -2161,8 +2162,8 @@ html[data-theme="dark"] {
 .settings-page-header .page-header-copy p,.storage-page-header .page-header-copy p{max-width:720px}
 .settings-list-simple{grid-template-columns:1fr;gap:14px}
 .settings-list-simple .settings-section{padding:18px 20px}
-.settings-control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,360px));gap:12px;margin-top:14px;align-items:start;justify-content:start}
-.settings-control-grid-two{grid-template-columns:repeat(auto-fit,minmax(300px,420px))}
+.settings-control-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px;align-items:start;width:100%}
+.settings-control-grid-two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .setting-control{
   min-width:0;
   padding:14px;
@@ -2645,3 +2646,18 @@ html[data-theme="dark"] {
 .model-row-head { justify-content: flex-start; }
 .model-row-head .model-title { flex: 0 1 auto; max-width: calc(100% - 52px); }
 .model-row-head .switch { margin-left: 2px; }
+
+
+/* v1.10.12 — final marine/readability polish (version unchanged) */
+.marine-chart-integrated { padding:10px 12px 5px; }
+.marine-chart-integrated .wave-chart { aspect-ratio:4 / 1; }
+.marine-chart-integrated .tide-chart { aspect-ratio:8 / 3; }
+.marine-axis.secondary { font-weight:650; }
+.marine-tide-facts.single { border-bottom:1px solid color-mix(in srgb,var(--border) 66%,transparent); }
+.settings-control-grid > .setting-control { width:100%; min-height: 150px; }
+@media(max-width:980px){
+  .settings-control-grid:not(.settings-control-grid-two){grid-template-columns:1fr;}
+}
+@media(max-width:760px){
+  .settings-control-grid,.settings-control-grid-two{grid-template-columns:1fr;}
+}

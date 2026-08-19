@@ -28,3 +28,4 @@ Object.assign(catalog,{"apiLocalLimit":"lokal max. {limit}","day1BiasUnavailable
 Object.assign(catalog,{"analyseAt":"{time} analysieren · Konvergenz {percent}%","methodRain":"Regen: P(Regen) und Menge bei Regen werden getrennt berechnet; die Konvergenz kombiniert Trocken/Regen-Signal und Mengenstreuung."});
 
 Object.assign(catalog,{"maxProbabilityTitle":"Höchste stündliche Regenwahrscheinlichkeit an diesem Tag.","rainExpectedAmountTitle":"P(Regen) × Medianmenge bei Regen. Ein zusammenfassender Indikator, keine garantierte Niederschlagsmenge.","rainIfWetAmountShort":"{amount} mm bei Regen","rainAmountUnavailable":"Menge nicht verfügbar","dailyRainProbabilityLegend":"Unter der Tagesmenge: höchste stündliche Regenwahrscheinlichkeit des Tages."});
+Object.assign(catalog,{"marineUpcomingTides":'Nächste Gezeiten'});

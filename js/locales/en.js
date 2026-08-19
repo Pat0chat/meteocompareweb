@@ -28,3 +28,4 @@ Object.assign(catalog,{"apiLocalLimit":"{limit} local max","day1BiasUnavailableH
 Object.assign(catalog,{"analyseAt":"Analyse {time} · convergence {percent}%","methodRain":"Rain: P(rain) and amount if raining are computed separately; convergence combines the dry/wet signal with amount spread."});
 
 Object.assign(catalog,{"maxProbabilityTitle":"Highest hourly rain probability during this day.","rainExpectedAmountTitle":"P(rain) × median amount if wet. A summary indicator, not a guaranteed rainfall total.","rainIfWetAmountShort":"{amount} mm if wet","rainAmountUnavailable":"amount unavailable","dailyRainProbabilityLegend":"Below the daily total: highest hourly rain probability during the day."});
+Object.assign(catalog,{"marineUpcomingTides":'Upcoming tides'});

@@ -6,11 +6,13 @@
 - Removed unused runtime imports/exports and stale helpers with no consumers.
 - Removed the remaining JS/CSS machinery for the already-merged `city-context-bar` and simplified sticky offsets to the measured topbar only.
 - Rebuilt Settings controls around intrinsic content flow: no forced card height, no paragraph spacer tracks and no `margin-top:auto` action placement.
-- Capped Settings control widths so actions remain close to their labels while mobile cards still use the full width.
+- Rebuilt Settings control layout so controls on the same row share the full grid width while actions stay close to their labels.
 - Removed contradictory/duplicate CSS rules accumulated by previous UI passes and added `.gitignore` entries for generated output.
 - Converted legacy version-frozen regression checks into feature guards and added a dedicated release-clean audit.
+- Final same-version marine polish: removed duplicated chart captions/range/extremum information, enriched wave and tide axes with denser metric/time/date ticks, and clarified the upcoming-tides block.
+- Settings controls now use equal fractional columns and fully occupy each grid row.
 - No weather-data pipeline or Consensus v2 calculation changed.
-- `APP_VERSION` is now `1.10.12`; PWA shell cache is `v42-release-clean`.
+- `APP_VERSION` remains `1.10.12`; final PWA shell cache is `v43-marine-polish`.
 
 ## [1.10.11] - 2026-08-19
 

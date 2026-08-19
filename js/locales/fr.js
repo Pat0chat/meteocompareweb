@@ -28,3 +28,4 @@ Object.assign(catalog,{"apiLocalLimit":"{limit} max local","day1BiasUnavailableH
 Object.assign(catalog,{"analyseAt":"Analyser {time} · convergence {percent}%","methodRain":"Pluie : P(pluie) et quantité si pluie sont calculées séparément ; la convergence combine signal sec/pluvieux et dispersion des quantités."});
 
 Object.assign(catalog,{"maxProbabilityTitle":"Probabilité de pluie la plus élevée parmi les heures de cette journée.","rainExpectedAmountTitle":"P(pluie) × quantité médiane si pluie. Indicateur de synthèse, pas un cumul garanti.","rainIfWetAmountShort":"{amount} mm si pluie","rainAmountUnavailable":"quantité indisponible","dailyRainProbabilityLegend":"Sous le cumul : pic de probabilité horaire de pluie sur la journée."});
+Object.assign(catalog,{"marineUpcomingTides":'Prochaines marées'});
