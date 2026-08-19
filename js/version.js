@@ -1,4 +1,3 @@
-export const APP_VERSION = '1.10.11';
-export const RELEASE_CHANNEL = 'stable';
+export const APP_VERSION = '1.10.12';
 export const DATA_SCHEMA_VERSION = 3;
 export const BACKUP_FORMAT_VERSION = 1;

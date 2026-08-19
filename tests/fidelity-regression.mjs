@@ -38,8 +38,8 @@ localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify({theme:'LIGHT
 
 const listeners={};
 let routeLandmarkFocuses=0;const routeLandmark={hasAttribute(){return false},getAttribute(){return null},setAttribute(){},removeAttribute(){},focus(options){assert.equal(options?.preventScroll,true,'route landmark focus must never scroll the page');routeLandmarkFocuses++;}};
-const stickyTopbar={getBoundingClientRect(){return {height:72}}},stickyContext={getBoundingClientRect(){return {height:58}}};
-const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},querySelector(sel){if(sel==='.topbar')return stickyTopbar;if(sel==='.city-context-bar')return stickyContext;return routeLandmark},set innerHTML(v){this._html=v},get innerHTML(){return this._html}};
+const stickyTopbar={getBoundingClientRect(){return {height:72}}};
+const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},querySelector(sel){if(sel==='.topbar')return stickyTopbar;return routeLandmark},set innerHTML(v){this._html=v},get innerHTML(){return this._html}};
 let sectionLookup=new Map(),selectorLookup=new Map();
 const cssVars=new Map();const rootStyle={scrollBehavior:'',setProperty(prop,value){cssVars.set(prop,value)},removeProperty(prop){if(prop==='scroll-behavior')this.scrollBehavior='';cssVars.delete(prop)}};
 globalThis.document={activeElement:null,documentElement:{dataset:{},lang:'',scrollTop:0,style:rootStyle},body:{scrollTop:0,classList:{toggle(){}}},querySelector(sel){if(sel==='#app')return app;if(sel==='#toast-root')return {appendChild(){}};return selectorLookup.get(sel)||null},getElementById(id){return sectionLookup.get(id)||null},createElement(){return {className:'',textContent:'',remove(){}}},addEventListener(){}};
@@ -83,7 +83,6 @@ assert.match(html,/class="heatmap-data-cell"[^>]*style="--heat:/,'Table cells mu
 assert.match(html,/class="detail-workspace"/,'Desktop detail view must use a workspace layout');
 assert.match(html,/class="detail-sidebar"/,'Desktop detail view must expose a navigation rail');
 assert.equal(cssVars.get('--topbar-height'),'72px','sticky layout must measure the real topbar height');
-assert.equal(cssVars.get('--city-context-height'),'58px','sticky layout must reserve the real context-bar height so overview is never covered');
 
 assert.match(html,/4 modèles/,'model counts must be explicit rather than bare numbers');
 assert.match(html,/data-bias-model="GFS"[^>]*data-bias-variable="TEMPERATURE"/,'temperature bias must be clickable from the GFS model header');

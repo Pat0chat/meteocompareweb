@@ -6,10 +6,10 @@ const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim
 const versionJs=fs.readFileSync(new URL('../js/version.js',import.meta.url),'utf8');
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
-assert.equal(version,'1.10.11','typography pass must stay on 1.10.11');
-assert.match(versionJs,/APP_VERSION = '1\.10\.11'/);
-assert.match(sw,/APP_VERSION = '1\.10\.11'/);
-assert.match(sw,/CACHE_VERSION = 'v41-copy-polish'/,'typography-only pass keeps the 1.10.11 shell revision');
+assert.ok(/^1\.10\.(?:1[1-9]|[2-9]\d+)$/.test(version),`unexpected release version ${version}`);
+assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
+assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.match(sw,/CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 assert.match(css,/v1\.10\.11 — typography audit/);
 assert.match(css,/--type-micro:\s*\.7rem/);
 assert.match(css,/--type-section:\s*1\.08rem/);

@@ -87,11 +87,13 @@ for(const lang of ['fr','en','es','de','it']){
   assert.match(sw,new RegExp(`manifest\\.${lang}\\.webmanifest`),`service worker must cache ${lang} manifest`);
 }
 
-// 6. Sticky geometry derives from actual topbar + context heights instead of competing fixed offsets.
+// 6. Sticky geometry derives from the measured topbar; the removed context bar must leave no dead offset.
 assert.match(app,/function syncStickyOffsets\(\)/,'sticky offset synchronizer must exist');
-assert.match(app,/ResizeObserver\(update\)/,'sticky offsets must react when long translations wrap the context bar');
-assert.match(css,/top: calc\(var\(--topbar-height\) \+ var\(--city-context-height\) \+ var\(--sticky-context-gap\)\) !important/,'overview navigation must sit below both sticky bars');
-assert.match(css,/scroll-margin-top: calc\(var\(--topbar-height\) \+ var\(--city-context-height\) \+ 24px\)/,'section anchors must account for both sticky bars');
+assert.match(app,/stickyResizeObserver=new ResizeObserver\(update\)/,'sticky offsets must react when the topbar wraps');
+assert.doesNotMatch(app,/querySelector\?\.\('\.city-context-bar'\)/,'removed city context bar must not be measured');
+assert.doesNotMatch(css,/--city-context-height/,'removed city context bar must leave no CSS offset variable');
+assert.match(css,/top: calc\(var\(--topbar-height\) \+ var\(--sticky-context-gap\)\) !important/,'overview navigation must sit below the measured topbar');
+assert.match(css,/scroll-margin-top: calc\(var\(--topbar-height\) \+ 24px\)/,'section anchors must account for the measured topbar');
 
 // 7. Hourly agreement never starts on already elapsed hours.
 const anchor=roundedHourLocal('UTC');

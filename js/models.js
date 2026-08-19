@@ -23,7 +23,6 @@ export const WEATHER_MODELS = [
 ];
 
 export const DEFAULT_MODEL_IDS = ['AROME_FRANCE_HD','ARPEGE_EUROPE','ICON_EU','GFS','ECMWF','UKMO_GLOBAL','ECMWF_AIFS'];
-export const COVERAGE_LABELS = { FRANCE:'France', EUROPE:'Europe', UNITED_STATES:'États-Unis', GLOBAL:'Monde' };
 export const REFRESH_INTERVALS = [
   { id:'MINUTES_15', minutes:15, label:'15 min' },
   { id:'MINUTES_30', minutes:30, label:'30 min' },

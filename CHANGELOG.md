@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.12] - 2026-08-19
+
+### Release clean
+- Removed unused runtime imports/exports and stale helpers with no consumers.
+- Removed the remaining JS/CSS machinery for the already-merged `city-context-bar` and simplified sticky offsets to the measured topbar only.
+- Rebuilt Settings controls around intrinsic content flow: no forced card height, no paragraph spacer tracks and no `margin-top:auto` action placement.
+- Capped Settings control widths so actions remain close to their labels while mobile cards still use the full width.
+- Removed contradictory/duplicate CSS rules accumulated by previous UI passes and added `.gitignore` entries for generated output.
+- Converted legacy version-frozen regression checks into feature guards and added a dedicated release-clean audit.
+- No weather-data pipeline or Consensus v2 calculation changed.
+- `APP_VERSION` is now `1.10.12`; PWA shell cache is `v42-release-clean`.
+
 ## [1.10.11] - 2026-08-19
 
 ### Changed

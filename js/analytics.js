@@ -89,4 +89,3 @@ export const analyticsStatus=()=>client.status();
 export const trackPageView=route=>client.pageview(route);
 export const trackAnalyticsEvent=(name,route)=>client.event(name,route);
 export const setAnalyticsOptOut=disabled=>client.setOptOut(disabled);
-export const analyticsOptOutKey=OPT_OUT_KEY;

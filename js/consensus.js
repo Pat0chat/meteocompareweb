@@ -36,11 +36,6 @@ export function familyBalancedEntries(entries,localWeights={}){
   return {entries:rows.map(x=>({...x,weight:balanced.weights[x.modelId]||0})).filter(x=>x.weight>0),familyCount:balanced.familyCount,modelCount:balanced.modelCount};
 }
 
-export function weightedMean(entries){
-  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0);
-  const total=rows.reduce((s,x)=>s+x.weight,0);return total>0?rows.reduce((s,x)=>s+x.value*x.weight,0)/total:null;
-}
-
 export function weightedMedian(entries){
   const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0).sort((a,b)=>a.value-b.value);
   if(!rows.length)return null;

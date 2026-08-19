@@ -31,7 +31,7 @@ for(const lang of langs){
 
 assert.match(css,/global copy rhythm, alignment and positioning/);
 assert.match(css,/\.storage-category-main \{[^}]*grid-template-rows:/s);
-assert.match(css,/\.setting-control \{[^}]*display: flex/s);
+assert.match(css,/\.setting-control\{[\s\S]*display:grid;/,'settings controls should use intrinsic grid flow');
 assert.match(css,/\.privacy-grid article \{[^}]*display:grid/s);
 assert.match(css,/:where\(\.forecast-table,\.diagnostic-table,\.health-table\) tbody td \{ text-align:center;/);
 

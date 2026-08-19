@@ -1297,17 +1297,7 @@ body, html[data-theme="dark"] body { background-image: none; }
   .history-refresh-action { width: 100%; }
 }
 
-/* v13 — analysis workspace: sticky tables, comparison, shareable state, freshness and compact density */
-.city-context-bar {
-  position: sticky; top: 68px; z-index: 22;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin: 10px 0 18px; padding: 9px 12px;
-  border: 1px solid var(--border); border-radius: 10px;
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: 0 8px 24px rgba(15,23,42,.06); backdrop-filter: blur(14px);
-}
-.context-primary,.context-actions { display:flex; align-items:center; gap:10px; min-width:0; flex-wrap:wrap; }
-.context-primary > span { color: var(--muted); font-size:.74rem; }
+/* Analysis workspace: sticky tables, comparison, shareable state, freshness and compact density. */
 .data-health { display:inline-flex; align-items:center; gap:6px; font-weight:700; }
 .data-health i { width:7px; height:7px; border-radius:50%; background:currentColor; box-shadow:0 0 0 3px color-mix(in srgb,currentColor 12%,transparent); }
 .data-health.live,.cache-inline.live { color:var(--good); }
@@ -1406,9 +1396,6 @@ html[data-density="compact"] .summary-tile { padding:12px; }
 html[data-density="compact"] .detail-workspace { gap:14px; }
 
 @media (max-width: 980px) {
-  .city-context-bar { position:relative; top:auto; align-items:flex-start; flex-direction:column; }
-  .context-actions { width:100%; }
-  .context-actions .btn { flex:1 1 auto; }
   .city-compare-grid { grid-template-columns:1fr; }
   .disagreement-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
@@ -1422,25 +1409,20 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
 .topbar-system-status.stale .system-led { background:var(--low); box-shadow:0 0 0 3px color-mix(in srgb,var(--low) 11%,transparent); }
 .model-header-stack { grid-template-rows:auto auto auto auto; }
 
-/* Shared sticky geometry: the city context bar and forecast navigation never overlap. */
+/* Shared sticky geometry: the forecast navigation follows the measured topbar height. */
 :root {
   --topbar-height: 66px;
-  --city-context-height: 0px;
   --sticky-context-gap: 10px;
 }
-.city-context-bar {
-  top: calc(var(--topbar-height) + 2px) !important;
-}
 .detail-sidebar {
-  top: calc(var(--topbar-height) + var(--city-context-height) + var(--sticky-context-gap)) !important;
-  max-height: calc(100vh - var(--topbar-height) - var(--city-context-height) - 22px);
+  top: calc(var(--topbar-height) + var(--sticky-context-gap)) !important;
+  max-height: calc(100vh - var(--topbar-height) - 22px);
   overflow:auto;
 }
 .detail-workspace section[id] {
-  scroll-margin-top: calc(var(--topbar-height) + var(--city-context-height) + 24px) !important;
+  scroll-margin-top: calc(var(--topbar-height) + 24px) !important;
 }
 @media (max-width: 980px) {
-  .city-context-bar { top:auto !important; }
   .detail-sidebar { top:auto !important; max-height:none; overflow:visible; }
   .detail-workspace section[id] { scroll-margin-top: calc(var(--topbar-height) + 14px) !important; }
 }
@@ -2179,16 +2161,27 @@ html[data-theme="dark"] {
 .settings-page-header .page-header-copy p,.storage-page-header .page-header-copy p{max-width:720px}
 .settings-list-simple{grid-template-columns:1fr;gap:14px}
 .settings-list-simple .settings-section{padding:18px 20px}
-.settings-control-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
-.settings-control-grid-two{grid-template-columns:repeat(2,minmax(0,1fr))}
-.setting-control{min-width:0;padding:14px;border:1px solid var(--border);border-radius:11px;background:var(--surface-2)}
-.setting-control h3{margin:0 0 10px;font-size:.88rem}
-.setting-control p{margin:0 0 10px;color:var(--muted);font-size:.74rem;line-height:1.45}
-.setting-control small{display:block;margin-top:9px;color:var(--muted);font-size:.7rem;line-height:1.4}
+.settings-control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,360px));gap:12px;margin-top:14px;align-items:start;justify-content:start}
+.settings-control-grid-two{grid-template-columns:repeat(auto-fit,minmax(300px,420px))}
+.setting-control{
+  min-width:0;
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--surface-2);
+  display:grid;
+  gap:10px;
+  align-content:start;
+}
+.setting-control h3{margin:0;font-size:.88rem;line-height:1.25}
+.setting-control p{margin:0;color:var(--muted);font-size:.74rem;line-height:1.45}
+.setting-control small{display:block;margin:0;color:var(--muted);font-size:.7rem;line-height:1.4}
+.setting-control>.option-row{margin:0;align-self:start;align-items:center}
+.setting-control>.option-row .chip{min-height:34px}
 .settings-list-simple .history-refresh-note{margin-bottom:0}
 
 .storage-kpis-simple{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:0}
-.storage-category-grid-simple{grid-template-columns:repeat(4,minmax(0,1fr))}
+.storage-category-grid-simple{grid-template-columns:repeat(3,minmax(0,1fr))}
 .storage-category-grid-simple .storage-category-card p{min-height:2.1em}
 .storage-advanced{padding:0;overflow:hidden}
 .storage-advanced>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;cursor:pointer}
@@ -2233,9 +2226,8 @@ html[data-theme="dark"] {
 .about-install-grid .btn{margin-top:auto}
 .about-install-grid .install-status{margin:0;width:100%}
 
-@media(max-width:1050px){.settings-control-grid{grid-template-columns:1fr 1fr}.storage-category-grid-simple{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:760px){.settings-control-grid,.settings-control-grid-two,.about-reading-grid,.about-install-grid{grid-template-columns:1fr}.storage-kpis-simple{grid-template-columns:1fr}.about-hero-simple{padding:20px}.storage-advanced>summary{align-items:flex-start}.storage-category-grid-simple{grid-template-columns:1fr}}
-.storage-category-grid-simple{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:1050px){.storage-category-grid-simple{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.settings-control-grid,.settings-control-grid-two,.about-reading-grid,.about-install-grid{grid-template-columns:1fr;justify-content:stretch}.storage-kpis-simple{grid-template-columns:1fr}.about-hero-simple{padding:20px}.storage-advanced>summary{align-items:flex-start}.storage-category-grid-simple{grid-template-columns:1fr}}
 @media(max-width:900px){.storage-category-grid-simple{grid-template-columns:1fr}}
 
 /* v1.10.11 — global copy rhythm, alignment and positioning */
@@ -2283,14 +2275,7 @@ html[data-theme="dark"] {
 .option-row,.segmented { align-items: stretch; }
 .option-row .chip,.segmented .seg-btn { display:inline-flex; align-items:center; justify-content:center; }
 
-/* Settings: equal vertical tracks within each row, regardless of language length. */
-.settings-control-grid { align-items: stretch; }
-.setting-control { height: 100%; display: flex; flex-direction: column; align-items: stretch; }
-.setting-control h3 { line-height: 1.25; }
-.setting-control > p { min-height: 3.05em; }
-.setting-control > .option-row { margin-top: auto; }
-.setting-control > small { min-height: 2.8em; }
-.settings-control-grid:not(.settings-control-grid-two) .setting-control > p:empty { display:none; }
+/* Settings controls use natural content height; no artificial spacer tracks. */
 .history-refresh-row { align-items: center; }
 .history-refresh-copy { align-content: center; }
 .model-row { min-height: 58px; }
@@ -2336,8 +2321,6 @@ html[data-theme="dark"] {
   .page-actions,.section-actions,.page-header-actions { width:100%; justify-content:flex-start; }
   .section-head { flex-direction:column; gap:10px; }
   .section-head .section-actions { width:100%; }
-  .settings-control-grid-two .setting-control > p { min-height:0; }
-  .setting-control > small { min-height:0; }
 }
 
 
@@ -2505,9 +2488,6 @@ html[data-theme="dark"] {
 .detail-hero-actions .btn { justify-content: center; white-space: nowrap; }
 .hero-meta .data-health { font-family: inherit; font-weight: 760; }
 .hero-meta .data-health i { flex: 0 0 auto; }
-/* The old context bar is no longer rendered; sticky offsets therefore resolve to zero. */
-:root { --city-context-height: 0px; }
-
 /* Timeline rain marker: give the dot breathing room above the following separator. */
 .timeline-precip-heat {
   height: 22px;
@@ -2550,6 +2530,12 @@ html[data-theme="dark"] {
   .detail-hero-actions { gap: 6px; }
 }
 
+
+/* v1.10.12 — release clean: Settings controls use intrinsic flow.
+   No min-height spacers or auto margins are allowed between labels and actions. */
+.setting-control > :where(h3,p,.option-row,small) { min-height: 0; }
+.setting-control > .option-row { justify-content: flex-start; }
+
 /* v1.10.11 — final interaction/layout consistency pass (version unchanged) */
 /* Timeline metrics share one strict geometry so rain/cloud/wind never drift vertically. */
 .timeline-metric {
@@ -2569,17 +2555,6 @@ html[data-theme="dark"] {
   text-overflow: ellipsis;
 }
 .timeline-metric > span { align-self: center; }
-
-/* Settings controls: actions share the same baseline, including cards with explanatory notes. */
-.setting-control > small {
-  min-height: 0;
-  margin: 0 0 10px;
-}
-.setting-control > .option-row {
-  margin-top: auto;
-  align-self: stretch;
-}
-.setting-control > .option-row .chip { min-height: 34px; }
 
 /* Model selection is a compact card grid; the switch stays beside the model name. */
 .model-settings-groups { display: grid; gap: 14px; margin-top: 14px; }

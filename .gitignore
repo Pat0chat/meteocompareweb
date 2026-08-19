@@ -1,0 +1,9 @@
+# Generated deployment/release output
+dist/
+_site/
+release/
+
+# Local/transient files
+*.log
+.DS_Store
+Thumbs.db

@@ -183,7 +183,6 @@ export function loadBias(cityId) { return readLocalRecord(BIAS_PREFIX+cityId,'bi
 export function saveBias(cityId, data) { writeLocalRecord(BIAS_PREFIX+cityId,'bias',data); }
 export function loadMarine(cityId) { return readLocalRecord(MARINE_PREFIX+cityId,'marine',null); }
 export function saveMarine(cityId, data) { writeLocalRecord(MARINE_PREFIX+cityId,'marine',data); }
-export function deleteMarine(cityId) { safeRemove(MARINE_PREFIX+cityId); }
 export function loadModelHealth(cityId) { const v=readLocalRecord(HEALTH_PREFIX+cityId,'health',[]); return Array.isArray(v)?v:[]; }
 export function saveModelHealth(cityId, entries) { writeLocalRecord(HEALTH_PREFIX+cityId,'health',entries); }
 

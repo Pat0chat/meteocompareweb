@@ -65,7 +65,6 @@ export function makeI18n(pref) {
   return {lang,locale,t};
 }
 
-export function loadedLanguages(){return [...catalogs.keys()];}
 export async function preloadLanguages(langs=SUPPORTED){await Promise.all(langs.map(importCatalog));if(!activeLang&&langs.length)activeLang=langs[0];}
 export function hasTranslation(pref,key){const lang=languageCode(pref),dict=catalogs.get(lang);return typeof dict?.[key]==='string'&&Boolean(dict[key].trim());}
 export function webTranslationAudit(){

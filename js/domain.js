@@ -1,5 +1,5 @@
-import { CONDITION, CONDITION_INFO, getModel, consensusGroupFor } from './models.js';
-import { continuousConsensus, precipitationConsensus, weightedMedian as consensusWeightedMedian, weightedVote, familyBalancedEntries, familyBalancedWeights, weightedStats as consensusWeightedStats } from './consensus.js';
+import { CONDITION, CONDITION_INFO, consensusGroupFor } from './models.js';
+import { continuousConsensus, precipitationConsensus, weightedVote, familyBalancedWeights } from './consensus.js';
 
 const zonedFormatters = new Map();
 const timezoneValidity = new Map();
@@ -52,9 +52,6 @@ export function zonedParts(date, timezone) {
 export function cityToday(timezone, date=new Date()) {
   const p=zonedParts(date,timezone); return `${p.year}-${p.month}-${p.day}`;
 }
-export function cityNowLocal(timezone, date=new Date()) {
-  const p=zonedParts(date,timezone); return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
-}
 export function safeTimezone(tz) {
   const candidate=tz||'UTC';
   if(timezoneValidity.has(candidate))return timezoneValidity.get(candidate);
@@ -78,12 +75,6 @@ export function zonedTimestampEpochs(timestamps,timezone){let previous=null;retu
 export function addDays(dateStr, days){ const d=new Date(`${dateStr}T12:00:00Z`); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
 export function daysBetween(a,b){ return Math.round((localEpoch(b)-localEpoch(a))/86400000); }
 
-export function nearestIndex(timestamps, targetLocal, maxMinutes=90) {
-  const target=localEpoch(targetLocal); if(!Number.isFinite(target)||!timestamps?.length)return null;
-  let best=-1,bestD=Infinity;
-  timestamps.forEach((ts,i)=>{const x=localEpoch(ts);if(Number.isFinite(x)){const d=Math.abs(x-target);if(d<bestD){bestD=d;best=i;}}});
-  return best>=0 && bestD <= maxMinutes*60000 ? best : null;
-}
 export function roundedHourLocal(timezone, now=new Date()) {
   const tz=safeTimezone(timezone),p=zonedParts(now,tz),wall=`${p.year}-${p.month}-${p.day}T${p.hour}:00`,wallNow=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second),offset=wallNow-now.getTime(),start=localTimestampValue(wall)-offset;
   if(!Number.isFinite(start))return wall;
@@ -147,10 +138,6 @@ export function dailyCondition(series,date){
   const cond=inferCondition(pCount?precip:null,minTemp,clouds.length?stats(clouds).mean:null);return cond?{condition:cond,inferred:true}:{condition:null,inferred:true};
 }
 
-export function dailyMatrix(forecast){
-  const today=cityToday(forecast.city.timezone); const dates=[...new Set(Object.values(forecast.seriesByModel||{}).flatMap(s=>s.daily.dates))].filter(d=>d>=today).sort();
-  return dates.map(date=>({date,models:Object.fromEntries(Object.entries(forecast.seriesByModel||{}).map(([modelId,s])=>{const x=dailyCondition(s,date);const i=s.daily.dates.indexOf(date);return [modelId,{...x,precipProbabilityMax:i>=0?s.daily.precipitationProbabilityMax[i]:null,cloudCoverMean:dailyCloudCoverMean(s,date)}];}))}));
-}
 
 export function hourlyConfidenceBand(forecast,metric='TEMPERATURE', horizonHours=168, now=new Date(), options={}){
   const timezone=forecast.city?.timezone||forecast.timezone||'UTC',series=Object.entries(forecast.seriesByModel||{}),axes=new Map(series.map(([,s])=>[s,hourlyAxis(s,timezone)])),anchor=roundedHourEpoch(timezone,now),weights=options?.weightsByVariable||{};
@@ -227,19 +214,7 @@ export function aggregateNormals(raw,startDate,endDate){
 }
 
 
-
-
-
-
-
-
-
-export function reliabilityRanking(biases,variable='TEMPERATURE'){
-  return Object.entries(biases).map(([modelId,v])=>({modelId,bias:v[variable]})).filter(x=>x.bias?.ready).sort((a,b)=>Math.abs(a.bias.meanBias)-Math.abs(b.bias.meanBias)||a.bias.stdDev-b.bias.stdDev);
-}
-
 export function windArrow(direction,speed){ if(!Number.isFinite(direction)||!Number.isFinite(speed)||speed<=5)return '';return {deg:(direction+180)%360,char:'↑'}; }
-export function formatWindDirection(direction){if(!Number.isFinite(direction))return '';const dirs=['N','NE','E','SE','S','SW','W','NW'];return dirs[Math.round(direction/45)%8];}
 
 export function dateLabel(date,locale='fr-FR',style='short'){const d=new Date(`${date}T12:00:00Z`),key=`${locale}|${style}`;let f=dateLabelFormatters.get(key);if(!f){f=new Intl.DateTimeFormat(locale,{...(style==='long'?{weekday:'long',day:'numeric',month:'long'}:{weekday:'short',day:'numeric',month:'short'}),timeZone:'UTC'});dateLabelFormatters.set(key,f);}return f.format(d);}
 export function timeLabel(localTs){return typeof localTs==='string'&&localTs.includes('T')?localTs.slice(11,16):'—';}
