@@ -27,7 +27,7 @@ assert.match(local,/storageAdvancedTitle/);
 assert.match(local,/storageConfigGroup/);
 assert.match(local,/storageWeatherGroup/);
 assert.match(local,/storageAnalysisGroup/);
-assert.match(local,/<details class="section-card storage-section storage-advanced">/);
+assert.match(local,/<details class="section-card storage-section storage-advanced"[^>]*>/);
 assert.match(local,/renderIntegritySection\(\)/);
 assert.match(local,/renderApiUsageSection\(\)/);
 assert.doesNotMatch(local,/class="eyebrow"|section-eyebrow/);

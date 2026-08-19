@@ -2549,3 +2549,124 @@ html[data-theme="dark"] {
   .professional-hero { align-items: start; }
   .detail-hero-actions { gap: 6px; }
 }
+
+/* v1.10.11 — final interaction/layout consistency pass (version unchanged) */
+/* Timeline metrics share one strict geometry so rain/cloud/wind never drift vertically. */
+.timeline-metric {
+  box-sizing: border-box;
+  height: 52px;
+  min-height: 52px;
+  grid-template-rows: 18px 18px;
+  align-content: center;
+  padding-block: 6px;
+}
+.timeline-metric strong,
+.timeline-metric small {
+  min-width: 0;
+  line-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.timeline-metric > span { align-self: center; }
+
+/* Settings controls: actions share the same baseline, including cards with explanatory notes. */
+.setting-control > small {
+  min-height: 0;
+  margin: 0 0 10px;
+}
+.setting-control > .option-row {
+  margin-top: auto;
+  align-self: stretch;
+}
+.setting-control > .option-row .chip { min-height: 34px; }
+
+/* Model selection is a compact card grid; the switch stays beside the model name. */
+.model-settings-groups { display: grid; gap: 14px; margin-top: 14px; }
+.model-settings-group { min-width: 0; }
+.model-settings-group .model-group-title { margin: 0 0 7px; }
+.model-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.model-settings-grid .model-row,
+.model-settings-grid .model-row:last-child {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  align-content: start;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.model-row-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.model-row-head .model-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.model-settings-grid .model-meta {
+  margin: 0;
+  padding-right: 2px;
+  line-height: 1.4;
+}
+.model-settings-grid .switch { flex: none; }
+
+/* Local-data interactive panels retain their geometry during async rerenders. */
+.local-data-page,
+.local-data-page .storage-advanced,
+.local-data-page .storage-advanced-body { overflow-anchor: none; }
+.local-data-page button,
+.local-data-page summary { scroll-margin-block: 110px; }
+
+/* About: badges and callouts use one visual language and one spacing rhythm. */
+.about-mini-badge {
+  flex: none;
+  min-height: 28px;
+  padding: 5px 10px;
+  gap: 7px;
+  border-color: color-mix(in srgb, var(--primary) 16%, var(--border));
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 760;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.about-mini-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.about-callout,
+.about-principle-card .about-callout,
+.about-reading .about-callout {
+  margin: 14px 0 0;
+  padding: 11px 12px;
+  border-left-width: 3px;
+  border-radius: 0 9px 9px 0;
+  line-height: 1.5;
+}
+.about-principle-card { justify-content: flex-start; }
+.about-section-head { align-items: flex-start; }
+
+@media(max-width:760px){
+  .model-settings-grid { grid-template-columns: 1fr; }
+  .timeline-metric { height: 52px; min-height: 52px; }
+}
+/* Keep model switches visually attached to their labels, not to the card edge. */
+.model-row-head { justify-content: flex-start; }
+.model-row-head .model-title { flex: 0 1 auto; max-width: calc(100% - 52px); }
+.model-row-head .switch { margin-left: 2px; }
