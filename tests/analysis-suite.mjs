@@ -45,7 +45,9 @@ assert.match(app,/cityComparisonMax3/,'city comparison must enforce the 3-city l
 // 8 — visible cache/offline age.
 assert.match(app,/function forecastHealth/,'cache health classification must exist');
 assert.match(app,/offlineOldCache/,'stale offline cache must be explicit through i18n');
-assert.match(app,/class="city-context-bar"/,'city context bar must expose data state');
+assert.match(app,/class="detail-hero-actions"/,'city hero must expose share and refresh actions');
+assert.match(app,/class="data-health \$\{health\.class\}"/,'merged city hero must expose forecast data state');
+assert.doesNotMatch(app,/class="city-context-bar"/,'redundant city context bar must no longer be rendered');
 
 // 9 — incremental bias-history reconstruction.
 assert.match(app,/function biasRefreshPlan/,'bias refresh cost must be planned before requesting archives');

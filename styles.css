@@ -2484,3 +2484,68 @@ html[data-theme="dark"] {
   .summary-context-chips > .summary-solar-pair { gap: 4px; max-width: 100%; }
   .summary-solar-pair > .summary-solar-chip { padding-inline: 6px; }
 }
+
+/* MeteoCompare 1.10.11 — final clarity & data-density polish (same app version) */
+/* City detail: title and former context bar are one single information surface. */
+.professional-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+}
+.professional-hero::after { display: none; }
+.detail-hero-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  min-width: 148px;
+}
+.detail-hero-actions .btn { justify-content: center; white-space: nowrap; }
+.hero-meta .data-health { font-family: inherit; font-weight: 760; }
+.hero-meta .data-health i { flex: 0 0 auto; }
+/* The old context bar is no longer rendered; sticky offsets therefore resolve to zero. */
+:root { --city-context-height: 0px; }
+
+/* Timeline rain marker: give the dot breathing room above the following separator. */
+.timeline-precip-heat {
+  height: 22px;
+  margin: 2px 0 5px;
+  align-items: center;
+}
+.timeline-rain-metric small {
+  color: color-mix(in srgb, var(--rain) 78%, var(--muted));
+  font-weight: 650;
+}
+
+/* Data tables: each table uses a stable body-row height. Content remains allowed to
+   expand only when accessibility/translation genuinely requires more space. */
+:where(.table-wrap table) tbody tr > * {
+  box-sizing: border-box;
+  height: 64px;
+  vertical-align: middle;
+}
+.forecast-table tbody tr > * { height: 78px; }
+:where(.diagnostic-table,.health-table,.storage-table) tbody tr > * { height: 64px; }
+.disagreement-table table tbody tr > * { height: 58px; }
+:where(.table-wrap table) tbody tr > * > :first-child { margin-top: 0; }
+:where(.table-wrap table) tbody tr > * > :last-child { margin-bottom: 0; }
+
+@media (max-width: 760px) {
+  .professional-hero {
+    grid-template-columns: auto minmax(0,1fr);
+    gap: 16px;
+  }
+  .detail-hero-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    min-width: 0;
+    width: 100%;
+  }
+  .detail-hero-actions .btn { flex: 1 1 0; }
+}
+@media (max-width: 520px) {
+  .professional-hero { align-items: start; }
+  .detail-hero-actions { gap: 6px; }
+}
