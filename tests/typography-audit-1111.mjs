@@ -1,0 +1,31 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+
+const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+const versionJs=fs.readFileSync(new URL('../js/version.js',import.meta.url),'utf8');
+const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
+
+assert.equal(version,'1.10.11','typography pass must stay on 1.10.11');
+assert.match(versionJs,/APP_VERSION = '1\.10\.11'/);
+assert.match(sw,/APP_VERSION = '1\.10\.11'/);
+assert.match(sw,/CACHE_VERSION = 'v41-copy-polish'/,'typography-only pass keeps the 1.10.11 shell revision');
+assert.match(css,/v1\.10\.11 — typography audit/);
+assert.match(css,/--type-micro:\s*\.7rem/);
+assert.match(css,/--type-section:\s*1\.08rem/);
+
+const canonical=new Set([0.70,0.74,0.76,0.80,0.84,0.88,0.92,0.96,1.00,1.08,1.20,1.30,1.40]);
+for(const match of css.matchAll(/font-size\s*:\s*([0-9]*\.?[0-9]+)rem/g)){
+  const value=Number(match[1]);
+  assert.ok(value>=0.70,`explicit UI font-size below readability floor: ${value}rem`);
+  if(value<=1.40) assert.ok(canonical.has(Number(value.toFixed(2))),`non-canonical compact font-size: ${value}rem`);
+}
+for(const match of css.matchAll(/font-size\s*:\s*([0-9]*\.?[0-9]+)px/g)){
+  const value=Number(match[1]);
+  assert.ok(value>=10,`chart/UI font-size below 10px: ${value}px`);
+}
+
+assert.match(css,/\.chart-axis,.compare-label,.bias-chart-axis,.chart-axis-unit \{ font-size: 10\.5px; \}/);
+assert.match(css,/\.chart-axis\.secondary,.evolution-track-label \{ font-size: 10px; \}/);
+
+console.log('MeteoCompare Web typography audit 1.10.11: OK');

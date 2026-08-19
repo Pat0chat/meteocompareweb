@@ -6,8 +6,8 @@ const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
 const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
-assert.equal(version,'1.10.10');
-assert.match(sw,/const CACHE_VERSION = 'v40-clarity-pages'/);
+assert.equal(version,'1.10.11');
+assert.match(sw,/const CACHE_VERSION = 'v41-copy-polish'/);
 assert.ok(app.includes('const w=960,h=360,pad={l:58,r:26,t:30,b:50}'),'tide SVG uses the expanded 8:3 plotting canvas');
 assert.ok(css.includes('.marine-tide-layout {\n  grid-template-columns: minmax(0,1fr);'),'tide chart occupies the full workspace width');
 assert.ok(css.includes('aspect-ratio: 8 / 3;'),'tide chart gets a stable full-width/full-height ratio');

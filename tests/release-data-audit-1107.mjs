@@ -149,8 +149,8 @@ assert.doesNotMatch(appSource,/findIndex\(x=>Date\.parse\(x\)/);
 assert.match(appSource,/BIAS_REFERENCE_LAG_DAYS=6/);
 assert.match(appSource,/data-agreement-epoch/, 'agreement drill-down must preserve absolute DST-safe instants');
 const releaseVersion=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim(),swSource=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
-assert.equal(releaseVersion,'1.10.10');
-assert.match(swSource,/const APP_VERSION = '1\.10\.10'/);
-assert.match(swSource,/const CACHE_VERSION = 'v40-clarity-pages'/);
+assert.equal(releaseVersion,'1.10.11');
+assert.match(swSource,/const APP_VERSION = '1\.10\.11'/);
+assert.match(swSource,/const CACHE_VERSION = 'v41-copy-polish'/);
 
 console.log('MeteoCompare Web 1.10.8 release data-chain audit: OK');

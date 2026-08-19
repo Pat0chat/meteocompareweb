@@ -10,9 +10,9 @@ const domain=fs.readFileSync(new URL('../js/domain.js',import.meta.url),'utf8');
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const comparison=fs.readFileSync(new URL('../js/features/comparison.js',import.meta.url),'utf8');
 
-assert.equal(version,'1.10.10');
-assert.match(sw,/const APP_VERSION = '1\.10\.10'/);
-assert.match(sw,/const CACHE_VERSION = 'v40-clarity-pages'/);
+assert.equal(version,'1.10.11');
+assert.match(sw,/const APP_VERSION = '1\.10\.11'/);
+assert.match(sw,/const CACHE_VERSION = 'v41-copy-polish'/);
 assert.match(sw,/\.\/js\/consensus\.js/,'consensus engine must be available offline in the PWA shell');
 
 assert.equal(consensusGroupFor('AROME_FRANCE_HD'),consensusGroupFor('AROME_FRANCE'));

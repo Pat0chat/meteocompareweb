@@ -9,9 +9,9 @@ const settings=slice('function renderSettings(){','function modelGroups(');
 const local=slice('function renderLocalDataPage(){','function renderSettings(){');
 const about=slice('function renderAbout(){','function renderHome(){');
 
-assert.equal(version,'1.10.10');
-assert.match(sw,/const APP_VERSION = '1\.10\.10'/);
-assert.match(sw,/const CACHE_VERSION = 'v40-clarity-pages'/);
+assert.equal(version,'1.10.11');
+assert.match(sw,/const APP_VERSION = '1\.10\.11'/);
+assert.match(sw,/const CACHE_VERSION = 'v41-copy-polish'/);
 
 // Settings: four clear logical sections, no redundant eyebrow in the page renderer.
 assert.match(settings,/settingsInterfaceTitle/);
