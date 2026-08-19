@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.9] - 2026-08-19
+
+### Consensus v2
+- Remplace les moyennes de synthèse par une médiane pondérée robuste pour température, vent et rafales.
+- Introduit un équilibrage par lignée/famille de modèles afin que plusieurs variantes corrélées ne multiplient pas leur influence.
+- Sépare les précipitations en probabilité d’occurrence et quantité conditionnelle si pluie.
+- Applique la pondération locale bornée à la prévision centrale lorsque la calibration est suffisante.
+- Sépare la convergence instantanée des modèles de la confiance historique locale.
+- Uniformise ce moteur sur l’accueil, les résumés, timelines, bandes horaires, comparaisons et scénarios.
+- Corrige la rupture des courbes de comparaison sur les journées partielles/manquantes.
+- Ajoute `js/consensus.js` au shell PWA et passe le cache à `v39-consensus-v2`.
+
 ## [1.10.8] - 2026-08-18
 
 ### Fixed

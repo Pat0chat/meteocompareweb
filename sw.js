@@ -1,11 +1,11 @@
-const APP_VERSION = '1.10.8';
-const CACHE_VERSION = 'v38-full-local-clear';
+const APP_VERSION = '1.10.9';
+const CACHE_VERSION = 'v39-consensus-v2';
 const CACHE_PREFIX = 'meteocompare-web-';
 const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',
-  './js/version.js', './js/models.js', './js/storage.js', './js/api-budget.js', './js/api.js', './js/domain.js', './js/i18n.js', './js/errors.js', './js/analytics-config.js', './js/analytics.js', './js/app.js',
+  './js/version.js', './js/models.js', './js/consensus.js', './js/storage.js', './js/api-budget.js', './js/api.js', './js/domain.js', './js/i18n.js', './js/errors.js', './js/analytics-config.js', './js/analytics.js', './js/app.js',
   './js/locales/fr.js', './js/locales/en.js', './js/locales/es.js', './js/locales/de.js', './js/locales/it.js',
   './js/features/bias.js', './js/features/evolution.js', './js/features/diagnostics.js', './js/features/comparison.js', './js/features/marine.js', './js/features/model-health.js'
 ];

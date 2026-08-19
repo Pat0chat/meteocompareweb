@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
-  addDays, dayConfidence, weightedDayConfidence, zonedLocalTimestampEpoch, zonedTimestampEpochs, currentConditions, hourlyConfidenceBand, buildTimelinePoints, roundedHourLocal
+  addDays, cityToday, dayConfidence, weightedDayConfidence, zonedLocalTimestampEpoch, zonedTimestampEpochs, currentConditions, hourlyConfidenceBand, buildTimelinePoints, roundedHourLocal
 } from '../js/domain.js';
 import { normalizeMarine, nearestMarineIndex, detectTideEvents, tideRangeNext24h } from '../js/features/marine.js';
 import { buildEvolution } from '../js/features/evolution.js';
@@ -123,11 +123,12 @@ assert.equal(report.rows[0].healthStatus,'DEGRADED','an active global model with
 
 // 7. Model comparison must neither consume PARTIAL daily values nor visually
 // bridge a missing day with a continuous SVG segment.
-function compareSeries(values,statuses){return {hourly:{timestamps:[],temperature2m:[],precipitation:[],windSpeed10m:[]},daily:{dates:['2026-08-18','2026-08-19','2026-08-20'],tempMax:values,tempMin:values.map(v=>v-8),precipitationSum:[0,0,0],windSpeedMax:[20,20,20],completeness:{temperature:statuses.map(status=>({status})),precipitation:statuses.map(()=>({status:'FULL'})),wind:statuses.map(()=>({status:'FULL'})),condition:statuses.map(()=>({status:'FULL'}))}}};}
+const cmpToday=cityToday('UTC'),cmpDates=[cmpToday,addDays(cmpToday,1),addDays(cmpToday,2)];
+function compareSeries(values,statuses){return {hourly:{timestamps:[],temperature2m:[],precipitation:[],windSpeed10m:[]},daily:{dates:cmpDates,tempMax:values,tempMin:values.map(v=>v-8),precipitationSum:[0,0,0],windSpeedMax:[20,20,20],completeness:{temperature:statuses.map(status=>({status})),precipitation:statuses.map(()=>({status:'FULL'})),wind:statuses.map(()=>({status:'FULL'})),condition:statuses.map(()=>({status:'FULL'}))}}};}
 const cmpForecast={city:{timezone:'UTC'},seriesByModel:{GFS:compareSeries([20,99,22],['FULL','PARTIAL','FULL']),ECMWF:compareSeries([21,22,23],['FULL','FULL','FULL'])}};
 const ctx={t:(k,v={})=>k==='selectedModelsCount'?String(v.count):k,locale:'en-GB',esc:String,attr:String,fmt:v=>String(v),dateLabel:d=>d,timeLabel:s=>s.slice(11,16),visibleModelIds:()=>['GFS','ECMWF'],selectedModelIds:['GFS','ECMWF']};
 const comparisonHtml=renderTargetedModelComparison(cmpForecast,'TEMPERATURE','DAILY',ctx);
-assert.ok(!comparisonHtml.includes('GFS · 2026-08-19 · 99 °C'),'PARTIAL comparison value must be excluded');
+assert.ok(!comparisonHtml.includes(`GFS · ${cmpDates[1]} · 99 °C`),'PARTIAL comparison value must be excluded');
 const paths=[...comparisonHtml.matchAll(/class="compare-line"[^>]*d="([^"]*)"/g)].map(m=>m[1]);
 assert.ok(paths.some(d=>(d.match(/\bM\b/g)||[]).length>=2),'a missing day must start a new SVG segment instead of being bridged');
 
@@ -148,8 +149,8 @@ assert.doesNotMatch(appSource,/findIndex\(x=>Date\.parse\(x\)/);
 assert.match(appSource,/BIAS_REFERENCE_LAG_DAYS=6/);
 assert.match(appSource,/data-agreement-epoch/, 'agreement drill-down must preserve absolute DST-safe instants');
 const releaseVersion=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim(),swSource=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
-assert.equal(releaseVersion,'1.10.8');
-assert.match(swSource,/const APP_VERSION = '1\.10\.8'/);
-assert.match(swSource,/const CACHE_VERSION = 'v38-full-local-clear'/);
+assert.equal(releaseVersion,'1.10.9');
+assert.match(swSource,/const APP_VERSION = '1\.10\.9'/);
+assert.match(swSource,/const CACHE_VERSION = 'v39-consensus-v2'/);
 
 console.log('MeteoCompare Web 1.10.8 release data-chain audit: OK');

@@ -59,6 +59,26 @@ export function getModel(idOrKey) {
   return WEATHER_MODELS.find(m => m.id === idOrKey || m.apiKey === idOrKey || m.aliases.includes(idOrKey));
 }
 
+
+// Models sharing a numerical lineage are deliberately grouped for consensus calculations.
+// A group receives at most one unit of voting mass, so activating several siblings does not
+// give one modelling system multiple independent votes. Future ensemble members should reuse
+// the deterministic parent's group instead of creating one group per member.
+export const CONSENSUS_GROUPS = Object.freeze({
+  AROME_FRANCE_HD:'MF_AROME', AROME_FRANCE:'MF_AROME',
+  ARPEGE_EUROPE:'MF_ARPEGE', ARPEGE_WORLD:'MF_ARPEGE',
+  ICON_D2:'DWD_ICON', ICON_EU:'DWD_ICON', ICON_GLOBAL:'DWD_ICON',
+  ECMWF:'ECMWF_GLOBAL', ECMWF_AIFS:'ECMWF_GLOBAL',
+  GFS:'NOAA_GFS', HRRR_CONUS:'NOAA_HRRR',
+  METNO_NORDIC:'METNO_NORDIC', KNMI_HARMONIE_EU:'KNMI_HARMONIE',
+  UKMO_GLOBAL:'UKMO_GLOBAL', GEM_GLOBAL:'ECCC_GEM', BOM_ACCESS:'BOM_ACCESS', CMA_GRAPES:'CMA_GRAPES'
+});
+
+export function consensusGroupFor(idOrKey) {
+  const model=getModel(idOrKey);
+  return CONSENSUS_GROUPS[model?.id] || model?.id || String(idOrKey||'UNKNOWN');
+}
+
 export function selectedModels(ids) {
   const set = new Set(ids);
   return WEATHER_MODELS.filter(m => set.has(m.id));
