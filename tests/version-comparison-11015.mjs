@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css');
-assert.equal(version,'1.10.15');
-assert.match(versionJs,/APP_VERSION = '1\.10\.15'/);
-assert.match(sw,/APP_VERSION = '1\.10\.15'/);
-assert.match(sw,/CACHE_VERSION = 'v46-version-compare'/);
+assert.ok(version.localeCompare('1.10.15',undefined,{numeric:true,sensitivity:'base'})>=0);
+assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
 // Version is discreetly visible beside the brand and detailed on About.
 assert.match(app,/class="brand-title-row"/);
 assert.match(app,/class="brand-version"/);

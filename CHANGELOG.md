@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.10.16 — Modern home
+
+- Refonte complète de la page d’accueil autour de la météo et de la convergence utile.
+- Hero compact avec recherche directe et raccourcis vers les villes favorites.
+- Nouvelles cards de ville : météo dominante, min/max, pluie, vent, signal modèles et fraîcheur.
+- Mini-chronologie à 5 échéances dans chaque ville.
+- Nouvelle Consensus Strip : dispersion brute des modèles et position de la synthèse centrale.
+- Nouvelle section « À surveiller aujourd’hui » : divergence, pluie probable, vent marqué ou variation thermique.
+- Le cas mono-famille conserve toutes les valeurs météo et affiche explicitement une convergence non calculable.
+- Grille desktop 2 colonnes et composition mobile dédiée.
+- Cache PWA : `v47-home-redesign`.
+
 ## 1.10.15 — Version visibility & comparison persistence
 - Affiche discrètement la version Web dans la marque de la topbar, avec le schéma de données dans l’infobulle et dans À propos.
 - Conserve l’état ouvert de la comparaison ciblée de modèles pendant les sélections/désélections.
@@ -103,8 +115,6 @@
 - `APP_VERSION` passe à `1.10.6` et le cache PWA à `v36-play-store-nav`.
 - Aucun changement des chaînes météo auditées en 1.10.5.
 
-# Changelog
-
 ## [1.10.5] - 2026-08-18
 
 ### Fixed
@@ -186,10 +196,3 @@ All notable changes to MeteoCompare Web are documented here. Releases follow Sem
 
 ### Changed
 - Application version and service-worker cache version are now independent.
-
-### 1.10.11 — final interaction/layout polish (version inchangée)
-- Uniformisation stricte des hauteurs `timeline-metric`.
-- Stabilisation du scroll de la page Données locales pendant les recalculs et diagnostics.
-- Alignement des actions dans les `setting-control`.
-- Sélection des modèles présentée en grille compacte avec switch proche du modèle.
-- Harmonisation des `about-mini-badge` et des marges/paddings des `about-callout`.
