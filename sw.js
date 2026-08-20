@@ -1,5 +1,5 @@
-const APP_VERSION = '1.11.0';
-const CACHE_VERSION = 'v56-dispersion-detail';
+const APP_VERSION = '1.11.1';
+const CACHE_VERSION = 'v58-cloud-ruler-polish';
 const CACHE_PREFIX = 'meteocompare-web-';
 const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [

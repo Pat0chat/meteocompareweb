@@ -11,7 +11,7 @@ const versionJs=read('js/version.js');
 const sw=read('sw.js');
 const css=read('styles.css');
 
-assert.equal(version,'1.11.0');
+assert.ok(version.localeCompare('1.11.0',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=56);
@@ -33,9 +33,9 @@ assert.match(summary,/summary-dispersion-envelope/);
 assert.match(summary,/modelConvergence/);
 assert.match(summary,/modelRange/);
 assert.match(summary,/rainProbabilityShort/);
-assert.equal((summary.match(/summaryDispersionCard\(\{agg,/g)||[]).length,5); // helper signature + four metric calls
+assert.equal((summary.match(/summaryDispersionCard\(\{agg,/g)||[]).length,6); // helper signature + five metric calls
 assert.doesNotMatch(summary,/class="summary-tile metric-/);
-for(const selector of ['.summary-dispersion-grid','.summary-dispersion-rail','.summary-model-dot','.summary-dispersion-chip.probability'])assert.ok(css.includes(selector),selector);
+for(const selector of ['.summary-dispersion-grid','.summary-dispersion-rail','.summary-model-dot','.summary-agreement-track'])assert.ok(css.includes(selector),selector);
 
 const marineStart=app.indexOf('function renderMarineSection(');
 const marineEnd=app.indexOf('async function refreshMarineData(',marineStart);
@@ -46,7 +46,8 @@ const detailStart=app.indexOf('function renderCityDetail(');
 const detailEnd=app.indexOf('function renderTimeline(',detailStart);
 const detail=app.slice(detailStart,detailEnd);
 assert.match(detail,/detail-hero-actions/);
-assert.match(detail,/city\.marineEnabled\?`<button class="btn tonal marine-hero-refresh" data-action="refresh-marine"/);
+assert.match(detail,/data-refresh-city=.*refreshWeather/);
+assert.match(detail,/city\.marineEnabled\?`<button class="btn tonal detail-refresh-action marine-hero-refresh" data-action="refresh-marine"/);
 
 assert.match(models,/id:'GEM_GLOBAL'[^\n]*metadataKey:null/);
 assert.match(models,/id:'BOM_ACCESS'[^\n]*metadataKey:null/);
@@ -66,4 +67,4 @@ try{
   globalThis.fetch=previousFetch;
 }
 
-console.log('MeteoCompare Web 1.11.0 release guards: OK');
+console.log('MeteoCompare Web 1.11.x release guards: OK');
