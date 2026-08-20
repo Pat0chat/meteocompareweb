@@ -7,7 +7,7 @@ import { WeatherIconRenderer } from '../js/ui/weather-icons.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),app=read('js/app.js'),models=read('js/models.js'),css=read('styles.css'),sw=read('sw.js'),architecture=read('ARCHITECTURE.md');
-assert.match(version,/^1\.12\.\d+$/);
+const [major,minor]=version.split('.').map(Number);assert.ok(major>1||(major===1&&minor>=12),'1.12 object foundation must remain compatible in later releases');
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=59);

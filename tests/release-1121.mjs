@@ -7,9 +7,9 @@ import { WeatherIconRenderer } from '../js/ui/weather-icons.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),app=read('js/app.js'),css=read('styles.css'),html=read('index.html'),sw=read('sw.js');
-assert.equal(version,'1.12.1');
-assert.ok(versionJs.includes("APP_VERSION = '1.12.1'"));
-assert.ok(sw.includes("APP_VERSION = '1.12.1'"));
+assert.ok(/^\d+\.\d+\.\d+$/.test(version));
+assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
+assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=60,'1.12.1 cache generation must not regress');
 
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';

@@ -79,6 +79,6 @@ export function consensusGroupFor(idOrKey) {
 }
 
 export function selectedModels(ids) {
-  const set = new Set(ids);
+  const set = new Set(Array.isArray(ids)?ids:[]);
   return WEATHER_MODELS.filter(m => set.has(m.id));
 }

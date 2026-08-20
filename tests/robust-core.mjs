@@ -66,7 +66,7 @@ class LocalStorageMock{
 }
 globalThis.localStorage=new LocalStorageMock();
 Object.defineProperty(globalThis,'indexedDB',{value:undefined,configurable:true});
-const city={id:'paris',name:'Paris',timezone:'Europe/Paris'};
+const city={id:'paris',name:'Paris',latitude:48.8566,longitude:2.3522,timezone:'Europe/Paris'};
 localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify({theme:'DARK',language:'FRENCH'}));
 localStorage.setItem('meteocompare.web.cities.v1',JSON.stringify([city]));
 localStorage.setItem('meteocompare.web.bias.paris',JSON.stringify({forecasts:[],observations:[],updatedAt:null}));

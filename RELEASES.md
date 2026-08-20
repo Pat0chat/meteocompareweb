@@ -4,7 +4,7 @@
 
 ## Publish a release
 
-1. Update `VERSION`, `js/version.js` and `CHANGELOG.md`.
+1. Update `VERSION`, `js/version.js`, `sw.js` et la section correspondante de `RELEASES.md`.
 2. Merge the tested changes into `main`.
 3. Create and push an annotated tag, for example `git tag -a v1.9.0 -m "MeteoCompare 1.9.0" && git push origin v1.9.0`.
 4. `.github/workflows/release.yml` reruns every regression test, creates a versioned ZIP and SHA-256 file, calls GitHub's generated-release-notes API to produce `CHANGELOG-vX.Y.Z.md`, uploads the build as a workflow artifact, and publishes a GitHub Release using that generated changelog.

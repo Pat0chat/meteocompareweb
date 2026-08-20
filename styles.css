@@ -3061,26 +3061,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   gap:6px;
   margin-top:auto;
 }
-.summary-dispersion-chip {
-  display:inline-flex;
-  align-items:center;
-  gap:5px;
-  min-height:24px;
-  padding:3px 7px;
-  border:1px solid var(--border);
-  border-radius:999px;
-  background:var(--surface-2);
-  color:var(--muted);
-  font-size:.70rem;
-  line-height:1.2;
-  white-space:nowrap;
-}
-.summary-dispersion-chip b { color:inherit; font-weight:780; }
-.summary-dispersion-chip.high { color:var(--good); border-color:color-mix(in srgb,var(--good) 28%,var(--border)); background:color-mix(in srgb,var(--good) 6%,var(--surface)); }
-.summary-dispersion-chip.medium { color:var(--medium); border-color:color-mix(in srgb,var(--medium) 28%,var(--border)); background:color-mix(in srgb,var(--medium) 6%,var(--surface)); }
-.summary-dispersion-chip.low { color:var(--low); border-color:color-mix(in srgb,var(--low) 28%,var(--border)); background:color-mix(in srgb,var(--low) 6%,var(--surface)); }
-.summary-dispersion-chip.probability { color:var(--rain); border-color:color-mix(in srgb,var(--rain) 28%,var(--border)); background:color-mix(in srgb,var(--rain) 6%,var(--surface)); }
-.summary-dispersion-chip.secondary { color:var(--text); }
 .summary-dispersion-models { margin-left:auto; color:var(--subtle); font-size:.70rem; white-space:nowrap; }
 .summary-dispersion > .summary-agreement-track { width:100%; height:4px; margin:0; background:var(--surface-3); }
 .summary-dispersion.high > .summary-agreement-track { color:var(--good); }
@@ -3167,7 +3147,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .summary-dispersion-meta-item + .summary-dispersion-meta-item::before,
 .summary-dispersion-models::before { content:"·"; margin:0 7px; color:var(--subtle); }
 .summary-dispersion-models { margin-left:0; color:var(--subtle); font-size:inherit; white-space:nowrap; }
-.summary-dispersion-chip { display:none; }
 .summary-agreement { display:grid; gap:5px; margin-top:1px; }
 .summary-agreement-label { display:flex; align-items:center; justify-content:space-between; gap:10px; color:var(--muted); font-size:.70rem; }
 .summary-agreement-label strong { color:currentColor; font-family:var(--tech-font); font-size:.74rem; }

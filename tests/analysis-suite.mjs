@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css'),api=read('js/api.js'),storage=read('js/storage.js'),sw=read('sw.js');
+const app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css'),api=read('js/api.js'),normalizer=read('js/data/forecast-normalizer.js'),contracts=read('js/data/contracts.js'),storage=read('js/storage.js'),sw=read('sw.js');
 
 // 1 — desktop tables: sticky header + first column.
 assert.match(css,/\.forecast-table thead th \{ position:sticky; top:0;/,'table headers must remain visible');
@@ -19,7 +19,8 @@ assert.match(app,/names=\{TEMPERATURE:t\('temperature'\),PRECIPITATION:t\('preci
 assert.match(app,/data-agreement-time=/,'agreement timeline must open analysis at an échéance');
 
 // 4 — run/data freshness, honest when exact run is unavailable.
-assert.match(api,/function modelRunTimestamp/,'API normalization must attempt to retain run metadata');
+assert.match(api,/forecast-normalizer\.js/,'API transport must delegate forecast normalization');
+assert.match(normalizer,/function modelRunTimestamp/,'forecast normalization must retain run metadata');
 assert.doesNotMatch(app,/t\('runExactUnavailable'\)/,'tables should not repeat an unhelpful exact-run-unavailable label');
 assert.match(app,/function modelRunInfo/,'per-model freshness metadata must be rendered');
 
@@ -56,7 +57,7 @@ assert.match(app,/historyRefreshConfirm/,'confirmation must explain incremental 
 assert.match(app,/plan\.forecastRanges[\s\S]*plan\.observationRanges/,'refresh must request only missing ranges');
 
 // 10 — visual density / compact workspace.
-assert.match(storage,/density: 'COMFORTABLE'/,'density preference must have a stable default');
+assert.match(contracts,/density: 'COMFORTABLE'/,'density preference must have a stable default contract');
 assert.match(app,/data-density=/,'density must be configurable');
 assert.match(css,/html\[data-density="compact"\]/,'compact visual mode must alter layout density');
 assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');

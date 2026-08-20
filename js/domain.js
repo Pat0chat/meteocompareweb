@@ -89,9 +89,6 @@ function stats(values) {
   const a=values.filter(Number.isFinite); if(!a.length)return null; const mean=a.reduce((s,v)=>s+v,0)/a.length; const variance=a.reduce((s,v)=>s+(v-mean)**2,0)/a.length;
   return { mean, stdDev:Math.sqrt(variance), min:Math.min(...a), max:Math.max(...a), count:a.length };
 }
-function scoreFromStd(std,tight,wide){ if(std<=tight)return 100;if(std>=wide)return 0;return Math.floor(100*(1-(std-tight)/(wide-tight))); }
-function confidenceContinuous(values, tight, wide){ const s=stats(values); if(!s||s.count<2)return null;return {...s, percent:scoreFromStd(s.stdDev,tight,wide), spread:s.max-s.min}; }
-
 function dailyCompletenessEntry(series,index,metric){return series?.daily?.completeness?.[metric]?.[index]||null;}
 export function dailyMetricIsComparable(series,index,metric){const status=dailyCompletenessEntry(series,index,metric)?.status;return status==null||status==='FULL'||status==='CURRENT'||status==='UNKNOWN';}
 const dailyMetricComparable=dailyMetricIsComparable;

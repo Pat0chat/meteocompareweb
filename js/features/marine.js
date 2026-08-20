@@ -6,8 +6,9 @@ export const MARINE_CACHE_TTL_MS=6*3600_000;
 export const COASTAL_MAX_DISTANCE_KM=50;
 
 function haversineKm(aLat,aLon,bLat,bLon){const r=6371,toRad=x=>x*Math.PI/180,dLat=toRad(bLat-aLat),dLon=toRad(bLon-aLon),q=Math.sin(dLat/2)**2+Math.cos(toRad(aLat))*Math.cos(toRad(bLat))*Math.sin(dLon/2)**2;return 2*r*Math.asin(Math.sqrt(q));}
-function nums(a){return Array.isArray(a)?a.map(v=>Number.isFinite(v)?v:null):[];}
-function strings(a){return Array.isArray(a)?a.map(v=>typeof v==='string'?v:''):[];}
+function validHourlyTimestamp(value){return typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value);}
+function validTimeIndices(values){return (Array.isArray(values)?values:[]).map((value,index)=>validHourlyTimestamp(value)?index:-1).filter(index=>index>=0);}
+function alignedNumbers(values,indices){return indices.map(index=>Number.isFinite(values?.[index])?values[index]:null);}
 function countFinite(a){return Array.isArray(a)?a.filter(Number.isFinite).length:0;}
 
 function urlFor(city){
@@ -44,8 +45,19 @@ function deriveDaily(hourly){
 }
 
 export function normalizeMarine(raw,city){
-  const hourlyRaw=raw?.hourly||{},gridLat=Number(raw?.latitude),gridLon=Number(raw?.longitude),distanceKm=Number.isFinite(gridLat)&&Number.isFinite(gridLon)?haversineKm(Number(city.latitude),Number(city.longitude),gridLat,gridLon):null;
-  const hourly={timestamps:strings(hourlyRaw.time),waveHeight:nums(hourlyRaw.wave_height),waveDirection:nums(hourlyRaw.wave_direction),wavePeriod:nums(hourlyRaw.wave_period),swellHeight:nums(hourlyRaw.swell_wave_height),swellDirection:nums(hourlyRaw.swell_wave_direction),swellPeriod:nums(hourlyRaw.swell_wave_period),seaSurfaceTemperature:nums(hourlyRaw.sea_surface_temperature),seaLevelHeightMsl:nums(hourlyRaw.sea_level_height_msl)};
+  const hourlyRaw=raw?.hourly||{},indices=validTimeIndices(hourlyRaw.time),gridLat=Number(raw?.latitude),gridLon=Number(raw?.longitude),distanceKm=Number.isFinite(gridLat)&&Number.isFinite(gridLon)?haversineKm(Number(city.latitude),Number(city.longitude),gridLat,gridLon):null;
+  const timestamps=indices.map(index=>hourlyRaw.time[index]);
+  const hourly={
+    timestamps,
+    waveHeight:alignedNumbers(hourlyRaw.wave_height,indices),
+    waveDirection:alignedNumbers(hourlyRaw.wave_direction,indices),
+    wavePeriod:alignedNumbers(hourlyRaw.wave_period,indices),
+    swellHeight:alignedNumbers(hourlyRaw.swell_wave_height,indices),
+    swellDirection:alignedNumbers(hourlyRaw.swell_wave_direction,indices),
+    swellPeriod:alignedNumbers(hourlyRaw.swell_wave_period,indices),
+    seaSurfaceTemperature:alignedNumbers(hourlyRaw.sea_surface_temperature,indices),
+    seaLevelHeightMsl:alignedNumbers(hourlyRaw.sea_level_height_msl,indices),
+  };
   const timezone=raw?.timezone||city.timezone||'UTC';hourly.timestampEpochMs=zonedTimestampEpochs(hourly.timestamps,timezone);
   const result={fetchedAt:new Date().toISOString(),timezone,grid:{latitude:gridLat,longitude:gridLon,distanceKm},hourly,daily:deriveDaily(hourly)};
   result.usablePoints=countFinite(result.hourly.waveHeight);
@@ -69,6 +81,6 @@ export function tideRangeNext24h(data,now=Date.now()){
   const epochs=marineEpochs(data),v=data?.hourly?.seaLevelHeightMsl||[],vals=[];for(let i=0;i<Math.min(epochs.length,v.length);i++){const ms=epochs[i];if(ms>=now&&ms<now+24*3600e3&&Number.isFinite(v[i]))vals.push(v[i]);}return vals.length?{min:Math.min(...vals),max:Math.max(...vals),range:Math.max(...vals)-Math.min(...vals)}:null;
 }
 
-export async function fetchMarineForCity(city){const raw=await fetchOpenMeteoJson(urlFor(city),{timeoutMs:30000,category:'marine'});return normalizeMarine(raw,city);}
-export function marineCacheFresh(data){return Boolean(data?.fetchedAt&&Date.now()-Date.parse(data.fetchedAt)<MARINE_CACHE_TTL_MS);}
+export async function fetchMarineForCity(city){const latitude=Number(city?.latitude),longitude=Number(city?.longitude);if(!Number.isFinite(latitude)||latitude<-90||latitude>90||!Number.isFinite(longitude)||longitude<-180||longitude>180){const error=new Error('INVALID_CITY');error.code='INVALID_CITY';throw error;}const normalizedCity={...city,latitude,longitude};const raw=await fetchOpenMeteoJson(urlFor(normalizedCity),{timeoutMs:30000,category:'marine'});return normalizeMarine(raw,normalizedCity);}
+export function marineCacheFresh(data){const age=Date.now()-Date.parse(data?.fetchedAt||'');return Number.isFinite(age)&&age>=0&&age<MARINE_CACHE_TTL_MS;}
 export function nearestMarineIndex(data,now=Date.now()){const epochs=marineEpochs(data);if(!epochs.length)return -1;let best=-1,delta=Infinity;for(let i=0;i<epochs.length;i++){const d=Math.abs(epochs[i]-now);if(Number.isFinite(d)&&d<delta){delta=d;best=i;}}return best;}

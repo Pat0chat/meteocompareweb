@@ -1,6 +1,6 @@
-import { DEFAULT_MODEL_IDS } from './models.js';
 import { APP_VERSION, BACKUP_FORMAT_VERSION } from './version.js';
 import { dailyMetricIsComparable } from './domain.js';
+import { DEFAULT_SETTINGS, normalizeSettings, normalizeCities, normalizeForecastPayload, forecastPayloadIssues } from './data/contracts.js';
 
 const SETTINGS_KEY = 'meteocompare.web.settings.v1';
 const CITIES_KEY = 'meteocompare.web.cities.v1';
@@ -22,21 +22,7 @@ function storageIssue(code,detail={}){const key=`${code}|${detail.key||''}`;stor
 export function getStorageIssues(){return [...storageIssues.values()];}
 export function clearStorageIssues(){storageIssues.clear();}
 
-export const defaultSettings = {
-  enabledModelIds: DEFAULT_MODEL_IDS,
-  theme: 'SYSTEM',
-  language: 'SYSTEM',
-  refreshInterval: 'HOUR_1',
-  modelSort: 'ZONE',
-  detailViewMode: 'DAILY',
-  detailTab: 'CONDITIONS',
-  confidenceMetric: 'TEMPERATURE',
-  chartHorizon: 168,
-  timelineMode: 'HOURLY',
-  density: 'COMFORTABLE',
-  localWeightedConsensus: false,
-  collapsedSections: {},
-};
+export const defaultSettings = {...DEFAULT_SETTINGS,enabledModelIds:[...DEFAULT_SETTINGS.enabledModelIds],collapsedSections:{}};
 
 function safeParse(raw, fallback) {
   try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
@@ -69,10 +55,10 @@ function migrateRecord(kind,value,context={}){
   if(record.schemaVersion!==DATA_SCHEMA_VERSION)return {record,payload:null,fromVersion,valid:false,error:'UNSUPPORTED_SCHEMA'};
   return {record,payload:record.payload,fromVersion,migrated:fromVersion!==DATA_SCHEMA_VERSION,valid:true};
 }
-function validatePayload(kind,payload){
+function validatePayload(kind,payload,context={}){
   if(kind==='settings')return Boolean(payload&&typeof payload==='object'&&!Array.isArray(payload));
-  if(kind==='cities')return Array.isArray(payload)&&payload.every(x=>x&&typeof x==='object'&&x.id!=null);
-  if(kind==='forecast')return Boolean(payload&&typeof payload==='object'&&payload.city&&payload.seriesByModel&&typeof payload.seriesByModel==='object'&&Object.keys(payload.seriesByModel).length&&typeof payload.fetchedAt==='string');
+  if(kind==='cities')return Array.isArray(payload);
+  if(kind==='forecast')return Boolean(normalizeForecastPayload(payload,{cityId:context.cityId}));
   if(kind==='evolution')return Array.isArray(payload)&&payload.every(x=>x&&Number.isFinite(x.capturedAt)&&x.daily&&typeof x.daily==='object');
   if(kind==='normals')return Boolean(payload&&typeof payload==='object'&&payload.normals&&typeof payload.normals==='object');
   if(kind==='bias')return Boolean(payload&&typeof payload==='object'&&Array.isArray(payload.forecasts)&&Array.isArray(payload.observations));
@@ -80,12 +66,25 @@ function validatePayload(kind,payload){
   if(kind==='health')return Array.isArray(payload)&&payload.every(x=>x&&Number.isFinite(x.capturedAt)&&Array.isArray(x.rows));
   return true;
 }
+function normalizedPayload(kind,payload,context={}){
+  if(kind==='settings')return normalizeSettings(payload);
+  if(kind==='cities')return normalizeCities(payload);
+  if(kind==='forecast')return normalizeForecastPayload(payload,{cityId:context.cityId});
+  return payload;
+}
+function payloadChanged(kind,before,after,context={}){
+  if(kind==='forecast')return forecastPayloadIssues(before,{cityId:context.cityId}).length>0;
+  if(kind==='settings'||kind==='cities'){try{return JSON.stringify(before)!==JSON.stringify(after);}catch{return true;}}
+  return false;
+}
 function readLocalRecord(key,kind,fallback){
   const raw=safeParse(localStorage.getItem(key),null);if(raw==null)return fallback;
   const ctx={...recordContext(key),kind};const migrated=migrateRecord(kind,raw,ctx);
-  if(!migrated.valid||!validatePayload(kind,migrated.payload)){storageIssue('CORRUPT_LOCAL_RECORD',{key,kind,error:migrated.error||'INVALID_PAYLOAD'});return fallback;}
-  if(migrated.migrated)safeSet(key,migrated.record);
-  return migrated.payload;
+  if(!migrated.valid){storageIssue('CORRUPT_LOCAL_RECORD',{key,kind,error:migrated.error||'INVALID_PAYLOAD'});return fallback;}
+  const normalized=normalizedPayload(kind,migrated.payload,ctx);
+  if(normalized==null||!validatePayload(kind,normalized,ctx)){storageIssue('CORRUPT_LOCAL_RECORD',{key,kind,error:'INVALID_PAYLOAD'});return fallback;}
+  if(migrated.migrated||payloadChanged(kind,migrated.payload,normalized,ctx))safeSet(key,envelope(kind,normalized,{cityId:ctx.cityId}));
+  return normalized;
 }
 function writeLocalRecord(key,kind,payload){const ctx=recordContext(key);return safeSet(key,envelope(kind,payload,{cityId:ctx.cityId}));}
 
@@ -115,13 +114,10 @@ async function idbDelete(key){
   return new Promise(resolve=>{try{const tx=database.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(key);tx.oncomplete=()=>resolve(true);tx.onerror=()=>resolve(false);tx.onabort=()=>resolve(false);}catch{resolve(false);}});
 }
 
-export function loadSettings() {
-  const parsed = readLocalRecord(SETTINGS_KEY,'settings',{});
-  return { ...defaultSettings, ...parsed, enabledModelIds: Array.isArray(parsed.enabledModelIds) && parsed.enabledModelIds.length ? parsed.enabledModelIds : DEFAULT_MODEL_IDS };
-}
-export function saveSettings(settings) { writeLocalRecord(SETTINGS_KEY,'settings',settings); }
-export function loadCities() { const v=readLocalRecord(CITIES_KEY,'cities',[]); return Array.isArray(v)?v:[]; }
-export function saveCities(cities) { writeLocalRecord(CITIES_KEY,'cities',cities); }
+export function loadSettings() { return normalizeSettings(readLocalRecord(SETTINGS_KEY,'settings',defaultSettings)); }
+export function saveSettings(settings) { return writeLocalRecord(SETTINGS_KEY,'settings',normalizeSettings(settings)); }
+export function loadCities() { return normalizeCities(readLocalRecord(CITIES_KEY,'cities',[])); }
+export function saveCities(cities) { return writeLocalRecord(CITIES_KEY,'cities',normalizeCities(cities)); }
 
 /* Forecast payloads are the largest records (17 models × hourly arrays).
    Keep legacy localStorage reads for migration, but persist new payloads in IndexedDB
@@ -134,13 +130,23 @@ export async function loadForecastAsync(cityId) {
     if(await idbPut(key,envelope('forecast',legacy,{cityId})))safeRemove(key);
     return legacy;
   }
-  const stored=await idbGet(key);if(stored==null)return null;const migrated=migrateRecord('forecast',stored,{kind:'forecast',cityId});if(!migrated.valid||!validatePayload('forecast',migrated.payload)){storageIssue('CORRUPT_IDB_RECORD',{key,kind:'forecast'});return null;}if(migrated.migrated)void idbPut(key,migrated.record);return migrated.payload;
+  const stored=await idbGet(key);if(stored==null)return null;
+  const ctx={kind:'forecast',cityId:String(cityId)},migrated=migrateRecord('forecast',stored,ctx);
+  if(!migrated.valid){storageIssue('CORRUPT_IDB_RECORD',{key,kind:'forecast',error:migrated.error||'INVALID_PAYLOAD'});return null;}
+  const normalized=normalizeForecastPayload(migrated.payload,{cityId});
+  if(!normalized){storageIssue('CORRUPT_IDB_RECORD',{key,kind:'forecast',error:'INVALID_PAYLOAD'});return null;}
+  const issues=forecastPayloadIssues(migrated.payload,{cityId});
+  if(migrated.migrated||issues.length)void idbPut(key,envelope('forecast',normalized,{cityId}));
+  if(issues.length)storageIssue('FORECAST_CACHE_SANITIZED',{key,kind:'forecast',issues:issues.slice(0,8)});
+  return normalized;
 }
 export async function saveForecast(cityId, forecast) {
-  const key=FORECAST_PREFIX+cityId;
-  if(typeof indexedDB==='undefined'){writeLocalRecord(key,'forecast',forecast);storageIssue('INDEXEDDB_UNAVAILABLE',{key});return;}
-  const ok=await idbPut(key,envelope('forecast',forecast,{cityId}));
-  if(ok)safeRemove(key);else writeLocalRecord(key,'forecast',forecast);
+  const key=FORECAST_PREFIX+cityId,normalized=normalizeForecastPayload(forecast,{cityId});
+  if(!normalized){storageIssue('FORECAST_NOT_PERSISTED',{key,kind:'forecast',issues:forecastPayloadIssues(forecast,{cityId}).slice(0,8)});return false;}
+  if(typeof indexedDB==='undefined'){const fallbackOk=writeLocalRecord(key,'forecast',normalized);storageIssue('INDEXEDDB_UNAVAILABLE',{key});return fallbackOk;}
+  const ok=await idbPut(key,envelope('forecast',normalized,{cityId}));
+  if(ok){safeRemove(key);return true;}
+  return writeLocalRecord(key,'forecast',normalized);
 }
 export function deleteForecast(cityId) { const key=FORECAST_PREFIX+cityId; safeRemove(key); void idbDelete(key); }
 export function deleteCityData(cityId) {
@@ -277,27 +283,46 @@ export async function inspectLocalData(cities=[]) {
 
 
 export async function verifyLocalDataIntegrity(cities=[], {repair=false}={}) {
-  const favoriteIds=new Set((cities||[]).map(c=>String(c.id))),issues=[],repairs=[];let checked=0,migrated=0,invalid=0,orphans=0,duplicates=0;
+  const favoriteIds=new Set(normalizeCities(cities).map(c=>String(c.id))),issues=[],repairs=[];let checked=0,migrated=0,sanitized=0,invalid=0,orphans=0,duplicates=0;
   const add=(code,detail={})=>issues.push({code,detail});
-  const handleLocal=(key,parsed)=>{
-    const ctx=recordContext(key);if(!ctx.kind)return;checked++;
-    const mig=migrateRecord(ctx.kind,parsed,ctx),valid=mig.valid&&validatePayload(ctx.kind,mig.payload);
-    if(!valid){invalid++;add('INVALID_RECORD',{key,kind:ctx.kind,error:mig.error||'INVALID_PAYLOAD'});if(repair){safeRemove(key);repairs.push({action:'REMOVE_INVALID',key});}return;}
-    if(mig.migrated){migrated++;add('LEGACY_SCHEMA',{key,kind:ctx.kind,from:mig.fromVersion,to:DATA_SCHEMA_VERSION});if(repair&&writeLocalRecord(key,ctx.kind,mig.payload))repairs.push({action:'MIGRATE',key});}
-    if(ctx.cityId&&!favoriteIds.has(String(ctx.cityId))){orphans++;add('ORPHAN_RECORD',{key,kind:ctx.kind,cityId:ctx.cityId});if(repair){safeRemove(key);repairs.push({action:'REMOVE_ORPHAN',key});}}
+  const inspect=(key,raw,store='localStorage')=>{
+    const ctx=recordContext(key);if(!ctx.kind)return null;checked++;
+    if(raw==null){invalid++;add('INVALID_RECORD',{key,kind:ctx.kind,store,error:'UNPARSEABLE_RECORD'});return {ctx,invalid:true};}
+    const mig=migrateRecord(ctx.kind,raw,ctx);
+    if(!mig.valid){invalid++;add('INVALID_RECORD',{key,kind:ctx.kind,store,error:mig.error||'INVALID_PAYLOAD'});return {ctx,mig,invalid:true};}
+    const normalized=normalizedPayload(ctx.kind,mig.payload,ctx);
+    if(normalized==null||!validatePayload(ctx.kind,normalized,ctx)){invalid++;add('INVALID_RECORD',{key,kind:ctx.kind,store,error:'INVALID_PAYLOAD'});return {ctx,mig,invalid:true};}
+    const changed=payloadChanged(ctx.kind,mig.payload,normalized,ctx);
+    if(mig.migrated){migrated++;add('LEGACY_SCHEMA',{key,kind:ctx.kind,store,from:mig.fromVersion,to:DATA_SCHEMA_VERSION});}
+    if(changed){sanitized++;add('SANITIZABLE_RECORD',{key,kind:ctx.kind,store});}
+    const orphan=Boolean(ctx.cityId&&!favoriteIds.has(String(ctx.cityId)));
+    if(orphan){orphans++;add('ORPHAN_RECORD',{key,kind:ctx.kind,cityId:ctx.cityId,store});}
+    return {ctx,mig,normalized,changed,orphan,invalid:false};
   };
-  try{const keys=Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)).filter(Boolean);for(const key of keys){if(!key.startsWith('meteocompare.web.')||key===ANALYTICS_OPTOUT_KEY)continue;handleLocal(key,safeParse(localStorage.getItem(key),null));}}catch(err){add('LOCAL_STORAGE_SCAN_FAILED',{message:String(err?.message||err||'')});}
+  try{
+    const keys=Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)).filter(Boolean);
+    for(const key of keys){
+      if(!key.startsWith('meteocompare.web.')||key===ANALYTICS_OPTOUT_KEY)continue;
+      const result=inspect(key,safeParse(localStorage.getItem(key),null));if(!result||!repair)continue;
+      if(result.invalid){safeRemove(key);repairs.push({action:'REMOVE_INVALID',key});continue;}
+      if(result.orphan){safeRemove(key);repairs.push({action:'REMOVE_ORPHAN',key});continue;}
+      if(result.mig.migrated||result.changed){if(writeLocalRecord(key,result.ctx.kind,result.normalized))repairs.push({action:result.changed?'SANITIZE':'MIGRATE',key});}
+    }
+  }catch(err){add('LOCAL_STORAGE_SCAN_FAILED',{message:String(err?.message||err||'')});}
   const idbEntries=await idbListEntries();
-  for(const rec of idbEntries){const key=rec.key,ctx=recordContext(key);if(!ctx.kind)continue;checked++;const mig=migrateRecord(ctx.kind,rec.raw,ctx),valid=mig.valid&&validatePayload(ctx.kind,mig.payload);
-    if(!valid){invalid++;add('INVALID_RECORD',{key,kind:ctx.kind,store:'indexedDB',error:mig.error||'INVALID_PAYLOAD'});if(repair){await idbDelete(key);repairs.push({action:'REMOVE_INVALID',key,store:'indexedDB'});}continue;}
-    if(mig.migrated){migrated++;add('LEGACY_SCHEMA',{key,kind:ctx.kind,store:'indexedDB',from:mig.fromVersion,to:DATA_SCHEMA_VERSION});if(repair&&await idbPut(key,mig.record))repairs.push({action:'MIGRATE',key,store:'indexedDB'});}
-    if(ctx.cityId&&!favoriteIds.has(String(ctx.cityId))){orphans++;add('ORPHAN_RECORD',{key,kind:ctx.kind,cityId:ctx.cityId,store:'indexedDB'});if(repair){await idbDelete(key);repairs.push({action:'REMOVE_ORPHAN',key,store:'indexedDB'});}}
-    if(ctx.kind==='forecast'){
-      const legacyKey=FORECAST_PREFIX+ctx.cityId;try{if(localStorage.getItem(legacyKey)!=null){duplicates++;add('DUPLICATE_FORECAST',{key:legacyKey,cityId:ctx.cityId});if(repair){safeRemove(legacyKey);repairs.push({action:'REMOVE_DUPLICATE',key:legacyKey});}}}catch{}
+  for(const rec of idbEntries){
+    const key=rec.key,result=inspect(key,rec.raw,'indexedDB');if(!result)continue;
+    if(repair){
+      if(result.invalid){await idbDelete(key);repairs.push({action:'REMOVE_INVALID',key,store:'indexedDB'});continue;}
+      if(result.orphan){await idbDelete(key);repairs.push({action:'REMOVE_ORPHAN',key,store:'indexedDB'});continue;}
+      if(result.mig.migrated||result.changed){const value=envelope(result.ctx.kind,result.normalized,{cityId:result.ctx.cityId});if(await idbPut(key,value))repairs.push({action:result.changed?'SANITIZE':'MIGRATE',key,store:'indexedDB'});}
+    }
+    if(result.ctx.kind==='forecast'&&!result.invalid){
+      const legacyKey=FORECAST_PREFIX+result.ctx.cityId;try{if(localStorage.getItem(legacyKey)!=null){duplicates++;add('DUPLICATE_FORECAST',{key:legacyKey,cityId:result.ctx.cityId});if(repair){safeRemove(legacyKey);repairs.push({action:'REMOVE_DUPLICATE',key:legacyKey});}}}catch{}
     }
   }
   const runtime=getStorageIssues();for(const item of runtime)add(item.code,item.detail);
-  return {checkedAt:Date.now(),schemaVersion:DATA_SCHEMA_VERSION,healthy:issues.length===0,repair,recordsChecked:checked,issueCount:issues.length,migrated,invalid,orphans,duplicates,issues,repairs};
+  return {checkedAt:Date.now(),schemaVersion:DATA_SCHEMA_VERSION,healthy:issues.length===0,repair,recordsChecked:checked,issueCount:issues.length,migrated,sanitized,invalid,orphans,duplicates,issues,repairs};
 }
 
 
@@ -317,7 +342,7 @@ export async function createLocalBackup(cities=[], options={}) {
   return {type:'meteocompare-backup',formatVersion:BACKUP_FORMAT_VERSION,dataSchemaVersion:DATA_SCHEMA_VERSION,appVersion:APP_VERSION,exportedAt:new Date().toISOString(),includes:include,privacy:{analyticsOptOut},data};
 }
 function validBackup(value){return Boolean(value&&value.type==='meteocompare-backup'&&Number(value.formatVersion)>=1&&Number(value.formatVersion)<=BACKUP_FORMAT_VERSION&&value.data&&typeof value.data==='object'&&Array.isArray(value.data.cities)&&value.data.settings&&typeof value.data.settings==='object');}
-function cleanImportedSettings(settings){const out={};for(const key of Object.keys(defaultSettings))if(key in (settings||{}))out[key]=settings[key];return {...defaultSettings,...out,enabledModelIds:Array.isArray(out.enabledModelIds)&&out.enabledModelIds.length?out.enabledModelIds:DEFAULT_MODEL_IDS};}
+function cleanImportedSettings(settings){return normalizeSettings(settings);}
 export async function restoreLocalBackup(value,{replace=true}={}){
   if(!validBackup(value)){const err=new Error('INVALID_BACKUP');err.code='INVALID_BACKUP';throw err;}
   if(Number(value.dataSchemaVersion)>DATA_SCHEMA_VERSION){const err=new Error('BACKUP_FUTURE_SCHEMA');err.code='BACKUP_FUTURE_SCHEMA';throw err;}
@@ -326,7 +351,7 @@ export async function restoreLocalBackup(value,{replace=true}={}){
   if(replace)await clearAllData();
   // A restore must never silently relax a privacy choice: opt-out wins if set on either device/backup.
   if(currentAnalyticsOptOut||backupAnalyticsOptOut)try{localStorage.setItem(ANALYTICS_OPTOUT_KEY,'1');}catch{}
-  const cities=value.data.cities.filter(x=>x&&x.id!=null&&Number.isFinite(Number(x.latitude))&&Number.isFinite(Number(x.longitude))).map(x=>({...x,id:String(x.id)}));
+  const cities=normalizeCities(value.data.cities);
   const settings=cleanImportedSettings(value.data.settings);saveSettings(settings);saveCities(cities);
   const ids=new Set(cities.map(c=>String(c.id))),writeMap=async(map,writer)=>{for(const [id,payload] of Object.entries(map||{}))if(ids.has(String(id))&&payload!=null)await writer(String(id),payload);};
   await writeMap(value.data.forecasts,saveForecast);await writeMap(value.data.normals,(id,v)=>saveNormals(id,v));await writeMap(value.data.bias,(id,v)=>saveBias(id,v));await writeMap(value.data.evolution,(id,v)=>saveEvolution(id,v));await writeMap(value.data.marine,(id,v)=>saveMarine(id,v));await writeMap(value.data.health,(id,v)=>saveModelHealth(id,v));

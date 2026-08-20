@@ -325,7 +325,7 @@ function formatExactAge(iso){
 }
 function forecastHealth(f){
   const {t}=i18n(),age=Date.now()-Date.parse(f?.fetchedAt||''),refreshMs=Math.max(60,refreshIntervalMinutes()||60)*60000;
-  const stale=!Number.isFinite(age)||age>Math.max(refreshMs*2,3*3600e3);
+  const stale=!Number.isFinite(age)||age<0||age>Math.max(refreshMs*2,3*3600e3);
   if(!state.online)return {class:stale?'stale':'cached',label:t(stale?'offlineOldCache':'offlineRecentCache'),detail:f?.fetchedAt?t('dataAge',{age:formatExactAge(f.fetchedAt)}):t('noDataLower')};
   if(stale)return {class:'stale',label:t('cacheOld'),detail:f?.fetchedAt?t('loadedAgoSingular',{age:formatExactAge(f.fetchedAt)}):t('unknownDate')};
   return {class:'live',label:t('onlineData'),detail:f?.fetchedAt?t('loadedAgo',{age:formatExactAge(f.fetchedAt)}):t('recentData')};
@@ -1424,7 +1424,7 @@ async function changeLanguage(nextLanguage,directive){
 }
 
 function refreshIntervalMinutes(){return REFRESH_INTERVALS.find(x=>x.id===state.settings.refreshInterval)?.minutes??60;}
-function isForecastFresh(f){const minutes=refreshIntervalMinutes();if(!f?.fetchedAt)return false;const requested=Array.isArray(f.requestedModelIds)&&f.requestedModelIds.length?f.requestedModelIds:[...new Set([...Object.keys(f.seriesByModel||{}),...Object.keys(f.errors||{})])],current=state.settings.enabledModelIds||[],sameModels=requested.length===current.length&&[...requested].sort().every((id,i)=>id===[...current].sort()[i]);if(!sameModels)return false;if(minutes===0)return true;const age=Date.now()-Date.parse(f.fetchedAt);return age>=0&&age<minutes*60000;}
+function isForecastFresh(f){const minutes=refreshIntervalMinutes();if(!f?.fetchedAt)return false;const requested=Array.isArray(f.requestedModelIds)&&f.requestedModelIds.length?f.requestedModelIds:[...new Set([...Object.keys(f.seriesByModel||{}),...Object.keys(f.errors||{})])],current=state.settings.enabledModelIds||[],sameModels=requested.length===current.length&&[...requested].sort().every((id,i)=>id===[...current].sort()[i]);if(!sameModels)return false;const age=Date.now()-Date.parse(f.fetchedAt);if(!Number.isFinite(age)||age<0)return false;if(minutes===0)return true;return age<minutes*60000;}
 async function refreshDueCities(){
   if(!state.online||dueRefreshRunning||document.visibilityState==='hidden')return;const minutes=refreshIntervalMinutes();if(minutes===0)return;
   const due=state.cities.filter(city=>{const f=state.forecasts[city.id];return !f||!isForecastFresh(f);});

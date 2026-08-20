@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { makeI18n, webTranslationAudit, hasTranslation } from '../js/i18n.js';
-import { ANDROID_STRINGS } from '../js/android_strings.js';
+import { ANDROID_STRINGS } from './fixtures/android_strings.js';
 import { hourlyConfidenceBand, roundedHourLocal } from '../js/domain.js';
 import { buildEvolution } from '../js/features/evolution.js';
 import { WEATHER_MODELS, DEFAULT_MODEL_IDS } from '../js/models.js';
