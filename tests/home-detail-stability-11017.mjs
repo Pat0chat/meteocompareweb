@@ -4,7 +4,7 @@ const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const version=read('VERSION').trim(),app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js');
 assert.equal(version,'1.10.17');
 assert.match(sw,/APP_VERSION = '1\.10\.17'/);
-assert.match(sw,/CACHE_VERSION = 'v52-home-detail-stability'/);
+assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
 
 // Home: parallel headings above the two columns, and clearer dispersion copy.
 const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
@@ -26,7 +26,7 @@ assert.match(css,/@media \(max-width:1040px\)[^]*\.detail-nav\s*\{[^}]*display:g
 assert.match(css,/\.timeline-card \.timeline-mode\s*\{[^}]*margin-left:auto/s);
 assert.match(css,/\.timeline-card\[data-collapsed="true"\] \.timeline-mode\s*\{[^}]*display:none/s);
 
-// Targeted model selection rerenders only its inner <details>, never the whole detailed card.
+// Targeted model selection rerenders only its controlled inner panel, never the whole detailed card.
 assert.match(app,/function rerenderTargetedComparisonPanel\(\)/);
 const compareHandler=app.slice(app.indexOf('if(target.dataset.compareModel)'),app.indexOf('if(target.dataset.exportFormat)'));
 assert.match(compareHandler,/rerenderTargetedComparisonPanel\(\)/);

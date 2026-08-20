@@ -439,7 +439,7 @@ function renderNow(){
   const scrollDirective=pendingScrollDirective;pendingScrollDirective=null;
   const {t}=i18n();syncStorageErrors();
   let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='data')content=renderLocalDataPage(); else if(state.route.name==='about')content=renderAbout(); else if(state.route.name==='bias'){if(!lazyFeatures.bias){void loadFeature('bias').then(()=>render());content=renderFeatureLoadingPage('bias');}else content=renderBiasDetailPage(state.route);} else if(state.route.name==='compare'){if(!lazyFeatures.comparison){void loadFeature('comparison').then(()=>{if(state.route.name==='compare')render();});content=renderFeatureLoadingPage('comparison');}else content=renderCityComparisonLazy(state.route);} else content=renderCityDetail(state.route.id);
-  app.innerHTML=`${renderTopbar()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
+  app.innerHTML=`${renderTopbar()}${renderPageBack()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
   enhanceCollapsibleCards(app);
   syncStickyOffsets();
   if(!stabilizeLocalScroll(scrollDirective))applyScrollDirective(scrollDirective);
@@ -472,7 +472,7 @@ function rerenderCitySection(sectionId){
 }
 function rerenderTargetedComparisonPanel(){
   if(state.route.name!=='city'||typeof Element==='undefined')return false;
-  const panel=document.querySelector?.('#details details[data-target-compare]');
+  const panel=document.querySelector?.('#details [data-target-compare]');
   if(!(panel instanceof Element))return false;
   const f=state.forecasts[state.route.id];if(!f)return false;
   const directive=interactionScrollContext||captureScrollContext(panel),tab=state.settings.detailTab||'CONDITIONS',mode=state.settings.detailViewMode||'DAILY';
@@ -484,12 +484,17 @@ function rerenderCitySectionOrPage(sectionId){if(!rerenderCitySection(sectionId)
 
 function renderFeatureLoadingPage(name){const {t}=i18n();return `<main class="page"><section class="section-card feature-loading"><div class="loader"></div><h2>${esc(t('loading'))}</h2><p>${esc(t(name==='bias'?'loadingBiasModule':'loadingFeatureModule'))}</p></section></main>`;}
 
+function renderPageBack(){
+  if(state.route.name==='home'||state.route.name==='city')return '';
+  const {t}=i18n(),sticky=['data','settings','about'].includes(state.route.name);
+  return `<div class="page-back-shell${sticky?' is-sticky':''}"><button class="page-back-button" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></div>`;
+}
 function renderTopbar(){
   const {t}=i18n();
   const isHome=state.route.name==='home',isCity=state.route.name==='city',isData=state.route.name==='data',isSettings=state.route.name==='settings',isAbout=state.route.name==='about',activeForecast=currentCityForecast(),health=activeForecast?forecastHealth(activeForecast):null,statusLabel=health?.label||(state.online?t('connectionActive'):t('offlineShort')),statusTitle=health?`${health.label} · ${health.detail}`:(state.online?t('connectionActive'):t('offlineLocalData'));
   const cityLinks=state.cities.length?state.cities.map(city=>{const forecast=state.forecasts[city.id],cityHealth=forecast?forecastHealth(forecast):null;return `<button class="quick-city-link" role="menuitem" data-action="quick-city" data-city-id="${attr(city.id)}"><span class="quick-city-status ${cityHealth?.class||'unknown'}" aria-hidden="true"></span><span class="quick-city-copy"><strong>${esc(city.name)}</strong><small>${esc(placeLine(city))}</small></span><span class="quick-city-arrow" aria-hidden="true">→</span></button>`;}).join(''):`<div class="quick-city-empty">${esc(t('emptyTitle'))}</div>`;
   const citiesNav=`<div class="nav-cities-menu"><button class="nav-btn ${isHome?'active':''}" data-action="home" ${isHome?'aria-current="page"':''} aria-haspopup="menu"><span class="nav-icon">${uiIcon('home')}</span><span>${esc(t('cities'))}</span></button><div class="nav-cities-popover" role="menu" aria-label="${esc(t('cities'))}"><div class="nav-cities-popover-head"><strong>${esc(t('cities'))}</strong><span>${state.cities.length}</span></div><div class="nav-cities-list">${cityLinks}</div><button class="quick-city-add" data-action="open-add-city"><span>${uiIcon('plus',15)}</span>${esc(t('addCity'))}</button></div></div>`;
-  return `<header class="topbar">${!isHome&&!isCity?`<button class="topbar-back" data-action="back" aria-label="${esc(t('back'))}" title="${esc(t('back'))}"><span class="topbar-back-icon">${uiIcon('back',18)}</span><span class="topbar-back-label">${esc(t('back'))}</span></button>`:''}<div class="topbar-inner">
+  return `<header class="topbar"><div class="topbar-inner">
     <div class="brand" role="link" tabindex="0" data-action="home" aria-label="MeteoCompare — ${esc(t('cities'))}"><img class="logo" src="assets/icon.png" alt=""><div><div class="brand-title-row"><div class="brand-title">MeteoCompare</div><span class="brand-version" title="${esc(t('versionInfoLabel',{version:APP_VERSION,schema:DATA_SCHEMA_VERSION}))}">v${esc(APP_VERSION)}</span></div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
     <nav class="topbar-nav" aria-label="${esc(t('navMain'))}">${citiesNav}<button class="nav-btn ${isData?'active':''}" data-action="local-data" ${isData?'aria-current="page"':''}><span class="nav-icon">${uiIcon('database')}</span><span>${esc(t('localDataNav'))}</span></button><button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span class="nav-icon">${uiIcon('settings')}</span><span>${esc(t('settings'))}</span></button><button class="nav-btn ${isAbout?'active':''}" data-action="about" ${isAbout?'aria-current="page"':''}><span class="nav-icon">${uiIcon('info')}</span><span>${esc(t('about'))}</span></button><a class="nav-btn android-nav" href="https://play.google.com/store/apps/details?id=com.meteocompare.app" target="_blank" rel="noopener" aria-label="${esc(t('openAndroidApp'))}" title="${esc(t('openAndroidApp'))}"><span class="nav-icon">${uiIcon('download')}</span><span>Google Play</span></a><button class="nav-btn support-nav" data-action="donate"><span class="nav-icon">${uiIcon('heart')}</span><span>${esc(t('supportShort'))}</span></button></nav>
     <div class="topbar-spacer"></div><div class="topbar-system-status ${health?.class|| (state.online?'online':'offline')}" title="${esc(statusTitle)}"><span class="system-led" aria-hidden="true"></span><span>${esc(statusLabel)}</span></div>
@@ -509,7 +514,7 @@ function collapsibleCitySpecs(){return [
 ];}
 function decorateCollapsibleCard(card,head,sectionId,t){
   if(!card||!head)return;
-  card.classList.add('collapsible-card');card.dataset.collapseSection=sectionId;
+  card.classList.add('collapsible-card');
   const collapsed=sectionCollapsed(sectionId);card.dataset.collapsed=String(collapsed);
   let btn=head.querySelector?.('[data-collapse-section]');
   if(!btn){btn=document.createElement('button');btn.type='button';btn.className='collapse-card-btn';btn.dataset.collapseSection=sectionId;head.append(btn);}
@@ -524,26 +529,6 @@ function enhanceCollapsibleCards(root=document){
       decorateCollapsibleCard(card,card.querySelector?.(headSelector),sectionId,t);
     }
     return;
-  }
-  if(state.route.name==='settings'){
-    const keys=['interface','forecast','reliability','models'];
-    root.querySelectorAll?.('.settings-list-simple > .settings-section').forEach((card,index)=>decorateCollapsibleCard(card,card.querySelector('.settings-section-head'),`settings-${keys[index]||index}`,t));
-    return;
-  }
-  if(state.route.name==='data'){
-    const specs=[['data-backup','.backup-section'],['data-privacy','.privacy-panel-simple']];
-    for(const [key,selector] of specs){const card=root.querySelector?.(selector);decorateCollapsibleCard(card,card?.querySelector?.('.section-head'),key,t);}
-    return;
-  }
-  if(state.route.name==='about'){
-    const specs=[
-      ['about-method','.about-method','.section-head'],
-      ['about-reading','.about-reading','.section-head'],
-      ['about-data','.about-principle-card:first-child','.about-section-head'],
-      ['about-marine','.about-principle-card:nth-child(2)','.about-section-head'],
-      ['about-install','.about-install','.section-head']
-    ];
-    for(const [key,selector,headSelector] of specs){const card=root.querySelector?.(selector);decorateCollapsibleCard(card,card?.querySelector?.(headSelector),key,t);}
   }
 }
 
@@ -629,7 +614,7 @@ function homeWatchCandidate(city,f,weights){
 }
 function renderHomeWatchlist(){
   const {t}=i18n(),items=state.cities.map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,homeConsensusWeights(city.id)):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
-  return `<aside class="home-watch-section" aria-label="${esc(t('homeWatchTitle'))}"><p class="home-watch-lead">${esc(t('homeWatchLead'))}</p>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-city-open="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</aside>`;
+  return `<aside class="home-watch-section" aria-label="${esc(t('homeWatchTitle'))}"><p class="home-watch-lead">${esc(t('homeWatchLead'))}</p>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-action="open-watch-city" data-city-id="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</aside>`;
 }
 function renderHome(){
   const {t}=i18n(),cards=state.cities.map(renderCityCard).join(''),busy=state.loading.size,hasCities=state.cities.length>0;
@@ -731,7 +716,7 @@ function renderCityDetail(cityId){
   if(!f)return `<main class="page"><section class="detail-hero"><div class="detail-title"><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></section>${renderCityErrors(cityId)}<div class="section-card">${loading?'<div class="loader"></div> '+esc(t('loading')):`<button class="btn primary" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button>`}</div></main>`;
   const today=cityToday(f.city.timezone),consensusProfile=localConsensusWeights(cityId),consensusWeights=state.settings.localWeightedConsensus&&consensusProfile.ready?consensusProfile.maps:null,agg=cachedAggregateDay(f,today,consensusWeights),now=currentConditions(f,new Date(),{weightsByVariable:consensusWeights||{}}),inf=localizedConditionInfo(now.condition||agg.condition),scenarios=cachedScenarios(f),evolution=cachedEvolution(f,state.evolution[cityId]||[]),biasSource=state.bias[cityId]||{forecasts:[],observations:[]},biases=cachedBiases(f,biasSource,today),modelCount=Object.keys(f.seriesByModel).length;
   const health=forecastHealth(f),healthDetail=`${health.detail}${loading?` · ${t('updatingSuffix')}`:''}`;
-  return `<main class="page detail-page"><section class="detail-hero professional-hero"><div class="detail-weather-mark" aria-hidden="true">${inf.icon}</div><div class="detail-title"><div class="eyebrow">${esc(t('multiModelForecast'))}</div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p><div class="hero-meta"><span class="data-health ${health.class}"><i></i>${esc(health.label)}</span><span>${esc(healthDetail)}</span><span>${esc(t('availableModelsCount',{models:modelCountLabel(modelCount)}))}</span><span>${esc(f.city.timezone||'UTC')}</span></div></div><div class="detail-hero-actions"><button class="btn subtle" data-action="copy-link">${esc(t('shareView'))}</button><button class="btn tonal" data-refresh-city="${attr(city.id)}" ${loading?'disabled':''}>${esc(t(loading?'refreshing':'refreshWeather'))}</button></div></section>${renderCityErrors(cityId)}<div class="detail-workspace"><aside class="detail-sidebar" aria-label="${esc(t('navForecast'))}"><div class="sidebar-card"><div class="sidebar-title">${esc(t('overview'))}</div><nav class="detail-nav" aria-label="${esc(t('forecastSections'))}"><button data-scroll-section="today-summary">${esc(t('today'))}</button><button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button>${city.marineEnabled?`<button data-scroll-section="marine">${esc(t('marineTitle'))}</button>`:''}<button data-scroll-section="diagnostics">${esc(t('dataDiagnostics'))}</button></nav><button class="detail-back-button detail-sidebar-back" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></div></aside><div class="detail-main"><div class="overview-layout"><div class="overview-primary">${renderTodaySummary(f,agg,now,city.id,consensusProfile)}</div><div class="overview-secondary">${renderInsights(f,evolution,consensusWeights)}${renderScenarios(scenarios)}</div></div>${renderTimeline(f,consensusWeights)}${renderConfidenceSection(f,cityId,consensusWeights)}${renderEvolutionSection(evolution)}${renderReliabilitySection(city,biases)}${renderDetailedComparison(f,biases)}${renderMarineSection(city)}${renderDataDiagnosticsSection(city,f)}<div class="small source-note">${esc(t('source'))}</div></div></div></main>`;
+  return `<main class="page detail-page"><section class="detail-hero professional-hero"><div class="detail-weather-mark" aria-hidden="true">${inf.icon}</div><div class="detail-title"><div class="eyebrow">${esc(t('multiModelForecast'))}</div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p><div class="hero-meta"><span class="data-health ${health.class}"><i></i>${esc(health.label)}</span><span>${esc(healthDetail)}</span><span>${esc(t('availableModelsCount',{models:modelCountLabel(modelCount)}))}</span><span>${esc(f.city.timezone||'UTC')}</span></div></div><div class="detail-hero-actions"><button class="btn subtle" data-action="copy-link">${esc(t('shareView'))}</button><button class="btn tonal" data-refresh-city="${attr(city.id)}" ${loading?'disabled':''}>${esc(t(loading?'refreshing':'refreshWeather'))}</button></div></section>${renderCityErrors(cityId)}<div class="detail-workspace"><aside class="detail-sidebar" aria-label="${esc(t('navForecast'))}"><div class="sidebar-card"><div class="sidebar-title">${esc(t('overview'))}</div><nav class="detail-nav" aria-label="${esc(t('forecastSections'))}"><button data-scroll-section="today-summary">${esc(t('today'))}</button><button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button>${city.marineEnabled?`<button data-scroll-section="marine">${esc(t('marineTitle'))}</button>`:''}<button data-scroll-section="diagnostics">${esc(t('dataDiagnostics'))}</button></nav></div><button class="detail-back-button detail-sidebar-back" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></aside><div class="detail-main"><div class="overview-layout"><div class="overview-primary">${renderTodaySummary(f,agg,now,city.id,consensusProfile)}</div><div class="overview-secondary">${renderInsights(f,evolution,consensusWeights)}${renderScenarios(scenarios)}</div></div>${renderTimeline(f,consensusWeights)}${renderConfidenceSection(f,cityId,consensusWeights)}${renderEvolutionSection(evolution)}${renderReliabilitySection(city,biases)}${renderDetailedComparison(f,biases)}${renderMarineSection(city)}${renderDataDiagnosticsSection(city,f)}<div class="small source-note">${esc(t('source'))}</div></div></div></main>`;
 }
 
 
@@ -1297,8 +1282,6 @@ function handleGlobalKeydown(e){
 }
 
 function handleDetailsToggle(e){
-  const compareDetails=e.target?.closest?.('details[data-target-compare]');
-  if(compareDetails){const key=state.route.name==='city'?state.route.id:'global';state.comparePanelOpen[key]=compareDetails.open;return;}
   const storageDetails=e.target?.closest?.('details[data-storage-advanced],details[data-storage-privacy-details],details[data-storage-cache-details]');
   if(storageDetails){
     if(storageDetails.hasAttribute('data-storage-advanced'))state.localDataUi.advancedOpen=storageDetails.open;
@@ -1355,7 +1338,7 @@ function handleAppClick(e){
   if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render({scroll:interactionScrollContext,immediate:true});return;}
   if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
   if(target.dataset.density){state.settings.density=target.dataset.density;persistSettings();updateSettingsChoiceButtons('data-density',target.dataset.density);stabilizeLocalScroll(interactionScrollContext);return;}
-  if(target.dataset.compareModel){const key=state.route.name==='city'?state.route.id:'global',panel=target.closest?.('details[data-target-compare]');if(panel)state.comparePanelOpen[key]=panel.open;const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'));return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();rerenderTargetedComparisonPanel();return;}
+  if(target.dataset.compareModel){const key=state.route.name==='city'?state.route.id:'global',panel=target.closest?.('[data-target-compare]');if(panel)state.comparePanelOpen[key]=panel.dataset.open==='true';const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'));return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();rerenderTargetedComparisonPanel();return;}
   if(target.dataset.exportFormat){exportCityData(state.route.id,target.dataset.exportFormat);return;}
   if(target.dataset.agreementTime){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id,focusTimestamp:target.dataset.agreementTime,focusEpoch:Number.isFinite(Number(target.dataset.agreementEpoch))?Number(target.dataset.agreementEpoch):null};render();return;}
   if(target.dataset.cityCompareToggle&&state.modal?.type==='cityCompare'){const id=target.dataset.cityCompareToggle,set=new Set(state.modal.selectedIds||[]);if(set.has(id))set.delete(id);else{if(set.size>=3){toast(i18n().t('cityComparisonMax3'));return;}set.add(id);}state.modal.selectedIds=[...set];render();return;}
@@ -1363,7 +1346,7 @@ function handleAppClick(e){
   if(target.dataset.biasRefreshCity){const city=state.cities.find(c=>c.id===target.dataset.biasRefreshCity),plan=biasRefreshPlan(target.dataset.biasRefreshCity);if(city&&!plan.missingDays.length){toast(i18n().t('historyAlreadyCurrent',{city:city.name}));return;}if(city&&confirm(i18n().t('historyRefreshConfirm',{city:city.name,days:plan.missingDays.length,models:modelCountLabel(plan.models.length),calls:archiveCallLabel(plan.requestCount)})))refreshBiasForCity(target.dataset.biasRefreshCity);return;}
   if(target.dataset.collapseSection){const sectionId=target.dataset.collapseSection,card=target.closest('.collapsible-card'),collapsed=card?.dataset.collapsed!=='true';setSectionCollapsed(sectionId,collapsed);if(card){card.dataset.collapsed=String(collapsed);target.setAttribute('aria-expanded',String(!collapsed));target.setAttribute('aria-label',collapsed?i18n().t('expandSection'):i18n().t('collapseSection'));target.title=collapsed?i18n().t('expandSection'):i18n().t('collapseSection');}return;}
   if(target.dataset.scrollSection){const sectionId=target.dataset.scrollSection;if(sectionCollapsed(sectionId)){setSectionCollapsed(sectionId,false);const card=document.getElementById?.(sectionId)?.querySelector?.('.collapsible-card')||document.getElementById?.(sectionId);if(card?.classList?.contains('collapsible-card')){card.dataset.collapsed='false';const btn=card.querySelector?.('[data-collapse-section]');if(btn){btn.setAttribute('aria-expanded','true');btn.setAttribute('aria-label',i18n().t('collapseSection'));btn.title=i18n().t('collapseSection');}}}document.getElementById?.(sectionId)?.scrollIntoView?.({behavior:'smooth',block:'start'});return;}
-  if(target.dataset.cityOpen){if(e.target.closest('button'))return;go(`#/city/${encodeURIComponent(target.dataset.cityOpen)}`);}
+  if(target.dataset.cityOpen){if(e.target.closest('button,a')&&e.target.closest('[data-city-open]')!==e.target.closest('button,a'))return;go(`#/city/${encodeURIComponent(target.dataset.cityOpen)}`);}
   }finally{interactionScrollContext=previousInteractionScroll;}
 }
 
@@ -1383,6 +1366,8 @@ function handleAction(e){
   if(action==='back')history.length>1?history.back():go('#/');
   else if(action==='home')go('#/');
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
+  else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
+  else if(action==='toggle-target-compare'){const key=state.route.name==='city'?state.route.id:'global',panel=e.currentTarget.closest?.('[data-target-compare]'),next=panel?.dataset.open!=='true';state.comparePanelOpen[key]=next;if(panel){panel.dataset.open=String(next);const btn=panel.querySelector?.('[data-action="toggle-target-compare"]');if(btn)btn.setAttribute('aria-expanded',String(next));const body=panel.querySelector?.('.target-compare-body');if(body)body.hidden=!next;} }
   else if(action==='settings')go('#/settings');
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}
   else if(action==='about')go('#/about');

@@ -4,7 +4,7 @@ const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const version=read('VERSION').trim(),app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js');
 assert.equal(version,'1.10.17');
 assert.match(sw,/APP_VERSION = '1\.10\.17'/);
-assert.match(sw,/CACHE_VERSION = 'v52-home-detail-stability'/);
+assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
 const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);
 assert.match(home,/homeModernKicker/);

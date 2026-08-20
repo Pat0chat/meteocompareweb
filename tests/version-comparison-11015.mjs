@@ -15,9 +15,10 @@ assert.match(css,/\.brand-version\s*\{/);
 for(const lang of ['fr','en','es','de','it']) assert.match(read(`js/locales/${lang}.js`),/versionInfoLabel/);
 // Targeted model picker keeps its UI open state independently from selected count.
 assert.match(app,/comparePanelOpen:\s*\{\}/);
-assert.match(app,/details\[data-target-compare\]/);
-assert.match(app,/state\.comparePanelOpen\[key\]=compareDetails\.open/);
-assert.match(app,/state\.comparePanelOpen\[key\]=panel\.open/);
+assert.match(app,/\[data-target-compare\]/);
+assert.match(app,/toggle-target-compare/);
+assert.match(app,/state\.comparePanelOpen\[key\]=next/);
+assert.match(app,/panel\.dataset\.open/);
 assert.match(comparison,/data-target-compare/);
 assert.match(comparison,/targetCompareOpen/);
 assert.match(comparison,/isOpen=targetCompareOpen\?\?selected\.length>=2/);

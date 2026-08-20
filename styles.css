@@ -514,8 +514,6 @@ tr.current .heatmap-data-cell[style*="--heat"] { background: color-mix(in srgb, 
   .detail-sidebar .data-status { display:none; }
   .detail-sidebar .sidebar-title { display:none; }
   .detail-sidebar .sidebar-card:first-child { padding:6px; background:color-mix(in srgb,var(--bg) 92%,transparent); backdrop-filter:blur(16px); }
-  .detail-nav { display:flex; overflow-x:auto; }
-  .detail-nav button { width:auto; white-space:nowrap; }
   .summary-header { grid-template-columns:1fr 220px; }
 }
 @media (max-width: 760px) {
@@ -1327,8 +1325,6 @@ body, html[data-theme="dark"] body { background-image: none; }
 
 /* Targeted 2–4 model comparison. */
 .target-compare { margin:0 0 14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
-.target-compare > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; cursor:pointer; font-size:.8rem; font-weight:750; list-style:none; }
-.target-compare > summary::-webkit-details-marker { display:none; }
 .target-compare-body { padding:0 12px 12px; border-top:1px solid var(--border); }
 .model-compare-picker { display:flex; gap:6px; overflow:auto; padding:10px 0 8px; scrollbar-width:thin; }
 .compare-model-chip { flex:0 0 auto; display:grid; gap:1px; min-width:92px; padding:7px 9px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); text-align:left; cursor:pointer; font:inherit; font-size:.7rem; font-weight:700; }
@@ -3048,7 +3044,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .home-consensus-help { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* City back navigation belongs to the page, not halfway across the topbar. */
-.detail-back-row { display:flex; align-items:center; margin-top:var(--space-4); margin-bottom:var(--space-2); }
 .detail-back-button {
   min-height:38px; display:inline-flex; align-items:center; gap:7px; padding:0 13px 0 9px;
   border:1px solid color-mix(in srgb,var(--primary) 32%,var(--border)); border-radius:var(--radius-pill);
@@ -3061,7 +3056,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .detail-back-icon { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:var(--surface); }
 .detail-page .detail-hero { margin-top:var(--space-2); }
 
-/* Outer detailed-forecast folding is independent from the inner targeted comparison <details>. */
+/* Outer detailed-forecast folding is independent from the inner controlled comparison panel. */
 .detailed-card[data-collapsed="true"] .section-actions { display:none !important; }
 .timeline-card[data-collapsed="true"] .timeline-mode { display:none !important; }
 
@@ -3069,7 +3064,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .home-cities-heading { margin-top:var(--space-6); }
   .home-weather-coherence { min-width:72px; padding-inline:7px; }
   .home-weather-coherence small { max-width:78px; }
-  .detail-back-row { margin-top:var(--space-3); }
 }
 @media (max-width:420px) {
   .home-weather-primary { grid-template-columns:auto minmax(0,1fr) auto; gap:var(--space-2); }
@@ -3119,3 +3113,130 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 .home-column-heading { min-height:0; }
 .home-watch-lead { margin:0 0 var(--space-3); color:var(--muted); font-size:.7rem; line-height:1.45; }
+
+/* 1.10.17 — final UI stability pass (product version unchanged) */
+/* Configuration/information pages are intentionally static: folding belongs to city forecast content only. */
+.settings-control-grid { align-items:stretch; }
+.settings-control-grid > .setting-control { align-self:stretch; }
+
+/* Back navigation is page-level outside the topbar on non-city secondary pages. */
+.page-back-shell {
+  width:min(var(--content-max),calc(100% - 32px));
+  margin:var(--space-3) auto 0;
+  display:flex;
+  align-items:center;
+}
+.page-back-button {
+  min-height:40px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:0 14px 0 9px;
+  border:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));
+  border-radius:var(--radius-pill);
+  background:var(--surface);
+  color:var(--primary-strong);
+  box-shadow:var(--shadow-1);
+  font:inherit;
+  font-size:.76rem;
+  font-weight:800;
+  cursor:pointer;
+  transition:background .14s ease,border-color .14s ease,transform .14s ease,box-shadow .14s ease;
+}
+.page-back-button:hover { background:var(--primary-soft); border-color:color-mix(in srgb,var(--primary) 56%,var(--border)); transform:translateY(-1px); box-shadow:var(--shadow-2); }
+.page-back-button:focus-visible { outline:none; box-shadow:var(--focus),var(--shadow-1); }
+
+/* City back action is a sibling below the navigation card, never inside the nav surface. */
+.detail-sidebar > .detail-sidebar-back {
+  width:100%;
+  margin:0;
+  justify-content:flex-start;
+  border-radius:var(--radius-sm);
+  background:var(--surface);
+}
+
+/* The model selector is a controlled accordion rather than a nested native <details>. */
+.target-compare { overflow:hidden; }
+.target-compare-toggle {
+  width:100%;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  font:inherit;
+  font-size:.8rem;
+  font-weight:750;
+  text-align:left;
+  cursor:pointer;
+}
+.target-compare-toggle:hover { background:var(--surface-2); }
+.target-compare-toggle:focus-visible { outline:none; box-shadow:inset var(--focus); }
+.target-compare-toggle-meta { display:inline-flex; align-items:center; gap:8px; flex:0 0 auto; }
+.target-compare-chevron { display:inline-grid; place-items:center; width:20px; height:20px; color:var(--muted); transition:transform .16s ease; }
+.target-compare[data-open="true"] .target-compare-chevron { transform:rotate(180deg); }
+.target-compare-body[hidden] { display:none !important; }
+
+@media (max-width:760px) {
+  .page-back-shell { width:min(var(--content-max),calc(100% - 20px)); margin-top:var(--space-2); }
+  .page-back-button { min-height:42px; }
+}
+
+
+/* 1.10.17 — final clean polish (product version unchanged) */
+:root { --detail-content-max: 1780px; }
+
+/* Give the city detail workspace enough room for multi-model tables on desktop. */
+.detail-page {
+  width:min(var(--detail-content-max),100%);
+  padding-inline:24px;
+}
+.detail-workspace {
+  grid-template-columns:200px minmax(0,1fr);
+  gap:18px;
+  min-width:0;
+}
+.detail-main { min-width:0; }
+.detail-page .forecast-table { min-width:900px; }
+.detail-page .forecast-table th,
+.detail-page .forecast-table td { min-width:106px; }
+.detail-page .forecast-table th:first-child,
+.detail-page .forecast-table td:first-child { min-width:118px; }
+
+/* The collapse trigger is only the chevron button; clicks inside card content are inert. */
+.collapsible-card { cursor:default; }
+.collapse-card-btn { cursor:pointer; }
+
+/* Settings, Local data and About keep a larger back action visible while scrolling. */
+.page-back-shell.is-sticky {
+  position:sticky;
+  top:calc(var(--topbar-height,66px) + var(--space-2));
+  z-index:24;
+  pointer-events:none;
+}
+.page-back-shell.is-sticky .page-back-button {
+  min-height:48px;
+  padding:0 18px 0 11px;
+  font-size:.84rem;
+  box-shadow:var(--shadow-2);
+  pointer-events:auto;
+}
+.page-back-shell.is-sticky .detail-back-icon { width:28px; height:28px; }
+
+@media (max-width:1320px) {
+  .detail-page { padding-inline:20px; }
+  .detail-workspace { grid-template-columns:184px minmax(0,1fr); gap:14px; }
+}
+@media (max-width:1040px) {
+  .detail-page { padding-inline:18px; }
+  .detail-workspace { display:block; }
+}
+@media (max-width:760px) {
+  .detail-page { padding-inline:14px; }
+  .page-back-shell.is-sticky { top:calc(var(--topbar-height,66px) + 6px); }
+  .page-back-shell.is-sticky .page-back-button { min-height:46px; font-size:.80rem; }
+}

@@ -14,8 +14,9 @@ assert.doesNotMatch(specs,/\['today-summary'/,'TodaySummary is core weather info
 // Detailed forecasts may fold as a card, but their targeted-model disclosure keeps an independent state.
 assert.match(specs,/\['details'/,'Detailed forecasts must be foldable at card level');
 assert.match(app,/renderTargetedModelComparison\(f,tab,mode\)/,'Detailed forecasts must keep the targeted model comparison');
-assert.match(app,/details\[data-target-compare\]/,'Targeted model comparison must keep its dedicated disclosure state');
-assert.match(app,/state\.comparePanelOpen\[key\]=compareDetails\.open/,'Comparison disclosure state must be tracked independently');
+assert.match(app,/\[data-target-compare\]/,'Targeted model comparison must keep its dedicated disclosure state');
+assert.match(app,/toggle-target-compare/,'Comparison disclosure must use an explicit controlled accordion');
+assert.match(app,/state\.comparePanelOpen\[key\]=next/,'Comparison disclosure state must be tracked independently');
 assert.match(css,/\.detailed-card\[data-collapsed=\"true\"\] \.section-actions/,'Detailed card actions should hide with the folded card');
 assert.match(css,/\.timeline-card\[data-collapsed=\"true\"\] \.timeline-mode/,'Timeline 24h/7d controls must hide when folded');
 

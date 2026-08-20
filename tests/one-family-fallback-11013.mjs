@@ -54,9 +54,9 @@ for(const metric of ['TEMPERATURE','WIND','PRECIPITATION']){
 
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
-assert.match(app,/class="topbar-back"/,'non-home navigation must expose the new back control');
-assert.doesNotMatch(app,/!isHome\?`<button class="icon-btn" data-action="back"/,'back control must no longer occupy topbar flex layout');
-assert.match(css,/\.topbar-back\s*\{[^}]*position:\s*absolute/s,'back control must not shift topbar contents');
-assert.match(css,/\.topbar-back-label/,'desktop back control should have a visible text label');
+assert.match(app,/function renderPageBack\(\)/,'non-home navigation must expose a page-level back control');
+assert.doesNotMatch(app,/class="topbar-back"/,'back control must no longer overlap the topbar');
+assert.match(css,/\.page-back-shell\s*\{/,'page-level back control needs a stable layout container');
+assert.match(css,/\.page-back-button\s*\{/,'page-level back control should have a visible text label');
 
 console.log('MeteoCompare Web one-family fallback + back navigation 1.10.13: OK');

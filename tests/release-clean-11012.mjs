@@ -17,7 +17,8 @@ assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.match(sw,/CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
 // Settings must use intrinsic flow: no fake spacer tracks or auto-pushed actions.
-assert.match(css,/\.settings-control-grid\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)[^}]*align-items:start[^}]*width:100%/);
+assert.match(css,/\.settings-control-grid\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)[^}]*width:100%/);
+assert.match(css,/\.settings-control-grid\s*\{[^}]*align-items:stretch/s,'settings controls on one row must share height');
 assert.match(css,/\.setting-control\{[\s\S]*display:grid;[\s\S]*gap:10px;[\s\S]*align-content:start;/);
 assert.doesNotMatch(css,/\.setting-control[^}]*height:\s*100%/);
 assert.doesNotMatch(css,/\.setting-control\s*>\s*\.option-row[^}]*margin-top:\s*auto/);
