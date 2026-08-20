@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
+const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),version=read('VERSION').trim();
+assert.equal(version,'1.12.1');
+assert.match(app,/function renderGlobalAgreementCard\(/);
+assert.match(app,/overview-secondary\">\$\{renderGlobalAgreementCard\([^}]+\)\}\$\{renderInsights\(/);
+assert.match(app,/class="section-card global-agreement global-agreement-card/);
+assert.match(app,/summary-context-item summary-context-method/);
+assert.match(css,/\.summary-context-chips \{[\s\S]*grid-template-columns:max-content max-content minmax\(0,1fr\)/);
+assert.match(css,/\.summary-context-chips > \.summary-solar-pair \{[\s\S]*grid-column:1 \/ -1/);
+assert.match(css,/\.timeline-ruler-slot span::after \{ content:none; display:none; \}/);
+assert.match(css,/\.timeline-ruler-slot::after \{[\s\S]*background:linear-gradient/);
+assert.match(css,/\.timeline-full \{ margin-top:8px; \}/);
+assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=61);
+console.log('MeteoCompare Web 1.12.1 detail hierarchy polish: OK');

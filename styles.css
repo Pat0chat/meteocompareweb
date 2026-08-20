@@ -3649,3 +3649,145 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .timeline-condition .condition-icon .wx-icon { width:2rem; height:2rem; }
   .forecast-table td .condition-icon .wx-icon { width:1.82rem; height:1.82rem; }
 }
+
+/* ========================================================================== */
+/* 1.12.1 — detail hierarchy polish: context, global agreement, ruler link    */
+/* ========================================================================== */
+.summary-header {
+  grid-template-columns:minmax(0,1fr);
+}
+.summary-now-copy { min-width:0; }
+.summary-context-chips {
+  display:grid;
+  grid-template-columns:max-content max-content minmax(0,1fr);
+  align-items:center;
+  gap:5px 15px;
+  margin-top:10px;
+  color:var(--muted);
+  font-size:var(--type-micro);
+  line-height:1.4;
+}
+.summary-context-chips > .summary-context-item,
+.summary-context-chips .summary-solar-chip {
+  display:inline-flex;
+  align-items:center;
+  min-width:0;
+  min-height:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+}
+.summary-context-chips > .summary-context-item { white-space:nowrap; }
+.summary-context-chips > .summary-context-method { white-space:normal; }
+.summary-context-chips > .summary-context-item + .summary-context-item::before,
+.summary-context-chips .summary-solar-pair::before,
+.summary-context-chips .summary-solar-chip + .summary-solar-chip::before {
+  content:none;
+}
+.summary-context-chips > .summary-context-item:not(:first-child) {
+  position:relative;
+}
+.summary-context-chips > .summary-context-item:not(:first-child)::after {
+  content:"";
+  position:absolute;
+  left:-8px;
+  top:50%;
+  width:1px;
+  height:11px;
+  background:color-mix(in srgb,var(--border-strong) 72%,transparent);
+  transform:translateY(-50%);
+}
+.summary-context-chips > .summary-solar-pair {
+  grid-column:1 / -1;
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:5px 16px;
+  min-width:0;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.summary-context-chips .summary-solar-chip { gap:5px; white-space:nowrap; }
+.summary-context-chips .summary-solar-chip .wx-icon { flex:0 0 auto; }
+
+.overview-secondary {
+  grid-template-rows:auto auto 1fr;
+}
+.global-agreement-section { margin-top:0; }
+.global-agreement-card {
+  min-width:0;
+  padding:17px 18px 16px;
+  border:1px solid color-mix(in srgb,currentColor 30%,var(--border));
+  border-radius:var(--radius-lg);
+  background:linear-gradient(145deg,color-mix(in srgb,currentColor 5%,var(--surface)),var(--surface) 62%);
+  box-shadow:var(--shadow-1);
+}
+.global-agreement-head {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px 14px;
+  align-items:center;
+}
+.global-agreement-card .global-agreement-value {
+  margin:0;
+  font-size:2rem;
+  line-height:1;
+  text-align:right;
+}
+.global-agreement-card .global-agreement-meta {
+  margin-top:4px;
+  line-height:1.35;
+}
+.global-agreement-card .weighted-consensus {
+  margin-top:13px;
+}
+.global-agreement-card .agreement-link {
+  margin-top:12px;
+}
+
+.timeline-ruler {
+  min-height:40px;
+  margin:13px 0 0;
+  padding:4px 4px 2px;
+}
+.timeline-ruler-slot { height:28px; }
+.timeline-ruler-slot span::after { content:none; display:none; }
+.timeline-ruler-slot::after {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:27px;
+  width:1px;
+  height:16px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--ruler-accent) 28%,transparent),transparent);
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+.timeline-full { margin-top:8px; }
+
+@media (max-width:760px) {
+  .overview-secondary { grid-template-rows:none; }
+  .global-agreement-card { padding:16px; }
+}
+@media (max-width:560px) {
+  .summary-context-chips {
+    grid-template-columns:max-content minmax(0,1fr);
+    gap:5px 14px;
+  }
+  .summary-context-chips > .summary-context-method {
+    grid-column:1 / -1;
+  }
+  .summary-context-chips > .summary-context-method::after { content:none; }
+  .summary-context-chips > .summary-solar-pair { grid-column:1 / -1; }
+}
+@media (max-width:390px) {
+  .summary-context-chips { grid-template-columns:1fr; }
+  .summary-context-chips > .summary-context-item,
+  .summary-context-chips > .summary-context-method,
+  .summary-context-chips > .summary-solar-pair { grid-column:1; }
+  .summary-context-chips > .summary-context-item::after { content:none !important; }
+}

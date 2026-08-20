@@ -10,7 +10,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),app=read('j
 assert.equal(version,'1.12.1');
 assert.ok(versionJs.includes("APP_VERSION = '1.12.1'"));
 assert.ok(sw.includes("APP_VERSION = '1.12.1'"));
-assert.match(sw,/CACHE_VERSION = 'v60-weather-icons-csp-polish'/);
+assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=60,'1.12.1 cache generation must not regress');
 
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';
 assert.match(csp,/script-src 'self' 'sha256-ns7Fh0w\+Z3PjL\/\/vDImEeGKNiiYs15OyfpFcmcOLWUk='/);

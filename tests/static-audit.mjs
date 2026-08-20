@@ -12,7 +12,7 @@ assert.match(app, /e\.key==='Escape'&&state\.modal/, 'Escape must close modals')
 assert.match(app, /querySelectorAll\('button:not\(\[disabled\]\).*tabindex/, 'modal focus must be trapped');
 assert.match(app, /\[data-city-open\]\[role="link"\]/, 'city cards must be keyboard activatable');
 assert.match(app, /data-scroll-section="today-summary"/, 'detail navigation must not conflict with hash routing');
-assert.match(app, /class="global-agreement\s/, 'TodaySummary must restore global agreement');
+assert.match(app, /global-agreement-card/, 'detail overview must expose the global agreement card');
 assert.match(app, /data-action="why-confidence"/, 'TodaySummary must expose the agreement explanation action');
 assert.match(app, /renderTableLegend\(tab,mode,normals\)/, 'detailed tables must render legends');
 assert.match(app, /heatmap-data-cell/, 'detailed tables must render heatmap cells');

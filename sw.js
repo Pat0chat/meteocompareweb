@@ -1,5 +1,5 @@
 const APP_VERSION = '1.12.1';
-const CACHE_VERSION = 'v60-weather-icons-csp-polish';
+const CACHE_VERSION = 'v61-detail-hierarchy-polish';
 const CACHE_PREFIX = 'meteocompare-web-';
 const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [
