@@ -79,7 +79,7 @@ assert.ok(!app.includes(' mm/j'),'precipitation bias display must match Android 
 assert.match(app,/localizedWindDirection\(dir\)/,'wind direction abbreviations must follow the selected language');
 
 // 5. Language switching also changes document metadata / PWA manifest.
-assert.match(app,/manifest\.\$\{i18n\(\)\.lang\}\.webmanifest/,'manifest must follow selected language');
+assert.match(app,/appAssetUrl\(`manifest\.\$\{lang\}\.webmanifest`\)/,'manifest must follow selected language from the application root');
 for(const lang of ['fr','en','es','de','it']){
   const manifest=JSON.parse(read(`manifest.${lang}.webmanifest`));
   assert.equal(manifest.lang,lang,`manifest language mismatch for ${lang}`);
@@ -114,7 +114,7 @@ assert.match(app,/indices=s\.hourly\.timestamps[\s\S]*epochMs:epochs\[i\][\s\S]*
 assert.match(app,/lastViewTimeKey[\s\S]*setInterval/,'long-open pages must re-render on local-hour rollover');
 
 // 9. The API-confirmed timezone is persisted back to the favorite.
-assert.match(app,/resolvedTimezone=f\?\.city\?\.timezone[\s\S]*city\.timezone=resolvedTimezone[\s\S]*saveCities\(state\.cities\)/,'confirmed timezone must repair the stored favorite');
+assert.match(app,/resolvedTimezone=f\?\.city\?\.timezone[\s\S]*city\.timezone=resolvedTimezone[\s\S]*persistCities\(\)/,'confirmed timezone must repair the stored favorite');
 
 // 10. A cached forecast's evolution stays anchored to the forecast snapshot date, not wall-clock today.
 const oldDates=['2020-01-02','2020-01-03'];

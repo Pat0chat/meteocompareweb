@@ -20,7 +20,7 @@ assert.doesNotMatch(css,/\.setting-control[^}]*height:\s*100%/);
 // Home watch signals are real actions and open the relevant city.
 assert.match(app,/data-action="open-watch-city" data-city-id=/);
 assert.match(app,/action==='open-watch-city'/);
-assert.match(app,/go\(`#\/city\/\$\{encodeURIComponent\(id\)\}`\)/);
+assert.match(app,/action==='open-watch-city'[\s\S]*goCity\(id\)/);
 
 // Home model-spread wording stays explicit in all supported languages.
 const expected={fr:['Dispersion de la température par modèle','Prévision {value}°'],en:['Temperature spread by model','Forecast {value}°'],es:['Dispersión de temperatura por modelo','Previsión {value}°'],de:['Temperaturstreuung nach Modell','Prognose {value}°'],it:['Dispersione temperatura per modello','Previsione {value}°']};

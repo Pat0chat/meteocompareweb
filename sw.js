@@ -1,11 +1,11 @@
-const APP_VERSION = '1.13.0';
-const CACHE_VERSION = 'v64-weather-icon-centering';
+const APP_VERSION = '1.14.0';
+const CACHE_VERSION = 'v65-seo-cloudflare-pages';
 const CACHE_PREFIX = 'meteocompare-web-';
 const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [
   './', './index.html', './styles.css', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './assets/icon.png', './assets/icon-512.png',
-  './js/version.js', './js/models.js', './js/consensus.js', './js/storage.js', './js/data/contracts.js', './js/data/forecast-normalizer.js', './js/api-budget.js', './js/api.js', './js/domain.js', './js/i18n.js', './js/errors.js', './js/analytics-config.js', './js/analytics.js', './js/core/app-state.js', './js/core/cache-registry.js', './js/core/feature-registry.js', './js/core/local-analysis-store.js', './js/core/application-kernel.js', './js/ui/weather-icons.js', './js/app.js',
+  './js/version.js', './js/seo.js', './js/models.js', './js/consensus.js', './js/storage.js', './js/data/contracts.js', './js/data/forecast-normalizer.js', './js/api-budget.js', './js/api.js', './js/domain.js', './js/i18n.js', './js/errors.js', './js/analytics-config.js', './js/analytics.js', './js/core/app-state.js', './js/core/cache-registry.js', './js/core/feature-registry.js', './js/core/local-analysis-store.js', './js/core/application-kernel.js', './js/ui/weather-icons.js', './js/app.js',
   './js/locales/fr.js', './js/locales/en.js', './js/locales/es.js', './js/locales/de.js', './js/locales/it.js',
   './js/features/bias.js', './js/features/evolution.js', './js/features/diagnostics.js', './js/features/comparison.js', './js/features/marine.js', './js/features/model-health.js'
 ];
@@ -35,8 +35,13 @@ self.addEventListener('fetch', event => {
     // Network-first avoids keeping an old application shell after a GitHub Pages deploy.
     event.respondWith(
       fetch(request)
-        .then(response=>{if(response?.ok){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put('./index.html',copy));}return response;})
-        .catch(()=>caches.match('./index.html'))
+        .then(response=>{if(response?.ok&&url.pathname==='/'){const copy=response.clone();caches.open(CACHE).then(cache=>cache.put('./index.html',copy));}return response;})
+        .catch(async()=>{
+          const cached=await caches.match('./index.html');if(!cached)return cached;
+          if(!url.pathname.startsWith('/meteo/'))return cached;
+          const text=await cached.text(),html=/<base\s/i.test(text)?text:text.replace('</head>','  <base href="/" />\n</head>');
+          return new Response(html,{status:200,headers:{'content-type':'text/html; charset=UTF-8','x-meteocompare-offline-shell':'1'}});
+        })
     );
     return;
   }

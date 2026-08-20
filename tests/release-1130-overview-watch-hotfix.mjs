@@ -5,9 +5,9 @@ import { activeTodayHourlyPoints, zonedLocalTimestampEpoch } from '../js/domain.
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const css=read('styles.css'),app=read('js/app.js'),version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js');
 
-assert.equal(version,'1.13.0');
-assert.match(versionJs,/APP_VERSION = '1\.13\.0'/);
-assert.match(sw,/APP_VERSION = '1\.13\.0'/);
+assert.ok(version.localeCompare('1.13.0',undefined,{numeric:true})>=0,'release must preserve 1.13 contracts');
+assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
+assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=63,'1.13 cache generation must not regress');
 assert.match(css,/\.overview-layout\s*\{[^}]*align-items:\s*start/s);
 assert.match(css,/\.overview-primary\s*\{[^}]*display:\s*block[^}]*min-height:\s*0/s);

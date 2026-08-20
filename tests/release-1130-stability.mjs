@@ -11,9 +11,9 @@ import { OperationRegistry } from '../js/core/cache-registry.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js');
-assert.equal(version,'1.13.0');
-assert.match(versionJs,/APP_VERSION = '1\.13\.0'/);
-assert.match(sw,/APP_VERSION = '1\.13\.0'/);
+assert.ok(version.localeCompare('1.13.0',undefined,{numeric:true})>=0,'release must preserve 1.13 contracts');
+assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
+assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=63,'1.13 cache generation must not regress');
 assert.match(sw,/\.\/js\/data\/contracts\.js/);
 assert.match(sw,/\.\/js\/data\/forecast-normalizer\.js/);

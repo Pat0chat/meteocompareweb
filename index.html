@@ -6,7 +6,13 @@
   <meta name="theme-color" content="#155eef" />
   <meta name="color-scheme" content="light dark" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-ns7Fh0w+Z3PjL//vDImEeGKNiiYs15OyfpFcmcOLWUk='; script-src-elem 'self' 'sha256-ns7Fh0w+Z3PjL//vDImEeGKNiiYs15OyfpFcmcOLWUk='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://archive-api.open-meteo.com https://previous-runs-api.open-meteo.com https://marine-api.open-meteo.com https://openmeteo-data-spatial.b-cdn.net https://plausible.io; object-src 'none'; base-uri 'self'; form-action 'none'; worker-src 'self'; manifest-src 'self'" />
-  <meta name="description" content="MeteoCompare — comparaison multi-modèles météorologiques, dispersion, évolution et fiabilité locale." />
+  <meta name="description" content="MeteoCompare compare plusieurs modèles météo pour visualiser prévisions, dispersion, pluie, vent et niveau d’accord par ville." />
+  <link rel="canonical" href="/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="MeteoCompare — comparaison multi-modèles météo" />
+  <meta property="og:description" content="Comparez plusieurs modèles météo et visualisez leur niveau d’accord pour vos villes." />
+  <meta property="og:url" content="/" />
+  <meta name="twitter:card" content="summary" />
   <meta name="application-name" content="MeteoCompare" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -17,7 +23,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app" class="app-shell"></div>
+  <div id="app" class="app-shell"><main class="seo-prerender" data-seo-prerender="home"><article><p class="seo-prerender-kicker">Comparaison météo multi-modèles</p><h1>Comparez les prévisions météo de plusieurs modèles</h1><p class="seo-prerender-lead">MeteoCompare rassemble plusieurs modèles météo pour rendre visibles leurs prévisions, leur dispersion et leur niveau d’accord sur la température, la pluie, le vent et la couverture nuageuse.</p><section><h2>Prévisions météo par ville</h2><p><a href="/meteo/paris">Paris</a> · <a href="/meteo/lyon">Lyon</a> · <a href="/meteo/marseille">Marseille</a> · <a href="/meteo/toulouse">Toulouse</a> · <a href="/meteo/bordeaux">Bordeaux</a> · <a href="/meteo/lille">Lille</a> · <a href="/meteo/nantes">Nantes</a> · <a href="/meteo/strasbourg">Strasbourg</a></p></section><p class="seo-prerender-note">L’interface interactive charge ensuite les données Open-Meteo et compare les modèles disponibles pour les villes choisies.</p></article></main></div>
   <div id="toast-root" role="status" aria-live="polite" aria-atomic="true"></div>
   <noscript>MeteoCompare nécessite JavaScript pour comparer les modèles météo.</noscript>
   <script type="module" src="js/app.js"></script>

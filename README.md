@@ -15,7 +15,7 @@ Aucune compilation et aucune dépendance npm ne sont nécessaires.
 
 ## Déployer sur GitHub Pages
 
-Le projet est compatible avec une **Project Page** de la forme `https://utilisateur.github.io/nom-du-depot/` : les ressources, le manifeste, le service worker et les routes utilisent des chemins relatifs.
+La base statique/PWA reste exploitable sur GitHub Pages, mais les fonctionnalités SEO 1.14 basées sur **Pages Functions** (`/meteo/{ville}`, HTML pré-rendu, sitemap/robots dynamiques) nécessitent Cloudflare Pages. Pour la version SEO complète, Cloudflare Pages est donc la cible de production recommandée.
 
 ### Méthode recommandée — GitHub Actions
 

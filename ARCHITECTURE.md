@@ -38,3 +38,19 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 6. Une opération asynchrone par entité utilise un registre de jetons dès qu'une réponse plus ancienne peut devenir obsolète.
 7. Une récupération réseau ne remplace une série existante que si sa qualité mesurée est supérieure.
 8. Le shell PWA doit contenir chaque import statique nécessaire au démarrage hors connexion.
+
+
+## Couche SEO / Cloudflare Pages (1.14)
+
+La navigation interactive reste une SPA, mais les pages publiques de ville ont désormais une frontière serveur dédiée :
+
+`/meteo/{slug}` → Pages Function → géocodage → aperçu Open-Meteo → HTML pré-rendu → hydratation par `js/app.js`.
+
+- `js/seo.js` porte les invariants partagés de slug, URL canonique et textes SEO.
+- `functions/meteo/[ville].js` est la route dynamique Cloudflare Pages.
+- `functions/_lib/seo-render.js` génère le snapshot HTML et les métadonnées sans script inline.
+- `functions/sitemap.xml.js` et `functions/robots.txt.js` génèrent des réponses adaptées au domaine courant.
+- `_routes.json` évite d’invoquer les Functions pour les assets statiques.
+- une ville ouverte directement depuis le SEO est injectée comme ville transitoire : elle peut utiliser les mêmes chaînes de prévision que les favoris, sans être enregistrée comme favori tant que l’utilisateur ne l’ajoute pas explicitement.
+
+Les vues doivent continuer à produire leurs liens de ville via `citySeoPath()` ; les anciens hashes restent uniquement une couche de compatibilité.
