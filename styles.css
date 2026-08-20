@@ -3076,3 +3076,46 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .home-weather-coherence { min-width:64px; }
   .home-weather-coherence span,.home-weather-coherence small { font-size:.7rem; }
 }
+
+/* 1.10.17 — home/detail stability polish (product version unchanged) */
+.home-dashboard { margin-top:var(--space-7); }
+.home-cities-section,.home-watch-column { min-width:0; }
+.home-column-heading { min-height:52px; margin:0 0 var(--space-4); align-items:flex-end; }
+.home-column-heading>p { max-width:300px; }
+.home-watch-section { margin:0; }
+
+/* Detail navigation must remain fully visible: wrap instead of horizontal clipping/scrolling. */
+.detail-nav { overflow:visible; }
+.detail-sidebar-back {
+  width:100%;
+  margin-top:var(--space-3);
+  justify-content:flex-start;
+  border-radius:var(--radius-sm);
+}
+.detail-sidebar-back .detail-back-icon { flex:0 0 auto; }
+.detail-page .detail-hero { margin-top:var(--space-4); }
+
+/* Timeline controls align with the other section-level controls. */
+.timeline-card .section-head > div:first-child { flex:1 1 auto; }
+.timeline-card .timeline-mode { margin-left:auto; }
+.timeline-card .collapse-card-btn { margin-left:0; }
+
+@media (max-width:1040px) {
+  .detail-nav {
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(118px,1fr));
+    gap:4px;
+    overflow:visible;
+  }
+  .detail-nav button { width:100%; min-width:0; white-space:normal; text-align:center; }
+  .detail-sidebar-back { margin-top:6px; }
+}
+@media (max-width:760px) {
+  .home-column-heading { min-height:0; align-items:flex-start; }
+  .home-column-heading>p { max-width:none; }
+  .timeline-card .timeline-mode { align-self:flex-end; margin-left:0; }
+  .timeline-card .collapse-card-btn { position:absolute; right:0; top:0; }
+  .timeline-card .section-head { padding-right:40px; }
+}
+.home-column-heading { min-height:0; }
+.home-watch-lead { margin:0 0 var(--space-3); color:var(--muted); font-size:.7rem; line-height:1.45; }

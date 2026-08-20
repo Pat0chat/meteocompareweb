@@ -4,7 +4,7 @@ const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const version=read('VERSION').trim(),app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js');
 assert.equal(version,'1.10.17');
 assert.match(sw,/APP_VERSION = '1\.10\.17'/);
-assert.match(sw,/CACHE_VERSION = 'v51-home-detail-polish'/);
+assert.match(sw,/CACHE_VERSION = 'v52-home-detail-stability'/);
 const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);
 assert.match(home,/homeModernKicker/);
@@ -34,7 +34,7 @@ assert.doesNotMatch(card,/t\('temperature'\)\}\<\/small\>/,'Min/max fact must no
 assert.match(css,/\.home-dashboard\s*\{[^}]*grid-template-columns:minmax\(0,1fr\) minmax\(285px,330px\)/s);
 assert.match(css,/\.home-watch-section\s*\{[^}]*position:sticky/s);
 assert.match(css,/\.home-watch-section::before\s*\{[^}]*content:none/s);
-assert.match(css,/\.home-dashboard\s*\{[^}]*margin-top:0/s);
+assert.match(css,/\.home-dashboard\s*\{[^}]*margin-top:var\(--space-7\)/s);
 assert.match(css,/\.home-weather-coherence/);
 assert.match(css,/\.home-mini-hour\s*\{[^}]*--heat-color|\.home-mini-hour\s*\{[^}]*background:linear-gradient/s);
 assert.match(css,/\.home-heat-key i\s*\{[^}]*linear-gradient\(90deg,#5b6ff9/s);

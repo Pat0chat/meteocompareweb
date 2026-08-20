@@ -16,8 +16,9 @@ assert.doesNotMatch(appSource,/state\.cities\.forEach\([\s\S]{0,500}loadBias\(/,
 assert.match(appSource,/function rerenderCitySection\(/,'local detail interactions should support section-only rerenders');
 for(const pair of [
   ["confidenceMetric","agreement"],["chartHorizon","agreement"],["detailMode","details"],["detailTab","details"],
-  ["timelineMode","timeline"],["evolutionVariable","evolution"],["reliabilityVariable","reliability"],["compareModel","details"]
+  ["timelineMode","timeline"],["evolutionVariable","evolution"],["reliabilityVariable","reliability"]
 ]) assert.match(appSource,new RegExp(`dataset\\.${pair[0]}[\\s\\S]{0,280}rerenderCitySectionOrPage\\('${pair[1]}'\\)`),`${pair[0]} should avoid rebuilding the whole city page`);
+assert.match(appSource,/dataset\.compareModel[\s\S]{0,520}rerenderTargetedComparisonPanel\(\)/,'compareModel should rerender only the inner targeted comparison panel');
 assert.match(storageSource,/async function mapLimited\(/,'cache-storage inspection must use bounded concurrency');
 assert.match(storageSource,/mapLimited\(requests,6/,'PWA cache asset sizing should not be strictly sequential');
 assert.match(workflow,/(?:global-performance-audit\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow must run global performance audit');

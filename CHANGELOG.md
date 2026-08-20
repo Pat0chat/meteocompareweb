@@ -2,6 +2,15 @@
 
 ## 1.10.17 — Detail interactions + home polish
 
+### Passe stabilité Home / Détails
+- `detail-nav` responsive sans scroll horizontal ni contenu tronqué.
+- Retour déplacé sous la navigation et étendu à toute la largeur de la sidebar.
+- Sélecteur 24 h / 7 j aligné à droite dans Chronologie.
+- Sélection de modèles limitée au re-render du comparatif interne, sans replier **Prévisions détaillées**.
+- **Mes villes** et **Signaux utiles** partagent le même format d’en-tête.
+- Frise Home renommée **Dispersion de la température par modèle** ; repère central **Prévision xx°**.
+- Cache PWA technique `v52-home-detail-stability`, APP_VERSION inchangée.
+
 - TodaySummary reste toujours visible : les informations météo de base ne sont jamais repliées.
 - Prévisions détaillées redevient pliable, avec un état totalement indépendant du sélecteur interne « Comparer 2 à 4 modèles ».
 - Chronologie masque aussi son sélecteur 24 h / 7 jours lorsqu’elle est repliée.
@@ -9,7 +18,7 @@
 - Home : hero sans tiret superflu, Signaux utiles alignés avec les premières cards de villes et accent décoratif corrigé.
 - Home : convergence globale ajoutée à côté de la température principale, min/max dédoublonné et frise modèles raccourcie.
 - Fiche ville : bouton Retour déplacé hors de la topbar dans une vraie ligne de navigation de page.
-- Cache PWA technique mis à jour vers `v51-home-detail-polish` sans changement de version produit.
+- Cache PWA technique mis à jour vers `v52-home-detail-stability` sans changement de version produit.
 - Aucun changement du moteur météo, du Consensus v2 ou du schéma de données.
 
 ## 1.10.16 — Modern home
@@ -127,8 +136,6 @@
 - `APP_VERSION` passe à `1.10.6` et le cache PWA à `v36-play-store-nav`.
 - Aucun changement des chaînes météo auditées en 1.10.5.
 
-# Changelog
-
 ## [1.10.5] - 2026-08-18
 
 ### Fixed
@@ -211,9 +218,3 @@ All notable changes to MeteoCompare Web are documented here. Releases follow Sem
 ### Changed
 - Application version and service-worker cache version are now independent.
 
-### 1.10.11 — final interaction/layout polish (version inchangée)
-- Uniformisation stricte des hauteurs `timeline-metric`.
-- Stabilisation du scroll de la page Données locales pendant les recalculs et diagnostics.
-- Alignement des actions dans les `setting-control`.
-- Sélection des modèles présentée en grille compacte avec switch proche du modèle.
-- Harmonisation des `about-mini-badge` et des marges/paddings des `about-callout`.
