@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const app=fs.readFileSync('js/app.js','utf8');
+const css=fs.readFileSync('styles.css','utf8');
 const version=fs.readFileSync('VERSION','utf8').trim();
 
 assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
@@ -10,11 +11,13 @@ assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'b
 const specs=app.slice(app.indexOf('function collapsibleCitySpecs'),app.indexOf('function decorateCollapsibleCard'));
 assert.doesNotMatch(specs,/\['today-summary'/,'TodaySummary is core weather information and must not be foldable');
 
-// Detailed forecasts contain their own targeted-model accordion: do not nest a second card accordion around it.
-assert.doesNotMatch(specs,/\['details'/,'Detailed forecasts must not be wrapped in the generic collapsible-card system');
+// Detailed forecasts may fold as a card, but their targeted-model disclosure keeps an independent state.
+assert.match(specs,/\['details'/,'Detailed forecasts must be foldable at card level');
 assert.match(app,/renderTargetedModelComparison\(f,tab,mode\)/,'Detailed forecasts must keep the targeted model comparison');
 assert.match(app,/details\[data-target-compare\]/,'Targeted model comparison must keep its dedicated disclosure state');
 assert.match(app,/state\.comparePanelOpen\[key\]=compareDetails\.open/,'Comparison disclosure state must be tracked independently');
+assert.match(css,/\.detailed-card\[data-collapsed=\"true\"\] \.section-actions/,'Detailed card actions should hide with the folded card');
+assert.match(css,/\.timeline-card\[data-collapsed=\"true\"\] \.timeline-mode/,'Timeline 24h/7d controls must hide when folded');
 
 // Model health has one disclosure mechanism only: its explicit diagnostic action.
 assert.doesNotMatch(specs,/\['diagnostics'/,'Model health must not have a redundant generic fold button');

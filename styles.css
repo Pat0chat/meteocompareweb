@@ -3022,3 +3022,57 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .home-mini-time,.home-mini-rain,.home-mini-hour small,.home-consensus-scale,.home-consensus-head strong,.home-consensus-help { font-size:.7rem; }
   .home-consensus-head { align-items:flex-start; flex-direction:column; gap:3px; }
 }
+
+
+/* 1.10.17 — final home/detail interaction polish (product version unchanged) */
+.home-cities-heading { margin-top:var(--space-7); margin-bottom:var(--space-4); }
+.home-dashboard { margin-top:0; }
+.home-watch-section { overflow:hidden; box-shadow:var(--shadow-1), inset 0 3px 0 color-mix(in srgb,var(--semantic-warning) 82%,var(--rain)); }
+.home-watch-section::before { content:none; display:none; }
+
+.home-weather-primary { grid-template-columns:auto minmax(0,1fr) auto; }
+.home-weather-coherence {
+  min-width:82px; padding:7px 9px; display:flex; flex-direction:column; align-items:flex-end; gap:1px;
+  border-left:1px solid var(--border); color:var(--muted); text-align:right;
+}
+.home-weather-coherence span { font-size:.7rem; }
+.home-weather-coherence strong { font-size:1rem; line-height:1.1; font-variant-numeric:tabular-nums; }
+.home-weather-coherence small { max-width:92px; font-size:.7rem; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.home-weather-coherence.high strong,.home-weather-coherence.high small { color:var(--semantic-success); }
+.home-weather-coherence.medium strong,.home-weather-coherence.medium small { color:var(--semantic-warning); }
+.home-weather-coherence.low strong,.home-weather-coherence.low small { color:var(--semantic-danger); }
+.home-weather-coherence.neutral strong,.home-weather-coherence.neutral small { color:var(--semantic-neutral); }
+.home-weather-facts>div:first-child { justify-content:center; }
+
+.home-consensus-head strong.home-consensus-range { color:var(--muted); font-weight:700; white-space:nowrap; }
+.home-consensus-help { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* City back navigation belongs to the page, not halfway across the topbar. */
+.detail-back-row { display:flex; align-items:center; margin-top:var(--space-4); margin-bottom:var(--space-2); }
+.detail-back-button {
+  min-height:38px; display:inline-flex; align-items:center; gap:7px; padding:0 13px 0 9px;
+  border:1px solid color-mix(in srgb,var(--primary) 32%,var(--border)); border-radius:var(--radius-pill);
+  background:color-mix(in srgb,var(--primary-soft) 42%,var(--surface)); color:var(--primary-strong);
+  box-shadow:var(--shadow-1); font:inherit; font-size:.76rem; font-weight:800; cursor:pointer;
+  transition:background .14s ease,border-color .14s ease,transform .14s ease,box-shadow .14s ease;
+}
+.detail-back-button:hover { background:color-mix(in srgb,var(--primary-soft) 72%,var(--surface)); border-color:color-mix(in srgb,var(--primary) 58%,var(--border)); box-shadow:var(--shadow-2); transform:translateY(-1px); }
+.detail-back-button:focus-visible { outline:none; box-shadow:var(--focus),var(--shadow-1); }
+.detail-back-icon { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:var(--surface); }
+.detail-page .detail-hero { margin-top:var(--space-2); }
+
+/* Outer detailed-forecast folding is independent from the inner targeted comparison <details>. */
+.detailed-card[data-collapsed="true"] .section-actions { display:none !important; }
+.timeline-card[data-collapsed="true"] .timeline-mode { display:none !important; }
+
+@media (max-width:720px) {
+  .home-cities-heading { margin-top:var(--space-6); }
+  .home-weather-coherence { min-width:72px; padding-inline:7px; }
+  .home-weather-coherence small { max-width:78px; }
+  .detail-back-row { margin-top:var(--space-3); }
+}
+@media (max-width:420px) {
+  .home-weather-primary { grid-template-columns:auto minmax(0,1fr) auto; gap:var(--space-2); }
+  .home-weather-coherence { min-width:64px; }
+  .home-weather-coherence span,.home-weather-coherence small { font-size:.7rem; }
+}

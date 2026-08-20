@@ -2,14 +2,14 @@
 
 ## 1.10.17 — Detail interactions + home polish
 
-- TodaySummary reste toujours visible : suppression du pliage de la card de synthèse.
-- Prévisions détaillées : suppression du pliage externe de la card afin de laisser le sélecteur « Comparer 2 à 4 modèles » comme unique accordéon interne.
-- Santé des modèles : suppression du pliage générique redondant ; le bouton Ouvrir/Fermer le diagnostic devient l’unique contrôle de détail.
-- Home : hero retravaillé comme zone de pilotage (description, recherche et actions Ajouter / Comparer / Actualiser), sans raccourcis de villes redondants.
-- Home : mini-chronologie en heatmap absolue commune à toutes les villes, avec échelle moderne froid → chaud et conservation de l’heure, température, pluie et mm.
-- Home : min/max restent regroupés avec pluie et vent ; la frise explique désormais explicitement les points modèles et la prévision centrale MeteoCompare.
-- Home : cards légèrement compactées et Signaux utiles promus en colonne latérale sticky sur desktop.
-- Cache PWA technique mis à jour vers `v50-home-layout` sans changement de version produit.
+- TodaySummary reste toujours visible : les informations météo de base ne sont jamais repliées.
+- Prévisions détaillées redevient pliable, avec un état totalement indépendant du sélecteur interne « Comparer 2 à 4 modèles ».
+- Chronologie masque aussi son sélecteur 24 h / 7 jours lorsqu’elle est repliée.
+- Santé des modèles conserve un seul mécanisme de profondeur : Ouvrir/Fermer le diagnostic.
+- Home : hero sans tiret superflu, Signaux utiles alignés avec les premières cards de villes et accent décoratif corrigé.
+- Home : convergence globale ajoutée à côté de la température principale, min/max dédoublonné et frise modèles raccourcie.
+- Fiche ville : bouton Retour déplacé hors de la topbar dans une vraie ligne de navigation de page.
+- Cache PWA technique mis à jour vers `v51-home-detail-polish` sans changement de version produit.
 - Aucun changement du moteur météo, du Consensus v2 ou du schéma de données.
 
 ## 1.10.16 — Modern home
