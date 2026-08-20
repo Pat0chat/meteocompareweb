@@ -543,12 +543,13 @@ html[data-theme="dark"] body {
 .hero-meta span + span::before { display: none; }
 
 
-/* TodaySummary must match the full height of Insights + Scenarios on desktop. */
-.overview-layout { align-items: stretch; }
-.overview-primary { display: flex; min-height: 100%; }
-.overview-primary > .section { display: flex; flex: 1 1 auto; min-width: 0; }
-.overview-primary .summary-card { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 100%; }
-.overview-primary .today-grid { flex: 1 1 auto; grid-template-columns: repeat(2, minmax(0, 1fr));  }
+/* Overview columns keep their natural height: TodaySummary must not inherit the
+   variable height of Agreement + Insights + Scenarios. */
+.overview-layout { align-items: start; }
+.overview-primary { display: block; min-height: 0; align-self: start; }
+.overview-primary > .section { display: block; min-width: 0; }
+.overview-primary .summary-card { min-height: 0; }
+.overview-primary .today-grid { grid-template-columns: repeat(2, minmax(0, 1fr));  }
 .overview-primary .summary-tile { min-height: 0; display: flex; flex-direction: column;   }
 .overview-primary .summary-tile:nth-child(2) { border-right: 0; }
 .overview-primary .summary-tile:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
@@ -557,8 +558,8 @@ html[data-theme="dark"] body {
 .summary-tile .big-value { font-family: var(--tech-font);  }
 .summary-tile .range { font-family: var(--tech-font);  }
 
-.overview-secondary { height: 100%; grid-template-rows: auto 1fr; }
-.overview-secondary > .section:last-child, .overview-secondary > .section:last-child .section-card { min-height: 100%; }
+.overview-secondary { height: auto; grid-template-rows: none; align-self: start; align-content: start; }
+.overview-secondary > .section:last-child, .overview-secondary > .section:last-child .section-card { min-height: 0; }
 .scenario-main { font-weight: 780; }
 .scenario-sub, .cell-sub { line-height: 1.45; }
 
@@ -3694,7 +3695,8 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .summary-context-chips .summary-solar-chip .wx-icon { flex:0 0 auto; }
 
 .overview-secondary {
-  grid-template-rows:auto auto 1fr;
+  grid-template-rows:none;
+  align-content:start;
 }
 .global-agreement-section { margin-top:0; }
 .global-agreement-card {

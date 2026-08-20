@@ -181,6 +181,16 @@ export function selectRegularTimelinePoints(points,maxPoints=8,stepHours=3){
   return points.filter((_,i)=>i%stepHours===0).slice(0,maxPoints);
 }
 
+export function activeTodayHourlyPoints(points,timezone,now=new Date(),slotDurationMs=3600000){
+  const nowMs=now instanceof Date?now.getTime():new Date(now).getTime();if(!Number.isFinite(nowMs))return [];
+  const today=cityToday(timezone,now);
+  return (points||[]).filter(point=>{
+    if(point?.mode!=='HOURLY'||point.date!==today)return false;
+    const startMs=Number.isFinite(point.epochMs)?point.epochMs:zonedLocalTimestampEpoch(point.timestamp,timezone,nowMs);
+    return Number.isFinite(startMs)&&startMs+slotDurationMs>nowMs;
+  });
+}
+
 export function homeHeatmap(forecast,hours=12,options={}){
   const timezone=forecast.city?.timezone||forecast.timezone||'UTC',anchor=roundedHourEpoch(timezone),result=[],series=Object.entries(forecast.seriesByModel||{}).map(([modelId,s])=>({modelId,s,axis:hourlyAxis(s,timezone)})),weights=options?.weightsByVariable||{};
   for(let off=0;off<hours;off++){const epochMs=anchor+off*3600000,target=localHourFromEpoch(epochMs,timezone),rows=[];for(const {modelId,s,axis} of series){const i=axis.indexByEpoch.get(epochMs);if(i==null)continue;rows.push({modelId,temp:s.hourly.temperature2m[i],precipitation:s.hourly.precipitation[i],probability:s.hourly.precipitationProbability[i]});}const temp=continuousConsensus(rows.map(x=>({modelId:x.modelId,value:x.temp})),weights.temperature||{},.5,3),pc=precipitationConsensus(rows.map(x=>({modelId:x.modelId,amount:x.precipitation,probability:x.probability})),{threshold:.1,localWeights:weights.precipitation||{},amountTight:.5,amountWide:4});result.push({timestamp:target,epochMs,temp:temp.central,precipProbability:pc.probabilityPercent});}return result;

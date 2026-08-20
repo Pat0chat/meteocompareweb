@@ -14,7 +14,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw
 assert.equal(version,'1.13.0');
 assert.match(versionJs,/APP_VERSION = '1\.13\.0'/);
 assert.match(sw,/APP_VERSION = '1\.13\.0'/);
-assert.match(sw,/CACHE_VERSION = 'v62-stability-foundation'/);
+assert.match(sw,/CACHE_VERSION = 'v63-overview-watch-time'/);
 assert.match(sw,/\.\/js\/data\/contracts\.js/);
 assert.match(sw,/\.\/js\/data\/forecast-normalizer\.js/);
 

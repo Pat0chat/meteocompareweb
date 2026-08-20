@@ -1,7 +1,7 @@
 import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels, consensusGroupFor } from './models.js';
 import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, loadModelHealth, saveModelHealth, createLocalBackup, restoreLocalBackup, clearAllData, clearPwaRuntime, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
-import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, windArrow, dateLabel, timeLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch } from './domain.js';
+import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, windArrow, dateLabel, timeLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, activeTodayHourlyPoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch } from './domain.js';
 import { makeI18n, languageCode, ensureLanguage } from './i18n.js';
 import { analyticsStatus, trackPageView, trackAnalyticsEvent, setAnalyticsOptOut } from './analytics.js';
 import { ErrorCenter, classifyError, storageIssueDescriptor, ERROR_ACTIONS } from './errors.js';
@@ -509,8 +509,8 @@ function homeConsensusWeights(cityId){
   const profile=localConsensusWeights(cityId);
   return state.settings.localWeightedConsensus&&profile.ready?profile.maps:null;
 }
-function homeTimelinePoints(f,weights,maxPoints=5){
-  return selectRegularTimelinePoints(buildTimelinePoints(f,'HOURLY',new Date(),{weightsByVariable:weights||{}}),maxPoints,3);
+function homeTimelinePoints(f,weights,maxPoints=5,now=new Date()){
+  return selectRegularTimelinePoints(buildTimelinePoints(f,'HOURLY',now,{weightsByVariable:weights||{}}),maxPoints,3);
 }
 function homeAgreementText(percent,familyCount){
   const {t}=i18n();
@@ -546,8 +546,8 @@ function renderHomeMiniTimeline(points){
     return `<div class="home-mini-hour ${Number.isFinite(prob)&&prob>=30?'wet':''}" style="--heat-color:${heat}" title="${attr(`${timeLabel(point.timestamp)} · ${Number.isFinite(temp)?`${fmt(temp,1)} °C`:'—'}${Number.isFinite(prob)?` · ${Math.round(prob)} %`:''}${Number.isFinite(amount)&&amount>=.1?` · ${fmt(amount,1)} mm`:''}`)}"><span class="home-mini-time">${esc(timeLabel(point.timestamp))}</span><strong>${Number.isFinite(temp)?`${fmt(temp)}°`:'—'}</strong><span class="home-mini-rain">${Number.isFinite(prob)&&prob>=20?`${weatherIcons.renderMetric('precipitation',{size:'micro'})} ${Math.round(prob)}%`:'·'}</span><small>${Number.isFinite(amount)&&amount>=.1?`${fmt(amount,1)} mm`:'—'}</small></div>`;
   }).join('')}</div><div class="home-heat-key" aria-label="${esc(t('homeHeatScaleHint'))}" title="${attr(t('homeHeatScaleHint'))}"><span>−10°</span><i></i><span>40°+</span></div></div>`;
 }
-function homeWatchCandidate(city,f,weights){
-  const {t}=i18n(),points=homeTimelinePoints(f,weights,8).slice(0,8);if(!points.length)return null;
+function homeWatchCandidate(city,f,weights,now=new Date()){
+  const {t}=i18n(),timezone=f?.city?.timezone||f?.timezone||city?.timezone||'UTC',points=activeTodayHourlyPoints(homeTimelinePoints(f,weights,8,now),timezone,now).slice(0,8);if(!points.length)return null;
   const candidates=[];
   const low=points.filter(p=>Number.isFinite(p.convergencePercent)).sort((a,b)=>a.convergencePercent-b.convergencePercent)[0];
   if(low&&low.convergencePercent<50)candidates.push({score:110-low.convergencePercent,tone:'warning',icon:'⚠',city,body:t('homeWatchDivergence',{time:timeLabel(low.timestamp),percent:Math.round(low.convergencePercent)})});
@@ -559,7 +559,7 @@ function homeWatchCandidate(city,f,weights){
   return candidates.sort((a,b)=>b.score-a.score)[0]||null;
 }
 function renderHomeWatchlist(){
-  const {t}=i18n(),items=state.cities.map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,homeConsensusWeights(city.id)):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
+  const {t}=i18n(),now=new Date(),items=state.cities.map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,homeConsensusWeights(city.id),now):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
   return `<aside class="home-watch-section" aria-label="${esc(t('homeWatchTitle'))}"><p class="home-watch-lead">${esc(t('homeWatchLead'))}</p>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-action="open-watch-city" data-city-id="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</aside>`;
 }
 function renderHome(){

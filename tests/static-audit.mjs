@@ -48,7 +48,8 @@ assert.match(app, /class="model-header-stack"/, 'table model headers must reserv
 assert.match(app, /class="model-bias-slot"/, 'table bias/calibration pills must live in a dedicated model-header slot');
 assert.match(app, /bias-chip bias-chip-button pending table-bias-chip[^>]*data-bias-model=/, 'calibration pills must remain clickable and open the model reliability page');
 
-assert.match(css, /\.overview-primary\s*\{[^}]*display:\s*flex/s, 'TodaySummary column must stretch to the full overview height');
+assert.match(css, /\.overview-layout\s*\{[^}]*align-items:\s*start/s, 'overview columns must keep independent natural heights');
+assert.match(css, /\.overview-primary\s*\{[^}]*display:\s*block[^}]*min-height:\s*0/s, 'TodaySummary must not stretch to the secondary column height');
 assert.match(css, /\.overview-primary \.today-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/s, 'TodaySummary variables should use a 2x2 desktop matrix');
 assert.match(css, /Modern professional UI/, 'the modern professional visual layer must be present');
 assert.match(css, /professional-hero::before, \.professional-hero::after \{ display: none; \}/, 'decorative hero grids must be disabled');
