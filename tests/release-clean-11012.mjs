@@ -11,7 +11,7 @@ const sw=read('sw.js');
 const app=read('js/app.js');
 const css=read('styles.css');
 
-assert.ok(/^1\.10\.(?:1[2-9]|[2-9]\d+)$/.test(version));
+assert.ok(version.localeCompare('1.10.12',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.match(sw,/CACHE_VERSION = 'v\d+[-a-z0-9]+'/);

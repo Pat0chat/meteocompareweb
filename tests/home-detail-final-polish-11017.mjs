@@ -10,9 +10,10 @@ const effectiveTitle=fr.slice(fr.lastIndexOf('Object.assign(catalog'));
 assert.doesNotMatch(effectiveTitle,/"homeModernTitle":"[^"]*—[^"]*"/);
 const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
 assert.match(home,/home-weather-coherence/);
-assert.match(home,/homeConsensusTitleShort/);
-assert.match(home,/homeConsensusCentralShort/);
-assert.match(home,/homeConsensusLegendShort/);
+assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail|home-model-dot/);
+
+
+
 assert.match(home,/home-dashboard/);
 assert.match(home,/home-column-heading/);
 assert.match(home,/home-city-grid/);

@@ -5,7 +5,7 @@ const app=fs.readFileSync(new URL('js/app.js',root),'utf8');
 const css=fs.readFileSync(new URL('styles.css',root),'utf8');
 const version=fs.readFileSync(new URL('VERSION',root),'utf8').trim();
 const versionJs=fs.readFileSync(new URL('js/version.js',root),'utf8');
-assert.ok(/^1\.10\.(?:1[1-9]|[2-9]\d+)$/.test(version),`unexpected release version ${version}`);
+assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.match(app,/class="summary-solar-pair"/,'TodaySummary must group solar chips');
 assert.match(app,/class="summary-solar-chip"/,'TodaySummary solar chips must use dedicated geometry');

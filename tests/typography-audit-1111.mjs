@@ -6,7 +6,7 @@ const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim
 const versionJs=fs.readFileSync(new URL('../js/version.js',import.meta.url),'utf8');
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
-assert.ok(/^1\.10\.(?:1[1-9]|[2-9]\d+)$/.test(version),`unexpected release version ${version}`);
+assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.match(sw,/CACHE_VERSION = 'v\d+[-a-z0-9]+'/);

@@ -9,8 +9,8 @@ const settings=slice('function renderSettings(){','function modelGroups(');
 const local=slice('function renderLocalDataPage(){','function renderSettings(){');
 const about=slice('function renderAbout(){','function renderHome(){');
 
-assert.ok(/^1\.10\.(?:1[1-9]|[2-9]\d+)$/.test(version),`unexpected release version ${version}`);
-assert.match(sw,/const APP_VERSION = '1\.10\.(?:1[1-9]|[2-9]\d+)'/);
+assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
+assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
 assert.match(sw,/const CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
 // Settings: four clear logical sections, no redundant eyebrow in the page renderer.

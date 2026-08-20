@@ -18,7 +18,7 @@ assert.match(app,/if\(skipPwaRegistration\)pwaPostClearCleanup=clearPwaRuntime\(
 assert.match(app,/await pwaPostClearCleanup;state\.localDataStats=await inspectLocalData/);
 assert.match(sw,/const CACHE_PREFIX = 'meteocompare-web-'/);
 assert.match(sw,/key\.startsWith\(CACHE_PREFIX\) && key !== CACHE/);
-assert.match(sw,/const APP_VERSION = '1\.10\.(?:1[1-9]|[2-9]\d+)'/);
+assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
 assert.match(sw,/const CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
 class LocalStorageMock {

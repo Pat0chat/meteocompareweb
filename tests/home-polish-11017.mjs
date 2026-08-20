@@ -21,7 +21,7 @@ assert.match(home,/homeTemperatureHeatColor/);
 assert.match(home,/--heat-color:/);
 assert.doesNotMatch(home,/--heat-hue:/);
 assert.match(home,/home-heat-key/);
-assert.match(home,/homeConsensusLegendShort/);
+assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail|home-model-dot/);
 assert.match(home,/homeCoherenceLabel/);
 assert.match(home,/home-weather-coherence/);
 assert.match(home,/precipitationConditionalMm/);

@@ -6,12 +6,13 @@ assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'b
 assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
 assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
 
-// Home: parallel headings above the two columns, and clearer dispersion copy.
+// Home: parallel headings above the two columns; the old dispersion strip is intentionally absent from v1.11.
 const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
 assert.match(home,/home-cities-section/);
 assert.match(home,/home-watch-column/);
 assert.match(home,/home-column-heading/);
 assert.match(home,/renderHomeWatchlist\(\)/);
+assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail/);
 const fr=read('js/locales/fr.js');
 assert.match(fr,/"homeConsensusTitleShort":"Dispersion de la température par modèle"/);
 assert.match(fr,/"homeConsensusCentralShort":"Prévision \{value\}°"/);

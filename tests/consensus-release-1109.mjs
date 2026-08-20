@@ -10,8 +10,8 @@ const domain=fs.readFileSync(new URL('../js/domain.js',import.meta.url),'utf8');
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const comparison=fs.readFileSync(new URL('../js/features/comparison.js',import.meta.url),'utf8');
 
-assert.ok(/^1\.10\.(?:1[1-9]|[2-9]\d+)$/.test(version),`unexpected release version ${version}`);
-assert.match(sw,/const APP_VERSION = '1\.10\.(?:1[1-9]|[2-9]\d+)'/);
+assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
+assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
 assert.match(sw,/const CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 assert.match(sw,/\.\/js\/consensus\.js/,'consensus engine must be available offline in the PWA shell');
 

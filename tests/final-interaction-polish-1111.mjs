@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const app=read('js/app.js'),css=read('styles.css'),version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js');
-assert.ok(/^1\.10\.(?:1[1-9]|[2-9]\d+)$/.test(version),`unexpected release version ${version}`);
+assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.match(css,/\.timeline-metric\s*\{[\s\S]*height:\s*52px;[\s\S]*min-height:\s*52px;/,'timeline metrics must share a fixed height');

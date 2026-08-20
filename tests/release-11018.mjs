@@ -7,10 +7,10 @@ const versionJs=read('js/version.js');
 const sw=read('sw.js');
 const css=read('styles.css');
 
-assert.equal(version,'1.10.18');
-assert.match(versionJs,/APP_VERSION = '1\.10\.18'/);
-assert.match(sw,/APP_VERSION = '1\.10\.18'/);
-assert.match(sw,/CACHE_VERSION = 'v55-css-cleanup'/);
+assert.ok(version.localeCompare('1.10.18',undefined,{numeric:true,sensitivity:'base'})>=0);
+assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
+assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=55);
 
 // Detail page returns to the standard app canvas; no special 1780px override remains.
 assert.match(css,/--content-max:\s*1560px/);
