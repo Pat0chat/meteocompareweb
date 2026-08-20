@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),domain=read('js/domain.js'),css=read('styles.css');
+const parts=version.split('.').map(Number);
+assert.ok(parts[0]>1 || (parts[0]===1 && (parts[1]>10 || (parts[1]===10 && parts[2]>=13))));
+assert.match(versionJs,/APP_VERSION = '1\.10\.(?:1[3-9]|[2-9]\d)'/);
+assert.match(sw,/APP_VERSION = '1\.10\.(?:1[3-9]|[2-9]\d)'/);
+assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.doesNotMatch(domain,/if\(c\.familyCount<2\|\|!c\.stats\)return null/);
+assert.doesNotMatch(domain,/if\(p\.familyCount<2\)return null/);
+assert.match(app,/class="topbar-back"/);
+assert.match(css,/\.topbar-back\s*\{[^}]*position:\s*absolute/s);
+console.log('MeteoCompare Web 1.10.13 release guards: OK');

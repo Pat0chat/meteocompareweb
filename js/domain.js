@@ -99,11 +99,11 @@ const dailyMetricComparable=dailyMetricIsComparable;
 export function dayConfidence(forecast,date,weightsByVariable={}){
   const rows=Object.entries(forecast.seriesByModel||{}).map(([modelId,series])=>{const i=series.daily.dates.indexOf(date);return i<0?null:{modelId,series,i};}).filter(Boolean);
   const entries=(metric,key)=>rows.filter(x=>dailyMetricComparable(x.series,x.i,metric)&&Number.isFinite(x.series.daily[key][x.i])).map(x=>({modelId:x.modelId,value:x.series.daily[key][x.i]}));
-  const continuous=(metric,key,weightKey,tight,wide)=>{const c=continuousConsensus(entries(metric,key),weightsByVariable?.[weightKey]||{},tight,wide);return c.stats&&c.familyCount>=2?{...c.stats,central:c.central,percent:c.convergencePercent,spread:c.stats.max-c.stats.min,familyCount:c.familyCount}:null;};
+  const continuous=(metric,key,weightKey,tight,wide)=>{const c=continuousConsensus(entries(metric,key),weightsByVariable?.[weightKey]||{},tight,wide);return c.stats?{...c.stats,central:c.central,percent:c.convergencePercent,spread:c.stats.max-c.stats.min,familyCount:c.familyCount}:null;};
   const tempMax=continuous('temperature','tempMax','temperature',.5,3),tempMin=continuous('temperature','tempMin','temperature',.5,3),windMax=continuous('wind','windSpeedMax','wind',2,12),windGustMax=continuous('wind','windGustsMax','wind',2,12);
   const precipRows=rows.filter(x=>dailyMetricComparable(x.series,x.i,'precipitation')).map(x=>({modelId:x.modelId,amount:x.series.daily.precipitationSum[x.i],probability:x.series.daily.precipitationProbabilityMax[x.i]}));
   const pc=precipitationConsensus(precipRows,{threshold:1,localWeights:weightsByVariable?.precipitation||{},amountTight:1,amountWide:8});
-  const precipitation=pc.familyCount>=2?{kind:pc.wetModelCount===0?'NO_RAIN':pc.wetModelCount===pc.count?'RAIN':'DIVIDED',percent:pc.convergencePercent,count:pc.count,familyCount:pc.familyCount,modelsForRain:pc.wetModelCount,modelsAgainstRain:Math.max(0,pc.count-pc.wetModelCount),rainMinMm:pc.minMm,rainMaxMm:pc.maxMm,rainMeanMm:pc.conditionalAmountMm,probabilityPercent:pc.probabilityPercent,conditionalAmountMm:pc.conditionalAmountMm,expectedAmountMm:pc.expectedAmountMm,source:pc.source}:null;
+  const precipitation=pc.count>0?{kind:pc.wetModelCount===0?'NO_RAIN':pc.wetModelCount===pc.count?'RAIN':'DIVIDED',percent:pc.convergencePercent,count:pc.count,familyCount:pc.familyCount,modelsForRain:pc.wetModelCount,modelsAgainstRain:Math.max(0,pc.count-pc.wetModelCount),rainMinMm:pc.minMm,rainMaxMm:pc.maxMm,rainMeanMm:pc.conditionalAmountMm,probabilityPercent:pc.probabilityPercent,conditionalAmountMm:pc.conditionalAmountMm,expectedAmountMm:pc.expectedAmountMm,source:pc.source}:null;
   const scores=[tempMax?.percent,tempMin?.percent,precipitation?.percent,windMax?.percent].filter(Number.isFinite),overall=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null;
   return {date,tempMax,tempMin,windMax,windGustMax,precipitation,overallPercent:overall,convergencePercent:overall};
 }
@@ -145,10 +145,10 @@ export function hourlyConfidenceBand(forecast,metric='TEMPERATURE', horizonHours
   return times.map(epochMs=>{
     const rows=[];for(const [modelId,s] of series){const i=axes.get(s)?.indexByEpoch.get(epochMs);if(i==null)continue;rows.push({modelId,timestamp:s.hourly.timestamps[i],temperature:s.hourly.temperature2m[i],wind:s.hourly.windSpeed10m[i],precipitation:s.hourly.precipitation[i],probability:s.hourly.precipitationProbability[i]});}
     if(metric==='PRECIPITATION'){
-      const p=precipitationConsensus(rows.map(x=>({modelId:x.modelId,amount:x.precipitation,probability:x.probability})),{threshold:.1,localWeights:weights.precipitation||{},amountTight:1,amountWide:8});if(p.familyCount<2)return null;
+      const p=precipitationConsensus(rows.map(x=>({modelId:x.modelId,amount:x.precipitation,probability:x.probability})),{threshold:.1,localWeights:weights.precipitation||{},amountTight:1,amountWide:8});if(!p.count)return null;
       return {timestamp:rows[0]?.timestamp||localHourFromEpoch(epochMs,timezone),epochMs,meanValue:p.centralAmountMm,minValue:p.minMm,maxValue:p.maxMm,stdDev:p.conditionalStdDev,percent:p.convergencePercent,modelCount:p.count,familyCount:p.familyCount,precipitationProbability:p.probabilityPercent,conditionalAmountMm:p.conditionalAmountMm};
     }
-    const key=metric==='WIND'?'wind':'temperature',entries=rows.map(x=>({modelId:x.modelId,value:x[key]})),c=continuousConsensus(entries,weights[weightKey]||{},...thresholds);if(c.familyCount<2||!c.stats)return null;
+    const key=metric==='WIND'?'wind':'temperature',entries=rows.map(x=>({modelId:x.modelId,value:x[key]})),c=continuousConsensus(entries,weights[weightKey]||{},...thresholds);if(!c.stats)return null;
     return {timestamp:rows[0]?.timestamp||localHourFromEpoch(epochMs,timezone),epochMs,meanValue:c.central,minValue:c.stats.min,maxValue:c.stats.max,stdDev:c.stats.stdDev,percent:c.convergencePercent,modelCount:c.count,familyCount:c.familyCount};
   }).filter(Boolean);
 }

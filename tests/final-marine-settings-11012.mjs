@@ -8,7 +8,7 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('js/app.js');
 const css=read('styles.css');
 
-assert.equal(read('VERSION').trim(),'1.10.12');
+assert.ok(/^1\.10\.(?:1[2-9]|[2-9]\d+)$/.test(read('VERSION').trim()));
 
 // Settings controls fill their row instead of leaving capped empty space.
 assert.match(css,/\.settings-control-grid\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)[^}]*width:100%/);

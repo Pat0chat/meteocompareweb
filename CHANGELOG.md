@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.10.15 — Version visibility & comparison persistence
+- Affiche discrètement la version Web dans la marque de la topbar, avec le schéma de données dans l’infobulle et dans À propos.
+- Conserve l’état ouvert de la comparaison ciblée de modèles pendant les sélections/désélections.
+- Le nombre de modèles sélectionnés ne pilote plus à lui seul l’ouverture du panneau de comparaison.
+- Cache PWA : `v46-version-compare`.
+
+## [1.10.14] - 2026-08-20
+
+### Aesthetic system & navigation
+- Keep the existing **My cities** click behavior while adding a hover/focus quick-navigation popover for favorite cities on pointer devices.
+- Introduce formal spacing, radius and elevation token scales and apply them to the main interactive/surface components.
+- Unify success/warning/danger/info colors behind one semantic palette while keeping temperature/rain/wind data colors independent.
+- Activate the existing `collapsedSections` setting: primary cards can now be folded/unfolded with persistent state across city detail, Settings, Local data and About.
+- Sidebar navigation automatically expands a folded city section before scrolling to it.
+- Add regression coverage for the aesthetic system and keep all weather/Consensus v2 calculations unchanged.
+- `APP_VERSION` is `1.10.14`; PWA shell cache is `v45-aesthetic-system`.
+
+
+## [1.10.13] - 2026-08-20
+
+### Reliability & navigation polish
+- Preserve central weather values when only one independent model family is available; convergence remains intentionally unavailable instead of suppressing the data.
+- Keep hourly temperature, wind and precipitation bands renderable with one family, using `null` convergence rather than dropping points.
+- Preserve rain probability/details in daily confidence metadata without fabricating a multi-family agreement score.
+- Render unavailable convergence as neutral/unknown rather than accidentally treating it as 0%/low.
+- Replace the in-flow topbar back icon with a visible floating back control attached to the topbar edge, so navigation no longer shifts the brand or main actions.
+- Add dedicated regression coverage for one-family fallbacks and back-navigation layout.
+- `APP_VERSION` is `1.10.13`; PWA shell cache is `v44-one-family-nav`.
+
 ## [1.10.12] - 2026-08-19
 
 ### Release clean
@@ -73,6 +102,8 @@
 ### Changed
 - `APP_VERSION` passe à `1.10.6` et le cache PWA à `v36-play-store-nav`.
 - Aucun changement des chaînes météo auditées en 1.10.5.
+
+# Changelog
 
 ## [1.10.5] - 2026-08-18
 
@@ -155,3 +186,10 @@ All notable changes to MeteoCompare Web are documented here. Releases follow Sem
 
 ### Changed
 - Application version and service-worker cache version are now independent.
+
+### 1.10.11 — final interaction/layout polish (version inchangée)
+- Uniformisation stricte des hauteurs `timeline-metric`.
+- Stabilisation du scroll de la page Données locales pendant les recalculs et diagnostics.
+- Alignement des actions dans les `setting-control`.
+- Sélection des modèles présentée en grille compacte avec switch proche du modèle.
+- Harmonisation des `about-mini-badge` et des marges/paddings des `about-callout`.

@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
+const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),css=read('styles.css');
+assert.ok(version.localeCompare('1.10.14',undefined,{numeric:true,sensitivity:'base'})>=0);
+assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.match(app,/nav-cities-popover/);
+assert.match(app,/enhanceCollapsibleCards/);
+assert.match(css,/--space-4:/);
+assert.match(css,/--radius-md:/);
+assert.match(css,/--shadow-2:/);
+assert.match(css,/--semantic-success:/);
+assert.match(css,/\.collapsible-card/);
+console.log('MeteoCompare Web 1.10.14 release guards: OK');

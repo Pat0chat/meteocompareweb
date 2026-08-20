@@ -57,9 +57,14 @@ assert.ok(tideRangeNext24h(marine,tokyoNow)?.range>1.5);
 const date='2026-08-19';
 const one={hourly:{timestamps:[]},daily:{dates:[date],tempMax:[null],tempMin:[null],precipitationSum:[0],windSpeedMax:[null],windGustsMax:[null],windDirection10mDominant:[null],precipitationProbabilityMax:[0],weatherCode:[0],sunrise:[null],sunset:[null]}};
 const oneForecast={city:{timezone:'UTC'},seriesByModel:{GFS:one}};
-assert.equal(dayConfidence(oneForecast,date).precipitation,null,'one dry model must not produce 100% rain agreement');
-assert.equal(dayConfidence(oneForecast,date).overallPercent,null,'one model must not produce a global agreement score');
-assert.equal(weightedDayConfidence(oneForecast,date,{precipitation:{GFS:1.2}}).precipitation,null);
+const oneConf=dayConfidence(oneForecast,date);
+assert.ok(oneConf.precipitation,'one-family weather data must remain available even when convergence cannot be scored');
+assert.equal(oneConf.precipitation.percent,null,'one dry model must not produce a rain convergence score');
+assert.equal(oneConf.precipitation.probabilityPercent,0,'native rain probability must remain visible with one family');
+assert.equal(oneConf.overallPercent,null,'one model must not produce a global convergence score');
+const weightedOne=weightedDayConfidence(oneForecast,date,{precipitation:{GFS:1.2}});
+assert.ok(weightedOne.precipitation);
+assert.equal(weightedOne.precipitation.percent,null);
 
 // 4. Evolution ignores terminal PARTIAL days and ignores legacy snapshots once
 // completeness-aware forecasts are in use.

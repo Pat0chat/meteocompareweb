@@ -29,3 +29,7 @@ Object.assign(catalog,{"analyseAt":"{time} analysieren · Konvergenz {percent}%"
 
 Object.assign(catalog,{"maxProbabilityTitle":"Höchste stündliche Regenwahrscheinlichkeit an diesem Tag.","rainExpectedAmountTitle":"P(Regen) × Medianmenge bei Regen. Ein zusammenfassender Indikator, keine garantierte Niederschlagsmenge.","rainIfWetAmountShort":"{amount} mm bei Regen","rainAmountUnavailable":"Menge nicht verfügbar","dailyRainProbabilityLegend":"Unter der Tagesmenge: höchste stündliche Regenwahrscheinlichkeit des Tages."});
 Object.assign(catalog,{"marineUpcomingTides":'Nächste Gezeiten'});
+
+Object.assign(catalog,{"collapseSection": "Abschnitt einklappen", "expandSection": "Abschnitt ausklappen"});
+
+Object.assign(catalog,{"versionInfoLabel":'MeteoCompare Web {version} · Daten v{schema}'});

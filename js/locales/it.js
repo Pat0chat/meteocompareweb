@@ -29,3 +29,7 @@ Object.assign(catalog,{"analyseAt":"Analizza {time} · convergenza {percent}%","
 
 Object.assign(catalog,{"maxProbabilityTitle":"Probabilità di pioggia oraria più alta della giornata.","rainExpectedAmountTitle":"P(pioggia) × quantità mediana se piove. È un indicatore di sintesi, non un accumulo garantito.","rainIfWetAmountShort":"{amount} mm se piove","rainAmountUnavailable":"quantità non disponibile","dailyRainProbabilityLegend":"Sotto l’accumulo: picco della probabilità oraria di pioggia nella giornata."});
 Object.assign(catalog,{"marineUpcomingTides":'Prossime maree'});
+
+Object.assign(catalog,{"collapseSection": "Comprimi sezione", "expandSection": "Espandi sezione"});
+
+Object.assign(catalog,{"versionInfoLabel":'MeteoCompare Web {version} · dati v{schema}'});

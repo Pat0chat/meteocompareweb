@@ -86,7 +86,7 @@ export function precipitationConsensus(rows,{threshold=.1,localWeights={},amount
   const occurrenceConv=Number.isFinite(p)&&occurrence.familyCount>=2?Math.abs(p-.5)*200:null;
   const amountConv=amountStats&&wetBalanced.familyCount>=2?scoreFromDispersion(amountStats.stdDev,amountTight,amountWide):null;
   const convergence=Number.isFinite(occurrenceConv)?(Number.isFinite(amountConv)&&p>=.5?Math.round(occurrenceConv*.7+amountConv*.3):Math.round(occurrenceConv)):null;
-  const source=nativeProbCount>=Math.max(2,Math.ceil(usable.length/2))?'PROBABILITY':nativeProbCount>0?'MIXED':'MODEL_AGREEMENT';
+  const source=nativeProbCount===usable.length?'PROBABILITY':nativeProbCount>0?'MIXED':'MODEL_AGREEMENT';
   return {
     probabilityPercent:Number.isFinite(p)?Math.round(p*100):null,
     conditionalAmountMm:Number.isFinite(conditional)?conditional:(wet.length?0:null),

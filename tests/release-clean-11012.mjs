@@ -11,10 +11,10 @@ const sw=read('sw.js');
 const app=read('js/app.js');
 const css=read('styles.css');
 
-assert.equal(version,'1.10.12');
+assert.ok(/^1\.10\.(?:1[2-9]|[2-9]\d+)$/.test(version));
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.match(sw,/CACHE_VERSION = 'v43-marine-polish'/);
+assert.match(sw,/CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
 // Settings must use intrinsic flow: no fake spacer tracks or auto-pushed actions.
 assert.match(css,/\.settings-control-grid\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)[^}]*align-items:start[^}]*width:100%/);

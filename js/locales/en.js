@@ -29,3 +29,7 @@ Object.assign(catalog,{"analyseAt":"Analyse {time} · convergence {percent}%","m
 
 Object.assign(catalog,{"maxProbabilityTitle":"Highest hourly rain probability during this day.","rainExpectedAmountTitle":"P(rain) × median amount if wet. A summary indicator, not a guaranteed rainfall total.","rainIfWetAmountShort":"{amount} mm if wet","rainAmountUnavailable":"amount unavailable","dailyRainProbabilityLegend":"Below the daily total: highest hourly rain probability during the day."});
 Object.assign(catalog,{"marineUpcomingTides":'Upcoming tides'});
+
+Object.assign(catalog,{"collapseSection": "Collapse section", "expandSection": "Expand section"});
+
+Object.assign(catalog,{"versionInfoLabel":'MeteoCompare Web {version} · data v{schema}'});

@@ -1,5 +1,5 @@
-const APP_VERSION = '1.10.12';
-const CACHE_VERSION = 'v43-marine-polish';
+const APP_VERSION = '1.10.15';
+const CACHE_VERSION = 'v46-version-compare';
 const CACHE_PREFIX = 'meteocompare-web-';
 const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [
