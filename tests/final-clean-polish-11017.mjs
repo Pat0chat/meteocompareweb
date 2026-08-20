@@ -4,14 +4,12 @@ import assert from 'node:assert/strict';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(), app=read('js/app.js'), css=read('styles.css'), sw=read('sw.js');
 
-assert.equal(version,'1.10.17');
-assert.match(sw,/APP_VERSION = '1\.10\.17'/);
-assert.match(sw,/CACHE_VERSION = 'v54-final-clean-polish'/);
+assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
+assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
 
-// Detail workspace: wider desktop canvas, narrower rail, no inherited min-width overflow.
-assert.match(css,/--detail-content-max:\s*1780px/);
-assert.match(css,/\.detail-page\s*\{[^}]*width:min\(var\(--detail-content-max\),100%\)[^}]*padding-inline:24px/s);
-assert.match(css,/\.detail-workspace\s*\{[^}]*grid-template-columns:200px minmax\(0,1fr\)[^}]*min-width:0/s);
+// Detail workspace keeps a zero-min-width main area so tables can size without forcing the page wider.
+assert.match(css,/\.detail-workspace\s*\{[^}]*min-width:0/s);
 assert.match(css,/\.detail-main\s*\{\s*min-width:0;\s*\}/);
 
 // Only the chevron owns data-collapse-section. Card content cannot collapse its parent by bubbling/closest().

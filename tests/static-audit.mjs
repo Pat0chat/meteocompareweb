@@ -74,7 +74,7 @@ assert.match(css, /#app \{ overflow-anchor: none; \}/, 'browser scroll anchoring
 assert.doesNotMatch(css, /\.section, \.city-card, \.settings-section \{ content-visibility: auto/, 'detail sections must not use estimated off-screen heights that can cause scroll jumps');
 assert.doesNotMatch(css, /\.settings-section[^}]*content-visibility:\s*auto/s, 'Settings sections must remain fully laid out to avoid click/focus scroll jumps');
 assert.match(css, /\.settings-list[^}]*overflow-anchor:\s*none/s, 'Settings must disable native scroll anchoring so it cannot fight explicit viewport stabilization');
-assert.match(css, /\.city-card\s*\{[^}]*content-visibility:\s*auto/s, 'home city cards may retain off-screen rendering optimization');
+assert.match(css, /\.home-city-card\s*\{[^}]*content-visibility:\s*auto/s, 'modern home city cards may retain off-screen rendering optimization');
 assert.match(app, /data-theme[^\n]+stabilizeLocalScroll\(interactionScrollContext\)/, 'theme updates must repin the clicked Settings control');
 assert.match(app, /data-density[^\n]+stabilizeLocalScroll\(interactionScrollContext\)/, 'density updates must repin the clicked Settings control');
 console.log('MeteoCompare Web static audit tests: OK');

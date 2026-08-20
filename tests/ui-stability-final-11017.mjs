@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const version=read('VERSION').trim(),app=read('js/app.js'),css=read('styles.css'),comparison=read('js/features/comparison.js'),sw=read('sw.js');
-assert.equal(version,'1.10.17');
-assert.match(sw,/APP_VERSION = '1\.10\.17'/);
+assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
+assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
 
 // Folding is a city-detail interaction only; Settings/Data/About cards stay static.
 const enhance=app.slice(app.indexOf('function enhanceCollapsibleCards'),app.indexOf('function pwaInstallGuidance'));

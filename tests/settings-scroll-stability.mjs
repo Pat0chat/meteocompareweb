@@ -5,7 +5,7 @@ const css=read('styles.css'),app=read('js/app.js'),version=read('VERSION').trim(
 assert.match(version,/^\d+\.\d+\.\d+$/);
 assert.doesNotMatch(css,/\.settings-section[^}]*content-visibility:\s*auto/s,'interactive Settings cards must not be virtualized');
 assert.match(css,/\.settings-list[^}]*overflow-anchor:\s*none/s,'native scroll anchoring must be disabled within Settings');
-assert.match(css,/\.city-card\s*\{[^}]*content-visibility:\s*auto/s,'home card optimization must remain scoped to city cards');
+assert.match(css,/\.home-city-card\s*\{[^}]*content-visibility:\s*auto/s,'home card optimization must remain scoped to modern home city cards');
 for(const key of ['localWeighting','theme','refreshInterval','density']){
   const re=new RegExp(`if\\(target\\.dataset\\.${key}\\)\\{[^}]*stabilizeLocalScroll\\(interactionScrollContext\\)`);
   assert.match(app,re,`${key} must restore the clicked control viewport position after its mutation`);
