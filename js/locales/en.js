@@ -39,3 +39,5 @@ Object.assign(catalog,{"homeModernKicker":"Your weather, compared","homeModernTi
 Object.assign(catalog,{"homeSearchPrompt":"Search or add a city…"});
 
 Object.assign(catalog,{"homeAgreementHigh":"✓ Models strongly aligned","homeAgreementGood":"✓ Models aligned","homeAgreementLow":"⚠ Divergence to watch","homeAgreementUnavailable":"— Convergence unavailable","homeFamilyCountOne":"1 independent family"});
+
+Object.assign(catalog,{"homeConsensusTitle":"Max temperature by model","homeConsensusCentral":"MeteoCompare forecast {value}°","homeConsensusLegend":"Each dot is one model; the vertical line is MeteoCompare’s central forecast. The closer the dots, the stronger the model convergence.","homeHeatScaleHint":"Shared temperature scale for every city: blue for cold, then cyan, green, amber, orange and pink for stronger heat."});

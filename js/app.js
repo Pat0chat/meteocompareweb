@@ -571,20 +571,31 @@ function homeAgreementText(percent,familyCount){
   if(percent>=60)return t('homeAgreementGood');
   return t('homeAgreementLow');
 }
+function homeTemperatureHeatColor(temp){
+  const stops=[[-15,[91,111,249]],[-2,[63,142,232]],[8,[53,184,200]],[16,[95,198,141]],[22,[230,195,79]],[28,[243,154,69]],[34,[235,102,93]],[42,[201,74,131]]];
+  if(!Number.isFinite(temp))return 'rgb(148 163 184)';
+  if(temp<=stops[0][0])return `rgb(${stops[0][1].join(' ')})`;
+  if(temp>=stops.at(-1)[0])return `rgb(${stops.at(-1)[1].join(' ')})`;
+  for(let i=1;i<stops.length;i++){
+    if(temp>stops[i][0])continue;
+    const [a,av]=stops[i-1],[b,bv]=stops[i],n=(temp-a)/(b-a),rgb=av.map((v,j)=>Math.round(v+(bv[j]-v)*n));
+    return `rgb(${rgb.join(' ')})`;
+  }
+  return 'rgb(148 163 184)';
+}
 function renderHomeMiniTimeline(points){
   const {t}=i18n();
   if(!points.length)return '';
-  const temperatures=points.map(point=>point.temperatureC).filter(Number.isFinite),lo=temperatures.length?Math.min(...temperatures):0,hi=temperatures.length?Math.max(...temperatures):1,span=Math.max(.1,hi-lo);
-  return `<div class="home-mini-timeline" aria-label="${esc(t('homeMiniTimelineAria'))}">${points.map(point=>{
-    const prob=point.precipitationPercent,amount=point.precipitationConditionalMm,temp=point.temperatureC,n=Number.isFinite(temp)?(temp-lo)/span:.5,hue=Math.round(210-(210*n));
-    return `<div class="home-mini-hour ${Number.isFinite(prob)&&prob>=30?'wet':''}" style="--heat-hue:${hue}" title="${attr(`${timeLabel(point.timestamp)} · ${Number.isFinite(temp)?`${fmt(temp,1)} °C`:'—'}${Number.isFinite(prob)?` · ${Math.round(prob)} %`:''}${Number.isFinite(amount)&&amount>=.1?` · ${fmt(amount,1)} mm`:''}`)}"><span class="home-mini-time">${esc(timeLabel(point.timestamp))}</span><strong>${Number.isFinite(temp)?`${fmt(temp)}°`:'—'}</strong><span class="home-mini-rain">${Number.isFinite(prob)&&prob>=20?`☂ ${Math.round(prob)}%`:'·'}</span><small>${Number.isFinite(amount)&&amount>=.1?`${fmt(amount,1)} mm`:'—'}</small></div>`;
-  }).join('')}</div>`;
+  return `<div class="home-mini-timeline-wrap"><div class="home-mini-timeline" aria-label="${esc(t('homeMiniTimelineAria'))}">${points.map(point=>{
+    const prob=point.precipitationPercent,amount=point.precipitationConditionalMm,temp=point.temperatureC,heat=homeTemperatureHeatColor(temp);
+    return `<div class="home-mini-hour ${Number.isFinite(prob)&&prob>=30?'wet':''}" style="--heat-color:${heat}" title="${attr(`${timeLabel(point.timestamp)} · ${Number.isFinite(temp)?`${fmt(temp,1)} °C`:'—'}${Number.isFinite(prob)?` · ${Math.round(prob)} %`:''}${Number.isFinite(amount)&&amount>=.1?` · ${fmt(amount,1)} mm`:''}`)}"><span class="home-mini-time">${esc(timeLabel(point.timestamp))}</span><strong>${Number.isFinite(temp)?`${fmt(temp)}°`:'—'}</strong><span class="home-mini-rain">${Number.isFinite(prob)&&prob>=20?`☂ ${Math.round(prob)}%`:'·'}</span><small>${Number.isFinite(amount)&&amount>=.1?`${fmt(amount,1)} mm`:'—'}</small></div>`;
+  }).join('')}</div><div class="home-heat-key" aria-label="${esc(t('homeHeatScaleHint'))}" title="${attr(t('homeHeatScaleHint'))}"><span>−10°</span><i></i><span>40°+</span></div></div>`;
 }
 function renderHomeConsensusStrip(day,percent,familyCount){
   const {t}=i18n(),rows=(day.data||[]).filter(x=>x.comparable?.temperature&&Number.isFinite(x.tempMax)),values=rows.map(x=>x.tempMax),min=values.length?Math.min(...values):null,max=values.length?Math.max(...values):null,central=day.tempMax;
   if(!Number.isFinite(min)||!Number.isFinite(max)||!Number.isFinite(central))return '';
   const span=Math.max(.1,max-min),pos=value=>Math.max(4,Math.min(96,((value-min)/span)*100)),dots=rows.map((x,i)=>`<i class="home-model-dot" style="--dot:${pos(x.tempMax)}%;--dot-y:${10+(i%2)*8}px" title="${attr(`${getModel(x.modelId)?.shortName||getModel(x.modelId)?.name||x.modelId} · ${fmt(x.tempMax,1)} °C`)}"></i>`).join('');
-  return `<div class="home-consensus"><div class="home-consensus-head"><span>${esc(t('homeConsensusTitle'))}</span><strong class="${Number.isFinite(percent)?confidenceClass(percent):'neutral'}">${esc(homeAgreementText(percent,familyCount))}${Number.isFinite(percent)?` · ${Math.round(percent)}%`:''}</strong></div><div class="home-consensus-rail" aria-label="${esc(t('homeConsensusAria',{min:fmt(min,1),max:fmt(max,1)}))}">${dots}<i class="home-consensus-center" style="--center:${pos(central)}%"></i></div><div class="home-consensus-scale"><span>${fmt(min,1)}°</span><b>${esc(t('homeConsensusCentral',{value:fmt(central,1)}))}</b><span>${fmt(max,1)}°</span></div></div>`;
+  return `<div class="home-consensus"><div class="home-consensus-head"><span>${esc(t('homeConsensusTitle'))}</span><strong class="${Number.isFinite(percent)?confidenceClass(percent):'neutral'}">${esc(homeAgreementText(percent,familyCount))}${Number.isFinite(percent)?` · ${Math.round(percent)}%`:''}</strong></div><div class="home-consensus-rail" aria-label="${esc(t('homeConsensusAria',{min:fmt(min,1),max:fmt(max,1)}))}">${dots}<i class="home-consensus-center" style="--center:${pos(central)}%"></i></div><div class="home-consensus-scale"><span>${fmt(min,1)}°</span><b>${esc(t('homeConsensusCentral',{value:fmt(central,1)}))}</b><span>${fmt(max,1)}°</span></div><p class="home-consensus-help">${esc(t('homeConsensusLegend'))}</p></div>`;
 }
 function homeWatchCandidate(city,f,weights){
   const {t}=i18n(),points=homeTimelinePoints(f,weights,8).slice(0,8);if(!points.length)return null;
@@ -600,12 +611,12 @@ function homeWatchCandidate(city,f,weights){
 }
 function renderHomeWatchlist(){
   const {t}=i18n(),items=state.cities.map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,homeConsensusWeights(city.id)):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
-  return `<section class="home-watch-section"><div class="home-section-heading"><div><span class="home-section-kicker">${esc(t('homeWatchKicker'))}</span><h2>${esc(t('homeWatchTitle'))}</h2></div><p>${esc(t('homeWatchLead'))}</p></div>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-city-open="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</section>`;
+  return `<aside class="home-watch-section" aria-label="${esc(t('homeWatchTitle'))}"><div class="home-section-heading"><div><span class="home-section-kicker">${esc(t('homeWatchKicker'))}</span><h2>${esc(t('homeWatchTitle'))}</h2></div><p>${esc(t('homeWatchLead'))}</p></div>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-city-open="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</aside>`;
 }
 function renderHome(){
-  const {t}=i18n(),cards=state.cities.map(renderCityCard).join(''),busy=state.loading.size;
-  return `<main class="page home-page"><section class="home-hero"><div class="home-hero-copy"><h1>${esc(t('homeModernKicker'))}</h1><button class="home-search-trigger" data-action="open-add-city"><span class="home-search-icon">⌕</span><span>${esc(t('homeSearchPrompt'))}</span><kbd>+</kbd></button></div></section>
-  <section class="home-cities-section"><div class="home-section-heading home-cities-heading"><div><span class="home-section-kicker">${esc(t('homeFavoritesKicker'))}</span><h2>${esc(t('cities'))}</h2></div><div class="home-section-actions">${state.cities.length>=2?`<button class="btn tonal" data-action="open-city-compare">${esc(t('compareCities'))}</button>`:''}<button class="btn tonal" data-action="refresh-all" ${busy?'disabled':''}><span class="btn-icon ${busy?'spinning':''}">${uiIcon('refresh')}</span>${esc(t('refresh'))}</button><button class="btn primary" data-action="open-add-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('addCity'))}</button></div></div>${state.cities.length?`<div class="home-city-grid" aria-label="${esc(t('cities'))}">${cards}</div>`:`<section class="empty-state home-empty"><div class="big">🌦️</div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}</section>${state.cities.length?renderHomeWatchlist():''}</main>`;
+  const {t}=i18n(),cards=state.cities.map(renderCityCard).join(''),busy=state.loading.size,hasCities=state.cities.length>0;
+  const heroActions=`<div class="home-hero-actions"><button class="btn primary" data-action="open-add-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('addCity'))}</button>${state.cities.length>=2?`<button class="btn tonal" data-action="open-city-compare">${esc(t('compareCities'))}</button>`:''}<button class="btn tonal" data-action="refresh-all" ${busy?'disabled':''}><span class="btn-icon ${busy?'spinning':''}">${uiIcon('refresh')}</span>${esc(t('refresh'))}</button></div>`;
+  return `<main class="page home-page"><section class="home-hero"><div class="home-hero-copy"><span class="home-hero-kicker">${esc(t('homeModernKicker'))}</span><h1>${esc(t('homeModernTitle'))}</h1><p>${esc(t('homeModernLead'))}</p>${heroActions}</div><div class="home-hero-search-panel"><button class="home-search-trigger" data-action="open-add-city"><span class="home-search-icon">⌕</span><span>${esc(t('homeSearchPrompt'))}</span><kbd>+</kbd></button></div></section>${hasCities?`<div class="home-dashboard"><section class="home-cities-section"><div class="home-section-heading home-cities-heading"><div><span class="home-section-kicker">${esc(t('homeFavoritesKicker'))}</span><h2>${esc(t('cities'))}</h2></div></div><div class="home-city-grid" aria-label="${esc(t('cities'))}">${cards}</div></section>${renderHomeWatchlist()}</div>`:`<section class="empty-state home-empty"><div class="big">🌦️</div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}</main>`;
 }
 
 function renderCityCard(city){

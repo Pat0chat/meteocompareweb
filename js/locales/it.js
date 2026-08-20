@@ -39,3 +39,5 @@ Object.assign(catalog,{"homeModernKicker":"Il tuo meteo, confrontato","homeModer
 Object.assign(catalog,{"homeSearchPrompt":"Cerca o aggiungi una città…"});
 
 Object.assign(catalog,{"homeAgreementHigh":"✓ Modelli molto coerenti","homeAgreementGood":"✓ Modelli coerenti","homeAgreementLow":"⚠ Divergenza da seguire","homeAgreementUnavailable":"— Convergenza non calcolabile","homeFamilyCountOne":"1 famiglia indipendente"});
+
+Object.assign(catalog,{"homeConsensusTitle":"Temperatura massima secondo i modelli","homeConsensusCentral":"Previsione MeteoCompare {value}°","homeConsensusLegend":"Ogni punto rappresenta un modello; la linea verticale è la previsione centrale di MeteoCompare. Più i punti sono vicini, maggiore è la convergenza.","homeHeatScaleHint":"Scala di temperatura comune a tutte le città: blu per il freddo, poi ciano, verde, ambra, arancio e rosa per il caldo intenso."});

@@ -5,9 +5,11 @@
 - TodaySummary reste toujours visible : suppression du pliage de la card de synthèse.
 - Prévisions détaillées : suppression du pliage externe de la card afin de laisser le sélecteur « Comparer 2 à 4 modèles » comme unique accordéon interne.
 - Santé des modèles : suppression du pliage générique redondant ; le bouton Ouvrir/Fermer le diagnostic devient l’unique contrôle de détail.
-- Home : hero fortement compacté, suppression de l’illustration et des raccourcis de villes, mini-chronologie à nouveau rendue comme une heatmap enrichie.
-- Home : min/max déplacés dans les faits météo avec pluie et vent ; suppression du signal de cohérence redondant avec la frise de dispersion.
-- Cache PWA technique mis à jour vers `v49-home-polish` sans changement de version produit.
+- Home : hero retravaillé comme zone de pilotage (description, recherche et actions Ajouter / Comparer / Actualiser), sans raccourcis de villes redondants.
+- Home : mini-chronologie en heatmap absolue commune à toutes les villes, avec échelle moderne froid → chaud et conservation de l’heure, température, pluie et mm.
+- Home : min/max restent regroupés avec pluie et vent ; la frise explique désormais explicitement les points modèles et la prévision centrale MeteoCompare.
+- Home : cards légèrement compactées et Signaux utiles promus en colonne latérale sticky sur desktop.
+- Cache PWA technique mis à jour vers `v50-home-layout` sans changement de version produit.
 - Aucun changement du moteur météo, du Consensus v2 ou du schéma de données.
 
 ## 1.10.16 — Modern home
@@ -125,6 +127,8 @@
 - `APP_VERSION` passe à `1.10.6` et le cache PWA à `v36-play-store-nav`.
 - Aucun changement des chaînes météo auditées en 1.10.5.
 
+# Changelog
+
 ## [1.10.5] - 2026-08-18
 
 ### Fixed
@@ -206,3 +210,10 @@ All notable changes to MeteoCompare Web are documented here. Releases follow Sem
 
 ### Changed
 - Application version and service-worker cache version are now independent.
+
+### 1.10.11 — final interaction/layout polish (version inchangée)
+- Uniformisation stricte des hauteurs `timeline-metric`.
+- Stabilisation du scroll de la page Données locales pendant les recalculs et diagnostics.
+- Alignement des actions dans les `setting-control`.
+- Sélection des modèles présentée en grille compacte avec switch proche du modèle.
+- Harmonisation des `about-mini-badge` et des marges/paddings des `about-callout`.
