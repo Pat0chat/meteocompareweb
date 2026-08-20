@@ -14,7 +14,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw
 assert.equal(version,'1.13.0');
 assert.match(versionJs,/APP_VERSION = '1\.13\.0'/);
 assert.match(sw,/APP_VERSION = '1\.13\.0'/);
-assert.match(sw,/CACHE_VERSION = 'v63-overview-watch-time'/);
+assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=63,'1.13 cache generation must not regress');
 assert.match(sw,/\.\/js\/data\/contracts\.js/);
 assert.match(sw,/\.\/js\/data\/forecast-normalizer\.js/);
 

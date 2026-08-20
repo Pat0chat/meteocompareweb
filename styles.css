@@ -410,7 +410,7 @@ html[data-theme="dark"] body {
 .forecast-table th, .forecast-table td { min-width: 118px; }
 .forecast-table th:first-child, .forecast-table td:first-child { min-width: 128px; }
 .model-header { display:block;  }
-.condition-label { display:block; margin-top:3px; color:var(--muted); font-size:.7rem; max-width:110px; overflow:hidden; text-overflow:ellipsis; }
+.condition-label { display:block; margin-top:3px; color:var(--muted); font-size:.7rem; overflow:hidden; text-overflow:ellipsis; }
 .heatmap-data-cell[style*="--heat"] { background: color-mix(in srgb, var(--heat) 43%, var(--surface)); font-weight:720; }
 tr.current .heatmap-data-cell[style*="--heat"] { background: color-mix(in srgb, var(--heat) 50%, var(--surface)); }
 .no-data { color:var(--subtle); }
@@ -3407,7 +3407,9 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   color:var(--text);
   shape-rendering:geometricPrecision;
   filter:drop-shadow(0 1px 1px color-mix(in srgb,var(--text) 10%,transparent));
+  flex:0 0 auto;
 }
+.wx-artwork { pointer-events:none; }
 .wx-size-large { width:4.55rem; height:4.55rem; }
 .wx-size-normal { width:2.9rem; height:2.9rem; }
 .wx-size-small { width:1.75rem; height:1.75rem; }

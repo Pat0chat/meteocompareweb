@@ -1,4 +1,4 @@
-const SVG_ATTR='viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"';
+const SVG_ATTR='viewBox="0 0 48 48" preserveAspectRatio="xMidYMid meet" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"';
 
 /*
  * MeteoCompare weather glyphs are deliberately presentation-only.
@@ -52,6 +52,30 @@ const ICE=`<g class="wx-ice">
 </g>`;
 const QUESTION='<g class="wx-question"><circle cx="24" cy="24" r="15"/><path d="M19.5 19a5 5 0 1 1 7 4.6c-1.7.9-2.5 1.7-2.5 3.4M24 33h.01"/></g>';
 
+
+/*
+ * Each condition is optically centred in the common 48×48 viewBox. Several
+ * composite glyphs intentionally reuse a sun drawn in the upper-left corner
+ * so that a cloud can overlap it; using that same raw geometry for CLEAR made
+ * the standalone sun look visibly off-centre. Keeping the offsets here makes
+ * centring a renderer concern instead of scattering per-screen CSS nudges.
+ */
+const OPTICAL_OFFSETS={
+  CLEAR:[6,8],
+  MAINLY_CLEAR:[1,4],
+  PARTLY_CLOUDY:[-.5,4.4],
+  OVERCAST:[-.7,.3],
+  FOG:[-.7,-2.1],
+  DRIZZLE:[-.7,-1.8],
+  RAIN:[-.7,-2.9],
+  RAIN_SHOWERS:[-.5,1.2],
+  SNOW:[-.7,-3.3],
+  SNOW_SHOWERS:[-.5,.8],
+  FREEZING_RAIN:[-.7,-4.3],
+  THUNDERSTORM:[-.7,-2.9],
+  UNKNOWN:[0,0]
+};
+
 const METRICS={
   temperature:'<path class="wx-metric-stroke" d="M27 28.2V10a7 7 0 0 0-14 0v18.2a10 10 0 1 0 14 0Z"/><path class="wx-metric-soft" d="M20 8.5v24"/><circle class="wx-metric-fill" cx="20" cy="34.5" r="4.8"/><path class="wx-metric-highlight" d="M17.2 9.4c0-1.9 1.1-3.2 2.8-3.2"/>',
   precipitation:'<path class="wx-metric-stroke" d="M24 4.5S12.5 17.1 12.5 27.1a11.5 11.5 0 0 0 23 0C35.5 17.1 24 4.5 24 4.5Z"/><path class="wx-metric-highlight" d="M17.7 27.7c.8 3 2.9 4.7 6 5.2"/>',
@@ -81,12 +105,18 @@ function body(condition){
 }
 
 function cssToken(condition){return String(condition||'UNKNOWN').toLowerCase().replaceAll('_','-');}
+function artwork(condition){
+  const key=Object.hasOwn(OPTICAL_OFFSETS,condition)?condition:'UNKNOWN';
+  const [x,y]=OPTICAL_OFFSETS[key];
+  const transform=(x||y)?` transform="translate(${x} ${y})"`:'';
+  return `<g class="wx-artwork wx-artwork-${cssToken(key)}" data-center="optical"${transform}>${body(key)}</g>`;
+}
 
 export class WeatherIconRenderer {
   render(condition,{size='normal',animated=false,className=''}={}){
-    const key=condition||'UNKNOWN';
+    const key=Object.hasOwn(OPTICAL_OFFSETS,condition)?condition:'UNKNOWN';
     const classes=['wx-icon',`wx-${cssToken(key)}`,`wx-size-${size}`,animated?'wx-animated':'',className].filter(Boolean).join(' ');
-    return `<svg class="${classes}" ${SVG_ATTR}>${body(key)}</svg>`;
+    return `<svg class="${classes}" ${SVG_ATTR}>${artwork(key)}</svg>`;
   }
 
   renderMetric(kind,{size='small',className=''}={}){
