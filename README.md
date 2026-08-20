@@ -5,7 +5,7 @@
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.9.0-production-foundation
+cd meteocompare-web-v1.12.1
 python3 -m http.server 8080
 ```
 
@@ -52,6 +52,7 @@ Le service worker :
 
 ## Fonctionnalités météo conservées
 
+- système d’icônes météo SVG détaillé et homogène dans toute l’interface, avec animations multi-couches plus naturelles sur la Home et Today Summary ;
 - favoris : recherche, ajout, retrait et affichage multi-ville ;
 - comparaison des 17 modèles du projet Android et sélection des modèles ;
 - résumé journalier, conditions actuelles, lever/coucher du soleil ;
@@ -154,18 +155,21 @@ Ils couvrent notamment :
 
 - `index.html` : shell, métadonnées et politique CSP ;
 - `styles.css` : design desktop/responsive ;
-- `js/models.js` : métadonnées des modèles ;
+- `js/core/` : kernel applicatif, état, caches, opérations et chargement paresseux ;
+- `js/ui/weather-icons.js` : système vectoriel centralisé des icônes météo ;
+- `js/models.js` : métadonnées métier des modèles et conditions, sans dépendance de présentation ;
 - `js/api.js` : appels Open-Meteo et normalisation ;
 - `js/domain.js` : calculs météo, accord, scénarios, biais, ERA5, évolution ;
 - `js/storage.js` : réglages/favoris + cache IndexedDB ;
 - `js/i18n.js` : interface multilingue ;
 - `js/analytics-config.js` : activation explicite de la mesure d’audience ;
 - `js/analytics.js` : pageviews expurgées + événements PWA minimaux ;
-- `js/app.js` : rendu, routeur et interactions ;
+- `js/app.js` : composition des vues, routeur et interactions, branchés sur le kernel ;
+- `ARCHITECTURE.md` : responsabilités, points d’extension et règles de séparation ;
 - `manifest.webmanifest`, `manifest.{fr,en,es,de,it}.webmanifest`, `sw.js` : PWA et métadonnées localisées ;
 - `.github/workflows/pages.yml` : publication GitHub Pages ;
 - `.nojekyll` : compatibilité de publication statique ;
-- `tests/` : 16 suites de non-régression, performance, audit, fidélité UI/données, graphes, PWA, i18n, analytics et Pages.
+- `tests/` : suites de non-régression, performance, architecture, audit, fidélité UI/données, graphes, PWA, i18n, analytics et Pages.
 
 ## Confidentialité et mesure d’audience
 

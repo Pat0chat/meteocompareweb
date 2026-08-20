@@ -39,19 +39,19 @@ export const CONDITION = Object.freeze({
 });
 
 export const CONDITION_INFO = {
-  CLEAR:{ icon:'☀️', label:'Clair', severity:0, accent:'#f5a623' },
-  MAINLY_CLEAR:{ icon:'🌤️', label:'Peu nuageux', severity:1, accent:'#e9a23b' },
-  PARTLY_CLOUDY:{ icon:'⛅', label:'Partiellement nuageux', severity:2, accent:'#78909c' },
-  OVERCAST:{ icon:'☁️', label:'Couvert', severity:3, accent:'#607d8b' },
-  FOG:{ icon:'🌫️', label:'Brouillard', severity:4, accent:'#78909c' },
-  DRIZZLE:{ icon:'🌦️', label:'Bruine', severity:5, accent:'#5c8fc9' },
-  RAIN_SHOWERS:{ icon:'🌦️', label:'Averses', severity:6, accent:'#3d7cc9' },
-  RAIN:{ icon:'🌧️', label:'Pluie', severity:7, accent:'#3569ad' },
-  SNOW_SHOWERS:{ icon:'🌨️', label:'Averses de neige', severity:8, accent:'#6b8da8' },
-  SNOW:{ icon:'❄️', label:'Neige', severity:9, accent:'#7aa6c2' },
-  FREEZING_RAIN:{ icon:'🧊', label:'Pluie verglaçante', severity:10, accent:'#647bd1' },
-  THUNDERSTORM:{ icon:'⛈️', label:'Orage', severity:11, accent:'#7558a6' },
-  UNKNOWN:{ icon:'❔', label:'Indéterminé', severity:-1, accent:'#8a929b' },
+  CLEAR:{ label:'Clair', severity:0, accent:'#f5a623' },
+  MAINLY_CLEAR:{ label:'Peu nuageux', severity:1, accent:'#e9a23b' },
+  PARTLY_CLOUDY:{ label:'Partiellement nuageux', severity:2, accent:'#78909c' },
+  OVERCAST:{ label:'Couvert', severity:3, accent:'#607d8b' },
+  FOG:{ label:'Brouillard', severity:4, accent:'#78909c' },
+  DRIZZLE:{ label:'Bruine', severity:5, accent:'#5c8fc9' },
+  RAIN_SHOWERS:{ label:'Averses', severity:6, accent:'#3d7cc9' },
+  RAIN:{ label:'Pluie', severity:7, accent:'#3569ad' },
+  SNOW_SHOWERS:{ label:'Averses de neige', severity:8, accent:'#6b8da8' },
+  SNOW:{ label:'Neige', severity:9, accent:'#7aa6c2' },
+  FREEZING_RAIN:{ label:'Pluie verglaçante', severity:10, accent:'#647bd1' },
+  THUNDERSTORM:{ label:'Orage', severity:11, accent:'#7558a6' },
+  UNKNOWN:{ label:'Indéterminé', severity:-1, accent:'#8a929b' },
 };
 
 export function getModel(idOrKey) {

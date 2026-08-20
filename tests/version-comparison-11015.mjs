@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const read=p=>fs.readFileSync(p,'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css');
+const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),appState=read('js/core/app-state.js'),comparison=read('js/features/comparison.js'),css=read('styles.css');
 assert.ok(version.localeCompare('1.10.15',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
 assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
@@ -14,7 +14,7 @@ assert.match(app,/DATA_SCHEMA_VERSION/);
 assert.match(css,/\.brand-version\s*\{/);
 for(const lang of ['fr','en','es','de','it']) assert.match(read(`js/locales/${lang}.js`),/versionInfoLabel/);
 // Targeted model picker keeps its UI open state independently from selected count.
-assert.match(app,/comparePanelOpen:\s*\{\}/);
+assert.match(appState,/comparePanelOpen=\{\}/);
 assert.match(app,/\[data-target-compare\]/);
 assert.match(app,/toggle-target-compare/);
 assert.match(app,/state\.comparePanelOpen\[key\]=next/);

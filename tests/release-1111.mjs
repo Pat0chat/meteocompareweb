@@ -8,7 +8,7 @@ const css=read('styles.css');
 const versionJs=read('js/version.js');
 const sw=read('sw.js');
 
-assert.equal(version,'1.11.1');
+assert.ok(version.localeCompare('1.11.1',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=57);
