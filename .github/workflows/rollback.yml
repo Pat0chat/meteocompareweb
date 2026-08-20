@@ -27,6 +27,10 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 0
+      - name: Remove obsolete runtime residue
+        shell: bash
+        run: rm -f js/android_strings.js
+
       - name: Validate release tag
         shell: bash
         run: |

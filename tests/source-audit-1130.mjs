@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=rel=>fs.readFileSync(path.join(root,rel),'utf8');
 const walk=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?walk(path.join(dir,entry.name)):[path.join(dir,entry.name)]);
+const legacyCatalog=path.join(root,'js/android_strings.js');
+assert.ok(!fs.existsSync(legacyCatalog),'legacy monolithic translation catalog must not remain in runtime JS; delete js/android_strings.js');
 const jsFiles=walk(path.join(root,'js')).filter(file=>file.endsWith('.js'));
 const rel=file=>path.relative(root,file).replaceAll(path.sep,'/');
 const graph=new Map();
@@ -29,7 +31,6 @@ const shell=[...shellBlock.matchAll(/['"](\.\/[^'"]+)['"]/g)].map(m=>m[1]);
 assert.ok(shell.length>20,'PWA shell must enumerate runtime assets');
 for(const item of shell){if(item==='./')continue;assert.ok(fs.existsSync(path.join(root,item.slice(2))),`service-worker shell asset missing: ${item}`);}
 for(const file of jsFiles){const item='./'+rel(file);assert.ok(shell.includes(item),`runtime JS omitted from offline shell: ${item}`);}
-assert.ok(!fs.existsSync(path.join(root,'js/android_strings.js')),'legacy monolithic translation catalog must not remain in runtime JS');
 
 const html=read('index.html'),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 assert.equal(scripts.length,1);assert.match(scripts[0][1],/type="module"/);assert.match(scripts[0][1],/src="js\/app\.js"/);assert.equal(scripts[0][2].trim(),'','no application inline script expected');

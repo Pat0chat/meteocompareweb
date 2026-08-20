@@ -22,6 +22,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Remove obsolete runtime residue
+        shell: bash
+        run: rm -f js/android_strings.js
+
       - name: Run regression tests
         run: |
           set -e
