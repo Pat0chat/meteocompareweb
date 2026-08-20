@@ -5,7 +5,7 @@
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
 ```bash
-cd meteocompare-web-v1.12.1
+cd meteocompare-web
 python3 -m http.server 8080
 ```
 
