@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.17 — Detail interactions + home polish
+
+- TodaySummary reste toujours visible : suppression du pliage de la card de synthèse.
+- Prévisions détaillées : suppression du pliage externe de la card afin de laisser le sélecteur « Comparer 2 à 4 modèles » comme unique accordéon interne.
+- Santé des modèles : suppression du pliage générique redondant ; le bouton Ouvrir/Fermer le diagnostic devient l’unique contrôle de détail.
+- Home : hero fortement compacté, suppression de l’illustration et des raccourcis de villes, mini-chronologie à nouveau rendue comme une heatmap enrichie.
+- Home : min/max déplacés dans les faits météo avec pluie et vent ; suppression du signal de cohérence redondant avec la frise de dispersion.
+- Cache PWA technique mis à jour vers `v49-home-polish` sans changement de version produit.
+- Aucun changement du moteur météo, du Consensus v2 ou du schéma de données.
+
 ## 1.10.16 — Modern home
 
 - Refonte complète de la page d’accueil autour de la météo et de la convergence utile.
