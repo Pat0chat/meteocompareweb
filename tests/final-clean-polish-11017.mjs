@@ -22,8 +22,8 @@ assert.match(app,/rerenderTargetedComparisonPanel\(\);return;/);
 assert.match(app,/action==='toggle-target-compare'/);
 assert.doesNotMatch(css,/\.target-compare\s*>\s*summary/);
 
-// Back action on configuration/info pages is larger and sticky below the topbar.
-assert.match(app,/sticky=\['data','settings','about'\]\.includes\(state\.route\.name\)/);
+// Back action on long secondary pages is larger and sticky below the topbar.
+assert.match(app,/sticky=\['data','settings','about','bias'\]\.includes\(state\.route\.name\)/);
 assert.match(css,/\.page-back-shell\.is-sticky\s*\{[^}]*position:sticky[^}]*top:calc\(var\(--topbar-height,66px\) \+ var\(--space-2\)\)[^}]*z-index:24/s);
 assert.match(css,/\.page-back-shell\.is-sticky \.page-back-button\s*\{[^}]*min-height:48px[^}]*font-size:\.84rem/s);
 

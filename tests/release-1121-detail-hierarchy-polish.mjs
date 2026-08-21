@@ -4,7 +4,7 @@ const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),version=read('VERSION').trim();
 assert.ok(/^\d+\.\d+\.\d+$/.test(version));
 assert.match(app,/function renderGlobalAgreementCard\(/);
-assert.match(app,/overview-primary">\$\{renderTodaySummary\([^}]+\)\}\$\{renderInsights\(/);
+assert.match(app,/overview-primary">\$\{renderTodaySummary\([^}]+\)\}<\/div><div class="overview-secondary">/);
 assert.match(app,/overview-secondary">\$\{renderGlobalAgreementCard\([^}]+\)\}\$\{renderScenarios\(/);
 assert.match(app,/class="section-card global-agreement global-agreement-card/);
 assert.match(app,/summary-context-item summary-context-method/);
