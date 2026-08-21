@@ -4,8 +4,8 @@ import { WeatherIconRenderer } from '../js/ui/weather-icons.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),css=read('styles.css');
-assert.equal(version,'1.13.1','product version must remain 1.13.1');
-assert.ok(versionJs.includes("APP_VERSION = '1.13.1'"));
+assert.equal(version,'1.14.0','product version must remain 1.14.0');
+assert.ok(versionJs.includes("APP_VERSION = '1.14.0'"));
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=65);
 
 const icons=new WeatherIconRenderer();
@@ -20,4 +20,4 @@ assert.match(icons.render('PARTLY_CLOUDY'),/transform="translate\(-0\.5 4\.4\)"/
 assert.doesNotMatch(icons.render('UNKNOWN'),/wx-artwork-unknown[^>]+transform=/,'already-centred unknown glyph must not be shifted');
 assert.match(css,/\.condition-icon[^}]*display:inline-grid;[^}]*place-items:center;/,'shared condition hosts must centre the SVG box');
 
-console.log('MeteoCompare Web 1.13.1 weather icon optical centering: OK');
+console.log('MeteoCompare Web 1.14.0 weather icon optical centering: OK');

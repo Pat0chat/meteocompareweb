@@ -12,7 +12,7 @@ const css=read('styles.css');
 const build=read('tools/build-site.mjs');
 const pkg=JSON.parse(read('package.json'));
 
-assert.equal(version,'1.13.1','home/SEO routing polish must not change app version');
+assert.equal(version,'1.14.0','home/SEO routing polish must not change app version');
 assert.match(app,/class="seo-directory" aria-labelledby="seo-popular-cities"><div class="home-section-heading home-column-heading seo-directory-heading"/,'Explorer heading must use the same outside-card heading system as the home columns');
 assert.match(app,/class="section-card seo-directory-card"><p class="seo-directory-intro"/,'only the SEO directory body should remain inside the card');
 assert.doesNotMatch(app,/class="section-card seo-directory"/,'SEO directory heading must not be inside the card');
@@ -29,4 +29,4 @@ assert.match(home,/<section class="seo-directory"><div class="home-section-headi
 assert.match(home,/data-seo-city-link="toulouse" href="\/meteo\/toulouse"/);
 assert.ok(fs.existsSync(resolve(root,'dist/meteo/toulouse.html')),'Toulouse prerender must still be emitted as an extension-backed clean URL asset');
 
-console.log('MeteoCompare Web SEO home/routing polish 1.13.1: OK');
+console.log('MeteoCompare Web SEO home/routing polish 1.14.0: OK');

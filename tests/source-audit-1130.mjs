@@ -33,7 +33,7 @@ for(const item of shell){if(item==='./')continue;assert.ok(fs.existsSync(path.jo
 for(const file of jsFiles){const item='./'+rel(file);assert.ok(shell.includes(item),`runtime JS omitted from offline shell: ${item}`);}
 
 const html=read('index.html'),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
-assert.equal(scripts.length,1);assert.match(scripts[0][1],/type="module"/);assert.match(scripts[0][1],/src="js\/app\.js"/);assert.equal(scripts[0][2].trim(),'','no application inline script expected');
+assert.equal(scripts.length,1);assert.match(scripts[0][1],/type="module"/);assert.match(scripts[0][1],/src="\/?js\/app\.js"/);assert.equal(scripts[0][2].trim(),'','no application inline script expected');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'static HTML IDs must be unique');
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';assert.match(csp,/default-src 'self'/);assert.doesNotMatch(csp,/script-src[^;]*'unsafe-inline'/);assert.match(csp,/object-src 'none'/);assert.match(csp,/base-uri 'self'/);
 
@@ -46,5 +46,5 @@ const stripped=css.replace(/\/\*[\s\S]*?\*\//g,'').replace(/"(?:\\.|[^"\\])*"|'(
 
 for(const file of jsFiles){const source=fs.readFileSync(file,'utf8');assert.doesNotMatch(source,/\b(?:TODO|FIXME|HACK|debugger)\b|console\.(?:log|debug)\s*\(/,`${rel(file)} contains a debug/debt marker`);}
 
-const version=read('VERSION').trim(),versionJs=read('js/version.js');assert.equal(version,'1.13.1');assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-console.log(`MeteoCompare Web 1.13.1 source audit: OK (${jsFiles.length} runtime JS modules, ${shell.length} shell assets)`);
+const version=read('VERSION').trim(),versionJs=read('js/version.js');assert.equal(version,'1.14.0');assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+console.log(`MeteoCompare Web 1.14.0 source audit: OK (${jsFiles.length} runtime JS modules, ${shell.length} shell assets)`);

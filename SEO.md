@@ -1,6 +1,6 @@
 # Référencement de meteocompare.app
 
-Cette version met en place les fondations SEO P0 à P6 sans changer la version applicative `1.13.1`.
+La release `1.14.0` formalise les fondations SEO P0 à P6 de MeteoCompare.
 
 ## P0 — Google Search Console
 

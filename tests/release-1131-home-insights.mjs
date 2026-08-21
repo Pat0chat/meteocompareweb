@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),css=read('styles.css');
 
-assert.equal(version,'1.13.1');
-assert.ok(versionJs.includes("APP_VERSION = '1.13.1'"));
-assert.match(sw,/APP_VERSION = '1\.13\.1'/);
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=67,'1.13.1 cache generation must not regress below v67');
+assert.equal(version,'1.14.0');
+assert.ok(versionJs.includes("APP_VERSION = '1.14.0'"));
+assert.match(sw,/APP_VERSION = '1\.14\.0'/);
+assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=67,'1.14.0 cache generation must not regress below v67');
 
-assert.match(app,/home-empty-logo[^>]+src="assets\/icon\.png"/,'empty home must use the MeteoCompare application icon');
+assert.match(app,/home-empty-logo[^>]+src="\$\{attr\(appAssetUrl\('assets\/icon\.png'\)\)\}"/,'empty home must use the MeteoCompare application icon');
 assert.match(css,/\.home-empty \.home-empty-logo-wrap\s*\{[^}]*place-items:center/s,'empty home icon host must be centered');
 assert.doesNotMatch(app,/home-empty[^`]+weatherIcons\.render\('RAIN_SHOWERS'/s,'empty home must no longer render a weather glyph');
 
@@ -35,4 +35,4 @@ for(const locale of ['fr','en','es','de','it']){
   }
 }
 
-console.log('MeteoCompare Web 1.13.1 full-width enriched insights: OK');
+console.log('MeteoCompare Web 1.14.0 full-width enriched insights: OK');
