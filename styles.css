@@ -4058,6 +4058,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 @media(max-width:760px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-directory{margin-top:18px}}
 @media(max-width:480px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:1fr}.seo-city-link{padding:12px 13px}}
 .seo-city-context{margin-top:18px}
-.seo-city-context-copy{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.seo-city-context-copy{display:flex;flex-direction:column;gap:12px;max-width:82ch}
 .seo-city-context-copy p{margin:0;color:var(--text-muted);line-height:1.62}
-@media(max-width:760px){.seo-city-context-copy{grid-template-columns:1fr}}
+

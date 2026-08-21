@@ -15,7 +15,7 @@ assert.doesNotMatch(app,/home-empty[^`]+weatherIcons\.render\('RAIN_SHOWERS'/s,'
 
 assert.doesNotMatch(app,/overview-primary">\$\{renderTodaySummary\([^}]+\)\}\$\{renderInsights/s,'À retenir must be outside overview-primary');
 assert.doesNotMatch(app,/overview-secondary">[^<]*\$\{renderInsights/s,'À retenir must be outside overview-secondary');
-assert.match(app,/overview-layout[^`]+renderTodaySummary[^`]+overview-secondary[^`]+renderGlobalAgreementCard[^`]+renderScenarios[^`]+<\/div><\/div>\$\{renderInsights\(f,evolution,consensusWeights\)\}/s,'À retenir must render immediately after overview-layout');
+assert.match(app,/overview-layout[^`]+renderTodaySummary[^`]+overview-secondary[^`]+renderGlobalAgreementCard[^`]+renderScenarios[^`]+<\/div><\/div>\$\{renderSeoCityContext\(city\)\}\$\{renderInsights\(f,evolution,consensusWeights\)\}/s,'SEO context must render immediately before À retenir, both outside overview-layout');
 assert.match(app,/class="section insights-section insights-section-wide" id="insights"/);
 assert.match(css,/\.insights-section-wide\s*\{[^}]*width:100%/s,'À retenir section must use the full detail-main width');
 

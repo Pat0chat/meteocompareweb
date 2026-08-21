@@ -38,7 +38,7 @@ assert.match(build,/sitemap\.xml/);
 assert.match(build,/robots\.txt/);
 assert.match(build,/_redirects/);
 assert.match(wrangler,/"directory"\s*:\s*"\.\/dist"/);
-assert.match(sw,/CACHE_VERSION = 'v71-seo-release-1140'/);
+assert.match(sw,/CACHE_VERSION = 'v73-seo-context-before-insights'/);
 assert.match(sw,/cache\.put\(request,copy\)/,'navigation cache must preserve each clean URL independently');
 
 execFileSync(process.execPath,['tools/build-site.mjs'],{cwd:root,stdio:'pipe'});
