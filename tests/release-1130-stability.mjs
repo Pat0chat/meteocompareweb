@@ -11,9 +11,9 @@ import { OperationRegistry } from '../js/core/cache-registry.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js');
-assert.equal(version,'1.13.0');
-assert.match(versionJs,/APP_VERSION = '1\.13\.0'/);
-assert.match(sw,/APP_VERSION = '1\.13\.0'/);
+assert.equal(version,'1.13.1');
+assert.match(versionJs,/APP_VERSION = '1\.13\.1'/);
+assert.match(sw,/APP_VERSION = '1\.13\.1'/);
 assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=63,'1.13 cache generation must not regress');
 assert.match(sw,/\.\/js\/data\/contracts\.js/);
 assert.match(sw,/\.\/js\/data\/forecast-normalizer\.js/);
@@ -101,4 +101,4 @@ try{
   assert.equal(networkCalls.length,3,'fallback should make the failed batch plus one request per isolated model');
 }finally{globalThis.fetch=priorFetch;}
 
-console.log('MeteoCompare Web 1.13.0 stability contracts: OK');
+console.log('MeteoCompare Web 1.13.1 stability contracts: OK');

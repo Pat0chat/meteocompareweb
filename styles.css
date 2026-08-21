@@ -3774,3 +3774,115 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .summary-context-chips > .summary-solar-pair { grid-column:1; }
   .summary-context-chips > .summary-context-item::after { content:none !important; }
 }
+
+
+/* ========================================================================== */
+/* 1.13.1 — empty-home branding and dedicated “À retenir” card               */
+/* ========================================================================== */
+.home-empty .home-empty-logo-wrap {
+  display:grid;
+  place-items:center;
+  width:100%;
+  margin:0 0 16px;
+}
+.home-empty .home-empty-logo {
+  display:block;
+  width:88px;
+  height:88px;
+  object-fit:cover;
+  border-radius:22px;
+  box-shadow:var(--shadow-1);
+}
+
+.overview-primary > .insights-section { margin-top:16px; }
+.insights-card {
+  overflow:hidden;
+  padding:20px;
+  border-color:color-mix(in srgb,var(--primary) 22%,var(--border));
+  background:
+    linear-gradient(135deg,color-mix(in srgb,var(--primary) 4%,var(--surface)),var(--surface) 46%);
+}
+.insights-head { gap:16px; align-items:center; }
+.insights-head h2 { margin-bottom:4px; }
+.insights-status {
+  flex:0 0 auto;
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--primary) 22%,var(--border));
+  border-radius:50%;
+  background:color-mix(in srgb,var(--primary) 7%,var(--surface));
+}
+.insights-status i {
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--primary);
+  box-shadow:0 0 0 5px color-mix(in srgb,var(--primary) 10%,transparent);
+}
+.insights-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:16px;
+}
+.insight-item {
+  min-width:0;
+  padding:13px 14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:color-mix(in srgb,var(--surface-2) 74%,var(--surface));
+}
+.insight-item.lead {
+  grid-column:1 / -1;
+  padding:15px 16px;
+  border-color:color-mix(in srgb,var(--primary) 30%,var(--border));
+  background:linear-gradient(120deg,color-mix(in srgb,var(--primary) 8%,var(--surface)),var(--surface));
+  box-shadow:inset 3px 0 0 color-mix(in srgb,var(--primary) 82%,transparent);
+}
+.insight-item-head {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-width:0;
+}
+.insight-icon {
+  flex:0 0 auto;
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:var(--surface);
+  border:1px solid color-mix(in srgb,var(--border) 82%,transparent);
+  font-size:1rem;
+}
+.insight-icon .wx-icon { width:1.55rem; height:1.55rem; }
+.insight-date {
+  min-width:0;
+  color:var(--muted);
+  font-family:var(--tech-font);
+  font-size:.7rem;
+  font-weight:780;
+  letter-spacing:.035em;
+  text-transform:capitalize;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.insight-item p {
+  margin:9px 0 0;
+  color:var(--text);
+  font-size:.80rem;
+  font-weight:650;
+  line-height:1.48;
+}
+.insight-item.lead p { font-size:.84rem; }
+
+@media (max-width: 760px) {
+  .overview-primary > .insights-section { margin-top:14px; }
+  .insights-card { padding:18px; }
+  .insights-grid { grid-template-columns:1fr; }
+  .insight-item.lead { grid-column:auto; }
+}

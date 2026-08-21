@@ -1,5 +1,5 @@
-const APP_VERSION = '1.13.0';
-const CACHE_VERSION = 'v64-weather-icon-centering';
+const APP_VERSION = '1.13.1';
+const CACHE_VERSION = 'v65-home-insights-card';
 const CACHE_PREFIX = 'meteocompare-web-';
 const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [

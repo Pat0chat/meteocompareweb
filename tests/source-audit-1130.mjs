@@ -46,5 +46,5 @@ const stripped=css.replace(/\/\*[\s\S]*?\*\//g,'').replace(/"(?:\\.|[^"\\])*"|'(
 
 for(const file of jsFiles){const source=fs.readFileSync(file,'utf8');assert.doesNotMatch(source,/\b(?:TODO|FIXME|HACK|debugger)\b|console\.(?:log|debug)\s*\(/,`${rel(file)} contains a debug/debt marker`);}
 
-const version=read('VERSION').trim(),versionJs=read('js/version.js');assert.equal(version,'1.13.0');assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-console.log(`MeteoCompare Web 1.13.0 source audit: OK (${jsFiles.length} runtime JS modules, ${shell.length} shell assets)`);
+const version=read('VERSION').trim(),versionJs=read('js/version.js');assert.equal(version,'1.13.1');assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+console.log(`MeteoCompare Web 1.13.1 source audit: OK (${jsFiles.length} runtime JS modules, ${shell.length} shell assets)`);
