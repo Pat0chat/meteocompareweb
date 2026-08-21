@@ -11,15 +11,16 @@ cd meteocompare-web
 python3 -m http.server 8080
 ```
 
-Pour tester exactement la sortie de production SEO :
+Pour tester la sortie de production SEO avec les URL propres `/meteo/{ville}` :
 
 ```bash
 npm run build
-cd dist
-python3 -m http.server 8080
+npm run preview
 ```
 
-Le build n’installe aucune dépendance tierce : il exécute uniquement `node tools/build-site.mjs`.
+Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
+
+Le build et la prévisualisation n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs` et `tools/preview-site.mjs`).
 
 ## Déployer sur Cloudflare Pages — configuration recommandée
 
@@ -190,6 +191,7 @@ Ils couvrent notamment :
 - `js/app.js` : composition des vues, routeur et interactions, branchés sur le kernel ;
 - `js/seo-cities.mjs` : catalogue contrôlé des villes indexables et helpers des URLs publiques ;
 - `tools/build-site.mjs` : génération du dossier `dist/`, pré-rendu HTML, sitemap, robots et redirections ;
+- `tools/preview-site.mjs` : serveur local de prévisualisation qui résout les URL propres comme Cloudflare ;
 - `SEO.md` : activation Search Console et contrôle d’indexation ;
 - `ARCHITECTURE.md` : responsabilités, points d’extension et règles de séparation ;
 - `manifest.webmanifest`, `manifest.{fr,en,es,de,it}.webmanifest`, `sw.js` : PWA et métadonnées localisées ;

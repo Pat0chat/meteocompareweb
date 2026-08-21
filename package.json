@@ -4,6 +4,7 @@
   "version": "1.13.1",
   "type": "module",
   "scripts": {
-    "build": "node tools/build-site.mjs"
+    "build": "node tools/build-site.mjs",
+    "preview": "node tools/preview-site.mjs"
   }
 }

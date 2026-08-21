@@ -619,11 +619,11 @@ function renderHomeWatchlist(){
 }
 function renderSeoCityDirectory(){
   const {t}=i18n(),cities=SEO_CITIES.slice(0,24);
-  return `<section class="section-card seo-directory" aria-labelledby="seo-popular-cities"><div class="section-head"><div><span class="home-section-kicker">${esc(t('seoPopularKicker'))}</span><h2 id="seo-popular-cities">${esc(t('seoPopularCities'))}</h2><p>${esc(t('seoPopularCitiesIntro'))}</p></div></div><div class="seo-link-grid">${cities.map(city=>`<a class="seo-city-link" href="${attr(cityPublicPath(city))}"><strong>${esc(city.name)}</strong><span>${esc(city.department||city.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></section>`;
+  return `<section class="seo-directory" aria-labelledby="seo-popular-cities"><div class="home-section-heading home-column-heading seo-directory-heading"><div><span class="home-section-kicker">${esc(t('seoPopularKicker'))}</span><h2 id="seo-popular-cities">${esc(t('seoPopularCities'))}</h2></div></div><div class="section-card seo-directory-card"><p class="seo-directory-intro">${esc(t('seoPopularCitiesIntro'))}</p><div class="seo-link-grid">${cities.map(city=>`<a class="seo-city-link" data-seo-city-link="${attr(city.slug)}" href="${attr(cityPublicPath(city))}"><strong>${esc(city.name)}</strong><span>${esc(city.department||city.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></div></section>`;
 }
 function renderSeoNearby(city){
   const {t}=i18n(),base=matchSeoCity(city)||city,nearby=nearbySeoCities(base,6);if(!nearby.length)return '';
-  return `<section class="section section-card seo-nearby-section" aria-labelledby="seo-nearby-title"><div class="section-head"><div><h2 id="seo-nearby-title">${esc(t('seoNearbyTitle'))}</h2><p>${esc(t('seoNearbyIntro',{city:city.name}))}</p></div></div><div class="seo-link-grid compact">${nearby.map(item=>`<a class="seo-city-link" href="${attr(cityPublicPath(item))}"><strong>${esc(item.name)}</strong><span>${esc(item.department||item.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></section>`;
+  return `<section class="section section-card seo-nearby-section" aria-labelledby="seo-nearby-title"><div class="section-head"><div><h2 id="seo-nearby-title">${esc(t('seoNearbyTitle'))}</h2><p>${esc(t('seoNearbyIntro',{city:city.name}))}</p></div></div><div class="seo-link-grid compact">${nearby.map(item=>`<a class="seo-city-link" data-seo-city-link="${attr(item.slug)}" href="${attr(cityPublicPath(item))}"><strong>${esc(item.name)}</strong><span>${esc(item.department||item.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></section>`;
 }
 function renderSeoCityContext(city){
   const {t}=i18n(),seo=matchSeoCity(city);if(!seo)return '';
@@ -1368,7 +1368,16 @@ function refreshSettingsHistoryRows(){
 }
 function routeShowsWeatherActivity(){return ['home','city','compare','bias'].includes(state.route.name);}
 
+function openSeoCityLink(link){
+  const slug=slugifyCityName(link?.dataset?.seoCityLink||''),catalog=seoCityBySlug(slug);if(!catalog)return false;
+  const existing=state.cities.find(city=>matchSeoCity(city)?.slug===catalog.slug);
+  if(!existing){state.cities=[...state.cities,{...catalog,seoTransient:true}];routingCities=[...state.cities];}
+  go(link.getAttribute('href')||cityPublicPath(catalog));
+  return true;
+}
 function handleAppClick(e){
+  const seoLink=e.target.closest?.('a[data-seo-city-link]');
+  if(seoLink&&app.contains(seoLink)&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();if(openSeoCityLink(seoLink))return;}
   const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section],[data-compare-model],[data-export-format],[data-agreement-time],[data-density],[data-city-compare-toggle],[data-evolution-variable],[data-reliability-variable],[data-local-weighting],[data-collapse-section],[data-error-action]');
   if(!target||!app.contains(target))return;
   const previousInteractionScroll=interactionScrollContext;interactionScrollContext=captureScrollContext(target);

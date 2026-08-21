@@ -10,5 +10,5 @@ assert.equal(version,'1.13.1','application version must stay unchanged');
 assert.match(app,/banner info convergence-info-banner[^>]*><b>\$\{esc\(t\('agreementNotAccuracy'\)\)\}<\/b><span>\$\{esc\(t\('agreementNotAccuracyBody'\)\)\}<\/span>/,'top convergence info banner must stack its title and body');
 assert.match(app,/banner info convergence-info-banner[^>]*><b>\$\{esc\(t\('reading'\)\)\} :<\/b><span>\$\{esc\(t\('disagreementReading'\)\)\}<\/span>/,'reading banner must stack its title and body');
 assert.match(css,/\.convergence-info-banner\s*\{[^}]*flex-direction:\s*column;[^}]*align-items:\s*flex-start;/s,'convergence banners must use a vertical flex layout');
-assert.match(sw,/CACHE_VERSION = 'v69-seo-p0-p6'/,'PWA cache must refresh changed CSS/JS');
+assert.match(sw,/CACHE_VERSION = 'v70-seo-home-routing'/,'PWA cache must refresh changed CSS/JS');
 console.log('release-1131-convergence-banner: ok');

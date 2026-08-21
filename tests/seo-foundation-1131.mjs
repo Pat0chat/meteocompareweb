@@ -27,6 +27,8 @@ assert.match(app,/cleanCityRoute\(pathname,query\)/,'runtime must parse clean ci
 assert.match(app,/\^\\\/meteo\\\/\(\[\^\/\]\+\)/,'clean /meteo/{slug} route must remain explicit');
 assert.match(app,/legacyCity=requested\.match/,'legacy hash city links must remain compatible');
 assert.match(app,/renderSeoCityDirectory\(\)/,'home must expose crawlable city links');
+assert.match(app,/data-seo-city-link/,'SEO city links must remain crawlable while supporting in-app routing');
+assert.match(app,/openSeoCityLink\(link\)/,'SEO city links must be intercepted by the application router');
 assert.match(app,/renderSeoCityContext\(city\)/,'indexed city content must remain present after JavaScript hydration');
 assert.match(app,/renderSeoNearby\(city\)/,'city details must expose nearby internal links');
 assert.match(app,/seoTransient/,'direct SEO routes must not silently become favorites');
@@ -36,7 +38,7 @@ assert.match(build,/sitemap\.xml/);
 assert.match(build,/robots\.txt/);
 assert.match(build,/_redirects/);
 assert.match(wrangler,/"directory"\s*:\s*"\.\/dist"/);
-assert.match(sw,/CACHE_VERSION = 'v69-seo-p0-p6'/);
+assert.match(sw,/CACHE_VERSION = 'v70-seo-home-routing'/);
 assert.match(sw,/cache\.put\(request,copy\)/,'navigation cache must preserve each clean URL independently');
 
 execFileSync(process.execPath,['tools/build-site.mjs'],{cwd:root,stdio:'pipe'});
