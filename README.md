@@ -4,33 +4,56 @@
 
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
 
+Pour travailler sur le shell source sans pré-rendu :
+
 ```bash
 cd meteocompare-web
 python3 -m http.server 8080
 ```
 
-Puis ouvrir `http://localhost:8080/`.
+Pour tester exactement la sortie de production SEO :
 
-Aucune compilation et aucune dépendance npm ne sont nécessaires.
+```bash
+npm run build
+cd dist
+python3 -m http.server 8080
+```
 
-## Déployer sur GitHub Pages
+Le build n’installe aucune dépendance tierce : il exécute uniquement `node tools/build-site.mjs`.
 
-Le projet est compatible avec une **Project Page** de la forme `https://utilisateur.github.io/nom-du-depot/` : les ressources, le manifeste, le service worker et les routes utilisent des chemins relatifs.
+## Déployer sur Cloudflare Pages — configuration recommandée
 
-### Méthode recommandée — GitHub Actions
+MeteoCompare génère désormais une sortie `dist/` spécialement adaptée à `meteocompare.app` : page d’accueil pré-rendue, pages `/meteo/{ville}`, sitemap, robots et redirections canoniques.
 
-1. Créer un dépôt GitHub.
-2. Copier **le contenu de ce dossier à la racine du dépôt**, y compris `.github/workflows/pages.yml` et `.nojekyll`.
-3. Pousser les fichiers sur la branche `main`.
-4. Dans GitHub : **Settings → Pages → Build and deployment → Source → GitHub Actions**.
-5. Le workflow `Deploy MeteoCompare to GitHub Pages` exécute les tests, prépare le site statique puis le publie.
-6. Une fois le workflow terminé, ouvrir l'URL Pages indiquée dans le déploiement.
+Configuration Cloudflare Pages :
 
-Le workflow est déjà configuré avec les permissions `pages: write` et `id-token: write`, l'environnement `github-pages`, ainsi que les actions officielles de configuration, packaging et déploiement Pages.
+- **Production branch** : `main`
+- **Build command** : `npm run build`
+- **Build output directory** : `dist`
+- **Root directory** : `/` (vide dans l’interface si le dépôt est déjà à la racine)
+- **Deploy command** : aucun pour un projet Pages connecté à Git ; Cloudflare publie le dossier de sortie
+- **Build watch paths** : laisser vide, sauf besoin spécifique
 
-### Domaine personnalisé
+Le fichier `wrangler.jsonc` pointe également vers `./dist` pour les déploiements CLI compatibles.
 
-GitHub Pages peut également être utilisé derrière un domaine personnalisé. Aucun changement du code n'est nécessaire tant que le site reste servi en HTTPS et que le domaine pointe correctement vers Pages.
+### Référencement intégré
+
+Le build génère un catalogue contrôlé de pages indexables pour les grandes villes françaises :
+
+```text
+/meteo/paris
+/meteo/lyon
+/meteo/toulouse
+...
+```
+
+Chaque page contient dès la réponse HTML un `title`, une description, un H1, un canonical, du contenu stable propre à la ville et des liens internes vers des villes proches. JavaScript hydrate ensuite la page avec les prévisions actualisées. Les anciennes routes `#/city/...` restent acceptées pour les liens existants.
+
+`dist/sitemap.xml` et `dist/robots.txt` sont générés automatiquement. La procédure Google Search Console est détaillée dans `SEO.md`.
+
+### GitHub Pages
+
+Les workflows GitHub restent utiles comme solution secondaire et exécutent également le build avant publication. Le domaine de production et les URLs canoniques SEO restent volontairement `https://meteocompare.app`.
 
 ## Installation PWA
 
@@ -165,9 +188,12 @@ Ils couvrent notamment :
 - `js/analytics-config.js` : activation explicite de la mesure d’audience ;
 - `js/analytics.js` : pageviews expurgées + événements PWA minimaux ;
 - `js/app.js` : composition des vues, routeur et interactions, branchés sur le kernel ;
+- `js/seo-cities.mjs` : catalogue contrôlé des villes indexables et helpers des URLs publiques ;
+- `tools/build-site.mjs` : génération du dossier `dist/`, pré-rendu HTML, sitemap, robots et redirections ;
+- `SEO.md` : activation Search Console et contrôle d’indexation ;
 - `ARCHITECTURE.md` : responsabilités, points d’extension et règles de séparation ;
 - `manifest.webmanifest`, `manifest.{fr,en,es,de,it}.webmanifest`, `sw.js` : PWA et métadonnées localisées ;
-- `.github/workflows/pages.yml` : publication GitHub Pages ;
+- `.github/workflows/pages.yml` : publication GitHub Pages après génération de `dist/` ;
 - `.nojekyll` : compatibilité de publication statique ;
 - `tests/` : suites de non-régression, performance, architecture, audit, fidélité UI/données, graphes, PWA, i18n, analytics et Pages.
 
@@ -180,3 +206,6 @@ La version web intègre une **mesure d’audience minimale facultative** basée 
 Par sécurité, `js/analytics-config.js` est livré avec `enabled: false`. Après création de ton site Plausible, renseigne son `domain` exact puis passe `enabled` à `true`. Voir `ANALYTICS.md` pour la procédure, les limites du comptage PWA, GPC/DNT et le rappel CNIL : l’éventuelle exemption de consentement dépend de conditions strictes et de la configuration réelle du fournisseur au déploiement.
 
 La politique complète est dans `PRIVACY.md`.
+### Configuration Cloudflare détaillée
+
+Voir [`CLOUDFLARE.md`](CLOUDFLARE.md) pour les valeurs exactes à saisir dans **Settings > Build**, aussi bien pour Workers Builds que pour l'ancien flux Pages.

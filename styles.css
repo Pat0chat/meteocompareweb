@@ -4033,3 +4033,28 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .insight-facts,
   .insight-item.lead .insight-facts { grid-template-columns:1fr; }
 }
+
+/* SEO city directory and pre-rendered route content */
+.seo-directory{margin-top:24px}
+.seo-directory .section-head,.seo-nearby-section .section-head{margin-bottom:16px}
+.seo-directory .section-head p,.seo-nearby-section .section-head p,.seo-prerender-copy .section-head p{max-width:72ch;margin-top:6px}
+.seo-link-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.seo-link-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}
+.seo-city-link{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"name arrow" "place arrow";align-items:center;gap:2px 10px;min-width:0;padding:13px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface-raised,var(--surface));color:var(--text);text-decoration:none;transition:border-color .18s ease,transform .18s ease,background .18s ease}
+.seo-city-link:hover{border-color:var(--primary);transform:translateY(-1px);background:var(--surface-soft,var(--surface))}
+.seo-city-link:focus-visible{outline:3px solid color-mix(in srgb,var(--primary) 30%,transparent);outline-offset:2px}
+.seo-city-link strong{grid-area:name;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.96rem}
+.seo-city-link span:nth-of-type(1){grid-area:place;color:var(--text-muted);font-size:.80rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seo-city-link span:last-child{grid-area:arrow;color:var(--primary);font-weight:800}
+.seo-nearby-section{margin-top:18px}
+.seo-prerender-workspace{display:block}
+.seo-prerender-workspace .detail-main{width:100%;max-width:none}
+.seo-prerender-copy{margin-bottom:18px}
+.seo-prerender-copy>p{margin:0;max-width:82ch;color:var(--text-muted);line-height:1.65}
+@media(max-width:1050px){.seo-link-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-directory{margin-top:18px}}
+@media(max-width:480px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:1fr}.seo-city-link{padding:12px 13px}}
+.seo-city-context{margin-top:18px}
+.seo-city-context-copy{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.seo-city-context-copy p{margin:0;color:var(--text-muted);line-height:1.62}
+@media(max-width:760px){.seo-city-context-copy{grid-template-columns:1fr}}

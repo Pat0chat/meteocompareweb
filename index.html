@@ -7,6 +7,8 @@
   <meta name="color-scheme" content="light dark" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-ns7Fh0w+Z3PjL//vDImEeGKNiiYs15OyfpFcmcOLWUk='; script-src-elem 'self' 'sha256-ns7Fh0w+Z3PjL//vDImEeGKNiiYs15OyfpFcmcOLWUk='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://archive-api.open-meteo.com https://previous-runs-api.open-meteo.com https://marine-api.open-meteo.com https://openmeteo-data-spatial.b-cdn.net https://plausible.io; object-src 'none'; base-uri 'self'; form-action 'none'; worker-src 'self'; manifest-src 'self'" />
   <meta name="description" content="MeteoCompare — comparaison multi-modèles météorologiques, dispersion, évolution et fiabilité locale." />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <link rel="canonical" href="https://meteocompare.app/" />
   <meta name="application-name" content="MeteoCompare" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -19,7 +21,7 @@
 <body>
   <div id="app" class="app-shell"></div>
   <div id="toast-root" role="status" aria-live="polite" aria-atomic="true"></div>
-  <noscript>MeteoCompare nécessite JavaScript pour comparer les modèles météo.</noscript>
+  <noscript>MeteoCompare compare plusieurs modèles météo pour mieux visualiser leur convergence, leur dispersion et leurs différences. Activez JavaScript pour charger les prévisions actualisées.</noscript>
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

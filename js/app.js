@@ -9,9 +9,18 @@ import { APP_VERSION } from './version.js';
 import { apiUsageSnapshot } from './api-budget.js';
 import { ApplicationKernel } from './core/application-kernel.js';
 import { weatherIcons } from './ui/weather-icons.js';
+import { SEO_CITIES, seoCityBySlug, matchSeoCity, cityPublicPath, nearbySeoCities, slugifyCityName } from './seo-cities.mjs';
 
+const persistedCities=loadCities();
+let routingCities=[...persistedCities];
+const initialRoute=parseRoute();
+const initialSeed=initialRoute?.citySeed||null;
+const initialCities=initialSeed&&!persistedCities.some(city=>matchSeoCity(city)?.slug===initialSeed.slug)
+  ? [...persistedCities,{...initialSeed,seoTransient:true}]
+  : persistedCities;
+routingCities=[...initialCities];
 const runtime=new ApplicationKernel({
-  settings:loadSettings(),cities:loadCities(),route:parseRoute(),online:navigator.onLine,
+  settings:loadSettings(),cities:initialCities,route:initialRoute,online:navigator.onLine,
   featureLoaders:{
     bias:()=>import('./features/bias.js'),evolution:()=>import('./features/evolution.js'),diagnostics:()=>import('./features/diagnostics.js'),
     comparison:()=>import('./features/comparison.js'),marine:()=>import('./features/marine.js'),health:()=>import('./features/model-health.js'),
@@ -19,6 +28,13 @@ const runtime=new ApplicationKernel({
   analysisLoaders:{bias:loadBias,evolution:loadEvolution,normals:loadNormals,marine:loadMarine,health:loadModelHealth},
 });
 const state=runtime.state;
+function favoriteCities(){return state.cities.filter(city=>city?.seoTransient!==true);}
+function persistFavoriteCities(){routingCities=[...state.cities];saveCities(favoriteCities());}
+function promoteRouteCity(){
+  if(state.route.name!=='city')return null;const city=state.cities.find(row=>row.id===state.route.id);if(!city)return null;
+  if(city.seoTransient){delete city.seoTransient;persistFavoriteCities();}
+  return city;
+}
 state.errorCenter=new ErrorCenter();
 await ensureLanguage(state.settings.language);
 applyRouteViewState(state.route);
@@ -123,14 +139,29 @@ async function hydrateForecastStorage(){
   if(changed)render();
 }
 
-function parseRoute(){
-  const raw=(location.hash||'#/').replace(/^#/,'');
-  const [pathPart,queryString='']=raw.split('?',2),parts=pathPart.split('/').filter(Boolean),query=new URLSearchParams(queryString);
-  const view={
+function routeView(query){
+  return {
     tab:query.get('tab'), mode:query.get('mode'), metric:query.get('metric'),
     horizon:Number(query.get('h')), timeline:query.get('timeline'),
     compareModels:(query.get('models')||'').split(',').filter(Boolean).map(decodeURIComponent)
   };
+}
+function cleanCityRoute(pathname,query){
+  const match=String(pathname||'').match(/^\/meteo\/([^/]+)\/?$/i);if(!match)return null;
+  const slug=slugifyCityName(decodeURIComponent(match[1]||'')),catalog=seoCityBySlug(slug),requestedId=query.get('id');
+  let city=requestedId?routingCities.find(row=>String(row.id)===requestedId):null;
+  if(!city&&catalog)city=routingCities.find(row=>matchSeoCity(row)?.slug===catalog.slug)||catalog;
+  if(!city)city=routingCities.find(row=>slugifyCityName(row.name)===slug)||null;
+  if(!city)return {name:'notfound',slug};
+  return {name:'city',id:city.id,slug:catalog?.slug||slug,view:routeView(query),citySeed:city===catalog?catalog:null};
+}
+function parseRoute(){
+  const hash=String(location.hash||'');
+  if(!hash.startsWith('#/')){
+    const clean=cleanCityRoute(String(location.pathname||''),new URLSearchParams(String(location.search||'')));if(clean)return clean;
+  }
+  const raw=(hash||'#/').replace(/^#/,'');
+  const [pathPart,queryString='']=raw.split('?',2),parts=pathPart.split('/').filter(Boolean),query=new URLSearchParams(queryString),view=routeView(query);
   if(parts[0]==='settings')return {name:'settings'};
   if(parts[0]==='data')return {name:'data'};
   if(parts[0]==='about')return {name:'about'};
@@ -149,13 +180,19 @@ function applyRouteViewState(route){
   if(['HOURLY','DAILY'].includes(v.timeline))state.settings.timelineMode=v.timeline;
   state.compareModelIds=(v.compareModels||[]).filter(id=>WEATHER_MODELS.some(m=>m.id===id)).slice(0,4);
 }
+function cityViewUrl(city,viewParams=null){
+  const raw=cityPublicPath(city),[path,initialQuery='']=raw.split('?',2),q=new URLSearchParams(initialQuery);
+  if(viewParams)for(const [key,value] of viewParams.entries())q.set(key,value);
+  return `${path}${q.size?`?${q.toString()}`:''}`;
+}
 function syncCityViewUrl(){
   if(state.route.name!=='city')return;
+  const city=state.cities.find(row=>row.id===state.route.id);if(!city)return;
   const q=new URLSearchParams();q.set('tab',state.settings.detailTab||'CONDITIONS');q.set('mode',state.settings.detailViewMode||'DAILY');q.set('metric',state.settings.confidenceMetric||'TEMPERATURE');q.set('h',String(state.settings.chartHorizon||168));q.set('timeline',state.settings.timelineMode||'HOURLY');
   if(state.compareModelIds.length)q.set('models',state.compareModelIds.join(','));
-  const hash=`#/city/${encodeURIComponent(state.route.id)}?${q}`;
-  state.route={...state.route,view:{tab:state.settings.detailTab,mode:state.settings.detailViewMode,metric:state.settings.confidenceMetric,horizon:Number(state.settings.chartHorizon),timeline:state.settings.timelineMode,compareModels:[...state.compareModelIds]}};
-  if(supportsHistoryRouting){try{history.replaceState({...history.state,mcRouteKey:routeKey(state.route),mcScrollY:currentScrollY()},'',hash);}catch{}}else if(location.hash!==hash)location.replace?.(hash);
+  const url=cityViewUrl(city,q);
+  state.route={...state.route,slug:matchSeoCity(city)?.slug||slugifyCityName(city.name),view:{tab:state.settings.detailTab,mode:state.settings.detailViewMode,metric:state.settings.confidenceMetric,horizon:Number(state.settings.chartHorizon),timeline:state.settings.timelineMode,compareModels:[...state.compareModelIds]}};
+  if(supportsHistoryRouting){try{history.replaceState({...history.state,mcRouteKey:routeKey(state.route),mcScrollY:currentScrollY()},'',url);}catch{}}else if(location.href!==url)location.assign?.(url);
 }
 
 function currentScrollY(){return Number(window.scrollY ?? document.documentElement?.scrollTop ?? 0)||0;}
@@ -247,15 +284,17 @@ function handleHistoryNavigation(event){
 }
 function go(path){
   saveCurrentRouteScroll();
-  const hash=String(path||'#/').startsWith('#')?String(path||'#/'):`#${path}`;
-  if(location.hash===hash)return;
+  const requested=String(path||'#/'),legacyCity=requested.match(/^#\/city\/([^/?]+)(\?[^#]*)?$/);let target;
+  if(legacyCity){const id=decodeURIComponent(legacyCity[1]),city=state.cities.find(row=>row.id===id);target=city?cityViewUrl(city,new URLSearchParams((legacyCity[2]||'').replace(/^\?/,''))):requested;}
+  else if(requested.startsWith('#'))target=`/${requested}`;
+  else target=requested.startsWith('/')?requested:`/${requested}`;
+  const current=`${String(location.pathname||'/')}${String(location.search||'')}${String(location.hash||'')}`;if(current===target)return;
   try{const active=document.activeElement;if(active&&active!==document.body&&typeof active.blur==='function')active.blur();}catch{}
   if(supportsHistoryRouting){
-    try{history.pushState({mcRouteKey:null,mcScrollY:0},'',hash);scrollInstantTo(0);applyRouteFromLocation(0,{newRoute:true});return;}catch{}
+    try{history.pushState({mcRouteKey:null,mcScrollY:0},'',target);scrollInstantTo(0);applyRouteFromLocation(0,{newRoute:true});return;}catch{}
   }
-  routeTransitionToken++;
-  scrollInstantTo(0);
-  location.hash=hash;
+  routeTransitionToken++;scrollInstantTo(0);
+  if(target.includes('#'))location.hash=target.slice(target.indexOf('#'));else location.assign?.(target);
 }
 function i18n(){
   const key=`${state.settings.language}|${navigator.language||''}`;
@@ -263,10 +302,23 @@ function i18n(){
   return i18nCache;
 }
 
+function cityMetaCopy(city){
+  const lang=i18n().lang,name=city?.name||'';
+  const copy={
+    fr:{title:`Météo ${name} : comparaison des modèles météo | MeteoCompare`,description:`Comparez les prévisions météo pour ${name} issues de plusieurs modèles : température, pluie, vent, convergence et dispersion des prévisions.`},
+    en:{title:`${name} weather: compare forecast models | MeteoCompare`,description:`Compare weather forecasts for ${name} across multiple models, including temperature, rain, wind, convergence and forecast spread.`},
+    es:{title:`Tiempo en ${name}: comparación de modelos | MeteoCompare`,description:`Compara las previsiones para ${name} de varios modelos: temperatura, lluvia, viento, convergencia y dispersión.`},
+    de:{title:`Wetter ${name}: Wettermodelle vergleichen | MeteoCompare`,description:`Vergleichen Sie Wettervorhersagen für ${name}: Temperatur, Niederschlag, Wind, Modellkonvergenz und Streuung.`},
+    it:{title:`Meteo ${name}: confronto dei modelli | MeteoCompare`,description:`Confronta le previsioni per ${name} tra più modelli: temperatura, pioggia, vento, convergenza e dispersione.`}
+  };return copy[lang]||copy.fr;
+}
 function syncDocumentMeta(){
-  const {t}=i18n();
-  document.title=t('siteTitle');
-  const description=document.querySelector('meta[name="description"]');if(description)description.setAttribute('content',t('siteDescription'));const manifest=document.querySelector('link[rel="manifest"]');if(manifest)manifest.setAttribute('href',`manifest.${i18n().lang}.webmanifest`);
+  const {t}=i18n(),city=state?.route?.name==='city'?state.cities.find(row=>row.id===state.route.id):null,seoCity=city?matchSeoCity(city):null,meta=city?cityMetaCopy(city):{title:t('siteTitle'),description:t('siteDescription')};
+  document.title=meta.title;
+  const description=document.querySelector('meta[name="description"]');if(description)description.setAttribute('content',meta.description);
+  const canonical=document.querySelector('link[rel="canonical"]');if(canonical)canonical.setAttribute('href',seoCity?`https://meteocompare.app${cityPublicPath(seoCity)}`:'https://meteocompare.app/');
+  const robots=document.querySelector('meta[name="robots"]');if(robots)robots.setAttribute('content',seoCity||state.route.name==='home'?'index,follow,max-image-preview:large':'noindex,follow');
+  const manifest=document.querySelector('link[rel="manifest"]');if(manifest)manifest.setAttribute('href',`manifest.${i18n().lang}.webmanifest`);
 }
 function syncStickyOffsets(){
   stickyResizeObserver?.disconnect?.();
@@ -389,8 +441,8 @@ function render(options={}){
 }
 function renderNow(){
   const scrollDirective=pendingScrollDirective;pendingScrollDirective=null;
-  const {t}=i18n();syncStorageErrors();
-  let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='data')content=renderLocalDataPage(); else if(state.route.name==='about')content=renderAbout(); else if(state.route.name==='bias'){if(!lazyFeatures.bias){void loadFeature('bias').then(()=>render());content=renderFeatureLoadingPage('bias');}else content=renderBiasDetailPage(state.route);} else if(state.route.name==='compare'){if(!lazyFeatures.comparison){void loadFeature('comparison').then(()=>{if(state.route.name==='compare')render();});content=renderFeatureLoadingPage('comparison');}else content=renderCityComparisonLazy(state.route);} else content=renderCityDetail(state.route.id);
+  const {t}=i18n();syncStorageErrors();syncDocumentMeta();
+  let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='data')content=renderLocalDataPage(); else if(state.route.name==='about')content=renderAbout(); else if(state.route.name==='notfound')content=renderRouteNotFound(); else if(state.route.name==='bias'){if(!lazyFeatures.bias){void loadFeature('bias').then(()=>render());content=renderFeatureLoadingPage('bias');}else content=renderBiasDetailPage(state.route);} else if(state.route.name==='compare'){if(!lazyFeatures.comparison){void loadFeature('comparison').then(()=>{if(state.route.name==='compare')render();});content=renderFeatureLoadingPage('comparison');}else content=renderCityComparisonLazy(state.route);} else content=renderCityDetail(state.route.id);
   app.innerHTML=`${renderTopbar()}${renderPageBack()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${renderModal()}`;
   enhanceCollapsibleCards(app);
   syncStickyOffsets();
@@ -436,6 +488,8 @@ function rerenderCitySectionOrPage(sectionId){if(!rerenderCitySection(sectionId)
 
 function renderFeatureLoadingPage(name){const {t}=i18n();return `<main class="page"><section class="section-card feature-loading"><div class="loader"></div><h2>${esc(t('loading'))}</h2><p>${esc(t(name==='bias'?'loadingBiasModule':'loadingFeatureModule'))}</p></section></main>`;}
 
+function renderRouteNotFound(){const {t}=i18n();return `<main class="page"><section class="section-card empty-state"><h1>${esc(t('cityNotFound'))}</h1><p>${esc(t('seoCityNotFoundBody'))}</p><button class="btn primary" data-action="open-add-city">${esc(t('addCity'))}</button><button class="btn tonal" data-action="home">${esc(t('cities'))}</button></section></main>`;}
+
 function renderPageBack(){
   if(state.route.name==='home'||state.route.name==='city')return '';
   const {t}=i18n(),sticky=['data','settings','about','bias'].includes(state.route.name);
@@ -444,8 +498,9 @@ function renderPageBack(){
 function renderTopbar(){
   const {t}=i18n();
   const isHome=state.route.name==='home',isCity=state.route.name==='city',isData=state.route.name==='data',isSettings=state.route.name==='settings',isAbout=state.route.name==='about',activeForecast=currentCityForecast(),health=activeForecast?forecastHealth(activeForecast):null,statusLabel=health?.label||(state.online?t('connectionActive'):t('offlineShort')),statusTitle=health?`${health.label} · ${health.detail}`:(state.online?t('connectionActive'):t('offlineLocalData'));
-  const cityLinks=state.cities.length?state.cities.map(city=>{const forecast=state.forecasts[city.id],cityHealth=forecast?forecastHealth(forecast):null;return `<button class="quick-city-link" role="menuitem" data-action="quick-city" data-city-id="${attr(city.id)}"><span class="quick-city-status ${cityHealth?.class||'unknown'}" aria-hidden="true"></span><span class="quick-city-copy"><strong>${esc(city.name)}</strong><small>${esc(placeLine(city))}</small></span><span class="quick-city-arrow" aria-hidden="true">→</span></button>`;}).join(''):`<div class="quick-city-empty">${esc(t('emptyTitle'))}</div>`;
-  const citiesNav=`<div class="nav-cities-menu"><button class="nav-btn ${isHome?'active':''}" data-action="home" ${isHome?'aria-current="page"':''} aria-haspopup="menu"><span class="nav-icon">${uiIcon('home')}</span><span>${esc(t('cities'))}</span></button><div class="nav-cities-popover" role="menu" aria-label="${esc(t('cities'))}"><div class="nav-cities-popover-head"><strong>${esc(t('cities'))}</strong><span>${state.cities.length}</span></div><div class="nav-cities-list">${cityLinks}</div><button class="quick-city-add" data-action="open-add-city"><span>${uiIcon('plus',15)}</span>${esc(t('addCity'))}</button></div></div>`;
+  const favorites=favoriteCities();
+  const cityLinks=favorites.length?favorites.map(city=>{const forecast=state.forecasts[city.id],cityHealth=forecast?forecastHealth(forecast):null;return `<button class="quick-city-link" role="menuitem" data-action="quick-city" data-city-id="${attr(city.id)}"><span class="quick-city-status ${cityHealth?.class||'unknown'}" aria-hidden="true"></span><span class="quick-city-copy"><strong>${esc(city.name)}</strong><small>${esc(placeLine(city))}</small></span><span class="quick-city-arrow" aria-hidden="true">→</span></button>`;}).join(''):`<div class="quick-city-empty">${esc(t('emptyTitle'))}</div>`;
+  const citiesNav=`<div class="nav-cities-menu"><button class="nav-btn ${isHome?'active':''}" data-action="home" ${isHome?'aria-current="page"':''} aria-haspopup="menu"><span class="nav-icon">${uiIcon('home')}</span><span>${esc(t('cities'))}</span></button><div class="nav-cities-popover" role="menu" aria-label="${esc(t('cities'))}"><div class="nav-cities-popover-head"><strong>${esc(t('cities'))}</strong><span>${favorites.length}</span></div><div class="nav-cities-list">${cityLinks}</div><button class="quick-city-add" data-action="open-add-city"><span>${uiIcon('plus',15)}</span>${esc(t('addCity'))}</button></div></div>`;
   return `<header class="topbar"><div class="topbar-inner">
     <div class="brand" role="link" tabindex="0" data-action="home" aria-label="MeteoCompare — ${esc(t('cities'))}"><img class="logo" src="assets/icon.png" alt=""><div><div class="brand-title-row"><div class="brand-title">MeteoCompare</div><span class="brand-version" title="${esc(t('versionInfoLabel',{version:APP_VERSION,schema:DATA_SCHEMA_VERSION}))}">v${esc(APP_VERSION)}</span></div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
     <nav class="topbar-nav" aria-label="${esc(t('navMain'))}">${citiesNav}<button class="nav-btn ${isData?'active':''}" data-action="local-data" ${isData?'aria-current="page"':''}><span class="nav-icon">${uiIcon('database')}</span><span>${esc(t('localDataNav'))}</span></button><button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span class="nav-icon">${uiIcon('settings')}</span><span>${esc(t('settings'))}</span></button><button class="nav-btn ${isAbout?'active':''}" data-action="about" ${isAbout?'aria-current="page"':''}><span class="nav-icon">${uiIcon('info')}</span><span>${esc(t('about'))}</span></button><a class="nav-btn android-nav" href="https://play.google.com/store/apps/details?id=com.meteocompare.app" target="_blank" rel="noopener" aria-label="${esc(t('openAndroidApp'))}" title="${esc(t('openAndroidApp'))}"><span class="nav-icon">${uiIcon('download')}</span><span>Google Play</span></a><button class="nav-btn support-nav" data-action="donate"><span class="nav-icon">${uiIcon('heart')}</span><span>${esc(t('supportShort'))}</span></button></nav>
@@ -559,14 +614,26 @@ function homeWatchCandidate(city,f,weights,now=new Date()){
   return candidates.sort((a,b)=>b.score-a.score)[0]||null;
 }
 function renderHomeWatchlist(){
-  const {t}=i18n(),now=new Date(),items=state.cities.map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,homeConsensusWeights(city.id),now):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
+  const {t}=i18n(),now=new Date(),items=favoriteCities().map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,homeConsensusWeights(city.id),now):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
   return `<aside class="home-watch-section" aria-label="${esc(t('homeWatchTitle'))}"><p class="home-watch-lead">${esc(t('homeWatchLead'))}</p>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-action="open-watch-city" data-city-id="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</aside>`;
 }
+function renderSeoCityDirectory(){
+  const {t}=i18n(),cities=SEO_CITIES.slice(0,24);
+  return `<section class="section-card seo-directory" aria-labelledby="seo-popular-cities"><div class="section-head"><div><span class="home-section-kicker">${esc(t('seoPopularKicker'))}</span><h2 id="seo-popular-cities">${esc(t('seoPopularCities'))}</h2><p>${esc(t('seoPopularCitiesIntro'))}</p></div></div><div class="seo-link-grid">${cities.map(city=>`<a class="seo-city-link" href="${attr(cityPublicPath(city))}"><strong>${esc(city.name)}</strong><span>${esc(city.department||city.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></section>`;
+}
+function renderSeoNearby(city){
+  const {t}=i18n(),base=matchSeoCity(city)||city,nearby=nearbySeoCities(base,6);if(!nearby.length)return '';
+  return `<section class="section section-card seo-nearby-section" aria-labelledby="seo-nearby-title"><div class="section-head"><div><h2 id="seo-nearby-title">${esc(t('seoNearbyTitle'))}</h2><p>${esc(t('seoNearbyIntro',{city:city.name}))}</p></div></div><div class="seo-link-grid compact">${nearby.map(item=>`<a class="seo-city-link" href="${attr(cityPublicPath(item))}"><strong>${esc(item.name)}</strong><span>${esc(item.department||item.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></section>`;
+}
+function renderSeoCityContext(city){
+  const {t}=i18n(),seo=matchSeoCity(city);if(!seo)return '';
+  return `<section class="section section-card seo-city-context"><div class="section-head"><div><h2>${esc(t('seoCityContextTitle',{city:seo.name}))}</h2><p>${esc(t('seoCityContextLead',{city:seo.name}))}</p></div></div><div class="seo-city-context-copy"><p>${esc(t('seoCityContextLocation',{city:seo.name,department:seo.department,region:seo.region}))}</p><p>${esc(t('seoCityContextModels',{city:seo.name}))}</p></div></section>`;
+}
 function renderHome(){
-  const {t}=i18n(),cards=state.cities.map(renderCityCard).join(''),busy=state.loading.size,hasCities=state.cities.length>0;
-  const heroActions=`<div class="home-hero-actions"><button class="btn primary" data-action="open-add-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('addCity'))}</button>${state.cities.length>=2?`<button class="btn tonal" data-action="open-city-compare">${esc(t('compareCities'))}</button>`:''}<button class="btn tonal" data-action="refresh-all" ${busy?'disabled':''}><span class="btn-icon ${busy?'spinning':''}">${uiIcon('refresh')}</span>${esc(t('refresh'))}</button></div>`;
+  const {t}=i18n(),favorites=favoriteCities(),cards=favorites.map(renderCityCard).join(''),busy=state.loading.size,hasCities=favorites.length>0;
+  const heroActions=`<div class="home-hero-actions"><button class="btn primary" data-action="open-add-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('addCity'))}</button>${favorites.length>=2?`<button class="btn tonal" data-action="open-city-compare">${esc(t('compareCities'))}</button>`:''}<button class="btn tonal" data-action="refresh-all" ${busy?'disabled':''}><span class="btn-icon ${busy?'spinning':''}">${uiIcon('refresh')}</span>${esc(t('refresh'))}</button></div>`;
   const columnHeading=(kicker,title)=>`<div class="home-section-heading home-column-heading"><div><span class="home-section-kicker">${esc(kicker)}</span><h2>${esc(title)}</h2></div></div>`;
-  return `<main class="page home-page"><section class="home-hero"><div class="home-hero-copy"><span class="home-hero-kicker">${esc(t('homeModernKicker'))}</span><h1>${esc(t('homeModernTitle'))}</h1><p>${esc(t('homeModernLead'))}</p>${heroActions}</div><div class="home-hero-search-panel"><button class="home-search-trigger" data-action="open-add-city"><span class="home-search-icon">⌕</span><span>${esc(t('homeSearchPrompt'))}</span><kbd>+</kbd></button></div></section>${hasCities?`<div class="home-dashboard"><section class="home-cities-section">${columnHeading(t('homeFavoritesKicker'),t('cities'))}<div class="home-city-grid" aria-label="${esc(t('cities'))}">${cards}</div></section><div class="home-watch-column">${columnHeading(t('homeWatchKicker'),t('homeWatchTitle'))}${renderHomeWatchlist()}</div></div>`:`<section class="empty-state home-empty"><div class="big home-empty-logo-wrap"><img class="home-empty-logo" src="assets/icon.png" alt="" aria-hidden="true"></div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}</main>`;
+  return `<main class="page home-page"><section class="home-hero"><div class="home-hero-copy"><span class="home-hero-kicker">${esc(t('homeModernKicker'))}</span><h1>${esc(t('homeModernTitle'))}</h1><p>${esc(t('homeModernLead'))}</p>${heroActions}</div><div class="home-hero-search-panel"><button class="home-search-trigger" data-action="open-add-city"><span class="home-search-icon">⌕</span><span>${esc(t('homeSearchPrompt'))}</span><kbd>+</kbd></button></div></section>${hasCities?`<div class="home-dashboard"><section class="home-cities-section">${columnHeading(t('homeFavoritesKicker'),t('cities'))}<div class="home-city-grid" aria-label="${esc(t('cities'))}">${cards}</div></section><div class="home-watch-column">${columnHeading(t('homeWatchKicker'),t('homeWatchTitle'))}${renderHomeWatchlist()}</div></div>`:`<section class="empty-state home-empty"><div class="big home-empty-logo-wrap"><img class="home-empty-logo" src="assets/icon.png" alt="" aria-hidden="true"></div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}${renderSeoCityDirectory()}</main>`;
 }
 
 function renderCityCard(city){
@@ -650,7 +717,7 @@ async function refreshMarineData(cityId,force=false,activate=false){
   const city=state.cities.find(c=>c.id===cityId);if(!city||state.marineLoading.has(cityId))return;const {t}=i18n();if(!state.online){toast(t('historyOnlineRequired'));return;}
   const marine=await loadFeature('marine'),cached=ensureMarineLoaded(cityId);if(!force&&cached&&marine.marineCacheFresh(cached))return;
   state.marineLoading.add(cityId);if(state.route.name==='city'&&state.route.id===cityId)rerenderCitySectionOrPage('marine');
-  try{const data=await marine.fetchMarineForCity(city);if(!data.coastal){if(activate)toast(t('marineNotCoastal'));return;}state.marine[cityId]=data;analysisStore.mark('marine',cityId);saveMarine(cityId,data);if(activate&&!city.marineEnabled){city.marineEnabled=true;saveCities(state.cities);toast(t('marineEnabled'));}if(state.route.name==='city'&&state.route.id===cityId)render();}
+  try{const data=await marine.fetchMarineForCity(city);if(!data.coastal){if(activate)toast(t('marineNotCoastal'));return;}state.marine[cityId]=data;analysisStore.mark('marine',cityId);saveMarine(cityId,data);if(activate&&!city.marineEnabled){city.marineEnabled=true;persistFavoriteCities();toast(t('marineEnabled'));}if(state.route.name==='city'&&state.route.id===cityId)render();}
   catch(err){toast(humanError(err));}
   finally{state.marineLoading.delete(cityId);if(state.route.name==='city'&&state.route.id===cityId)rerenderCitySectionOrPage('marine');}
 }
@@ -662,7 +729,7 @@ function renderCityDetail(cityId){
   if(!f)return `<main class="page"><section class="detail-hero"><div class="detail-title"><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></section>${renderCityErrors(cityId)}<div class="section-card">${loading?'<div class="loader"></div> '+esc(t('loading')):`<button class="btn primary" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button>`}</div></main>`;
   const today=cityToday(f.city.timezone),consensusProfile=localConsensusWeights(cityId),consensusWeights=state.settings.localWeightedConsensus&&consensusProfile.ready?consensusProfile.maps:null,agg=cachedAggregateDay(f,today,consensusWeights),now=currentConditions(f,new Date(),{weightsByVariable:consensusWeights||{}}),scenarios=cachedScenarios(f),evolution=cachedEvolution(f,state.evolution[cityId]||[]),biasSource=state.bias[cityId]||{forecasts:[],observations:[]},biases=cachedBiases(f,biasSource,today),modelCount=Object.keys(f.seriesByModel).length;
   const health=forecastHealth(f),healthDetail=`${health.detail}${loading?` · ${t('updatingSuffix')}`:''}`;
-  return `<main class="page detail-page"><section class="detail-hero professional-hero"><div class="detail-weather-mark" aria-hidden="true">${weatherIcons.render(now.condition||agg.condition,{size:'large'})}</div><div class="detail-title"><div class="eyebrow">${esc(t('multiModelForecast'))}</div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p><div class="hero-meta"><span class="data-health ${health.class}"><i></i>${esc(health.label)}</span><span>${esc(healthDetail)}</span><span>${esc(t('availableModelsCount',{models:modelCountLabel(modelCount)}))}</span><span>${esc(f.city.timezone||'UTC')}</span></div></div><div class="detail-hero-actions"><button class="btn tonal detail-refresh-action" data-refresh-city="${attr(city.id)}" ${loading?'disabled':''}><span class="btn-icon ${loading?'spinning':''}">${uiIcon('refresh')}</span>${esc(t(loading?'refreshing':'refreshWeather'))}</button>${city.marineEnabled?`<button class="btn tonal detail-refresh-action marine-hero-refresh" data-action="refresh-marine" data-marine-city="${attr(city.id)}" ${state.marineLoading.has(city.id)?'disabled':''}><span class="btn-icon ${state.marineLoading.has(city.id)?'spinning':''}">${uiIcon('refresh')}</span>${esc(state.marineLoading.has(city.id)?t('marineLoading'):t('refreshMarine'))}</button>`:''}<button class="btn subtle" data-action="copy-link">${esc(t('shareView'))}</button></div></section>${renderCityErrors(cityId)}<div class="detail-workspace"><aside class="detail-sidebar" aria-label="${esc(t('navForecast'))}"><div class="sidebar-card"><div class="sidebar-title">${esc(t('overview'))}</div><nav class="detail-nav" aria-label="${esc(t('forecastSections'))}"><button data-scroll-section="today-summary">${esc(t('today'))}</button><button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button>${city.marineEnabled?`<button data-scroll-section="marine">${esc(t('marineTitle'))}</button>`:''}<button data-scroll-section="diagnostics">${esc(t('dataDiagnostics'))}</button></nav></div><button class="detail-back-button detail-sidebar-back" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></aside><div class="detail-main"><div class="overview-layout"><div class="overview-primary">${renderTodaySummary(f,agg,now,city.id,consensusProfile)}</div><div class="overview-secondary">${renderGlobalAgreementCard(f,agg,city.id,consensusProfile)}${renderScenarios(scenarios)}</div></div>${renderInsights(f,evolution,consensusWeights)}${renderTimeline(f,consensusWeights)}${renderConfidenceSection(f,cityId,consensusWeights)}${renderEvolutionSection(evolution)}${renderReliabilitySection(city,biases)}${renderDetailedComparison(f,biases)}${renderMarineSection(city)}${renderDataDiagnosticsSection(city,f)}<div class="small source-note">${esc(t('source'))}</div></div></div></main>`;
+  return `<main class="page detail-page"><section class="detail-hero professional-hero"><div class="detail-weather-mark" aria-hidden="true">${weatherIcons.render(now.condition||agg.condition,{size:'large'})}</div><div class="detail-title"><div class="eyebrow">${esc(t('multiModelForecast'))}</div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p><div class="hero-meta"><span class="data-health ${health.class}"><i></i>${esc(health.label)}</span><span>${esc(healthDetail)}</span><span>${esc(t('availableModelsCount',{models:modelCountLabel(modelCount)}))}</span><span>${esc(f.city.timezone||'UTC')}</span></div></div><div class="detail-hero-actions">${city.seoTransient?`<button class="btn primary" data-action="favorite-route-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('seoAddFavorite'))}</button>`:''}<button class="btn tonal detail-refresh-action" data-refresh-city="${attr(city.id)}" ${loading?'disabled':''}><span class="btn-icon ${loading?'spinning':''}">${uiIcon('refresh')}</span>${esc(t(loading?'refreshing':'refreshWeather'))}</button>${city.marineEnabled?`<button class="btn tonal detail-refresh-action marine-hero-refresh" data-action="refresh-marine" data-marine-city="${attr(city.id)}" ${state.marineLoading.has(city.id)?'disabled':''}><span class="btn-icon ${state.marineLoading.has(city.id)?'spinning':''}">${uiIcon('refresh')}</span>${esc(state.marineLoading.has(city.id)?t('marineLoading'):t('refreshMarine'))}</button>`:''}<button class="btn subtle" data-action="copy-link">${esc(t('shareView'))}</button></div></section>${renderCityErrors(cityId)}<div class="detail-workspace"><aside class="detail-sidebar" aria-label="${esc(t('navForecast'))}"><div class="sidebar-card"><div class="sidebar-title">${esc(t('overview'))}</div><nav class="detail-nav" aria-label="${esc(t('forecastSections'))}"><button data-scroll-section="today-summary">${esc(t('today'))}</button><button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button>${city.marineEnabled?`<button data-scroll-section="marine">${esc(t('marineTitle'))}</button>`:''}<button data-scroll-section="diagnostics">${esc(t('dataDiagnostics'))}</button></nav></div><button class="detail-back-button detail-sidebar-back" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></aside><div class="detail-main"><div class="overview-layout"><div class="overview-primary">${renderTodaySummary(f,agg,now,city.id,consensusProfile)}</div><div class="overview-secondary">${renderGlobalAgreementCard(f,agg,city.id,consensusProfile)}${renderScenarios(scenarios)}</div></div>${renderInsights(f,evolution,consensusWeights)}${renderTimeline(f,consensusWeights)}${renderConfidenceSection(f,cityId,consensusWeights)}${renderEvolutionSection(evolution)}${renderReliabilitySection(city,biases)}${renderDetailedComparison(f,biases)}${renderMarineSection(city)}${renderDataDiagnosticsSection(city,f)}${renderSeoCityContext(city)}${renderSeoNearby(city)}<div class="small source-note">${esc(t('source'))}</div></div></div></main>`;
 }
 
 
@@ -1171,7 +1238,7 @@ function renderSettings(){
   return `<main class="page settings-page"><section class="page-header settings-page-header"><div class="page-header-copy"><h1>${esc(t('settings'))}</h1><p>${esc(t('settingsIntro'))}</p></div></section><div class="settings-list settings-list-simple">
     <section class="settings-section settings-wide"><div class="settings-section-head"><div><h2>${esc(t('settingsInterfaceTitle'))}</h2><p>${esc(t('settingsInterfaceIntro'))}</p></div></div><div class="settings-control-grid"><div class="setting-control"><h3>${esc(t('theme'))}</h3><div class="option-row">${[['SYSTEM',t('system')],['LIGHT',t('light')],['DARK',t('dark')]].map(([id,l])=>`<button class="chip ${state.settings.theme===id?'active':''}" aria-pressed="${state.settings.theme===id}" data-theme="${id}">${esc(l)}</button>`).join('')}</div></div><div class="setting-control"><h3>${esc(t('language'))}</h3><div class="option-row">${[['SYSTEM',t('systemLanguage')],['FRENCH',t('french')],['ENGLISH',t('english')],['SPANISH',t('spanish')],['GERMAN',t('german')],['ITALIAN',t('italian')]].map(([id,l])=>`<button class="chip ${state.settings.language===id?'active':''}" aria-pressed="${state.settings.language===id}" data-language="${id}">${esc(l)}</button>`).join('')}</div></div><div class="setting-control"><h3>${esc(t('density'))}</h3><div class="option-row">${[['COMFORTABLE',t('comfortable')],['COMPACT',t('compact')]].map(([id,l])=>`<button class="chip ${state.settings.density===id?'active':''}" aria-pressed="${state.settings.density===id}" data-density="${id}">${esc(l)}</button>`).join('')}</div></div></div></section>
     <section class="settings-section settings-wide"><div class="settings-section-head"><div><h2>${esc(t('settingsForecastTitle'))}</h2><p>${esc(t('settingsForecastIntro'))}</p></div></div><div class="settings-control-grid settings-control-grid-two"><div class="setting-control"><h3>${esc(t('refreshInterval'))}</h3><p>${esc(t('webRefreshDesc'))}</p><div class="option-row">${REFRESH_INTERVALS.map(x=>`<button class="chip ${refresh.id===x.id?'active':''}" aria-pressed="${refresh.id===x.id}" data-refresh-interval="${x.id}">${esc(refreshLabel(x.id))}</button>`).join('')}</div></div><div class="setting-control"><h3>${esc(t('localWeightedConsensus'))}</h3><p>${esc(t('localWeightedConsensusIntro'))}</p><div class="option-row"><button class="chip ${!state.settings.localWeightedConsensus?'active':''}" aria-pressed="${!state.settings.localWeightedConsensus}" data-local-weighting="off">${esc(t('disabled'))}</button><button class="chip ${state.settings.localWeightedConsensus?'active':''}" aria-pressed="${state.settings.localWeightedConsensus}" data-local-weighting="on">${esc(t('enabled'))}</button></div><small>${esc(t('localWeightedConsensusNote'))}</small></div></div></section>
-    <section class="settings-section settings-wide history-management"><div class="settings-section-head"><div><h2>${esc(t('reliability'))}</h2><p>${esc(t('historyRefreshIntro'))}</p></div><span class="cost-badge">${esc(t('costlyOperation'))}</span></div><div class="history-refresh-list">${state.cities.length?state.cities.map(city=>renderBiasHistoryManagementRow(city)).join(''):`<div class="empty-state compact">${esc(t('addCityForHistory'))}</div>`}</div><p class="history-refresh-note">${esc(t('historyAdvice'))}</p></section>
+    <section class="settings-section settings-wide history-management"><div class="settings-section-head"><div><h2>${esc(t('reliability'))}</h2><p>${esc(t('historyRefreshIntro'))}</p></div><span class="cost-badge">${esc(t('costlyOperation'))}</span></div><div class="history-refresh-list">${favoriteCities().length?favoriteCities().map(city=>renderBiasHistoryManagementRow(city)).join(''):`<div class="empty-state compact">${esc(t('addCityForHistory'))}</div>`}</div><p class="history-refresh-note">${esc(t('historyAdvice'))}</p></section>
     <section class="settings-section settings-wide"><div class="settings-section-head"><div><h2>${esc(t('weatherModels'))}</h2><p>${esc(t('forecastModelSettingsDesc'))}</p></div></div><div class="segmented">${[['ZONE',t('sortZone')],['FAMILLE',t('sortFamily')],['FINESSE',t('sortResolution')]].map(([id,l])=>`<button class="seg-btn ${sort===id?'active':''}" data-model-sort="${id}">${esc(l)}</button>`).join('')}</div><div class="model-settings-groups">${groups.map(g=>`<div class="model-settings-group">${g.label?`<div class="model-group-title">${esc(g.label)}</div>`:''}<div class="model-settings-grid">${g.models.map(renderModelRow).join('')}</div></div>`).join('')}</div></section>
   </div></main>`;
 }
@@ -1196,7 +1263,7 @@ function renderModal(){
   if(state.modal.type==='addCity')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">${esc(t('searchCity'))}</h2><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><input id="city-search" class="search-input" value="${attr(state.modal.query||'')}" placeholder="${esc(t('searchPlaceholder'))}" autocomplete="off" autofocus><div id="city-search-status" role="status" aria-live="polite">${renderSearchStatus()}</div><div class="search-results" id="city-search-results">${renderSearchResults()}</div></div></div></div>`;
   if(state.modal.type==='cityMenu'){const c=state.cities.find(x=>x.id===state.modal.cityId);return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">${esc(c?.name||t('city'))}</h2><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><div class="modal-actions"><button class="btn tonal" data-refresh-city="${attr(c?.id)}">↻ ${esc(t('refresh'))}</button><button class="btn tonal" data-action="${c?.marineEnabled?'refresh-marine':'activate-marine'}" data-marine-city="${attr(c?.id)}">🌊 ${esc(c?.marineEnabled?t('refreshMarine'):t('activateMarine'))}</button><button class="btn danger" data-remove-city="${attr(c?.id)}">🗑 ${esc(t('remove'))}</button></div></div></div></div>`;}
   if(state.modal.type==='confidence')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div><h2 id="modal-title">${esc(t('whyAgreement'))}</h2><span class="small">${esc(t('variableAnalysis'))}</span></div><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><div class="banner info convergence-info-banner"><b>${esc(t('agreementNotAccuracy'))}</b><span>${esc(t('agreementNotAccuracyBody'))}</span></div>${renderDisagreementModal(state.modal.cityId||state.route.id,state.modal.focusTimestamp||null,Number.isFinite(state.modal.focusEpoch)?state.modal.focusEpoch:null)}<details class="method-details"><summary>${esc(t('method'))}</summary><p>${esc(t('methodTemp'))}</p><p>${esc(t('methodWind'))}</p><p>${esc(t('methodRain'))}</p></details></div></div></div>`;
-  if(state.modal.type==='cityCompare'){const selected=new Set(state.modal.selectedIds||[]);return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div><h2 id="modal-title">${esc(t('compareCities'))}</h2><span class="small">${esc(t('compareCitiesModal'))}</span></div><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><div class="city-compare-picker">${state.cities.map(c=>`<button class="city-compare-choice ${selected.has(c.id)?'active':''}" aria-pressed="${selected.has(c.id)}" data-city-compare-toggle="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(placeLine(c))}</small></span><i>${selected.has(c.id)?'✓':'+'}</i></button>`).join('')}</div><div class="modal-footer"><span class="small">${esc(t('selectedOfThree',{count:selected.size}))}</span><button class="btn primary" data-action="apply-city-compare" ${selected.size<2?'disabled':''}>${esc(t('compare'))}</button></div></div></div></div>`;}
+  if(state.modal.type==='cityCompare'){const selected=new Set(state.modal.selectedIds||[]);return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div><h2 id="modal-title">${esc(t('compareCities'))}</h2><span class="small">${esc(t('compareCitiesModal'))}</span></div><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><div class="city-compare-picker">${favoriteCities().map(c=>`<button class="city-compare-choice ${selected.has(c.id)?'active':''}" aria-pressed="${selected.has(c.id)}" data-city-compare-toggle="${attr(c.id)}"><span><strong>${esc(c.name)}</strong><small>${esc(placeLine(c))}</small></span><i>${selected.has(c.id)?'✓':'+'}</i></button>`).join('')}</div><div class="modal-footer"><span class="small">${esc(t('selectedOfThree',{count:selected.size}))}</span><button class="btn primary" data-action="apply-city-compare" ${selected.size<2?'disabled':''}>${esc(t('compare'))}</button></div></div></div></div>`;}
   if(state.modal.type==='donate')return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="modal support-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">♡ ${esc(t('supportTitle'))}</h2><button class="icon-btn" data-action="close-modal" aria-label="${esc(t('close'))}">×</button></div><div class="modal-content"><p class="support-intro">${esc(t('supportBodyDetailed'))}</p><div class="donation-grid"><a class="donation-card" href="https://liberapay.com/Pat0chat" target="_blank" rel="noopener"><span class="donation-icon">💝</span><span><strong>Liberapay</strong><small>${esc(t('donationLiberapay'))}</small></span>${uiIcon('external',16)}</a><a class="donation-card" href="https://github.com/sponsors/Pat0chat" target="_blank" rel="noopener"><span class="donation-icon">❤️</span><span><strong>GitHub Sponsors</strong><small>${esc(t('donationGithub'))}</small></span>${uiIcon('external',16)}</a><a class="donation-card" href="https://ko-fi.com/pat0chat" target="_blank" rel="noopener"><span class="donation-icon">☕</span><span><strong>Ko-Fi</strong><small>${esc(t('donationKofi'))}</small></span>${uiIcon('external',16)}</a></div><div class="donation-disclaimer">${esc(t('donationDisclaimer'))}</div></div></div></div>`;
   return '';
 }
@@ -1296,7 +1363,7 @@ function updateSettingsChoiceButtons(attr,value){
 function refreshSettingsHistoryRows(){
   if(state.route.name!=='settings')return;const list=document.querySelector?.('.history-refresh-list');if(!list)return;
   const directive=interactionScrollContext||captureScrollContext();
-  list.innerHTML=state.cities.length?state.cities.map(city=>renderBiasHistoryManagementRow(city)).join(''):`<div class="empty-state compact">${esc(i18n().t('addCityForHistory'))}</div>`;
+  const favorites=favoriteCities();list.innerHTML=favorites.length?favorites.map(city=>renderBiasHistoryManagementRow(city)).join(''):`<div class="empty-state compact">${esc(i18n().t('addCityForHistory'))}</div>`;
   if(!stabilizeLocalScroll(directive))applyScrollDirective(directive);
 }
 function routeShowsWeatherActivity(){return ['home','city','compare','bias'].includes(state.route.name);}
@@ -1353,6 +1420,7 @@ function handleAction(e){
   const action=e.currentTarget.dataset.action;
   if(action==='back')history.length>1?history.back():go('#/');
   else if(action==='home')go('#/');
+  else if(action==='favorite-route-city'){const city=promoteRouteCity();if(city){toast(i18n().t('seoFavoriteAdded',{city:city.name}));render();}}
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='toggle-target-compare'){const key=state.route.name==='city'?state.route.id:'global',panel=e.currentTarget.closest?.('[data-target-compare]'),next=panel?.dataset.open!=='true';state.comparePanelOpen[key]=next;if(panel){panel.dataset.open=String(next);const btn=panel.querySelector?.('[data-action="toggle-target-compare"]');if(btn)btn.setAttribute('aria-expanded',String(next));const body=panel.querySelector?.('.target-compare-body');if(body)body.hidden=!next;} }
@@ -1361,7 +1429,7 @@ function handleAction(e){
   else if(action==='about')go('#/about');
   else if(action==='install-pwa'){if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}void trackAnalyticsEvent('PWA Install Click',state.route);const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{if(choice?.outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();}).catch(()=>toast(pwaInstallGuidance().text));}
   else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast(i18n().t('linkCopied'))).catch(()=>prompt(i18n().t('copyLinkPrompt'),url));else prompt(i18n().t('copyLinkPrompt'),url);}
-  else if(action==='open-city-compare'){lastFocusedBeforeModal=document.activeElement;const initial=state.route.name==='compare'?(state.route.ids||[]):state.cities.slice(0,Math.min(2,state.cities.length)).map(c=>c.id);state.modal={type:'cityCompare',selectedIds:[...initial]};render();}
+  else if(action==='open-city-compare'){lastFocusedBeforeModal=document.activeElement;const favorites=favoriteCities(),initial=state.route.name==='compare'?(state.route.ids||[]):favorites.slice(0,Math.min(2,favorites.length)).map(c=>c.id);state.modal={type:'cityCompare',selectedIds:[...initial]};render();}
   else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'));return;}state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
   else if(action==='refresh-all')refreshAll(true);
   else if(action==='open-add-city'){lastFocusedBeforeModal=document.activeElement;cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
@@ -1432,8 +1500,17 @@ async function performSearch(query,seq=searchSeq){
   }finally{if(seq===searchSeq)searchAbort=null;}
 }
 
-function addCityFromSearch(id){const city=state.modal?.results?.find(c=>c.id===id);if(!city)return;cancelCitySearch();if(!state.cities.some(c=>c.id===city.id)){state.cities.push(city);saveCities(state.cities);state.evolution[city.id]=[];state.bias[city.id]={forecasts:[],observations:[],updatedAt:null};}state.modal=null;render();refreshCity(city.id,true);}
-function removeCity(id){runtime.forgetCity(id);state.loading.delete(id);state.marineLoading.delete(id);state.biasRefresh.delete(id);state.cities=state.cities.filter(c=>c.id!==id);saveCities(state.cities);delete state.forecasts[id];delete state.errors[id];delete state.evolution[id];delete state.bias[id];delete state.normals[id];delete state.marine[id];delete state.modelHealth[id];delete state.modelHealthHistory[id];deleteCityData(id);state.modal=null;if((state.route.name==='city'||state.route.name==='bias')&&state.route.id===id)go('#/');else render();}
+function sameCityPlace(a,b){
+  if(!a||!b)return false;const ac=matchSeoCity(a),bc=matchSeoCity(b);if(ac&&bc&&ac.slug===bc.slug)return true;
+  const sameName=slugifyCityName(a.name)===slugifyCityName(b.name),latDelta=Math.abs(Number(a.latitude)-Number(b.latitude)),lonDelta=Math.abs(Number(a.longitude)-Number(b.longitude));return sameName&&Number.isFinite(latDelta)&&Number.isFinite(lonDelta)&&latDelta<.04&&lonDelta<.04;
+}
+function addCityFromSearch(id){
+  const city=state.modal?.results?.find(c=>c.id===id);if(!city)return;cancelCitySearch();let target=state.cities.find(c=>c.id===city.id||sameCityPlace(c,city));
+  if(target){if(target.seoTransient){delete target.seoTransient;persistFavoriteCities();toast(i18n().t('seoFavoriteAdded',{city:target.name}));}}
+  else{target=city;state.cities.push(target);persistFavoriteCities();state.evolution[target.id]=[];state.bias[target.id]={forecasts:[],observations:[],updatedAt:null};}
+  state.modal=null;render();refreshCity(target.id,true);
+}
+function removeCity(id){runtime.forgetCity(id);state.loading.delete(id);state.marineLoading.delete(id);state.biasRefresh.delete(id);state.cities=state.cities.filter(c=>c.id!==id);persistFavoriteCities();delete state.forecasts[id];delete state.errors[id];delete state.evolution[id];delete state.bias[id];delete state.normals[id];delete state.marine[id];delete state.modelHealth[id];delete state.modelHealthHistory[id];deleteCityData(id);state.modal=null;if((state.route.name==='city'||state.route.name==='bias')&&state.route.id===id)go('#/');else render();}
 function invalidateWeatherRefreshes(){cityRefreshTokens.clear();state.loading.clear();}
 function toggleModel(id){const set=new Set(state.settings.enabledModelIds);if(set.has(id)){if(set.size<=1){toast(i18n().t('atLeastOneModel'));return;}set.delete(id);}else set.add(id);state.settings.enabledModelIds=WEATHER_MODELS.filter(m=>set.has(m.id)).map(m=>m.id);invalidateWeatherRefreshes();persistSettings();const on=set.has(id),btn=document.querySelector?.(`[data-model-toggle="${String(id).replace(/"/g,'\\"')}"]`);if(btn){btn.classList.toggle('on',on);btn.setAttribute('aria-checked',String(on));}refreshSettingsHistoryRows();toast(i18n().t('modelSelectionUpdated'));if(state.online)void refreshAll(true);}
 
@@ -1451,7 +1528,7 @@ async function refreshDueCities(){
   try{for(const city of due)await refreshCity(city.id,false,false);}finally{dueRefreshRunning=false;if(showActivity)render();}
 }
 async function refreshAll(force=false){
-  const cities=[...state.cities];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0;
+  const cities=[...favoriteCities()];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0;
   const tasks=Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force,false);}}),showActivity=routeShowsWeatherActivity();
   if(showActivity)render();
   try{await Promise.all(tasks);}finally{if(showActivity)render();}
@@ -1459,7 +1536,7 @@ async function refreshAll(force=false){
 async function refreshCity(cityId,force=false,renderUpdates=true){
   const city=state.cities.find(c=>c.id===cityId);if(!city||state.loading.has(cityId))return;if(!state.online){if(!state.forecasts[cityId]){const d=classifyError({code:'OFFLINE_NO_CACHE'},{hasCache:false});state.errorCenter.report(`city:${cityId}:network`,d);state.errors[cityId]=errorDescriptorMessage(d);}else{state.errorCenter.report(`city:${cityId}:network`,{...classifyError({code:'STALE_CACHE'},{hasCache:true}),scope:`city:${cityId}:network`});}if(renderUpdates)render();return;}if(!force&&state.forecasts[cityId]&&isForecastFresh(state.forecasts[cityId]))return;
   const token=cityRefreshTokens.begin(cityId);state.loading.add(cityId);delete state.errors[cityId];if(renderUpdates)render();
-  try{const f=await fetchForecast(city,state.settings.enabledModelIds,7);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId))return;const resolvedTimezone=f?.city?.timezone||f?.timezone;if(resolvedTimezone&&city.timezone!==resolvedTimezone){city.timezone=resolvedTimezone;saveCities(state.cities);}state.forecasts[cityId]=f;await saveForecast(cityId,f);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId)){if(!cityRefreshTokens.get(cityId)||!state.cities.some(c=>c.id===cityId))deleteForecast(cityId);return;}state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);analysisStore.mark('evolution',cityId);delete state.errors[cityId];state.errorCenter.resolve(`city:${cityId}:network`);const degraded=Object.values(f.modelMeta||{}).filter(m=>m?.dataWarning==='PARTIAL_HOURLY_SERIES').length;if(degraded)state.errorCenter.report(`city:${cityId}:partial`,{code:'PARTIAL_MODELS',severity:'warning',titleKey:'errorPartialModelsTitle',messageKey:'errorPartialModelsBody',actions:['diagnostics','retry'],technical:String(degraded)});else state.errorCenter.resolve(`city:${cityId}:partial`);if(state.route.name==='city'&&state.route.id===cityId)scheduleIdle(()=>ensureNormals(cityId));if((state.modelHealthHistory[cityId]||[]).length)scheduleIdle(()=>refreshModelHealthData(cityId,true));}
+  try{const f=await fetchForecast(city,state.settings.enabledModelIds,7);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId))return;const resolvedTimezone=f?.city?.timezone||f?.timezone;if(resolvedTimezone&&city.timezone!==resolvedTimezone){city.timezone=resolvedTimezone;persistFavoriteCities();}state.forecasts[cityId]=f;await saveForecast(cityId,f);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId)){if(!cityRefreshTokens.get(cityId)||!state.cities.some(c=>c.id===cityId))deleteForecast(cityId);return;}state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);analysisStore.mark('evolution',cityId);delete state.errors[cityId];state.errorCenter.resolve(`city:${cityId}:network`);const degraded=Object.values(f.modelMeta||{}).filter(m=>m?.dataWarning==='PARTIAL_HOURLY_SERIES').length;if(degraded)state.errorCenter.report(`city:${cityId}:partial`,{code:'PARTIAL_MODELS',severity:'warning',titleKey:'errorPartialModelsTitle',messageKey:'errorPartialModelsBody',actions:['diagnostics','retry'],technical:String(degraded)});else state.errorCenter.resolve(`city:${cityId}:partial`);if(state.route.name==='city'&&state.route.id===cityId)scheduleIdle(()=>ensureNormals(cityId));if((state.modelHealthHistory[cityId]||[]).length)scheduleIdle(()=>refreshModelHealthData(cityId,true));}
   catch(err){if(cityRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId)){const descriptor=classifyError(err,{hasCache:Boolean(state.forecasts[cityId])});state.errorCenter.report(`city:${cityId}:network`,descriptor);state.errors[cityId]=errorDescriptorMessage(descriptor);if(!state.forecasts[cityId])toast(state.errors[cityId]);}}
   finally{if(cityRefreshTokens.get(cityId)===token){cityRefreshTokens.delete(cityId);state.loading.delete(cityId);if(renderUpdates)render();}}
 }

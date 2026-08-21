@@ -114,7 +114,7 @@ assert.match(app,/indices=s\.hourly\.timestamps[\s\S]*epochMs:epochs\[i\][\s\S]*
 assert.match(app,/lastViewTimeKey[\s\S]*setInterval/,'long-open pages must re-render on local-hour rollover');
 
 // 9. The API-confirmed timezone is persisted back to the favorite.
-assert.match(app,/resolvedTimezone=f\?\.city\?\.timezone[\s\S]*city\.timezone=resolvedTimezone[\s\S]*saveCities\(state\.cities\)/,'confirmed timezone must repair the stored favorite');
+assert.match(app,/resolvedTimezone=f\?\.city\?\.timezone[\s\S]*city\.timezone=resolvedTimezone[\s\S]*persistFavoriteCities\(\)/,'confirmed timezone must repair the stored favorite');
 
 // 10. A cached forecast's evolution stays anchored to the forecast snapshot date, not wall-clock today.
 const oldDates=['2020-01-02','2020-01-03'];

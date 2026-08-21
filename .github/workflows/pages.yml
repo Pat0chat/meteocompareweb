@@ -37,20 +37,13 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
-      - name: Prepare static site
-        run: |
-          mkdir -p _site
-          rsync -a \
-            --exclude '.git' \
-            --exclude '.github' \
-            --exclude '_site' \
-            --exclude 'tests' \
-            ./ _site/
+      - name: Build production site
+        run: npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5.0.0
         with:
-          path: _site
+          path: dist
           include-hidden-files: true
 
   deploy:
