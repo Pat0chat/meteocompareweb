@@ -7,6 +7,7 @@ const LANGUAGES=new Set(['fr','en','es','de','it']);
 const EVENT_SCHEMAS=new Map([
   ['PWA Install Click',{}],
   ['PWA Installed',{}],
+  ['Install Option Selected',{source:new Set(['play_store','pwa'])}],
   ['City Search Opened',{}],
   ['City Added',{}],
   ['SEO City Favorite Added',{}],

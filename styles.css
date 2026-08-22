@@ -4112,3 +4112,81 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .radar-forecast-hours{grid-template-columns:repeat(2,minmax(0,1fr))}
   .radar-panel-head{align-items:center}.radar-model-badge{display:none}
 }
+
+/* v1.15 — Unified installation menu in the top bar. */
+.nav-install-menu { position:relative; display:flex; }
+.install-nav-icon { position:relative; }
+.install-opportunity-dot {
+  position:absolute;
+  top:-4px;
+  right:-5px;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--semantic-danger);
+  box-shadow:0 0 0 2px var(--surface),0 0 0 4px color-mix(in srgb,var(--semantic-danger) 12%,transparent);
+}
+.nav-install-popover {
+  position:absolute;
+  z-index:46;
+  top:calc(100% + var(--space-2));
+  right:0;
+  width:min(350px,calc(100vw - 24px));
+  padding:var(--space-2);
+  border:1px solid var(--border);
+  border-radius:var(--radius-md);
+  background:color-mix(in srgb,var(--surface) 97%,transparent);
+  box-shadow:var(--shadow-3);
+  backdrop-filter:blur(18px) saturate(135%);
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(-5px) scale(.985);
+  transform-origin:top right;
+  pointer-events:none;
+  transition:opacity .15s ease,transform .15s ease,visibility .15s step-end;
+}
+.nav-install-menu::after { content:""; position:absolute; top:100%; right:0; width:100%; height:var(--space-2); }
+.nav-install-menu:hover .nav-install-popover,
+.nav-install-menu.is-open .nav-install-popover {
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0) scale(1);
+  pointer-events:auto;
+  transition:opacity .15s ease,transform .15s ease,visibility 0s;
+}
+.nav-install-popover-head { display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); padding:6px 8px 9px; }
+.nav-install-popover-head strong { font-size:.8rem; }
+.nav-install-popover-head span { display:inline-flex; align-items:center; min-height:23px; padding:0 8px; border-radius:var(--radius-pill); background:color-mix(in srgb,var(--semantic-danger) 9%,var(--surface)); color:var(--semantic-danger); font-size:.7rem; font-weight:760; }
+.install-option-list { display:grid; gap:3px; }
+.install-option {
+  width:100%;
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  min-height:54px;
+  padding:8px 10px;
+  border:0;
+  border-radius:var(--radius-sm);
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+  text-decoration:none;
+  cursor:pointer;
+}
+.install-option:hover,.install-option:focus-visible { background:var(--surface-2); box-shadow:none; }
+.install-option-icon { width:32px; height:32px; display:grid; place-items:center; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--primary); }
+.install-option-copy { min-width:0; display:grid; gap:2px; }
+.install-option-copy strong { font-size:.8rem; line-height:1.2; }
+.install-option-copy small { color:var(--muted); font-size:.7rem; line-height:1.35; }
+.install-option-status { display:inline-flex; align-items:center; min-height:22px; padding:0 7px; border-radius:var(--radius-pill); background:var(--surface-2); color:var(--muted); font-size:.7rem; font-weight:750; white-space:nowrap; }
+.install-option-status.ready { color:var(--semantic-success); background:color-mix(in srgb,var(--semantic-success) 9%,var(--surface)); }
+.install-option-status.installed { color:var(--muted); }
+.install-option.is-disabled,.install-option:disabled { opacity:.52; cursor:not-allowed; }
+.install-option.is-disabled:hover,.install-option:disabled:hover { background:transparent; }
+.topbar .install-nav { color:color-mix(in srgb,var(--primary) 76%,var(--muted)); }
+.topbar .install-nav:hover,.nav-install-menu.is-open .install-nav { color:var(--primary); background:var(--primary-soft); }
+@media (max-width:860px) {
+  .nav-install-popover { position:fixed; top:62px; right:12px; width:min(340px,calc(100vw - 24px)); transform-origin:top right; }
+  .nav-install-menu::after { display:none; }
+}

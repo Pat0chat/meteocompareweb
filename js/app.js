@@ -105,8 +105,8 @@ function init() {
   if (!skipPwaRegistration && 'serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(err => console.warn('Service worker:', err));
   }
-  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(state.route.name==='about')render();});
-  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;void trackAnalyticsEvent('PWA Installed',state.route);toast(i18n().t('pwaInstallSuccess'));if(state.route.name==='about')render();});
+  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(state.route.name==='about')render();else refreshInstallNav();});
+  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;void trackAnalyticsEvent('PWA Installed',state.route);toast(i18n().t('pwaInstallSuccess'));if(state.route.name==='about')render();else refreshInstallNav();});
   app.addEventListener('click', handleAppClick);
   app.addEventListener('input', handleAppInput);
   app.addEventListener('toggle', handleDetailsToggle, true);
@@ -509,15 +509,35 @@ function renderPageBack(){
   const {t}=i18n(),sticky=['data','settings','about','bias'].includes(state.route.name);
   return `<div class="page-back-shell${sticky?' is-sticky':''}"><button class="page-back-button" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></div>`;
 }
+function installDeviceContext(){
+  const ua=navigator.userAgent||'',ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),android=/Android/i.test(ua),firefoxMatch=ua.match(/Firefox\/(\d+)/i),firefoxWindows=Boolean(firefoxMatch)&&/Windows/i.test(ua)&&Number(firefoxMatch?.[1]||0)>=143;
+  const pwaDirect=!pwaInstalled&&Boolean(deferredInstallPrompt),pwaManual=!pwaInstalled&&(ios||firefoxWindows),pwaVisible=pwaInstalled||pwaDirect||pwaManual;
+  return {android,pwaDirect,pwaManual,pwaVisible,pwaActionable:pwaDirect||pwaManual,installAvailable:android||pwaDirect||pwaManual};
+}
+function renderInstallNav(){
+  const {t}=i18n(),availability=installDeviceContext();
+  const dot=availability.installAvailable?`<span class="install-opportunity-dot" aria-hidden="true"></span>`:'';
+  const pwaOption=availability.pwaVisible?`<button class="install-option ${availability.pwaActionable?'':'is-disabled'}" ${availability.pwaActionable?'data-action="install-pwa"':'disabled'} role="menuitem"><span class="install-option-icon">${uiIcon('download',18)}</span><span class="install-option-copy"><strong>PWA</strong><small>${esc(t(pwaInstalled?'installPwaInstalledShort':availability.pwaDirect?'installPwaReadyShort':'installPwaManualShort'))}</small></span><span class="install-option-status ${availability.pwaActionable?'ready':'installed'}">${esc(t(pwaInstalled?'installStatusInstalled':'installStatusAvailable'))}</span></button>`:'';
+  return `<div class="nav-install-menu"><button class="nav-btn install-nav" data-action="toggle-install-menu" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t('installNav'))}" title="${esc(t('installNav'))}"><span class="nav-icon install-nav-icon">${uiIcon('download')}${dot}</span><span>${esc(t('installNav'))}</span></button><div class="nav-install-popover" role="menu" aria-label="${esc(t('installMenuTitle'))}"><div class="nav-install-popover-head"><strong>${esc(t('installMenuTitle'))}</strong>${availability.installAvailable?`<span>${esc(t('installStatusAvailable'))}</span>`:''}</div><div class="install-option-list"><a class="install-option" data-action="install-play-store" role="menuitem" href="https://play.google.com/store/apps/details?id=com.meteocompare.app" target="_blank" rel="noopener"><span class="install-option-icon">${uiIcon('external',18)}</span><span class="install-option-copy"><strong>Google Play</strong><small>${esc(t('installPlayStoreBody'))}</small></span><span class="install-option-status">Android</span></a><button class="install-option is-disabled" type="button" role="menuitem" disabled><span class="install-option-icon">${uiIcon('download',18)}</span><span class="install-option-copy"><strong>F-Droid</strong><small>${esc(t('installFdroidBody'))}</small></span><span class="install-option-status muted">${esc(t('installStatusSoon'))}</span></button>${pwaOption}</div></div></div>`;
+}
+function refreshInstallNav(){
+  const current=app?.querySelector?.('.nav-install-menu');
+  if(current)current.outerHTML=renderInstallNav();
+}
+function closeInstallMenus(except=null){
+  for(const menu of app?.querySelectorAll?.('.nav-install-menu.is-open')||[]){if(menu===except)continue;menu.classList.remove('is-open');menu.querySelector?.('[data-action="toggle-install-menu"]')?.setAttribute('aria-expanded','false');}
+}
+
 function renderTopbar(){
   const {t}=i18n();
   const isHome=state.route.name==='home',isCity=state.route.name==='city',isData=state.route.name==='data',isSettings=state.route.name==='settings',isAbout=state.route.name==='about',activeForecast=currentCityForecast(),health=activeForecast?forecastHealth(activeForecast):null,statusLabel=health?.label||(state.online?t('connectionActive'):t('offlineShort')),statusTitle=health?`${health.label} · ${health.detail}`:(state.online?t('connectionActive'):t('offlineLocalData'));
   const favorites=favoriteCities();
   const cityLinks=favorites.length?favorites.map(city=>{const forecast=state.forecasts[city.id],cityHealth=forecast?forecastHealth(forecast):null;return `<button class="quick-city-link" role="menuitem" data-action="quick-city" data-city-id="${attr(city.id)}"><span class="quick-city-status ${cityHealth?.class||'unknown'}" aria-hidden="true"></span><span class="quick-city-copy"><strong>${esc(city.name)}</strong><small>${esc(placeLine(city))}</small></span><span class="quick-city-arrow" aria-hidden="true">→</span></button>`;}).join(''):`<div class="quick-city-empty">${esc(t('emptyTitle'))}</div>`;
   const citiesNav=`<div class="nav-cities-menu"><button class="nav-btn ${isHome?'active':''}" data-action="home" ${isHome?'aria-current="page"':''} aria-haspopup="menu"><span class="nav-icon">${uiIcon('home')}</span><span>${esc(t('cities'))}</span></button><div class="nav-cities-popover" role="menu" aria-label="${esc(t('cities'))}"><div class="nav-cities-popover-head"><strong>${esc(t('cities'))}</strong><span>${favorites.length}</span></div><div class="nav-cities-list">${cityLinks}</div><button class="quick-city-add" data-action="open-add-city"><span>${uiIcon('plus',15)}</span>${esc(t('addCity'))}</button></div></div>`;
+  const installNav=renderInstallNav();
   return `<header class="topbar"><div class="topbar-inner">
     <div class="brand" role="link" tabindex="0" data-action="home" aria-label="MeteoCompare — ${esc(t('cities'))}"><img class="logo" src="${attr(appAssetUrl('assets/icon.png'))}" alt=""><div><div class="brand-title-row"><div class="brand-title">MeteoCompare</div><span class="brand-version" title="${esc(t('versionInfoLabel',{version:APP_VERSION,schema:DATA_SCHEMA_VERSION}))}">v${esc(APP_VERSION)}</span></div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
-    <nav class="topbar-nav" aria-label="${esc(t('navMain'))}">${citiesNav}<button class="nav-btn ${isData?'active':''}" data-action="local-data" ${isData?'aria-current="page"':''}><span class="nav-icon">${uiIcon('database')}</span><span>${esc(t('localDataNav'))}</span></button><button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span class="nav-icon">${uiIcon('settings')}</span><span>${esc(t('settings'))}</span></button><button class="nav-btn ${isAbout?'active':''}" data-action="about" ${isAbout?'aria-current="page"':''}><span class="nav-icon">${uiIcon('info')}</span><span>${esc(t('about'))}</span></button><a class="nav-btn android-nav" href="https://play.google.com/store/apps/details?id=com.meteocompare.app" target="_blank" rel="noopener" aria-label="${esc(t('openAndroidApp'))}" title="${esc(t('openAndroidApp'))}"><span class="nav-icon">${uiIcon('download')}</span><span>Google Play</span></a><button class="nav-btn support-nav" data-action="donate"><span class="nav-icon">${uiIcon('heart')}</span><span>${esc(t('supportShort'))}</span></button></nav>
+    <nav class="topbar-nav" aria-label="${esc(t('navMain'))}">${citiesNav}<button class="nav-btn ${isData?'active':''}" data-action="local-data" ${isData?'aria-current="page"':''}><span class="nav-icon">${uiIcon('database')}</span><span>${esc(t('localDataNav'))}</span></button><button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span class="nav-icon">${uiIcon('settings')}</span><span>${esc(t('settings'))}</span></button><button class="nav-btn ${isAbout?'active':''}" data-action="about" ${isAbout?'aria-current="page"':''}><span class="nav-icon">${uiIcon('info')}</span><span>${esc(t('about'))}</span></button>${installNav}<button class="nav-btn support-nav" data-action="donate"><span class="nav-icon">${uiIcon('heart')}</span><span>${esc(t('supportShort'))}</span></button></nav>
     <div class="topbar-spacer"></div><div class="topbar-system-status ${health?.class|| (state.online?'online':'offline')}" title="${esc(statusTitle)}"><span class="system-led" aria-hidden="true"></span><span>${esc(statusLabel)}</span></div>
   </div></header>`;
 }
@@ -1341,6 +1361,7 @@ function handleChartPointerOut(e){
 }
 
 function handleGlobalKeydown(e){
+  if(e.key==='Escape'&&app?.querySelector?.('.nav-install-menu.is-open')){e.preventDefault();const installMenu=app.querySelector('.nav-install-menu.is-open'),trigger=installMenu?.querySelector?.('[data-action="toggle-install-menu"]');closeInstallMenus();trigger?.focus?.();return;}
   if(e.key==='Escape'&&state.modal){e.preventDefault();closeModal();return;}
   if((e.key==='Enter'||e.key===' ')&&e.target?.matches?.('.brand[role="link"]')){e.preventDefault();go('#/');return;}
   if((e.key==='Enter'||e.key===' ')&&e.target?.matches?.('[data-city-open][role="link"]')){e.preventDefault();go(`#/city/${encodeURIComponent(e.target.dataset.cityOpen)}`);return;}
@@ -1392,6 +1413,7 @@ function openSeoCityLink(link){
   return true;
 }
 function handleAppClick(e){
+  if(!e.target.closest?.('.nav-install-menu'))closeInstallMenus();
   const seoLink=e.target.closest?.('a[data-seo-city-link]');
   if(seoLink&&app.contains(seoLink)&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();if(openSeoCityLink(seoLink))return;}
   const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section],[data-compare-model],[data-export-format],[data-agreement-time],[data-density],[data-city-compare-toggle],[data-evolution-variable],[data-reliability-variable],[data-local-weighting],[data-collapse-section],[data-error-action]');
@@ -1449,10 +1471,12 @@ function handleAction(e){
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='toggle-target-compare'){const key=state.route.name==='city'?state.route.id:'global',panel=e.currentTarget.closest?.('[data-target-compare]'),next=panel?.dataset.open!=='true';state.comparePanelOpen[key]=next;if(panel){panel.dataset.open=String(next);const btn=panel.querySelector?.('[data-action="toggle-target-compare"]');if(btn)btn.setAttribute('aria-expanded',String(next));const body=panel.querySelector?.('.target-compare-body');if(body)body.hidden=!next;} }
+  else if(action==='toggle-install-menu'){const menu=e.currentTarget.closest?.('.nav-install-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeInstallMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
+  else if(action==='install-play-store'){closeInstallMenus();void trackAnalyticsEvent('Install Option Selected',state.route,{source:'play_store'});}
   else if(action==='settings')go('#/settings');
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}
   else if(action==='about')go('#/about');
-  else if(action==='install-pwa'){if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}void trackAnalyticsEvent('PWA Install Click',state.route);const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{if(choice?.outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();}).catch(()=>toast(pwaInstallGuidance().text));}
+  else if(action==='install-pwa'){closeInstallMenus();void trackAnalyticsEvent('Install Option Selected',state.route,{source:'pwa'});if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}void trackAnalyticsEvent('PWA Install Click',state.route);const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{if(choice?.outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();else refreshInstallNav();}).catch(()=>toast(pwaInstallGuidance().text));}
   else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();void trackAnalyticsEvent('Share Link Copied',state.route);const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast(i18n().t('linkCopied'))).catch(()=>prompt(i18n().t('copyLinkPrompt'),url));else prompt(i18n().t('copyLinkPrompt'),url);}
   else if(action==='open-city-compare'){lastFocusedBeforeModal=document.activeElement;const favorites=favoriteCities(),initial=state.route.name==='compare'?(state.route.ids||[]):favorites.slice(0,Math.min(2,favorites.length)).map(c=>c.id);state.modal={type:'cityCompare',selectedIds:[...initial]};render();}
   else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'));return;}void trackAnalyticsEvent('City Comparison Started',state.route,{city_count:ids.length});state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
