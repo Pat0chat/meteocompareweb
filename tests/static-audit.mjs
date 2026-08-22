@@ -70,7 +70,7 @@ assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city r
 assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
-assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 assert.match(css, /#app \{ overflow-anchor: none; \}/, 'browser scroll anchoring must not fight the explicit viewport restoration logic');
 assert.doesNotMatch(css, /\.section, \.city-card, \.settings-section \{ content-visibility: auto/, 'detail sections must not use estimated off-screen heights that can cause scroll jumps');
 assert.doesNotMatch(css, /\.settings-section[^}]*content-visibility:\s*auto/s, 'Settings sections must remain fully laid out to avoid click/focus scroll jumps');

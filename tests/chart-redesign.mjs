@@ -23,5 +23,5 @@ assert.match(css,/\.compare-legend\.rich/,'comparison legends include richer val
 assert.match(css,/\.bias-error-connector\.over/,'bias overestimation gaps are styled');
 assert.match(i18n,/importCatalog/,'i18n uses lazy locale loading');
 for (const lang of ['fr','en','es','de','it']) assert.match(localeFiles[lang],/\"chartRange\":/,`${lang} chart translations exist`);
-assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 console.log('MeteoCompare Web chart redesign tests: OK');

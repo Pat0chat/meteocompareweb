@@ -10,7 +10,7 @@ assert.match(css,/\.home-watch-section \{[\s\S]*border:1px solid var\(--border\)
 assert.match(css,/\.timeline-ruler-slot::after/);
 assert.match(css,/\.timeline-ruler-slot span::after \{ content:none/);
 assert.match(css,/--ruler-accent/);
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=58);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 const dates=['2026-08-20'];
 const hourly=['2026-08-20T00:00','2026-08-20T12:00'];
 const mk=(cloud)=>({hourly:{timestamps:hourly,cloudCover:cloud,weatherCode:[2,2],precipitation:[0,0],temperature2m:[20,25],windSpeed10m:[10,12],windGusts10m:[15,18]},daily:{dates,tempMax:[25],tempMin:[18],precipitationSum:[0],precipitationProbabilityMax:[10],windSpeedMax:[12],windGustsMax:[18],windDirection10mDominant:[180],weatherCode:[2],sunrise:['2026-08-20T06:30'],sunset:['2026-08-20T20:40']},coverage:{daily:{temperature:[true],precipitation:[true],wind:[true],condition:[true]}}});

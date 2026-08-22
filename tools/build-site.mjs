@@ -45,7 +45,7 @@ function cityPrerender(city){
 
 await rm(out,{recursive:true,force:true});
 await mkdir(out,{recursive:true});
-for(const entry of ['index.html','styles.css','sw.js','VERSION','manifest.webmanifest','manifest.fr.webmanifest','manifest.en.webmanifest','manifest.es.webmanifest','manifest.de.webmanifest','manifest.it.webmanifest','.nojekyll']){
+for(const entry of ['index.html','styles.css','sw.js','cache-version.js','VERSION','manifest.webmanifest','manifest.fr.webmanifest','manifest.en.webmanifest','manifest.es.webmanifest','manifest.de.webmanifest','manifest.it.webmanifest','.nojekyll']){
   await cp(join(root,entry),join(out,entry),{recursive:true});
 }
 for(const entry of ['assets','js'])await cp(join(root,entry),join(out,entry),{recursive:true});

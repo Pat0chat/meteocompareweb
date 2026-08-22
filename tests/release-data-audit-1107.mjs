@@ -156,6 +156,6 @@ assert.match(appSource,/data-agreement-epoch/, 'agreement drill-down must preser
 const releaseVersion=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim(),swSource=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 assert.ok(releaseVersion.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${releaseVersion}`);
 assert.match(swSource,/const APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(swSource,/const CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
+assert.match(swSource,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 console.log('MeteoCompare Web 1.10.8 release data-chain audit: OK');

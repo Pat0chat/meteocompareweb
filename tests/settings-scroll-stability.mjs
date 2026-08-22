@@ -12,5 +12,5 @@ for(const key of ['localWeighting','theme','refreshInterval','density']){
 }
 assert.match(app,/target\.dataset\.modelSort[^\n]+render\(\{scroll:interactionScrollContext,immediate:true\}\)/,'model sort rerender must preserve the clicked control');
 assert.match(app,/changeLanguage\(nextLanguage,directive\)/,'language rerender must carry its captured scroll directive');
-assert.match(sw,/const CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 console.log('MeteoCompare Web settings scroll stability tests: OK');

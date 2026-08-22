@@ -21,6 +21,7 @@ const diagnostics=app.indexOf('${renderDataDiagnosticsSection(city,f)}');
 const nearby=app.indexOf('${renderSeoNearby(city)}');
 assert.ok(context>=0 && insights>context && timeline>insights,'SEO city context must sit immediately before insights and before timeline');
 assert.ok(nearby>diagnostics,'nearby SEO links should remain near the end of the detail page');
-assert.match(sw,/CACHE_VERSION = 'v74-plausible-seo-analytics'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
+assert.match(fs.readFileSync(new URL('../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
 console.log('MeteoCompare Web 1.14.0 SEO city context layout: OK');

@@ -10,5 +10,6 @@ assert.equal(version,'1.14.0','application version must stay unchanged');
 assert.match(app,/banner info convergence-info-banner[^>]*><b>\$\{esc\(t\('agreementNotAccuracy'\)\)\}<\/b><span>\$\{esc\(t\('agreementNotAccuracyBody'\)\)\}<\/span>/,'top convergence info banner must stack its title and body');
 assert.match(app,/banner info convergence-info-banner[^>]*><b>\$\{esc\(t\('reading'\)\)\} :<\/b><span>\$\{esc\(t\('disagreementReading'\)\)\}<\/span>/,'reading banner must stack its title and body');
 assert.match(css,/\.convergence-info-banner\s*\{[^}]*flex-direction:\s*column;[^}]*align-items:\s*flex-start;/s,'convergence banners must use a vertical flex layout');
-assert.match(sw,/CACHE_VERSION = 'v74-plausible-seo-analytics'/,'PWA cache must refresh changed CSS/JS');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache must use the centralized generation');
+assert.match(fs.readFileSync(new URL('../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 console.log('release-1131-convergence-banner: ok');

@@ -38,3 +38,4 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 6. Une opération asynchrone par entité utilise un registre de jetons dès qu'une réponse plus ancienne peut devenir obsolète.
 7. Une récupération réseau ne remplace une série existante que si sa qualité mesurée est supérieure.
 8. Le shell PWA doit contenir chaque import statique nécessaire au démarrage hors connexion.
+9. La génération du cache PWA a une source unique : `cache-version.js`. `sw.js` l'importe via `importScripts()` ; aucun autre fichier ne doit recopier la valeur courante du cache.

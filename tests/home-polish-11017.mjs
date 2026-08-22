@@ -4,7 +4,7 @@ const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const version=read('VERSION').trim(),app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js');
 assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);
 assert.match(home,/homeModernKicker/);

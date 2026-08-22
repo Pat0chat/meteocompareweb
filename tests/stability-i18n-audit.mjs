@@ -159,5 +159,5 @@ assert.match(api+apiBudget,/err\.code='OPEN_METEO_ERROR'/,'provider-declared fai
 assert.match(app,/function invalidateWeatherRefreshes\(\)\{cityRefreshTokens\.clear\(\);state\.loading\.clear\(\);\}/,'model configuration changes must invalidate in-flight weather loads');
 assert.match(app,/requestedModelIds[\s\S]*sameModels/,'forecast freshness must include the requested model cohort, not only age');
 
-assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 console.log('MeteoCompare Web stability + i18n audit tests: OK');

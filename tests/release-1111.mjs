@@ -11,7 +11,7 @@ const sw=read('sw.js');
 assert.ok(version.localeCompare('1.11.1',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=57);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function diagnosticStatusLabel('));
 const weatherIndex=detail.indexOf('detail-refresh-action\" data-refresh-city');

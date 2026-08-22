@@ -6,7 +6,7 @@ const version=read('VERSION').trim(), app=read('js/app.js'), css=read('styles.cs
 
 assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Detail workspace keeps a zero-min-width main area so tables can size without forcing the page wider.
 assert.match(css,/\.detail-workspace\s*\{[^}]*min-width:0/s);

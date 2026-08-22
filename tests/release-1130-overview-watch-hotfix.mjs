@@ -8,7 +8,7 @@ const css=read('styles.css'),app=read('js/app.js'),version=read('VERSION').trim(
 assert.equal(version,'1.14.0');
 assert.match(versionJs,/APP_VERSION = '1\.14\.0'/);
 assert.match(sw,/APP_VERSION = '1\.14\.0'/);
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=63,'1.13 cache generation must not regress');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 assert.match(css,/\.overview-layout\s*\{[^}]*align-items:\s*start/s);
 assert.match(css,/\.overview-primary\s*\{[^}]*display:\s*block[^}]*min-height:\s*0/s);
 assert.match(css,/\.overview-secondary\s*\{[^}]*height:\s*auto[^}]*grid-template-rows:\s*none/s);

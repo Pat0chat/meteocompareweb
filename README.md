@@ -211,3 +211,13 @@ La politique complète est dans `PRIVACY.md`.
 ### Configuration Cloudflare détaillée
 
 Voir [`CLOUDFLARE.md`](CLOUDFLARE.md) pour les valeurs exactes à saisir dans **Settings > Build**, aussi bien pour Workers Builds que pour l'ancien flux Pages.
+
+### Radar pluie
+
+La page **Détails** propose une vue radar optionnelle centrée sur la localité. Elle anime les observations RainViewer des deux dernières heures, sur fond OpenStreetMap, avec trois portées de visualisation. À partir de plusieurs images réparties dans l'historique disponible, le navigateur estime le déplacement dominant des précipitations et extrapole une zone probabiliste à +15, +30, +45 et +60 minutes. L'incertitude augmente avec l'horizon et une heure d'arrivée ou d'éloignement est affichée lorsqu'un signal suffisamment net traverse la localité. Cette projection courte durée est calculée localement et reste distincte de la synthèse multi-modèles affichée en dessous.
+
+Le module est chargé à la demande (`js/features/radar.js`) et ne contacte RainViewer/OpenStreetMap qu'après ouverture explicite de la modale. Le radar reste donc hors du chemin critique de chargement de l'application. Si l'analyse pixel des images n'est pas disponible, la projection se désactive proprement sans empêcher l'animation radar observée.
+
+### Génération du cache PWA
+
+La génération du cache du shell PWA est centralisée dans **`cache-version.js`**. `sw.js` importe cette valeur et tous les tests vérifient désormais cette référence au lieu de recopier une version de cache. Pour forcer une nouvelle génération de cache lors d'une évolution du shell, un seul fichier est à modifier : `cache-version.js`.

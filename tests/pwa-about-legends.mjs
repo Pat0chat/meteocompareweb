@@ -35,7 +35,7 @@ assert.match(app,/promptEvent\.prompt\(\)/,'install action invokes the browser i
 assert.match(app,/appinstalled/,'installed state is observed');
 assert.match(app,/pwaInstallFirefoxWindows/,'Firefox Windows native web-app guidance is handled');
 assert.match(app,/pwaInstallIos/,'iOS manual installation guidance is handled');
-assert.ok(Number(sw.match(/CACHE_VERSION\s*=\s*['"]v(\d+)/)?.[1] || 0) >= 18, 'PWA cache version must not regress below v18');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 // New strings remain complete in all supported languages.
 const audit=webTranslationAudit();

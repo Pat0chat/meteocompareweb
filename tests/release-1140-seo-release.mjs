@@ -10,7 +10,8 @@ const read=path=>fs.readFileSync(resolve(root,path),'utf8');
 assert.equal(read('VERSION').trim(),'1.14.0');
 assert.match(read('js/version.js'),/APP_VERSION = '1\.14\.0'/);
 assert.match(read('sw.js'),/APP_VERSION = '1\.14\.0'/);
-assert.match(read('sw.js'),/CACHE_VERSION = 'v74-plausible-seo-analytics'/);
+assert.match(read('sw.js'),/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
+assert.match(read('cache-version.js'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
 const index=read('index.html');
 assert.match(index,/rel="icon" href="assets\/icon\.png"/);

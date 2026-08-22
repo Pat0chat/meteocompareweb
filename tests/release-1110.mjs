@@ -14,7 +14,7 @@ const css=read('styles.css');
 assert.ok(version.localeCompare('1.11.0',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=56);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const homeStart=app.indexOf('function renderHome()');
 const homeEnd=app.indexOf('function renderHeatmap(',homeStart);

@@ -13,5 +13,5 @@ assert.match(css,/\.summary-context-chips > \.summary-solar-pair \{[\s\S]*grid-c
 assert.match(css,/\.timeline-ruler-slot span::after \{ content:none; display:none; \}/);
 assert.match(css,/\.timeline-ruler-slot::after \{[\s\S]*background:linear-gradient/);
 assert.match(css,/\.timeline-full \{ margin-top:8px; \}/);
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=61);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 console.log('MeteoCompare Web 1.12.1 detail hierarchy polish: OK');

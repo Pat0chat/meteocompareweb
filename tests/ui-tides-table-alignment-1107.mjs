@@ -7,7 +7,7 @@ const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
-assert.match(sw,/const CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.ok(app.includes('const w=960,h=360,pad={l:58,r:26,t:30,b:50}'),'tide SVG uses the expanded 8:3 plotting canvas');
 assert.ok(css.includes('.marine-tide-layout {\n  grid-template-columns: minmax(0,1fr);'),'tide chart occupies the full workspace width');
 assert.ok(css.includes('aspect-ratio: 8 / 3;'),'tide chart gets a stable full-width/full-height ratio');

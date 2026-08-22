@@ -109,7 +109,7 @@ env.navigator.globalPrivacyControl=false; env.navigator.doNotTrack='1'; assert.e
 env.navigator.doNotTrack='0'; env.location.hostname='preview.pages.dev'; assert.equal(client.status().hostAllowed,false); assert.equal(client.status().active,false);
 
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
-for(const event of ['PWA Install Click','PWA Installed','City Search Opened','City Added','SEO City Favorite Added','Forecast Refreshed','Forecast View Changed','Model Comparison Changed','City Comparison Started','Marine Activated','Data Exported','Share Link Copied','Local Weighting Changed']){
+for(const event of ['PWA Install Click','PWA Installed','City Search Opened','City Added','SEO City Favorite Added','Forecast Refreshed','Forecast View Changed','Model Comparison Changed','City Comparison Started','Marine Activated','Data Exported','Share Link Copied','Local Weighting Changed','Rain Radar Opened','Rain Radar Range Changed']){
   assert.ok(app.includes(`trackAnalyticsEvent('${event}'`),`app should track ${event}`);
 }
 assert.match(app,/trackPageView\(state\.route\)/);
@@ -134,5 +134,6 @@ assert.match(privacy,/statistiques agrégées/);
 assert.match(privacy,/configuration effective du fournisseur/);
 
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
-assert.match(sw,/CACHE_VERSION = 'v74-plausible-seo-analytics'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
+assert.match(fs.readFileSync(new URL('../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 console.log('MeteoCompare privacy-first Plausible analytics tests: OK');

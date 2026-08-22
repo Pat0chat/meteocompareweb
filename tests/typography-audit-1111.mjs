@@ -9,7 +9,7 @@ const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.match(sw,/CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(css,/v1\.10\.11 — typography audit/);
 assert.match(css,/--type-micro:\s*\.7rem/);
 assert.match(css,/--type-section:\s*1\.08rem/);

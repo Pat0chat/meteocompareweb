@@ -8,7 +8,7 @@ const version=fs.readFileSync('VERSION','utf8').trim();
 
 assert.ok(version.localeCompare('1.10.14',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Mes villes: normal navigation remains, quick hover/focus menu adds direct routes.
 assert.match(app,/class="nav-cities-menu"/);

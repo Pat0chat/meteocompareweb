@@ -38,7 +38,8 @@ assert.match(build,/sitemap\.xml/);
 assert.match(build,/robots\.txt/);
 assert.match(build,/_redirects/);
 assert.match(wrangler,/"directory"\s*:\s*"\.\/dist"/);
-assert.match(sw,/CACHE_VERSION = 'v74-plausible-seo-analytics'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
+assert.match(fs.readFileSync(new URL('../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 assert.match(sw,/cache\.put\(request,copy\)/,'navigation cache must preserve each clean URL independently');
 
 execFileSync(process.execPath,['tools/build-site.mjs'],{cwd:root,stdio:'pipe'});

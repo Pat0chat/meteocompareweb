@@ -12,7 +12,7 @@ const comparison=fs.readFileSync(new URL('../js/features/comparison.js',import.m
 
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
 assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/const CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(sw,/\.\/js\/consensus\.js/,'consensus engine must be available offline in the PWA shell');
 
 assert.equal(consensusGroupFor('AROME_FRANCE_HD'),consensusGroupFor('AROME_FRANCE'));

@@ -5,7 +5,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw
 assert.ok(version.localeCompare('1.10.14',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
 assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(app,/nav-cities-popover/);
 assert.match(app,/enhanceCollapsibleCards/);
 assert.match(css,/--space-4:/);

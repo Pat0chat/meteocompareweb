@@ -7,7 +7,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw
 assert.equal(version,'1.14.0');
 assert.ok(versionJs.includes("APP_VERSION = '1.14.0'"));
 assert.match(sw,/APP_VERSION = '1\.14\.0'/);
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=67,'1.14.0 cache generation must not regress below v67');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 assert.match(app,/home-empty-logo[^>]+src="\$\{attr\(appAssetUrl\('assets\/icon\.png'\)\)\}"/,'empty home must use the MeteoCompare application icon');
 assert.match(css,/\.home-empty \.home-empty-logo-wrap\s*\{[^}]*place-items:center/s,'empty home icon host must be centered');

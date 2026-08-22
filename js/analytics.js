@@ -18,6 +18,8 @@ const EVENT_SCHEMAS=new Map([
   ['Data Exported',{format:new Set(['json','csv'])}],
   ['Share Link Copied',{}],
   ['Local Weighting Changed',{enabled:'boolean'}],
+  ['Rain Radar Opened',{}],
+  ['Rain Radar Range Changed',{range:new Set(['near','regional','wide'])}],
 ]);
 
 export function analyticsRoutePath(route){

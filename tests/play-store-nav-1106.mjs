@@ -18,5 +18,5 @@ assert.match(nav,/<span>Google Play<\/span>/);
 assert.match(css,/\.topbar \.android-nav/);
 assert.match(css,/@media \(max-width:860px\)[\s\S]*\.topbar \.nav-btn > span:last-child \{ display:none; \}/);
 assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/const CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 console.log('MeteoCompare Web Play Store navigation regression: OK');

@@ -10,7 +10,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),app=read('j
 assert.ok(/^\d+\.\d+\.\d+$/.test(version));
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=60,'1.12.1 cache generation must not regress');
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';
 assert.match(csp,/script-src 'self' 'sha256-ns7Fh0w\+Z3PjL\/\/vDImEeGKNiiYs15OyfpFcmcOLWUk='/);

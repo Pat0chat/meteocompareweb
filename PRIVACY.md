@@ -126,3 +126,16 @@ https://www.cnil.fr/fr/cookies-solutions-pour-les-outils-de-mesure-daudience
 
 Pour toute question :
 https://github.com/Pat0chat/MeteoCompare/issues
+
+## Radar pluie optionnel
+
+La vue **Radar pluie** de la page Détails est entièrement optionnelle et ne déclenche aucune requête tant que l'utilisateur ne l'ouvre pas.
+
+À l'ouverture, MeteoCompare contacte :
+
+- **RainViewer** pour récupérer les images radar des deux dernières heures. Les coordonnées de la localité affichée sont incluses dans la requête d'image afin de centrer le radar. RainViewer reçoit donc ces coordonnées ainsi que les métadonnées réseau habituelles d'une requête HTTPS.
+- **OpenStreetMap** pour afficher le fond cartographique. Les requêtes concernent uniquement les tuiles nécessaires à la zone visible et respectent le cache HTTP du navigateur.
+
+Ces données ne sont pas ajoutées aux événements Plausible. Plausible reçoit uniquement l'ouverture de la fonctionnalité et, le cas échéant, la classe de portée choisie (`near`, `regional` ou `wide`) ; aucun nom de ville ni aucune coordonnée n'est transmis à Plausible.
+
+Le radar public RainViewer fournit des observations passées. MeteoCompare peut calculer **localement dans le navigateur** une extrapolation courte durée à partir du déplacement observé sur plusieurs images radar. Ce calcul ne transmet aucune donnée supplémentaire : il estime un mouvement dominant, affiche des zones probabilistes jusqu'à +60 minutes et augmente volontairement l'incertitude avec l'horizon. Il s'agit d'un nowcast d'extrapolation, pas d'une nouvelle donnée future fournie par RainViewer. La synthèse multi-modèles reste affichée séparément pour compléter cette lecture.

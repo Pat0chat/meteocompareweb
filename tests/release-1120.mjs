@@ -10,7 +10,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),app=read('j
 const [major,minor]=version.split('.').map(Number);assert.ok(major>1||(major===1&&minor>=12),'1.12 object foundation must remain compatible in later releases');
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=59);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 for(const file of ['core/app-state.js','core/cache-registry.js','core/feature-registry.js','core/local-analysis-store.js','core/application-kernel.js','ui/weather-icons.js'])assert.ok(sw.includes(`./js/${file}`),`${file} missing from PWA shell`);
 
 assert.match(app,/new ApplicationKernel\(/);

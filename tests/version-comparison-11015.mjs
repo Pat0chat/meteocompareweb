@@ -5,7 +5,7 @@ const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw
 assert.ok(version.localeCompare('1.10.15',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
 assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/CACHE_VERSION = 'v\d+-[a-z0-9-]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 // Version is discreetly visible beside the brand and detailed on About.
 assert.match(app,/class="brand-title-row"/);
 assert.match(app,/class="brand-version"/);

@@ -14,7 +14,7 @@ const css=read('styles.css');
 assert.ok(version.localeCompare('1.10.12',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
 assert.ok(sw.includes(`APP_VERSION = '${version}'`));
-assert.match(sw,/CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Settings must use intrinsic flow: no fake spacer tracks or auto-pushed actions.
 assert.match(css,/\.settings-control-grid\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)[^}]*width:100%/);

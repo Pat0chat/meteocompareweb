@@ -6,7 +6,7 @@ const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
 const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),css=read('styles.css');
 assert.equal(version,'1.14.0','product version must remain 1.14.0');
 assert.ok(versionJs.includes("APP_VERSION = '1.14.0'"));
-assert.ok(Number(sw.match(/CACHE_VERSION = 'v(\d+)/)?.[1]||0)>=65);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const icons=new WeatherIconRenderer();
 const conditions=['CLEAR','MAINLY_CLEAR','PARTLY_CLOUDY','OVERCAST','FOG','DRIZZLE','RAIN','RAIN_SHOWERS','SNOW','SNOW_SHOWERS','FREEZING_RAIN','THUNDERSTORM','UNKNOWN'];

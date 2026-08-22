@@ -66,6 +66,8 @@ Pour la comparaison de villes :
 - `Model Comparison Changed` (`model_count`)
 - `City Comparison Started` (`city_count`)
 - `Marine Activated`
+- `Rain Radar Opened`
+- `Rain Radar Range Changed` (`range`: `near`, `regional` ou `wide`)
 - `Data Exported` (`format=json|csv`)
 - `Share Link Copied`
 - `Local Weighting Changed` (`enabled=true|false`)
@@ -104,7 +106,7 @@ Après les premiers événements, ajouter les événements personnalisés comme 
 3. ajout de ville : `City Search Opened` → `City Added` ;
 4. comparaison : `/city` → `City Comparison Started` → `/compare` ;
 5. installation PWA : `PWA Install Click` → `PWA Installed` ;
-6. adoption fonctionnelle : `Marine Activated`, `Data Exported`, `Model Comparison Changed` ;
+6. adoption fonctionnelle : `Marine Activated`, `Rain Radar Opened`, `Rain Radar Range Changed`, `Data Exported`, `Model Comparison Changed` ;
 7. acquisition : Sources + Campaigns grâce au referrer minimisé et aux UTM.
 
 ## Confidentialité
