@@ -3,7 +3,11 @@ const OSM_TILE_URL='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const RADAR_META_TTL_MS=5*60_000;
 const RADAR_COLOR_SCHEME=2;
 const RADAR_OPTIONS='1_1';
-const RANGE_ZOOMS={near:7,regional:6,wide:5};
+export const RADAR_RANGE_CONFIG={
+  near:{mapZoom:9,radarZoom:7,radarScale:4},
+  regional:{mapZoom:8,radarZoom:7,radarScale:2},
+  wide:{mapZoom:6,radarZoom:5,radarScale:2}
+};
 const ANALYSIS_SIZE=96;
 const NOWCAST_HORIZONS=[15,30,45,60];
 const NOWCAST_COLORS=['#38bdf8','#22c55e','#f59e0b','#e879f9'];
@@ -134,15 +138,25 @@ export function radarImageUrl(meta,frame,city,zoom){
   return `${meta.host}${frame.path}/512/${zoom}/${lat.toFixed(5)}/${lon.toFixed(5)}/${RADAR_COLOR_SCHEME}/${RADAR_OPTIONS}.png`;
 }
 
-function renderBaseTiles(stage,city,zoom){
+function renderBaseTiles(stage,city,mapZoom){
   const layer=stage.querySelector('[data-radar-base]');if(!layer)return;
-  const width=Math.max(280,stage.clientWidth||512),height=Math.max(280,stage.clientHeight||width),center=project(city.latitude,city.longitude,zoom),left=center.x-width/2,top=center.y-height/2,startX=Math.floor(left/256),endX=Math.floor((left+width)/256),startY=Math.max(0,Math.floor(top/256)),endY=Math.min(2**zoom-1,Math.floor((top+height)/256));
+  const width=Math.max(280,stage.clientWidth||512),height=Math.max(180,stage.clientHeight||360),center=project(city.latitude,city.longitude,mapZoom),left=center.x-width/2,top=center.y-height/2,startX=Math.floor(left/256),endX=Math.floor((left+width)/256),startY=Math.max(0,Math.floor(top/256)),endY=Math.min(2**mapZoom-1,Math.floor((top+height)/256));
   let html='';
   for(let y=startY;y<=endY;y++)for(let x=startX;x<=endX;x++){
-    const tileX=wrapTileX(x,zoom),px=x*256-left,py=y*256-top,url=OSM_TILE_URL.replace('{z}',zoom).replace('{x}',tileX).replace('{y}',y);
+    const tileX=wrapTileX(x,mapZoom),px=x*256-left,py=y*256-top,url=OSM_TILE_URL.replace('{z}',mapZoom).replace('{x}',tileX).replace('{y}',y);
     html+=`<img class="radar-base-tile" src="${url}" alt="" draggable="false" style="left:${px}px;top:${py}px" referrerpolicy="strict-origin-when-cross-origin">`;
   }
   layer.innerHTML=html;
+}
+
+function applyRadarGeometry(image,rangeConfig){
+  if(!image||!rangeConfig)return;
+  const size=512*rangeConfig.radarScale;
+  image.style.width=`${size}px`;
+  image.style.height=`${size}px`;
+  image.style.left='50%';
+  image.style.top='50%';
+  image.style.transform='translate(-50%,-50%)';
 }
 
 function renderForecast(container,forecast,{t,locale}){
@@ -172,11 +186,11 @@ function roundedLabel(ctx,text,x,y,color,width,height){ctx.save();ctx.font='700 
 function paintNowcast(){
   if(!controller)return;const canvas=controller.root.querySelector('[data-radar-nowcast]'),stage=controller.root.querySelector('[data-radar-stage]');if(!canvas||!stage)return;
   const visible=Boolean(controller.nowcast&&controller.index===controller.frames.length-1),badge=controller.root.querySelector('.radar-nowcast-badge');canvas.classList.toggle('active',visible);badge?.classList.toggle('active',visible);if(!visible)return;
-  const {mask,motion}=controller.nowcast,width=stage.clientWidth||512,height=stage.clientHeight||width,dpr=Math.min(2,window.devicePixelRatio||1);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
-  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);const scaleX=width/ANALYSIS_SIZE,scaleY=height/ANALYSIS_SIZE,centroid=maskCentroid(mask,ANALYSIS_SIZE,ANALYSIS_SIZE);if(!centroid)return;
+  const {mask,motion}=controller.nowcast,width=stage.clientWidth||512,height=stage.clientHeight||360,dpr=Math.min(2,window.devicePixelRatio||1),rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near,sourceSize=512*rangeConfig.radarScale,sourceScale=sourceSize/ANALYSIS_SIZE,sourceLeft=(width-sourceSize)/2,sourceTop=(height-sourceSize)/2;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);const centroid=maskCentroid(mask,ANALYSIS_SIZE,ANALYSIS_SIZE);if(!centroid)return;
   const maskCanvas=document.createElement('canvas');maskCanvas.width=ANALYSIS_SIZE;maskCanvas.height=ANALYSIS_SIZE;const maskCtx=maskCanvas.getContext('2d'),image=maskCtx.createImageData(ANALYSIS_SIZE,ANALYSIS_SIZE);for(let index=0,pixel=0;index<mask.length;index++,pixel+=4)if(mask[index]){image.data[pixel]=255;image.data[pixel+1]=255;image.data[pixel+2]=255;image.data[pixel+3]=215;}maskCtx.putImageData(image,0,0);
-  const current={x:centroid.x*scaleX,y:centroid.y*scaleY},points=[];
-  for(let idx=NOWCAST_HORIZONS.length-1;idx>=0;idx--){const horizon=NOWCAST_HORIZONS[idx],dx=motion.vx*horizon*scaleX,dy=motion.vy*horizon*scaleY,uncertainty=1.1+(horizon/15)*(1.0+(1-motion.confidence)*1.7),color=NOWCAST_COLORS[idx],opacity=clamp(.29-horizon*.0025,.10,.24);const tint=document.createElement('canvas');tint.width=ANALYSIS_SIZE;tint.height=ANALYSIS_SIZE;const tintCtx=tint.getContext('2d');tintCtx.drawImage(maskCanvas,0,0);tintCtx.globalCompositeOperation='source-in';tintCtx.fillStyle=color;tintCtx.fillRect(0,0,ANALYSIS_SIZE,ANALYSIS_SIZE);ctx.save();ctx.globalAlpha=opacity;ctx.filter=`blur(${Math.max(2,uncertainty*scaleX*.62)}px)`;ctx.drawImage(tint,dx,dy,width,height);ctx.restore();points.unshift({horizon,x:current.x+dx,y:current.y+dy,uncertainty:uncertainty*scaleX,color});}
+  const current={x:sourceLeft+centroid.x*sourceScale,y:sourceTop+centroid.y*sourceScale},points=[];
+  for(let idx=NOWCAST_HORIZONS.length-1;idx>=0;idx--){const horizon=NOWCAST_HORIZONS[idx],dx=motion.vx*horizon*sourceScale,dy=motion.vy*horizon*sourceScale,uncertainty=1.1+(horizon/15)*(1.0+(1-motion.confidence)*1.7),color=NOWCAST_COLORS[idx],opacity=clamp(.29-horizon*.0025,.10,.24);const tint=document.createElement('canvas');tint.width=ANALYSIS_SIZE;tint.height=ANALYSIS_SIZE;const tintCtx=tint.getContext('2d');tintCtx.drawImage(maskCanvas,0,0);tintCtx.globalCompositeOperation='source-in';tintCtx.fillStyle=color;tintCtx.fillRect(0,0,ANALYSIS_SIZE,ANALYSIS_SIZE);ctx.save();ctx.globalAlpha=opacity;ctx.filter=`blur(${Math.max(2,uncertainty*sourceScale*.62)}px)`;ctx.drawImage(tint,sourceLeft+dx,sourceTop+dy,sourceSize,sourceSize);ctx.restore();points.unshift({horizon,x:current.x+dx,y:current.y+dy,uncertainty:uncertainty*sourceScale,color});}
   ctx.save();ctx.strokeStyle='rgba(255,255,255,.86)';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(current.x,current.y);for(const point of points)ctx.lineTo(point.x,point.y);ctx.stroke();for(const point of points){ctx.beginPath();ctx.strokeStyle=point.color;ctx.globalAlpha=.82;ctx.lineWidth=1.5;ctx.ellipse(point.x,point.y,point.uncertainty*1.35,point.uncertainty,Math.atan2(motion.vy,motion.vx),0,Math.PI*2);ctx.stroke();}ctx.restore();
   const timezone=controller.forecast?.city?.timezone||'UTC',latest=controller.frames.at(-1)?.time||Date.now()/1000;for(const point of points){const label=timeText(latest+point.horizon*60,controller.locale,timezone);roundedLabel(ctx,label,point.x,point.y-point.uncertainty-14,point.color,width,height);}
 }
@@ -185,7 +199,7 @@ function renderNowcastSummary(){
   if(!controller)return;const node=controller.root.querySelector('[data-radar-nowcast-summary]');if(!node)return;
   if(controller.nowcastBusy){node.className='radar-nowcast-summary loading';node.innerHTML=`<span class="loader"></span><span>${esc(controller.t('radarNowcastAnalyzing'))}</span>`;return;}
   const result=controller.nowcast;if(!result){node.className='radar-nowcast-summary unavailable';node.textContent=controller.t('radarNowcastUnavailable');return;}
-  const latest=controller.frames.at(-1)?.time||Date.now()/1000,eta=result.eta,timezone=controller.forecast?.city?.timezone||'UTC',speedPxPerMin=Math.hypot(result.motion.vx,result.motion.vy),pixelKm=mapResolutionKm(controller.city.latitude,controller.zoom)*(512/ANALYSIS_SIZE),speedKmh=Math.round(speedPxPerMin*pixelKm*60),direction=compass(result.motion.vx,result.motion.vy),confidence=Math.round(result.motion.confidence*100);
+  const latest=controller.frames.at(-1)?.time||Date.now()/1000,eta=result.eta,timezone=controller.forecast?.city?.timezone||'UTC',speedPxPerMin=Math.hypot(result.motion.vx,result.motion.vy),pixelKm=mapResolutionKm(controller.city.latitude,(RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near).radarZoom)*(512/ANALYSIS_SIZE),speedKmh=Math.round(speedPxPerMin*pixelKm*60),direction=compass(result.motion.vx,result.motion.vy),confidence=Math.round(result.motion.confidence*100);
   let headline='';
   if(eta.kind==='approaching')headline=controller.t('radarNowcastArrival',{time:timeText(latest+eta.minute*60,controller.locale,timezone),minutes:eta.uncertaintyMinutes});
   else if(eta.kind==='leaving')headline=controller.t('radarNowcastDeparture',{time:timeText(latest+eta.minute*60,controller.locale,timezone),minutes:eta.uncertaintyMinutes});
@@ -198,7 +212,7 @@ async function analyzeNowcast(){
   if(!controller?.meta||controller.frames.length<2)return;controller.nowcastBusy=true;renderNowcastSummary();
   try{
     const sourceFrames=controller.frames,indices=[...new Set([0,Math.round((sourceFrames.length-1)*.25),Math.round((sourceFrames.length-1)*.5),Math.round((sourceFrames.length-1)*.75),sourceFrames.length-1])],candidates=indices.map(index=>sourceFrames[index]).filter(Boolean),samples=[];
-    for(const frame of candidates){const mask=await imageMask(radarImageUrl(controller.meta,frame,controller.city,controller.zoom),controller.abortController.signal);samples.push({mask,time:frame.time});}
+    for(const frame of candidates){const mask=await imageMask(radarImageUrl(controller.meta,frame,controller.city,(RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near).radarZoom),controller.abortController.signal);samples.push({mask,time:frame.time});}
     if(!controller||controller.abortController.signal.aborted)return;const motion=estimateRadarMotion(samples);if(!motion)throw new Error('RADAR_MOTION_UNCERTAIN');const mask=samples.at(-1).mask,eta=radarNowcastEta(mask,motion);controller.nowcast={mask,motion,eta};controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();
   }catch(error){if(!controller||controller.abortController.signal.aborted)return;controller.nowcast=null;controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();console.warn('Radar nowcast:',error);}
 }
@@ -216,21 +230,21 @@ export function destroyRadarModal(){cleanup();}
 export async function mountRadarModal({root,city,forecast,t,locale='fr-FR',onRangeChange=null}){
   cleanup();if(!root||!city)return;
   const abortController=new AbortController();
-  controller={root,city,forecast,t,locale,index:0,range:'near',zoom:RANGE_ZOOMS.near,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastBusy:false};
+  controller={root,city,forecast,t,locale,index:0,range:'near',frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastBusy:false};
   const status=root.querySelector('[data-radar-status]'),stage=root.querySelector('[data-radar-stage]'),radarImage=root.querySelector('[data-radar-image]'),timeLabel=root.querySelector('[data-radar-time]'),slider=root.querySelector('[data-radar-slider]'),play=root.querySelector('[data-radar-play]'),forecastRoot=root.querySelector('[data-radar-forecast]');
   if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale});
   if(!stage||!radarImage)return;
-  const paintBase=()=>{renderBaseTiles(stage,city,controller?.zoom||RANGE_ZOOMS.near);paintNowcast();};paintBase();
+  const paintBase=()=>{const rangeConfig=RADAR_RANGE_CONFIG[controller?.range]||RADAR_RANGE_CONFIG.near;renderBaseTiles(stage,city,rangeConfig.mapZoom);applyRadarGeometry(radarImage,rangeConfig);paintNowcast();};paintBase();
   if(typeof ResizeObserver!=='undefined'){controller.resizeObserver=new ResizeObserver(paintBase);controller.resizeObserver.observe(stage);}
   const setPlaying=playing=>{if(!controller)return;controller.playing=Boolean(playing);if(controller.timer){clearInterval(controller.timer);controller.timer=null;}if(controller.playing&&controller.index>=controller.frames.length-1)controller.index=0;if(play){play.textContent=controller.playing?'❚❚':'▶';play.setAttribute('aria-label',t(controller.playing?'radarPause':'radarPlay'));play.title=t(controller.playing?'radarPause':'radarPlay');}if(controller.playing&&controller.frames.length>1)controller.timer=setInterval(()=>{if(!controller)return;if(controller.index>=controller.frames.length-1){setPlaying(false);paintFrame();return;}controller.index++;paintFrame();},700);};
   const paintFrame=()=>{
-    if(!controller?.meta||!controller.frames.length)return;const frame=controller.frames[controller.index];radarImage.src=radarImageUrl(controller.meta,frame,city,controller.zoom);radarImage.alt=t('radarFrameAlt',{time:timeText(frame.time,locale,forecast?.city?.timezone||'UTC')});
+    if(!controller?.meta||!controller.frames.length)return;const frame=controller.frames[controller.index];const rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near;applyRadarGeometry(radarImage,rangeConfig);radarImage.src=radarImageUrl(controller.meta,frame,city,rangeConfig.radarZoom);radarImage.alt=t('radarFrameAlt',{time:timeText(frame.time,locale,forecast?.city?.timezone||'UTC')});
     if(timeLabel)timeLabel.textContent=timeText(frame.time,locale,forecast?.city?.timezone||'UTC');if(slider){slider.max=String(controller.frames.length-1);slider.value=String(controller.index);}paintNowcast();
   };
   root.addEventListener('click',event=>{
     if(!controller)return;const target=event.target.closest?.('[data-radar-play],[data-radar-range]');if(!target)return;
     if(target.hasAttribute('data-radar-play')){setPlaying(!controller.playing);paintFrame();return;}
-    const range=target.dataset.radarRange;if(!(range in RANGE_ZOOMS)||range===controller.range)return;controller.range=range;controller.zoom=RANGE_ZOOMS[range];root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});paintBase();paintFrame();controller.nowcast=null;void analyzeNowcast();onRangeChange?.(range);
+    const range=target.dataset.radarRange;if(!(range in RADAR_RANGE_CONFIG)||range===controller.range)return;controller.range=range;root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});paintBase();paintFrame();controller.nowcast=null;void analyzeNowcast();onRangeChange?.(range);
   },{signal:abortController.signal});
   slider?.addEventListener('input',()=>{if(!controller)return;setPlaying(false);controller.index=Math.max(0,Math.min(controller.frames.length-1,Number(slider.value)||0));paintFrame();},{signal:abortController.signal});
   try{

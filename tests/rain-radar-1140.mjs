@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { radarForecastHours, radarForecastTrend, radarImageUrl, estimateRadarTranslation, estimateRadarMotion, radarNowcastEta } from '../js/features/radar.js';
+import { RADAR_RANGE_CONFIG, radarForecastHours, radarForecastTrend, radarImageUrl, estimateRadarTranslation, estimateRadarMotion, radarNowcastEta } from '../js/features/radar.js';
+
+
+assert.deepEqual(RADAR_RANGE_CONFIG.near,{mapZoom:9,radarZoom:7,radarScale:4});
+assert.deepEqual(RADAR_RANGE_CONFIG.regional,{mapZoom:8,radarZoom:7,radarScale:2});
+assert.deepEqual(RADAR_RANGE_CONFIG.wide,{mapZoom:6,radarZoom:5,radarScale:2});
+assert.ok(RADAR_RANGE_CONFIG.near.mapZoom>RADAR_RANGE_CONFIG.regional.mapZoom&&RADAR_RANGE_CONFIG.regional.mapZoom>RADAR_RANGE_CONFIG.wide.mapZoom,'radar ranges must progressively zoom out');
 
 const forecast={city:{timezone:'Europe/Paris'},seriesByModel:{
   a:{hourly:{timestamps:['a','b','c'],timestampEpochMs:[1000,2000,3000],precipitation:[0,0.4,1.2],precipitationProbability:[10,60,80]}},
@@ -36,6 +42,13 @@ assert.match(app,/data-radar-nowcast/);
 assert.doesNotMatch(app,/data-radar-dots/);
 assert.doesNotMatch(app,/radar-method-note/);
 assert.ok(app.indexOf('class=\"radar-legend\"')<app.indexOf('class=\"radar-playback\"'),'precipitation legend must be directly below the radar before playback');
+const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
+assert.match(css,/\.radar-map-stage\{[^}]*width:100%[^}]*height:clamp\(300px,40vh,390px\)/s,'radar must use full width with reduced height');
+assert.match(css,/\.radar-modal-head>div\{flex:1;min-width:0\}/,'radar modal title must reserve space so close stays right');
+assert.match(css,/\.radar-modal-head>\.icon-btn\{margin-left:auto/,'radar close button must stay at the right edge');
+assert.match(css,/\.radar-map-stage\{[^}]*isolation:isolate[^}]*z-index:0/s,'radar overlays must stay below sticky modal header');
+assert.match(app,/class="radar-intensity-scale"/,'intensity labels must be integrated with the gradient scale');
+
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 assert.match(html,/img-src[^\"]*tile\.openstreetmap\.org[^\"]*rainviewer\.com/);
 assert.match(html,/connect-src[^\"]*api\.rainviewer\.com/);
