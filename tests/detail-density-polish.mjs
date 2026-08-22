@@ -17,4 +17,9 @@ assert.match(css,/\.forecast-engine-compare-card:hover \{[\s\S]*?border-color: v
 assert.match(css,/\.summary-dispersion-meta-item \{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/,'summary facts must be plain text rather than pills');
 assert.match(detail,/detail-hero-support.*detail-hero-support-meta.*hero-meta.*detail-hero-support-context.*renderSeoDetailTitleContext\(city\)/s,'hero support must render metadata first and SEO context below');
 assert.match(css,/\.detail-hero-support \{[\s\S]*?grid-template-columns: minmax\(0,1fr\);/,'hero support must be stacked vertically');
+
+assert.match(css,/\.summary-dispersion \.summary-agreement \{[\s\S]*?margin-top: auto;/,'summary agreement must stay anchored at the bottom of dispersion cards');
+assert.match(css,/\.detail-hero-support \.hero-meta \{[\s\S]*?gap: 8px 14px;/,'hero metadata spans must have visible spacing');
+assert.match(css,/\.detail-hero-actions \.detail-refresh-action \{[\s\S]*?width: auto;[\s\S]*?max-width: 168px;/,'refresh action must no longer consume the full hero action row');
+assert.match(css,/\.forecast-engine-modal \{[\s\S]*?height: min\(94vh, 1080px\);[\s\S]*?max-height: min\(94vh, 1080px\);/,'engine comparison modal must use more of the viewport height');
 console.log('MeteoCompare detail density polish: OK');

@@ -4401,3 +4401,31 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .forecast-engine-chart-card { padding-inline: 10px; }
   .forecast-engine-chart { min-height: 210px; }
 }
+
+
+/* 1.15.0 — Detail spacing + comparison modal height refinement */
+.detail-hero-support .hero-meta {
+  gap: 8px 14px;
+}
+.detail-hero-support .hero-meta span {
+  margin: 0;
+}
+.detail-hero-actions .detail-refresh-action {
+  width: auto;
+  max-width: 168px;
+}
+.summary-dispersion .summary-agreement {
+  margin-top: auto;
+}
+.forecast-engine-modal {
+  height: min(94vh, 1080px);
+  max-height: min(94vh, 1080px);
+}
+@media (max-width: 760px) {
+  .detail-hero-support .hero-meta { gap: 7px 11px; }
+  .detail-hero-actions .detail-refresh-action { max-width: none; }
+  .forecast-engine-modal {
+    height: 94vh;
+    max-height: 94vh;
+  }
+}
