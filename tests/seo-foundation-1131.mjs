@@ -30,7 +30,7 @@ assert.match(app,/legacyCity=requested\.match/,'legacy hash city links must rema
 assert.match(app,/renderSeoCityDirectory\(\)/,'home must expose crawlable city links');
 assert.match(app,/data-seo-city-link/,'SEO city links must remain crawlable while supporting in-app routing');
 assert.match(app,/openSeoCityLink\(link\)/,'SEO city links must be intercepted by the application router');
-assert.match(app,/renderSeoCityContext\(city\)/,'indexed city content must remain present after JavaScript hydration');
+assert.match(app,/renderSeoDetailTitleContext\(city\)/,'indexed city context must remain present inside the hydrated detail title');
 assert.match(app,/renderSeoNearby\(city\)/,'city details must expose nearby internal links');
 assert.match(app,/seoTransient/,'direct SEO routes must not silently become favorites');
 assert.match(app,/seoCity\|\|state\.route\.name==='home'\?'index,follow,max-image-preview:large':'noindex,follow'/,'only catalogued city routes should be indexable at runtime');
