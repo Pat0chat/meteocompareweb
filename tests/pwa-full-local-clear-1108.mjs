@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { APP_VERSION } from '../js/version.js';
 
-const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const storageSource=read('js/storage.js'),app=read('js/app.js'),sw=read('sw.js');
 assert.match(storageSource,/const PWA_CACHE_PREFIX = 'meteocompare-web-'/);

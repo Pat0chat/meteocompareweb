@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const app=fs.readFileSync(path.join(root,'js/app.js'),'utf8');
 const storage=fs.readFileSync(path.join(root,'js/storage.js'),'utf8');
 const i18n=fs.readFileSync(path.join(root,'js/i18n.js'),'utf8');
