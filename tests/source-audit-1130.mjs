@@ -34,11 +34,9 @@ for(const item of shell){if(item==='./')continue;assert.ok(fs.existsSync(path.jo
 for(const file of jsFiles){const item='./'+rel(file);assert.ok(shell.includes(item),`runtime JS omitted from offline shell: ${item}`);}
 
 const html=read('index.html'),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
-assert.equal(scripts.length,3,'only Plausible bootstrap + MeteoCompare app scripts are expected');
-const plausibleExternal=scripts.find(([_,attrs])=>/src="https:\/\/plausible\.io\/js\/pa-m_Vcr9SLuhB7IFuIgpvGB\.js"/.test(attrs));
-assert.ok(plausibleExternal,'site-specific Plausible tracker must be present');assert.match(plausibleExternal[1],/\basync\b/);assert.equal(plausibleExternal[2].trim(),'');
+assert.equal(scripts.length,2,'only the Plausible bootstrap + MeteoCompare app scripts are expected');
 const plausibleInline=scripts.find(([_,attrs,body])=>!attrs.includes('src=')&&/plausible\.init/.test(body));
-assert.ok(plausibleInline,'Plausible bootstrap/init must be present');assert.match(plausibleInline[2],/autoCapturePageviews:false/);
+assert.ok(plausibleInline,'Plausible bootstrap/init must be present');assert.match(plausibleInline[2],/autoCapturePageviews:false/);assert.match(plausibleInline[2],/script\.src='\.\/_mcx\/p\.js'/);assert.match(plausibleInline[2],/host==='meteocompare\.app'/);
 const appScript=scripts.find(([_,attrs])=>/type="module"/.test(attrs));
 assert.ok(appScript,'application module script must be present');assert.match(appScript[1],/src="\/?js\/app\.js"/);assert.equal(appScript[2].trim(),'','no application inline script expected');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'static HTML IDs must be unique');

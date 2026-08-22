@@ -1,0 +1,24 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { ANALYTICS_CONFIG } from '../js/analytics-config.js';
+
+const read=rel=>fs.readFileSync(new URL(`../${rel}`,import.meta.url),'utf8');
+const html=read('index.html'),worker=read('worker.js'),wrangler=read('wrangler.jsonc'),preview=read('tools/preview-html.mjs');
+assert.equal(ANALYTICS_CONFIG.scriptSrc,'/_mcx/p.js');
+assert.equal(ANALYTICS_CONFIG.endpoint,'/_mcx/e');
+assert.match(ANALYTICS_CONFIG.upstreamScriptSrc,/^https:\/\/plausible\.io\/js\/pa-/);
+assert.equal(ANALYTICS_CONFIG.upstreamEndpoint,'https://plausible.io/api/event');
+assert.match(html,/script\.src='\.\/_mcx\/p\.js'/);
+assert.match(html,/endpoint:'\/_mcx\/e'/);
+assert.doesNotMatch(html,/<script[^>]+src="https:\/\/plausible\.io/);
+assert.match(worker,/env\.ASSETS\.fetch\(request\)/);
+assert.match(worker,/ANALYTICS_CONFIG\.upstreamScriptSrc/);
+assert.match(worker,/ANALYTICS_CONFIG\.upstreamEndpoint/);
+assert.match(worker,/headers\.delete\('cookie'\)/);
+assert.match(worker,/headers\.delete\('host'\)/);
+assert.match(worker,/headers\.delete\('content-length'\)/);
+assert.match(wrangler,/"main": "\.\/worker\.js"/);
+assert.match(wrangler,/"binding": "ASSETS"/);
+assert.match(wrangler,/"run_worker_first": \["\/_mcx\/\*"\]/);
+assert.match(preview,/host-gated/,'local preview relies on host-gated analytics loading');
+console.log('MeteoCompare first-party Plausible Cloudflare proxy: OK');

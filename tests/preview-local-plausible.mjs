@@ -3,8 +3,9 @@ import fs from 'node:fs';
 import { preparePreviewHtml } from '../tools/preview-html.mjs';
 
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-assert.match(html,/https:\/\/plausible\.io\/js\/pa-m_Vcr9SLuhB7IFuIgpvGB\.js/,'production HTML must keep the official Plausible tracker');
+assert.doesNotMatch(html,/<script[^>]+src=["']\/?_mcx\/p\.js/,'Plausible proxy must not be loaded statically on every host');
+assert.match(html,/host==='meteocompare\.app'/,'tracker loading must be production-host gated');
+assert.match(html,/script\.src='\.\/_mcx\/p\.js'/,'production host dynamically loads the first-party proxy');
 const preview=preparePreviewHtml(html);
-assert.doesNotMatch(preview,/src=["']https:\/\/plausible\.io\/js\/pa-m_Vcr9SLuhB7IFuIgpvGB\.js/,'local preview must not request the remote Plausible tracker');
-assert.match(preview,/plausible\.init\(/,'local preview keeps the harmless bootstrap/init so application analytics code remains structurally identical');
+assert.equal(preview,html,'preview no longer needs to rewrite production HTML');
 console.log('MeteoCompare local preview Plausible isolation: OK');

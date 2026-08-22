@@ -21,22 +21,21 @@ npm run tests
 
 Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
 
-Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. En local, `npm run preview` retire uniquement la balise réseau du tracker Plausible de la réponse HTML : le build `dist/` reste inchangé et contient le snippet officiel, mais le navigateur de développement ne tente aucun chargement vers `plausible.io`.
+Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. En local, `npm run preview` retire uniquement la balise du tracker Plausible de la réponse HTML : le serveur Node ne lance pas le Worker Cloudflare. En production Worker, le navigateur charge Plausible via les chemins first-party `/_mcx/p.js` et `/_mcx/e`, sans requête directe vers `plausible.io`.
 
-## Déployer sur Cloudflare Pages — configuration recommandée
+## Déployer sur Cloudflare Workers — configuration recommandée
 
 MeteoCompare génère désormais une sortie `dist/` spécialement adaptée à `meteocompare.app` : page d’accueil pré-rendue, pages `/meteo/{ville}`, sitemap, robots et redirections canoniques.
 
-Configuration Cloudflare Pages :
+Configuration Cloudflare Workers Builds :
 
 - **Production branch** : `main`
 - **Build command** : `npm run build`
-- **Build output directory** : `dist`
-- **Root directory** : `/` (vide dans l’interface si le dépôt est déjà à la racine)
-- **Deploy command** : aucun pour un projet Pages connecté à Git ; Cloudflare publie le dossier de sortie
+- **Deploy command** : `npx wrangler deploy`
+- **Root directory** : vide si le dépôt est déjà à la racine
 - **Build watch paths** : laisser vide, sauf besoin spécifique
 
-Le fichier `wrangler.jsonc` pointe également vers `./dist` pour les déploiements CLI compatibles.
+Le fichier `wrangler.jsonc` déploie `worker.js` avec le binding statique `ASSETS` vers `./dist`. Ce Worker sert aussi de proxy first-party Plausible sur `/_mcx/*`. Un ancien déploiement Pages purement statique peut encore servir l’application, mais ne fournit pas ce proxy analytics ; il n’est donc plus recommandé pour `meteocompare.app`.
 
 ### Référencement intégré
 

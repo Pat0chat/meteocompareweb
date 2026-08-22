@@ -34,7 +34,7 @@ Politique Open-Meteo : https://open-meteo.com/en/terms#privacy
 
 ## 3. Mesure d’audience minimale de la version web
 
-Lorsqu’elle est activée par l’éditeur du site, MeteoCompare charge le tracker officiel Plausible Analytics associé à `meteocompare.app`. Les pageviews automatiques ainsi que le suivi automatique des liens sortants, téléchargements et formulaires sont désactivés : seuls les pageviews et événements explicitement autorisés par MeteoCompare sont envoyés.
+Lorsqu’elle est activée par l’éditeur du site, MeteoCompare utilise le tracker officiel Plausible Analytics associé à `meteocompare.app`, servi au navigateur via un proxy first-party Cloudflare sous le domaine MeteoCompare. Les pageviews automatiques ainsi que le suivi automatique des liens sortants, téléchargements et formulaires sont désactivés : seuls les pageviews et événements explicitement autorisés par MeteoCompare sont envoyés.
 
 ### Finalité
 
@@ -84,7 +84,7 @@ Pour l’attribution d’acquisition :
 
 Les propriétés et événements acceptés sont filtrés par une liste blanche dans le code afin qu’un identifiant ou une chaîne arbitraire ne puisse pas être ajouté accidentellement. MeteoCompare fournit au tracker Plausible une URL déjà anonymisée et un `transformRequest` réduit le referrer externe à son origine ; un referrer interne est supprimé.
 
-Plausible reçoit néanmoins les métadonnées réseau normales de la requête HTTPS. Sa documentation indique que l’IP et le User-Agent servent au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
+Les événements analytics sont relayés par le Worker Cloudflare de MeteoCompare vers Plausible. Plausible reçoit néanmoins les métadonnées réseau nécessaires au traitement de la requête relayée. Sa documentation indique que l’IP et le User-Agent servent au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
 
 ## 4. Cookies, identifiants et signaux de confidentialité
 

@@ -1,6 +1,6 @@
 # Plausible Analytics — MeteoCompare Web
 
-MeteoCompare charge le tracker officiel Plausible propre à `meteocompare.app` (`pa-m_Vcr9SLuhB7IFuIgpvGB.js`). Les pageviews automatiques et les mesures automatiques optionnelles sont désactivés afin de conserver le contrôle de l’anonymisation et d’éviter tout doublon. Les événements passent par la fonction officielle `plausible()` avec des URLs et propriétés filtrées par MeteoCompare.
+MeteoCompare utilise le tracker officiel Plausible propre à `meteocompare.app` (`pa-m_Vcr9SLuhB7IFuIgpvGB.js`) derrière un proxy first-party Cloudflare intégré au Worker MeteoCompare. Les pageviews automatiques et les mesures automatiques optionnelles sont désactivés afin de conserver le contrôle de l’anonymisation et d’éviter tout doublon. Les événements passent par la fonction officielle `plausible()` avec des URLs et propriétés filtrées par MeteoCompare.
 
 ## Production
 
@@ -8,9 +8,11 @@ La configuration active est dans `js/analytics-config.js` :
 
 - site Plausible : `meteocompare.app` ;
 - hôtes autorisés : `meteocompare.app`, `www.meteocompare.app` ;
-- endpoint : `https://plausible.io/api/event`.
+- script navigateur : `/_mcx/p.js` ;
+- endpoint navigateur : `/_mcx/e` ;
+- upstream Worker : script site-specific Plausible + `https://plausible.io/api/event`.
 
-Les previews, localhost et autres forks ne sont pas comptés tant que leur hôte n’est pas explicitement ajouté. `npm run preview` va plus loin : le serveur local retire la balise `<script src="https://plausible.io/...">` de la réponse HTML afin d’éviter tout accès réseau Plausible et les avertissements des protections anti-tracking du navigateur. Le contenu de `dist/` n’est pas modifié et conserve le snippet officiel pour la production et la vérification Plausible.
+Le navigateur ne contacte donc plus directement `plausible.io` : les deux requêtes passent par `meteocompare.app` et sont relayées côté Cloudflare Worker. Le script n’est créé que sur les hôtes de production autorisés et il n’est même pas chargé si GPC, DNT ou l’opt-out local sont actifs. Cela réduit les blocages de scripts analytics tiers tout en conservant le tracker officiel. Le Worker retire les cookies avant le relais. Les previews, localhost et autres forks ne sont pas comptés tant que leur hôte n’est pas explicitement ajouté. `npm run preview` retire en plus la balise `/_mcx/p.js`, car le serveur Node local ne lance pas le Worker Cloudflare.
 
 ## Pages
 
@@ -95,7 +97,7 @@ Les chemins, query strings et fragments du site référent sont supprimés. Les 
 - contenu des exports ;
 - identifiant persistant créé par MeteoCompare.
 
-Les événements sont remis au tracker officiel via `plausible()`. L’URL est fournie explicitement par MeteoCompare après anonymisation et le `transformRequest` réduit le referrer externe à son origine avant l’appel réseau Plausible.
+Les événements sont remis au tracker officiel via `plausible()`, puis relayés par le proxy first-party Cloudflare. L’URL est fournie explicitement par MeteoCompare après anonymisation et le `transformRequest` réduit le referrer externe à son origine avant l’appel réseau Plausible.
 
 ## Tableau de bord Plausible recommandé
 

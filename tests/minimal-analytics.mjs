@@ -111,9 +111,13 @@ for(const event of ['PWA Install Click','PWA Installed','City Search Opened','Ci
 assert.match(app,/trackPageView\(state\.route\)/);
 assert.match(app,/data-action="toggle-analytics"/);
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
-assert.match(html,/connect-src[^\"]*https:\/\/plausible\.io/);
-assert.match(html,/script-src[^\"]*https:\/\/plausible\.io/);
-assert.match(html,/https:\/\/plausible\.io\/js\/pa-m_Vcr9SLuhB7IFuIgpvGB\.js/);
+assert.doesNotMatch(html,/connect-src[^\"]*https:\/\/plausible\.io/,'browser CSP should not connect directly to plausible.io');
+assert.doesNotMatch(html,/script-src[^\"]*https:\/\/plausible\.io/,'browser CSP should not load Plausible as a third-party script');
+assert.match(html,/script\.src='\.\/_mcx\/p\.js'/);
+assert.match(html,/endpoint:'\/_mcx\/e'/);
+assert.match(html,/host==='meteocompare\.app'/);
+assert.match(html,/navigator\.globalPrivacyControl/);
+assert.match(html,/analytics\.optout\.v1/);
 assert.match(html,/plausible\.init\(\{[\s\S]*autoCapturePageviews:false/);
 assert.match(html,/outboundLinks:false/);
 assert.match(html,/fileDownloads:false/);

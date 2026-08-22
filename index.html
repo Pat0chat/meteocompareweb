@@ -5,11 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#155eef" />
   <meta name="color-scheme" content="light dark" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-ns7Fh0w+Z3PjL//vDImEeGKNiiYs15OyfpFcmcOLWUk=' https://plausible.io 'sha256-V7lx0br6OFPtIqePjipvwIgBR7joaiTD4akW0UYXsME='; script-src-elem 'self' 'sha256-ns7Fh0w+Z3PjL//vDImEeGKNiiYs15OyfpFcmcOLWUk=' https://plausible.io 'sha256-V7lx0br6OFPtIqePjipvwIgBR7joaiTD4akW0UYXsME='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org https://*.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://archive-api.open-meteo.com https://previous-runs-api.open-meteo.com https://marine-api.open-meteo.com https://openmeteo-data-spatial.b-cdn.net https://plausible.io https://api.rainviewer.com https://*.rainviewer.com; object-src 'none'; base-uri 'self'; form-action 'none'; worker-src 'self'; manifest-src 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-j35dPXccsPHnMIWyGuxnQGSSRgtnSxJv34IIjWJ9Y6s='; script-src-elem 'self' 'sha256-j35dPXccsPHnMIWyGuxnQGSSRgtnSxJv34IIjWJ9Y6s='; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org https://*.rainviewer.com; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://archive-api.open-meteo.com https://previous-runs-api.open-meteo.com https://marine-api.open-meteo.com https://openmeteo-data-spatial.b-cdn.net https://api.rainviewer.com https://*.rainviewer.com; object-src 'none'; base-uri 'self'; form-action 'none'; worker-src 'self'; manifest-src 'self'" />
   <meta name="description" content="MeteoCompare — comparaison multi-modèles météorologiques, dispersion, évolution et fiabilité locale." />
   <meta name="robots" content="index,follow,max-image-preview:large" />
   <link rel="canonical" href="https://meteocompare.app/" />
   <meta name="application-name" content="MeteoCompare" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>MeteoCompare — comparaison multi-modèles météo</title>
@@ -18,10 +19,10 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
   <!-- Privacy-friendly analytics by Plausible -->
-  <script async src="https://plausible.io/js/pa-m_Vcr9SLuhB7IFuIgpvGB.js"></script>
   <script>
     window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
     plausible.init({
+      endpoint:'/_mcx/e',
       autoCapturePageviews:false,
       captureOnLocalhost:false,
       outboundLinks:false,
@@ -34,7 +35,16 @@
         }
         return payload;
       }
-    })
+    });
+    (function(){
+      var host=String(location.hostname||'').toLowerCase();
+      var allowed=host==='meteocompare.app'||host==='www.meteocompare.app';
+      var dnt=String(navigator.doNotTrack||window.doNotTrack||'').toLowerCase();
+      var privacy=navigator.globalPrivacyControl===true||dnt==='1'||dnt==='yes';
+      var optedOut=false;try{optedOut=localStorage.getItem('meteocompare.web.analytics.optout.v1')==='1';}catch(_){}
+      if(!allowed||privacy||optedOut)return;
+      var script=document.createElement('script');script.async=true;script.src='./_mcx/p.js';document.head.appendChild(script);
+    })();
   </script>
 </head>
 <body>

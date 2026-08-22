@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { webTranslationAudit, hasTranslation } from '../js/i18n.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css'),sw=read('sw.js'),workflow=read('.github/workflows/pages.yml');
+const app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css'),sw=read('sw.js'),html=read('index.html'),workflow=read('.github/workflows/pages.yml');
 
 // Explicit graph legend semantics.
 assert.match(comparison,/legendModelHourly/,'model comparison explains what the legend values mean');
@@ -28,6 +28,7 @@ assert.match(css,/\.about-hero/,'About page has dedicated layout styling');
 assert.match(css,/\.donation-grid/,'support overlay has dedicated donation layout styling');
 
 // PWA install UX: custom prompt where available, honest manual fallback elsewhere.
+assert.match(html,/<meta name="mobile-web-app-capable" content="yes" \/>/,'modern Chromium PWA capability meta is present');
 assert.match(app,/beforeinstallprompt/,'app captures the install prompt when supported');
 assert.match(app,/event\.preventDefault\(\)/,'browser prompt is deferred for the in-app install control');
 assert.match(app,/data-action="install-pwa"/,'About page exposes an install action when supported');
