@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),css=read('styles.css');
+const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),css=read('styles.css');
 assert.ok(version.localeCompare('1.10.16',undefined,{numeric:true,sensitivity:'base'})>=0);
-assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(versionJs,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);

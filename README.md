@@ -16,11 +16,12 @@ Pour tester la sortie de production SEO avec les URL propres `/meteo/{ville}` :
 ```bash
 npm run build
 npm run preview
+npm run tests
 ```
 
 Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
 
-Le build et la prévisualisation n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs` et `tools/preview-site.mjs`).
+Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue.
 
 ## Déployer sur Cloudflare Pages — configuration recommandée
 
@@ -203,7 +204,7 @@ Ils couvrent notamment :
 
 Aucun secret ni clé API n'est embarqué. Les requêtes météo sont envoyées directement depuis le navigateur vers Open-Meteo. Les villes, réglages, caches, biais et snapshots MeteoCompare restent dans le stockage local du navigateur.
 
-La version web utilise une **mesure d’audience respectueuse** basée directement sur l’Events API de Plausible. Les routes SEO sont regroupées avant envoi (`/meteo/toulouse` → `/city`), les paramètres applicatifs et identifiants de ville sont supprimés, et seuls `utm_source`, `utm_medium` et `utm_campaign` sont conservés pour l’attribution des campagnes. Le referrer externe est réduit à son origine (domaine uniquement). Des propriétés à faible cardinalité décrivent la version de l’application, la langue, le mode navigateur/PWA et certains choix d’affichage ; des événements fonctionnels mesurent recherche/ajout de ville, comparaisons, marine, export, partage, rafraîchissement et installation PWA.
+La version web utilise une **mesure d’audience respectueuse** avec le tracker officiel Plausible associé à `meteocompare.app`. Les pageviews automatiques et les mesures automatiques optionnelles sont désactivés : MeteoCompare déclenche lui-même uniquement les événements autorisés. Les routes SEO sont regroupées avant envoi (`/meteo/toulouse` → `/city`), les paramètres applicatifs et identifiants de ville sont supprimés, et seuls `utm_source`, `utm_medium` et `utm_campaign` sont conservés pour l’attribution des campagnes. Le referrer est réduit à son origine (domaine uniquement) avant transmission. Des propriétés à faible cardinalité décrivent la version de l’application, la langue, le mode navigateur/PWA et certains choix d’affichage ; des événements fonctionnels mesurent recherche/ajout de ville, comparaisons, marine, export, partage, rafraîchissement et installation PWA.
 
 Aucun cookie analytics ni identifiant persistant n’est créé par MeteoCompare. Aucun nom/identifiant de ville, coordonnée, requête de recherche, favori, valeur météo, prévision brute ou historique local n’est envoyé. GPC, DNT et l’opt-out local restent respectés. L’envoi est limité aux domaines de production configurés afin que localhost et les previews ne polluent pas les statistiques. Voir `ANALYTICS.md` pour la liste des événements/propriétés et la configuration recommandée du tableau de bord Plausible.
 
@@ -221,3 +222,7 @@ Le module est chargé à la demande (`js/features/radar.js`) et ne contacte Rain
 ### Génération du cache PWA
 
 La génération du cache du shell PWA est centralisée dans **`cache-version.js`**. `sw.js` importe cette valeur et tous les tests vérifient désormais cette référence au lieu de recopier une version de cache. Pour forcer une nouvelle génération de cache lors d'une évolution du shell, un seul fichier est à modifier : `cache-version.js`.
+
+### Version applicative
+
+La version produit est centralisée de la même manière dans **`app-version.js`**. `js/version.js`, `sw.js`, les tests, le build SEO et les workflows GitHub lisent cette source unique. Une montée de version ne nécessite donc plus de modifier des assertions de tests ou plusieurs constantes : **seul `app-version.js` porte la version courante**. Le build génère encore un fichier `dist/VERSION` pour les artefacts de déploiement, mais il est dérivé automatiquement de cette source.

@@ -3,15 +3,16 @@ import fs from 'node:fs';
 import { catalog as fr } from '../js/locales/fr.js';
 import { catalog as en } from '../js/locales/en.js';
 import { consensusGroupFor } from '../js/models.js';
+import { APP_VERSION } from '../js/version.js';
 
-const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+const version=APP_VERSION;
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 const domain=fs.readFileSync(new URL('../js/domain.js',import.meta.url),'utf8');
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const comparison=fs.readFileSync(new URL('../js/features/comparison.js',import.meta.url),'utf8');
 
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
-assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/const APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(sw,/\.\/js\/consensus\.js/,'consensus engine must be available offline in the PWA shell');
 

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
-const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+const version=APP_VERSION;
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);

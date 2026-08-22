@@ -1,6 +1,6 @@
 # Plausible Analytics — MeteoCompare Web
 
-MeteoCompare envoie directement les événements à l’Events API de Plausible, sans charger le script analytics tiers.
+MeteoCompare charge le tracker officiel Plausible propre à `meteocompare.app` (`pa-m_Vcr9SLuhB7IFuIgpvGB.js`). Les pageviews automatiques et les mesures automatiques optionnelles sont désactivés afin de conserver le contrôle de l’anonymisation et d’éviter tout doublon. Les événements passent par la fonction officielle `plausible()` avec des URLs et propriétés filtrées par MeteoCompare.
 
 ## Production
 
@@ -78,11 +78,11 @@ Chaque événement et chaque propriété est filtré par une liste blanche dans 
 
 ## Acquisition
 
-Le referrer est explicitement envoyé à Plausible mais réduit à l’origine externe, par exemple :
+Le tracker Plausible fournit normalement `document.referrer`. MeteoCompare applique toutefois un `transformRequest` qui le réduit à l’origine externe avant envoi, par exemple :
 
 `https://www.google.com/search?...` → `https://www.google.com/`
 
-Les chemins, query strings et fragments du site référent sont supprimés. Les referrers internes ne sont pas envoyés.
+Les chemins, query strings et fragments du site référent sont supprimés. Les referrers internes sont remplacés par `null` et ne sont donc pas transmis comme source.
 
 ## Données explicitement exclues
 
@@ -95,7 +95,7 @@ Les chemins, query strings et fragments du site référent sont supprimés. Les 
 - contenu des exports ;
 - identifiant persistant créé par MeteoCompare.
 
-Les événements utilisent toujours `credentials: omit` et `referrerPolicy: no-referrer`. Le referrer minimisé est ajouté uniquement dans le corps JSON.
+Les événements sont remis au tracker officiel via `plausible()`. L’URL est fournie explicitement par MeteoCompare après anonymisation et le `transformRequest` réduit le referrer externe à son origine avant l’appel réseau Plausible.
 
 ## Tableau de bord Plausible recommandé
 

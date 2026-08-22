@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { APP_VERSION } from '../js/version.js';
 
 const root=path.resolve(path.dirname(new URL(import.meta.url).pathname),'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
@@ -18,7 +19,7 @@ assert.match(app,/if\(skipPwaRegistration\)pwaPostClearCleanup=clearPwaRuntime\(
 assert.match(app,/await pwaPostClearCleanup;state\.localDataStats=await inspectLocalData/);
 assert.match(sw,/const CACHE_PREFIX = 'meteocompare-web-'/);
 assert.match(sw,/key\.startsWith\(CACHE_PREFIX\) && key !== CACHE/);
-assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/const APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 class LocalStorageMock {

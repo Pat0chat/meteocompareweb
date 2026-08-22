@@ -27,12 +27,7 @@ jobs:
         run: rm -f js/android_strings.js
 
       - name: Run regression tests
-        run: |
-          set -e
-          for test in tests/*.mjs; do
-            echo "==> $test"
-            node "$test"
-          done
+        run: npm run tests
 
       - name: Configure Pages
         uses: actions/configure-pages@v6

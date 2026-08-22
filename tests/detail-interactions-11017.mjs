@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 
 const app=fs.readFileSync('js/app.js','utf8');
 const css=fs.readFileSync('styles.css','utf8');
-const version=fs.readFileSync('VERSION','utf8').trim();
+const version=APP_VERSION;
 
 assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
 

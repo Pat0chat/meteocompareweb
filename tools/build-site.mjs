@@ -2,12 +2,14 @@ import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SEO_CITIES, cityPublicPath, nearbySeoCities } from '../js/seo-cities.mjs';
+import { readProjectVersion } from './project-version.mjs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const out=join(root,'dist');
 const site='https://meteocompare.app';
 const today=new Date().toISOString().slice(0,10);
 const verification=String(process.env.GOOGLE_SITE_VERIFICATION||'').trim();
+const appVersion=await readProjectVersion(root);
 
 function html(value=''){
   return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -45,10 +47,11 @@ function cityPrerender(city){
 
 await rm(out,{recursive:true,force:true});
 await mkdir(out,{recursive:true});
-for(const entry of ['index.html','styles.css','sw.js','cache-version.js','VERSION','manifest.webmanifest','manifest.fr.webmanifest','manifest.en.webmanifest','manifest.es.webmanifest','manifest.de.webmanifest','manifest.it.webmanifest','.nojekyll']){
+for(const entry of ['index.html','styles.css','sw.js','app-version.js','cache-version.js','manifest.webmanifest','manifest.fr.webmanifest','manifest.en.webmanifest','manifest.es.webmanifest','manifest.de.webmanifest','manifest.it.webmanifest','.nojekyll']){
   await cp(join(root,entry),join(out,entry),{recursive:true});
 }
 for(const entry of ['assets','js'])await cp(join(root,entry),join(out,entry),{recursive:true});
+await writeFile(join(out,'VERSION'),`${appVersion}\n`);
 
 const template=await readFile(join(root,'index.html'),'utf8');
 const rootHtml=injectApp(replaceMeta(template,{

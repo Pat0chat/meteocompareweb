@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const css=read('styles.css'),app=read('js/app.js'),version=read('VERSION').trim(),sw=read('sw.js');
+const css=read('styles.css'),app=read('js/app.js'),version=APP_VERSION,sw=read('sw.js');
 assert.match(version,/^\d+\.\d+\.\d+$/);
 assert.doesNotMatch(css,/\.settings-section[^}]*content-visibility:\s*auto/s,'interactive Settings cards must not be virtualized');
 assert.match(css,/\.settings-list[^}]*overflow-anchor:\s*none/s,'native scroll anchoring must be disabled within Settings');

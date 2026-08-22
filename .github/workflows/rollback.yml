@@ -36,11 +36,9 @@ jobs:
         run: |
           set -euo pipefail
           git describe --tags --exact-match HEAD
-          test "v$(tr -d '\r\n' < VERSION)" = "${{ inputs.tag }}"
+          test "v$(node tools/project-version.mjs)" = "${{ inputs.tag }}"
       - name: Run regression tests from release
-        run: |
-          set -e
-          for test in tests/*.mjs; do node "$test"; done
+        run: npm run tests
       - name: Configure Pages
         uses: actions/configure-pages@v6
       - name: Build release site

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),appState=read('js/core/app-state.js'),css=read('styles.css'),version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js');
+const app=read('js/app.js'),appState=read('js/core/app-state.js'),css=read('styles.css'),version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js');
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
-assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(css,/\.timeline-metric\s*\{[\s\S]*height:\s*52px;[\s\S]*min-height:\s*52px;/,'timeline metrics must share a fixed height');
 assert.match(css,/\.timeline-metric strong,[\s\S]*white-space:\s*nowrap/,'timeline metric content must not grow rows');
 assert.match(appState,/localDataUi=\{advancedOpen:false,privacyOpen:false,cacheOpen:false\}/,'local data details state missing');

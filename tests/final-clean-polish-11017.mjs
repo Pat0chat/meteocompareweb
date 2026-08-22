@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const version=read('VERSION').trim(), app=read('js/app.js'), css=read('styles.css'), sw=read('sw.js');
+const version=APP_VERSION, app=read('js/app.js'), css=read('styles.css'), sw=read('sw.js');
 
 assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
-assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Detail workspace keeps a zero-min-width main area so tables can size without forcing the page wider.

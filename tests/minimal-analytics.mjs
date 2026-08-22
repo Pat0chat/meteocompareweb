@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createAnalyticsClient, analyticsRoutePath, sanitizedAnalyticsUrl, sanitizedReferrer, analyticsPageProps } from '../js/analytics.js';
 import { ANALYTICS_CONFIG } from '../js/analytics-config.js';
+import { APP_VERSION } from '../js/version.js';
 
 assert.equal(ANALYTICS_CONFIG.enabled,true,'production analytics should be enabled for meteocompare.app');
 assert.equal(ANALYTICS_CONFIG.domain,'meteocompare.app');
@@ -43,15 +44,15 @@ const env={
 assert.equal(sanitizedReferrer(env),'https://www.google.com/');
 assert.equal(sanitizedReferrer({...env,document:{...env.document,referrer:'https://meteocompare.app/meteo/paris?x=1'}}),null);
 
-const fetchImpl=async (url,options)=>{calls.push({url,options});return {ok:true,headers:{get:()=>null}};};
-const client=createAnalyticsClient({config:ANALYTICS_CONFIG,env,fetchImpl});
+const plausibleImpl=(name,options={})=>{calls.push({name,options});};
+const client=createAnalyticsClient({config:ANALYTICS_CONFIG,env,plausibleImpl});
 assert.equal(client.status().active,true);
 assert.equal(client.status().hostAllowed,true);
 
 const route={name:'city',id:'private-city-id',slug:'toulouse',view:{tab:'WIND',mode:'HOURLY',metric:'TEMPERATURE',horizon:72,timeline:'HOURLY',compareModels:['a','b']}};
 const props=analyticsPageProps(route,env);
 assert.deepEqual(props,{
-  page_group:'/city',app_version:'1.14.0',language:'fr',display_mode:'browser',navigation:'seo',
+  page_group:'/city',app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'seo',
   detail_tab:'wind',detail_mode:'hourly',agreement_metric:'temperature',horizon_hours:'72',timeline:'hourly',compared_models:'2'
 });
 
@@ -67,36 +68,31 @@ await client.event('PWA Installed',{name:'city',id:'private-city-id'});
 assert.equal(calls.length,9);
 
 for(const call of calls){
-  assert.equal(call.url,'https://plausible.io/api/event');
-  assert.equal(call.options.credentials,'omit');
-  assert.equal(call.options.referrerPolicy,'no-referrer');
-  assert.equal(call.options.headers['Content-Type'],'text/plain');
-  const body=JSON.parse(call.options.body);
-  assert.equal(body.domain,'meteocompare.app');
-  const serialized=JSON.stringify(body);
+  const serialized=JSON.stringify(call);
   assert.ok(!serialized.includes('private-city-id'));
   assert.ok(!serialized.includes('private-id'));
   assert.ok(!serialized.includes('MUST-NOT-LEAK'));
   assert.ok(!serialized.includes('toulouse'));
   assert.ok(!serialized.includes('q=toulouse'));
-  assert.equal(body.referrer,'https://www.google.com/');
 }
 
-const pageBody=JSON.parse(calls[0].options.body);
-assert.equal(pageBody.name,'pageview');
-assert.equal(pageBody.url,'https://meteocompare.app/city?utm_source=google&utm_medium=organic&utm_campaign=seo-city');
-assert.equal(pageBody.props.page_group,'/city');
-assert.equal(pageBody.props.navigation,'seo');
-assert.equal(pageBody.props.compared_models,'2');
+const pageCall=calls[0];
+assert.equal(pageCall.name,'pageview');
+assert.equal(pageCall.options.url,'https://meteocompare.app/city?utm_source=google&utm_medium=organic&utm_campaign=seo-city');
+assert.equal(pageCall.options.props.page_group,'/city');
+assert.equal(pageCall.options.props.navigation,'seo');
+assert.equal(pageCall.options.props.compared_models,'2');
+assert.equal('interactive' in pageCall.options,false);
 
-const viewBody=JSON.parse(calls[3].options.body);
-assert.deepEqual(viewBody.props,{control:'tab',value:'wind'});
-const modelBody=JSON.parse(calls[4].options.body);
-assert.deepEqual(modelBody.props,{model_count:'3'});
-const compareBody=JSON.parse(calls[5].options.body);
-assert.deepEqual(compareBody.props,{city_count:'3'});
-const exportBody=JSON.parse(calls[6].options.body);
-assert.deepEqual(exportBody.props,{format:'csv'});
+const viewCall=calls[3];
+assert.deepEqual(viewCall.options.props,{control:'tab',value:'wind'});
+assert.equal(viewCall.options.interactive,true);
+const modelCall=calls[4];
+assert.deepEqual(modelCall.options.props,{model_count:'3'});
+const compareCall=calls[5];
+assert.deepEqual(compareCall.options.props,{city_count:'3'});
+const exportCall=calls[6];
+assert.deepEqual(exportCall.options.props,{format:'csv'});
 
 const beforeUnknown=calls.length;
 await client.event('Arbitrary Private Event',{name:'home'},{secret:'x'});
@@ -116,6 +112,14 @@ assert.match(app,/trackPageView\(state\.route\)/);
 assert.match(app,/data-action="toggle-analytics"/);
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 assert.match(html,/connect-src[^\"]*https:\/\/plausible\.io/);
+assert.match(html,/script-src[^\"]*https:\/\/plausible\.io/);
+assert.match(html,/https:\/\/plausible\.io\/js\/pa-m_Vcr9SLuhB7IFuIgpvGB\.js/);
+assert.match(html,/plausible\.init\(\{[\s\S]*autoCapturePageviews:false/);
+assert.match(html,/outboundLinks:false/);
+assert.match(html,/fileDownloads:false/);
+assert.match(html,/formSubmissions:false/);
+assert.match(html,/payload\.r=.*ref\.origin/);
+assert.match(html,/ref\.origin!==location\.origin/);
 const privacy=fs.readFileSync(new URL('../PRIVACY.md',import.meta.url),'utf8');
 assert.match(privacy,/\/city.*\/meteo\/<ville>/);
 assert.match(privacy,/utm_source/);

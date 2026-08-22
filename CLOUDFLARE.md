@@ -1,4 +1,4 @@
-# Configuration Cloudflare — MeteoCompare v1.14.0
+# Configuration Cloudflare — MeteoCompare v1.15.0
 
 Le projet est préparé pour Cloudflare Workers Builds avec assets statiques et pré-rendu SEO.
 

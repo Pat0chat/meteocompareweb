@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),version=read('VERSION').trim();
+const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),version=APP_VERSION;
 assert.ok(/^\d+\.\d+\.\d+$/.test(version));
 assert.match(app,/function renderGlobalAgreementCard\(/);
 assert.match(app,/overview-primary">\$\{renderTodaySummary\([^}]+\)\}<\/div><div class="overview-secondary">/);

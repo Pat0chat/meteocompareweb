@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
-const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+const version=APP_VERSION;
 assert.match(version,/^\d+\.\d+\.\d+$/);
 const marineReturn=(app.match(/return `<section class="section section-card marine-section"[\s\S]*?source-note[\s\S]*?<\/section>`;/)||[])[0]||'';
 assert.equal((marineReturn.match(/<div class=\"marine-kpi\"><span>\$\{esc\(t\('marine(?:WaveHeight|WavePeriod|WaveDirection|SwellHeight|SeaTemp)'\)\)\}<\/span>/g)||[]).length,5,'marine summary keeps five KPI cards');

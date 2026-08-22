@@ -1,14 +1,15 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
-const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+const version=APP_VERSION;
 const versionJs=fs.readFileSync(new URL('../js/version.js',import.meta.url),'utf8');
 const sw=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
-assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(css,/v1\.10\.11 — typography audit/);
 assert.match(css,/--type-micro:\s*\.7rem/);

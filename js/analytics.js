@@ -158,37 +158,32 @@ function eventProps(name,props={}){
   return output;
 }
 
-export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,fetchImpl=null}={}){
-  const fetcher=fetchImpl||env.fetch?.bind(env);
+export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,plausibleImpl=null}={}){
+  const tracker=plausibleImpl||env.plausible;
   const status=()=>{
-    const configured=Boolean(config?.enabled&&config?.domain&&config?.endpoint);
+    const configured=Boolean(config?.enabled&&config?.domain&&config?.scriptSrc);
     const signal=privacySignal(env),optedOut=storageOptOut(env);
     const hostAllowed=configuredHostAllowed(config,env);
-    const active=configured&&hostAllowed&&!signal&&!optedOut&&productionProtocol(env)&&typeof fetcher==='function';
+    const active=configured&&hostAllowed&&!signal&&!optedOut&&productionProtocol(env)&&typeof tracker==='function';
     return {active,configured,hostAllowed,optedOut,privacySignal:signal,provider:config?.provider||'plausible'};
   };
   const send=(name,route,props={})=>{
     const current=status();
     if(!current.active)return Promise.resolve(false);
     if(name!=='pageview'&&!EVENT_SCHEMAS.has(name))return Promise.resolve(false);
-    const body={name,domain:config.domain,url:sanitizedAnalyticsUrl(name==='pageview'?route:route||{name:'other'},env.location)};
-    const referrer=sanitizedReferrer(env);if(referrer)body.referrer=referrer;
-    if(name==='pageview')body.props=analyticsPageProps(route,env);
+    const options={url:sanitizedAnalyticsUrl(name==='pageview'?route:route||{name:'other'},env.location)};
+    if(name==='pageview')options.props=analyticsPageProps(route,env);
     else{
-      const safeProps=eventProps(name,props);if(safeProps&&Object.keys(safeProps).length)body.props=safeProps;
-      body.interactive=true;
+      const safeProps=eventProps(name,props);if(safeProps&&Object.keys(safeProps).length)options.props=safeProps;
+      options.interactive=true;
     }
-    return Promise.resolve(fetcher(config.endpoint,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify(body),
-      credentials:'omit',
-      keepalive:true,
-      mode:'cors',
-      cache:'no-store',
-      // Referrer is sent explicitly after origin-only sanitization above.
-      referrerPolicy:'no-referrer',
-    })).then(response=>Boolean(response?.ok)&&response?.headers?.get?.('x-plausible-dropped')!=='1').catch(()=>false);
+    try{
+      // The site-specific Plausible script may still be loading. Its official
+      // bootstrap exposes a queueing plausible() function, so this call is safe
+      // before the remote script has finished downloading.
+      tracker(name,options);
+      return Promise.resolve(true);
+    }catch{return Promise.resolve(false);}
   };
   return {
     status,

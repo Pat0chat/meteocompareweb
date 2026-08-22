@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 const read=p=>fs.readFileSync(p,'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),appState=read('js/core/app-state.js'),comparison=read('js/features/comparison.js'),css=read('styles.css');
+const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),appState=read('js/core/app-state.js'),comparison=read('js/features/comparison.js'),css=read('styles.css');
 assert.ok(version.localeCompare('1.10.15',undefined,{numeric:true,sensitivity:'base'})>=0);
-assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(versionJs,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 // Version is discreetly visible beside the brand and detailed on About.
 assert.match(app,/class="brand-title-row"/);

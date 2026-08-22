@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),css=read('styles.css');
+const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),css=read('styles.css');
 
-assert.equal(version,'1.14.0');
-assert.ok(versionJs.includes("APP_VERSION = '1.14.0'"));
-assert.match(sw,/APP_VERSION = '1\.14\.0'/);
+assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'application version must come from the centralized semantic version');
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 assert.match(app,/home-empty-logo[^>]+src="\$\{attr\(appAssetUrl\('assets\/icon\.png'\)\)\}"/,'empty home must use the MeteoCompare application icon');
@@ -35,4 +36,4 @@ for(const locale of ['fr','en','es','de','it']){
   }
 }
 
-console.log('MeteoCompare Web 1.14.0 full-width enriched insights: OK');
+console.log(`MeteoCompare Web ${APP_VERSION} full-width enriched insights: OK`);

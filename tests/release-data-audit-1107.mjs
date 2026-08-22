@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 import {
   addDays, cityToday, dayConfidence, weightedDayConfidence, zonedLocalTimestampEpoch, zonedTimestampEpochs, currentConditions, hourlyConfidenceBand, buildTimelinePoints, roundedHourLocal
 } from '../js/domain.js';
@@ -153,9 +154,9 @@ assert.doesNotMatch(marineSource,/Date\.parse\(ts\[i\]\)/);
 assert.doesNotMatch(appSource,/findIndex\(x=>Date\.parse\(x\)/);
 assert.match(appSource,/BIAS_REFERENCE_LAG_DAYS=6/);
 assert.match(appSource,/data-agreement-epoch/, 'agreement drill-down must preserve absolute DST-safe instants');
-const releaseVersion=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim(),swSource=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
+const releaseVersion=APP_VERSION,swSource=fs.readFileSync(new URL('../sw.js',import.meta.url),'utf8');
 assert.ok(releaseVersion.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${releaseVersion}`);
-assert.match(swSource,/const APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(swSource,/const APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(swSource,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 console.log('MeteoCompare Web 1.10.8 release data-chain audit: OK');

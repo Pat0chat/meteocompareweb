@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 const read=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),domain=read('js/domain.js'),css=read('styles.css');
+const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),domain=read('js/domain.js'),css=read('styles.css');
 const parts=version.split('.').map(Number);
 assert.ok(parts[0]>1 || (parts[0]===1 && (parts[1]>10 || (parts[1]===10 && parts[2]>=13))));
-assert.match(versionJs,/APP_VERSION = '\d+\.\d+\.\d+'/);
-assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(versionJs,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.doesNotMatch(domain,/if\(c\.familyCount<2\|\|!c\.stats\)return null/);
 assert.doesNotMatch(domain,/if\(p\.familyCount<2\)return null/);

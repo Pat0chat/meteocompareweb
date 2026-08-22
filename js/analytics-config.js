@@ -1,12 +1,14 @@
 // Privacy-first audience measurement for the public MeteoCompare web site.
 //
-// The direct Events API integration avoids loading a third-party analytics
-// script. City names/ids, coordinates, search queries and weather values are
-// never sent. See PRIVACY.md and tests/minimal-analytics.mjs.
+// Plausible's official site-specific tracker is loaded by index.html, but
+// automatic pageviews and optional auto-tracking are disabled. MeteoCompare
+// sends only its own allow-listed, redacted pageviews/events through the
+// global plausible() queue. See PRIVACY.md and tests/minimal-analytics.mjs.
 export const ANALYTICS_CONFIG = Object.freeze({
   enabled: true,
   provider: 'plausible',
   domain: 'meteocompare.app',
   allowedHosts: ['meteocompare.app', 'www.meteocompare.app'],
+  scriptSrc: 'https://plausible.io/js/pa-m_Vcr9SLuhB7IFuIgpvGB.js',
   endpoint: 'https://plausible.io/api/event',
 });

@@ -2,18 +2,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { APP_VERSION } from '../js/version.js';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
-const version=read('VERSION').trim();
+const version=APP_VERSION;
 const versionJs=read('js/version.js');
 const sw=read('sw.js');
 const app=read('js/app.js');
 const css=read('styles.css');
 
 assert.ok(version.localeCompare('1.10.12',undefined,{numeric:true,sensitivity:'base'})>=0);
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
-assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Settings must use intrinsic flow: no fake spacer tracks or auto-pushed actions.

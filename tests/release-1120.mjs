@@ -4,12 +4,13 @@ import { ApplicationKernel } from '../js/core/application-kernel.js';
 import { FeatureRegistry } from '../js/core/feature-registry.js';
 import { OperationRegistry } from '../js/core/cache-registry.js';
 import { WeatherIconRenderer } from '../js/ui/weather-icons.js';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),app=read('js/app.js'),models=read('js/models.js'),css=read('styles.css'),sw=read('sw.js'),architecture=read('ARCHITECTURE.md');
+const version=APP_VERSION,versionJs=read('js/version.js'),app=read('js/app.js'),models=read('js/models.js'),css=read('styles.css'),sw=read('sw.js'),architecture=read('ARCHITECTURE.md');
 const [major,minor]=version.split('.').map(Number);assert.ok(major>1||(major===1&&minor>=12),'1.12 object foundation must remain compatible in later releases');
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
-assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 for(const file of ['core/app-state.js','core/cache-registry.js','core/feature-registry.js','core/local-analysis-store.js','core/application-kernel.js','ui/weather-icons.js'])assert.ok(sw.includes(`./js/${file}`),`${file} missing from PWA shell`);
 

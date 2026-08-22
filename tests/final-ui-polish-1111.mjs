@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 const root=new URL('../',import.meta.url);
 const app=fs.readFileSync(new URL('js/app.js',root),'utf8');
 const css=fs.readFileSync(new URL('styles.css',root),'utf8');
-const version=fs.readFileSync(new URL('VERSION',root),'utf8').trim();
+const version=APP_VERSION;
 const versionJs=fs.readFileSync(new URL('js/version.js',root),'utf8');
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(app,/class="summary-solar-pair"/,'TodaySummary must group solar chips');
 assert.match(app,/class="summary-solar-chip"/,'TodaySummary solar chips must use dedicated geometry');
 assert.match(css,/\.summary-context-chips > \.summary-solar-pair\s*\{/,'solar pair layout rule missing');

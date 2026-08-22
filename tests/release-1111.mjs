@@ -1,16 +1,17 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const version=read('VERSION').trim();
+const version=APP_VERSION;
 const app=read('js/app.js');
 const css=read('styles.css');
 const versionJs=read('js/version.js');
 const sw=read('sw.js');
 
 assert.ok(version.localeCompare('1.11.1',undefined,{numeric:true,sensitivity:'base'})>=0);
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
-assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function diagnosticStatusLabel('));

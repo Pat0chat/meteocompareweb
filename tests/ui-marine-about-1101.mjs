@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
-const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+const version=APP_VERSION;
 assert.match(version,/^\d+\.\d+\.\d+$/);
 assert.ok(!app.includes("<details style=\"margin-top:10px\" data-city-scenarios"),'inactive home scenarios disclosure removed');
 assert.ok(app.includes('agreement-chart-wrap'),'agreement chart wrapper is explicit');

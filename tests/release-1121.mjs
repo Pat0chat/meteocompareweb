@@ -4,12 +4,13 @@ import { ApplicationKernel } from '../js/core/application-kernel.js';
 import { FeatureRegistry } from '../js/core/feature-registry.js';
 import { OperationRegistry } from '../js/core/cache-registry.js';
 import { WeatherIconRenderer } from '../js/ui/weather-icons.js';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),app=read('js/app.js'),css=read('styles.css'),html=read('index.html'),sw=read('sw.js');
+const version=APP_VERSION,versionJs=read('js/version.js'),app=read('js/app.js'),css=read('styles.css'),html=read('index.html'),sw=read('sw.js');
 assert.ok(/^\d+\.\d+\.\d+$/.test(version));
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
-assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';

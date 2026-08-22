@@ -42,5 +42,5 @@ const audit=webTranslationAudit();
 for(const lang of ['fr','en','es','de','it']) assert.deepEqual(audit[lang],[],`missing web translations in ${lang}`);
 for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']) for(const key of ['aboutTitle','helpTitle','pwaTitle','installPwa','legendHowToRead','supportBodyDetailed','donationDisclaimer']) assert.ok(hasTranslation(pref,key),`${key} missing in ${pref}`);
 
-assert.match(workflow,/(?:pwa-about-legends\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow runs the PWA/About/legends regression suite');
+assert.match(workflow,/(?:npm run tests|pwa-about-legends\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow runs the PWA/About/legends regression suite');
 console.log('MeteoCompare Web PWA + About + legend semantics tests: OK');

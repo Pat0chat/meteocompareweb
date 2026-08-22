@@ -4,17 +4,18 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { SEO_CITIES, cityPublicPath, nearbySeoCities } from '../js/seo-cities.mjs';
+import { APP_VERSION } from '../js/version.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const read=path=>fs.readFileSync(resolve(root,path),'utf8');
-const version=read('VERSION').trim();
+const version=APP_VERSION;
 const app=read('js/app.js');
 const index=read('index.html');
 const build=read('tools/build-site.mjs');
 const sw=read('sw.js');
 const wrangler=read('wrangler.jsonc');
 
-assert.equal(version,'1.14.0','SEO foundation must not change the application version');
+assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'application version must come from the centralized semantic version');
 assert.equal(SEO_CITIES.length,80,'initial SEO catalog should stay intentionally controlled');
 assert.equal(new Set(SEO_CITIES.map(city=>city.slug)).size,SEO_CITIES.length,'SEO city slugs must be unique');
 assert.equal(new Set(SEO_CITIES.map(city=>city.id)).size,SEO_CITIES.length,'SEO city ids must be unique');
@@ -63,4 +64,4 @@ assert.equal(new Set(urls).size,urls.length,'sitemap URLs must be unique');
 assert.equal(read('dist/robots.txt'),'User-agent: *\nAllow: /\n\nSitemap: https://meteocompare.app/sitemap.xml\n');
 assert.match(read('dist/_redirects'),/\/meteo\/:slug\/ \/meteo\/:slug 301/);
 
-console.log('MeteoCompare Web SEO P0-P6 foundation 1.14.0: OK');
+console.log(`MeteoCompare Web SEO P0-P6 foundation ${APP_VERSION}: OK`);

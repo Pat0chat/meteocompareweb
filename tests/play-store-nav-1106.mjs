@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
@@ -17,6 +18,6 @@ assert.match(nav,/aria-label="\$\{esc\(t\('openAndroidApp'\)\)\}"/);
 assert.match(nav,/<span>Google Play<\/span>/);
 assert.match(css,/\.topbar \.android-nav/);
 assert.match(css,/@media \(max-width:860px\)[\s\S]*\.topbar \.nav-btn > span:last-child \{ display:none; \}/);
-assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/const APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 console.log('MeteoCompare Web Play Store navigation regression: OK');

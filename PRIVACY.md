@@ -34,7 +34,7 @@ Politique Open-Meteo : https://open-meteo.com/en/terms#privacy
 
 ## 3. Mesure d’audience minimale de la version web
 
-Lorsqu’elle est activée par l’éditeur du site, MeteoCompare utilise directement l’Events API de Plausible Analytics. Aucun script analytics tiers supplémentaire n’est chargé.
+Lorsqu’elle est activée par l’éditeur du site, MeteoCompare charge le tracker officiel Plausible Analytics associé à `meteocompare.app`. Les pageviews automatiques ainsi que le suivi automatique des liens sortants, téléchargements et formulaires sont désactivés : seuls les pageviews et événements explicitement autorisés par MeteoCompare sont envoyés.
 
 ### Finalité
 
@@ -82,7 +82,7 @@ Pour l’attribution d’acquisition :
 - contenu des exports ;
 - identifiant persistant analytics créé par MeteoCompare.
 
-Les propriétés et événements acceptés sont filtrés par une liste blanche dans le code afin qu’un identifiant ou une chaîne arbitraire ne puisse pas être ajouté accidentellement. Les appels utilisent `credentials: omit` et `referrerPolicy: no-referrer`; le referrer minimisé, lorsqu’il existe, est ajouté explicitement dans le corps JSON.
+Les propriétés et événements acceptés sont filtrés par une liste blanche dans le code afin qu’un identifiant ou une chaîne arbitraire ne puisse pas être ajouté accidentellement. MeteoCompare fournit au tracker Plausible une URL déjà anonymisée et un `transformRequest` réduit le referrer externe à son origine ; un referrer interne est supprimé.
 
 Plausible reçoit néanmoins les métadonnées réseau normales de la requête HTTPS. Sa documentation indique que l’IP et le User-Agent servent au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
 

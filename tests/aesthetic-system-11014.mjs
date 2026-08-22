@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 
 const app=fs.readFileSync('js/app.js','utf8');
 const css=fs.readFileSync('styles.css','utf8');
 const sw=fs.readFileSync('sw.js','utf8');
-const version=fs.readFileSync('VERSION','utf8').trim();
+const version=APP_VERSION;
 
 assert.ok(version.localeCompare('1.10.14',undefined,{numeric:true,sensitivity:'base'})>=0);
-assert.match(sw,/APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Mes villes: normal navigation remains, quick hover/focus menu adds direct routes.

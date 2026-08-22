@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import { fetchModelRunMetadata } from '../js/features/model-health.js';
 import { WEATHER_MODELS } from '../js/models.js';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const version=read('VERSION').trim();
+const version=APP_VERSION;
 const app=read('js/app.js');
 const models=read('js/models.js');
 const versionJs=read('js/version.js');
@@ -12,8 +13,8 @@ const sw=read('sw.js');
 const css=read('styles.css');
 
 assert.ok(version.localeCompare('1.11.0',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
-assert.ok(versionJs.includes(`APP_VERSION = '${version}'`));
-assert.ok(sw.includes(`APP_VERSION = '${version}'`));
+assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
+assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const homeStart=app.indexOf('function renderHome()');

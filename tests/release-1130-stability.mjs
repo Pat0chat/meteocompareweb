@@ -8,12 +8,13 @@ import { computeBiases } from '../js/features/bias.js';
 import { normalizeMarine, marineCacheFresh } from '../js/features/marine.js';
 import { FeatureRegistry } from '../js/core/feature-registry.js';
 import { OperationRegistry } from '../js/core/cache-registry.js';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const version=read('VERSION').trim(),versionJs=read('js/version.js'),sw=read('sw.js');
-assert.equal(version,'1.14.0');
-assert.match(versionJs,/APP_VERSION = '1\.14\.0'/);
-assert.match(sw,/APP_VERSION = '1\.14\.0'/);
+const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js');
+assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'application version must come from the centralized semantic version');
+assert.match(versionJs,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 assert.match(sw,/\.\/js\/data\/contracts\.js/);
 assert.match(sw,/\.\/js\/data\/forecast-normalizer\.js/);
@@ -101,4 +102,4 @@ try{
   assert.equal(networkCalls.length,3,'fallback should make the failed batch plus one request per isolated model');
 }finally{globalThis.fetch=priorFetch;}
 
-console.log('MeteoCompare Web 1.14.0 stability contracts: OK');
+console.log(`MeteoCompare Web ${APP_VERSION} stability contracts: OK`);

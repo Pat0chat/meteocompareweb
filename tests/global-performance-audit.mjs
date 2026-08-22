@@ -21,7 +21,7 @@ for(const pair of [
 assert.match(appSource,/dataset\.compareModel[\s\S]{0,520}rerenderTargetedComparisonPanel\(\)/,'compareModel should rerender only the inner targeted comparison panel');
 assert.match(storageSource,/async function mapLimited\(/,'cache-storage inspection must use bounded concurrency');
 assert.match(storageSource,/mapLimited\(requests,6/,'PWA cache asset sizing should not be strictly sequential');
-assert.match(workflow,/(?:global-performance-audit\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow must run global performance audit');
+assert.match(workflow,/(?:npm run tests|global-performance-audit\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow must run global performance audit');
 
 const city={id:'bench',name:'Bench',latitude:48.85,longitude:2.35,timezone:'Europe/Paris'};
 const dateFmt=new Intl.DateTimeFormat('en-CA',{timeZone:city.timezone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'});

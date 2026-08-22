@@ -31,5 +31,5 @@ for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']){
   assert.ok(hasTranslation(pref,'chartHoverAt'),`chartHoverAt missing in ${pref}`);
 }
 const audit=webTranslationAudit();for(const lang of ['fr','en','es','de','it'])assert.deepEqual(audit[lang],[],`missing translations in ${lang}`);
-assert.match(workflow,/(?:interactive-legends\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow runs interactive legend tests');
+assert.match(workflow,/(?:npm run tests|interactive-legends\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow runs interactive legend tests');
 console.log('MeteoCompare Web interactive legend tests: OK');

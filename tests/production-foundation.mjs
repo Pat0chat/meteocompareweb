@@ -57,7 +57,7 @@ const app=read('js/app.js'),sw=read('sw.js'),release=read('.github/workflows/rel
 assert.match(app,/data-action="export-backup"/);
 assert.doesNotMatch(marineSource,/searchParams\.set\('daily'/,'Marine must derive daily summaries locally instead of requesting extra daily variables');
 assert.match(marineSource,/wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature/);assert.match(app,/data-action="import-backup"/);assert.match(app,/activate-marine/);assert.match(app,/apiUsageSnapshot/);
-assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);assert.match(sw,/features\/marine\.js/);
+assert.match(sw,/const APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);assert.match(sw,/features\/marine\.js/);
 assert.match(release,/tags: \['v\*\.\*\.\*'\]/);assert.match(release,/gh release create/);assert.match(release,/sha256sum/);assert.match(release,/releases\/generate-notes/);assert.match(release,/CHANGELOG-\$\{GITHUB_REF_NAME\}\.md/);
 assert.match(rollback,/workflow_dispatch/);assert.match(rollback,/ref: \$\{\{ inputs\.tag \}\}/);assert.match(rollback,/deploy-pages/);
 console.log('MeteoCompare production foundation tests: OK');

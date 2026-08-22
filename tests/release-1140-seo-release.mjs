@@ -3,13 +3,14 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { APP_VERSION } from '../js/version.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const read=path=>fs.readFileSync(resolve(root,path),'utf8');
 
-assert.equal(read('VERSION').trim(),'1.14.0');
-assert.match(read('js/version.js'),/APP_VERSION = '1\.14\.0'/);
-assert.match(read('sw.js'),/APP_VERSION = '1\.14\.0'/);
+assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'application version must come from the centralized semantic version');
+assert.match(read('js/version.js'),/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(read('sw.js'),/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(read('sw.js'),/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(read('cache-version.js'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
@@ -32,4 +33,4 @@ assert.match(toulouse,/rel="icon" href="assets\/icon\.png"/);
 assert.match(toulouse,/type="module" src="js\/app\.js"/);
 assert.ok(fs.existsSync(resolve(root,'dist/assets/icon.png')),'release build must contain the topbar icon');
 
-console.log('MeteoCompare Web 1.14.0 SEO release and nested-route assets: OK');
+console.log(`MeteoCompare Web ${APP_VERSION} SEO release and nested-route assets: OK`);

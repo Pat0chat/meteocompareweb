@@ -25,17 +25,15 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME#v}"
-          APP_VERSION="$(tr -d '\r\n' < VERSION)"
-          test "$TAG" = "$APP_VERSION" || { echo "Tag v$TAG != VERSION $APP_VERSION"; exit 1; }
+          APP_VERSION="$(node tools/project-version.mjs)"
+          test "$TAG" = "$APP_VERSION" || { echo "Tag v$TAG != app-version.js $APP_VERSION"; exit 1; }
       - name: Run full regression suite
-        run: |
-          set -e
-          for test in tests/*.mjs; do echo "==> $test"; node "$test"; done
+        run: npm run tests
       - name: Build release archive
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(tr -d '\r\n' < VERSION)"
+          VERSION="$(node tools/project-version.mjs)"
           ROOT="meteocompare-web-v${VERSION}"
           rm -rf release "$ROOT"
           mkdir -p "$ROOT" release

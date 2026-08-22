@@ -1,16 +1,17 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { webTranslationAudit } from '../js/i18n.js';
+import { APP_VERSION } from '../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),version=read('VERSION').trim();
+const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),version=APP_VERSION;
 const slice=(start,end)=>app.slice(app.indexOf(start),app.indexOf(end,app.indexOf(start)));
 const settings=slice('function renderSettings(){','function modelGroups(');
 const local=slice('function renderLocalDataPage(){','function renderSettings(){');
 const about=slice('function renderAbout(){','function renderHome(){');
 
 assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'base'})>=0,`unexpected release version ${version}`);
-assert.match(sw,/const APP_VERSION = '\d+\.\d+\.\d+'/);
+assert.match(sw,/const APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Settings: four clear logical sections, no redundant eyebrow in the page renderer.

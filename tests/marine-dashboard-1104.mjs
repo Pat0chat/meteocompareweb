@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { APP_VERSION } from '../js/version.js';
 const app=fs.readFileSync(new URL('../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../styles.css',import.meta.url),'utf8');
-const version=fs.readFileSync(new URL('../VERSION',import.meta.url),'utf8').trim();
+const version=APP_VERSION;
 assert.match(version,/^\d+\.\d+\.\d+$/);
 assert.ok(app.includes('marine-dashboard') && app.includes('marine-sea-surface') && app.includes('marine-tide-surface'),'marine content is grouped into two coherent surfaces');
 assert.ok(app.includes('marine-outlook') && app.includes('marine-days'),'7-day outlook is integrated with sea-state evolution');
