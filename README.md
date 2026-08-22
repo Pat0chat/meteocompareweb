@@ -82,7 +82,7 @@ Le service worker :
 - résumé journalier, conditions actuelles, lever/coucher du soleil ;
 - heatmap 12 h et scénarios multi-modèles ;
 - chronologie riche avec modes 24 h / 7 jours, repères réguliers, bande thermique, signal pluie, nébulosité, vent/rafales, accord et variables en désaccord ;
-- accord global dans une card dédiée, avec « Pourquoi cet accord ? » et accès direct à la comparaison des moteurs V3 ;
+- accord global dans une card dédiée, avec « Pourquoi cet accord ? » et accès direct à la comparaison des moteurs ;
 - score d'accord inter-modèles et bande horaire séparée ;
 - bandes d'incertitude température / pluie / vent, horizons 24 h / 72 h / 7 jours ;
 - repères thermiques ERA5 sur 10 ans avec garde de complétude ;
@@ -224,3 +224,11 @@ La génération du cache du shell PWA est centralisée dans **`cache-version.js`
 ### Version applicative
 
 La version produit est centralisée de la même manière dans **`app-version.js`**. `js/version.js`, `sw.js`, les tests, le build SEO et les workflows GitHub lisent cette source unique. Une montée de version ne nécessite donc plus de modifier des assertions de tests ou plusieurs constantes : **seul `app-version.js` porte la version courante**. Le build génère encore un fichier `dist/VERSION` pour les artefacts de déploiement, mais il est dérivé automatiquement de cette source.
+
+## Forecast Engines
+
+The city Details view can now use one of four forecast engines: **Multi-consensus**, **Calibration**, **Scenarios** or **Adaptive**. The engine is selected in Settings and is applied consistently to central temperature, precipitation, wind, gust and cloud forecasts. A dedicated **Compare engines** modal shows seven days of results for all four methods side by side while highlighting the active engine. Raw model convergence remains independent from the chosen post-processing engine. See `FORECAST_ENGINES.md` for formulas, fallbacks and interpretation rules.
+
+- La Home utilise le même moteur que les pages Détails pour les conditions actuelles, agrégats journaliers et mini-timelines.
+- La page À propos documente les quatre moteurs et l’étape de sélection dans la construction de la prévision.
+- Le bloc redondant « À retenir » a été retiré de Détails pour réduire le bruit visuel.

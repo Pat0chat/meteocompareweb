@@ -22,7 +22,7 @@ assert.notEqual(consensusGroupFor('GFS'),consensusGroupFor('HRRR_CONUS'));
 
 assert.match(domain,/precipitationConsensus\(/,'rain must use the two-stage consensus engine');
 assert.match(domain,/familyBalancedWeights\(models\.map\(x=>x\.modelId\)\)/,'scenario ranking must balance model lineages');
-assert.match(app,/const engineContext=homeForecastEngineContext\(city\.id\),now=currentConditions\(f,new Date\(\),engineContext\)/,'city cards must use the full selected V3 forecast-engine context');
+assert.match(app,/const engineContext=homeForecastEngineContext\(city\.id\),now=currentConditions\(f,new Date\(\),engineContext\)/,'city cards must use the full selected forecast-engine context');
 assert.match(app,/historicalConfidence/,'historical confidence must be displayed separately from convergence');
 assert.match(comparison,/metric==='TEMPERATURE'\?a\.tempMax/,'city comparison must reuse unified daily central values');
 assert.match(comparison,/\.filter\(x=>x\.key>=today\)\.slice\(0,7\)/,'daily comparison must preserve null gaps instead of filtering them out');

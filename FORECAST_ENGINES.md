@@ -1,4 +1,4 @@
-# MeteoCompare Forecast Engines V3
+# MeteoCompare Forecast Engines
 
 MeteoCompare 1.15.0 can compute the central forecast with four interchangeable engines. The raw model forecasts and the model-convergence indicators remain unchanged: engines only change how the central forecast and its engine interval are derived.
 
@@ -26,7 +26,7 @@ Runs Multi-consensus, Calibration and Scenarios on the same input. A strong mult
 
 ## Variables
 
-The V3 engine is applied to temperature, precipitation, wind, gusts and cloud cover for hourly and daily central forecasts. Weather-condition codes remain a categorical family-balanced vote because a numeric bias correction is not meaningful for WMO condition classes.
+The forecast engine is applied to temperature, precipitation, wind, gusts and cloud cover for hourly and daily central forecasts. Weather-condition codes remain a categorical family-balanced vote because a numeric bias correction is not meaningful for WMO condition classes.
 
 ## User interface
 
@@ -34,7 +34,7 @@ Settings > Forecast lets the user select Multi-consensus, Calibration, Scenarios
 
 Home and City Details use the same selected-engine context, including optional local weights and available calibration profiles. Home cards, current conditions, daily summaries, watchlist signals and mini-timelines therefore stay consistent with City Details.
 
-City Details places a dedicated **Compare engines** V3 card between model convergence and weather scenarios. The modal starts with two seven-day comparison charts (maximum temperature and expected rain), followed by a divergence timeline that highlights the days where the four engines disagree most. Detailed daily matrices remain available underneath with minimum and maximum temperature, precipitation probability/amount, wind, gusts, cloud cover and condition, plus engine ranges, fallbacks, calibration coverage and detected scenario count when available.
+City Details places a dedicated **Compare engines** card between model convergence and weather scenarios. The modal starts with three full-width seven-day comparison charts (maximum temperature, expected rain and mean wind), followed by a visual divergence timeline with separate temperature, rain and wind spread bars for each day. Detailed daily matrices remain available underneath with minimum and maximum temperature, precipitation probability/amount, wind, gusts, cloud cover and condition, plus engine ranges, fallbacks, calibration coverage and detected scenario count when available.
 
 ## Interpretation and safeguards
 
@@ -45,7 +45,7 @@ Model convergence is intentionally calculated from the raw comparable model fore
 1. What do the source models agree on?
 2. Given those models and local history, what central forecast does the selected engine produce?
 
-The V3 implementation is designed for transparent client-side post-processing. It does not label the lightweight calibration as a full trained EMOS implementation, and it does not label scenario clustering as formal Bayesian Model Averaging. Those methods require a larger, consistently verified training archive and parameter fitting pipeline than the current local-history store provides.
+The implementation is designed for transparent client-side post-processing. It does not label the lightweight calibration as a full trained EMOS implementation, and it does not label scenario clustering as formal Bayesian Model Averaging. Those methods require a larger, consistently verified training archive and parameter fitting pipeline than the current local-history store provides.
 
 ## About-page documentation
 
