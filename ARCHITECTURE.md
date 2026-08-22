@@ -40,3 +40,9 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 8. Le shell PWA doit contenir chaque import statique nécessaire au démarrage hors connexion.
 9. La génération du cache PWA a une source unique : `cache-version.js`. `sw.js` l'importe via `importScripts()` ; aucun autre fichier ne doit recopier la valeur courante du cache.
 10. La version applicative a une source unique : `app-version.js`. Le runtime, le service worker, le build, les workflows et les tests doivent la consommer au lieu de recopier un numéro de version.
+
+## Forecast Engine V3 boundary
+
+`js/forecast-engines.js` is the single post-processing module used by `js/domain.js`. It receives normalized model values plus optional local skill/calibration profiles and returns a common result contract (`central`, `interval`, `effectiveEngine`, `fallback`, calibration coverage and scenario metadata). UI code never reimplements an engine formula. `js/data/contracts.js` owns persistence/normalization of the selected engine. The Details view builds one `forecastEngineContext()` and passes it through daily/hourly aggregation and radar short-term forecast rendering.
+
+Raw model-agreement metrics deliberately stay outside this boundary: `dayConfidence()` and disagreement diagnostics continue to describe source-model convergence rather than the output of a chosen post-processor.

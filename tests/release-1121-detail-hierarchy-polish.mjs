@@ -6,7 +6,7 @@ const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),version=APP_
 assert.ok(/^\d+\.\d+\.\d+$/.test(version));
 assert.match(app,/function renderGlobalAgreementCard\(/);
 assert.match(app,/overview-primary">\$\{renderTodaySummary\([^}]+\)\}<\/div><div class="overview-secondary">/);
-assert.match(app,/overview-secondary">\$\{renderGlobalAgreementCard\([^}]+\)\}\$\{renderScenarios\(/);
+assert.match(app,/overview-secondary">\$\{renderGlobalAgreementCard\([^}]+\)\}\$\{renderForecastEngineCompareAction\(\)\}\$\{renderScenarios\(/,'engine comparison must sit between convergence and scenarios');
 assert.match(app,/class="section-card global-agreement global-agreement-card/);
 assert.match(app,/summary-context-item summary-context-method/);
 assert.match(css,/\.summary-context-chips \{[\s\S]*grid-template-columns:max-content max-content minmax\(0,1fr\)/);

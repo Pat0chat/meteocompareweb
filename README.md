@@ -82,8 +82,7 @@ Le service worker :
 - résumé journalier, conditions actuelles, lever/coucher du soleil ;
 - heatmap 12 h et scénarios multi-modèles ;
 - chronologie riche avec modes 24 h / 7 jours, repères réguliers, bande thermique, signal pluie, nébulosité, vent/rafales, accord et variables en désaccord ;
-- synthèse « À retenir » ;
-- accord global dans une card dédiée au-dessus de « À retenir », avec « Pourquoi cet accord ? » au même endroit ;
+- accord global dans une card dédiée, avec « Pourquoi cet accord ? » et accès direct à la comparaison des moteurs V3 ;
 - score d'accord inter-modèles et bande horaire séparée ;
 - bandes d'incertitude température / pluie / vent, horizons 24 h / 72 h / 7 jours ;
 - repères thermiques ERA5 sur 10 ans avec garde de complétude ;
@@ -152,7 +151,7 @@ Ils couvrent notamment :
 - présence et structure du workflow de déploiement Pages ;
 - présence des heatmaps et légendes ;
 - chronologie riche 24 h / 7 jours ;
-- accord global et action « Pourquoi cet accord ? » dans une card dédiée au-dessus de « À retenir », et absence de cette action dans la bande horaire ;
+- accord global et action « Pourquoi cet accord ? » dans une card dédiée ; le bouton « Comparer les moteurs » est placé juste après la convergence et avant les scénarios ;
 - heatmaps présentes sur lignes paires et impaires ;
 - libellé « modèles » associé aux compteurs concernés ;
 - biais présent dans les en-têtes de modèles et navigation vers la page de détail du biais ;

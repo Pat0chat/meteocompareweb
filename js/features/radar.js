@@ -1,3 +1,4 @@
+import { forecastEnginePrecipitation, DEFAULT_FORECAST_ENGINE } from '../forecast-engines.js';
 const RADAR_META_URL='https://api.rainviewer.com/public/weather-maps.json';
 const OSM_TILE_URL='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const RADAR_META_TTL_MS=5*60_000;
@@ -35,15 +36,16 @@ function median(values){const a=values.filter(Number.isFinite).sort((x,y)=>x-y);
 function mean(values){const a=values.filter(Number.isFinite);return a.length?a.reduce((sum,v)=>sum+v,0)/a.length:null;}
 function maskCount(mask){let count=0;for(const value of mask)if(value)count++;return count;}
 
-export function radarForecastHours(forecast,now=Date.now(),limit=4){
-  const series=Object.values(forecast?.seriesByModel||{}),epochs=new Set();
-  for(const row of series){const h=row?.hourly||{},ts=h.timestamps||[],axis=Array.isArray(h.timestampEpochMs)&&h.timestampEpochMs.length===ts.length?h.timestampEpochMs:[];for(const value of axis)if(Number.isFinite(value)&&value>=now-30*60_000)epochs.add(value);}
-  const selected=[...epochs].sort((a,b)=>a-b).slice(0,limit);
+export function radarForecastHours(forecast,now=Date.now(),limit=4,options={}){
+  const series=Object.entries(forecast?.seriesByModel||{}),epochs=new Set();
+  for(const [,row] of series){const h=row?.hourly||{},ts=h.timestamps||[],axis=Array.isArray(h.timestampEpochMs)&&h.timestampEpochMs.length===ts.length?h.timestampEpochMs:[];for(const value of axis)if(Number.isFinite(value)&&value>=now-30*60_000)epochs.add(value);}
+  const selected=[...epochs].sort((a,b)=>a-b).slice(0,limit),engine=options?.forecastEngine||DEFAULT_FORECAST_ENGINE,localWeights=options?.weightsByVariable?.precipitation||{},calibration={};
   return selected.map(epochMs=>{
-    const amounts=[],probabilities=[];
-    for(const row of series){const h=row?.hourly||{},axis=h.timestampEpochMs||[],index=axis.indexOf(epochMs);if(index<0)continue;const amount=h.precipitation?.[index],prob=h.precipitationProbability?.[index];if(Number.isFinite(amount))amounts.push(amount);if(Number.isFinite(prob))probabilities.push(prob);}
-    const wet=amounts.filter(value=>value>=0.1).length,wetShare=amounts.length?wet/amounts.length*100:null;
-    return {epochMs,amountMm:median(amounts),probabilityPercent:mean(probabilities)??wetShare,wetSharePercent:wetShare,modelCount:amounts.length};
+    const rows=[];
+    for(const [modelId,row] of series){const h=row?.hourly||{},axis=h.timestampEpochMs||[],index=axis.indexOf(epochMs);if(index<0)continue;const amount=h.precipitation?.[index],probability=h.precipitationProbability?.[index];if(Number.isFinite(amount)||Number.isFinite(probability))rows.push({modelId,amount,probability});}
+    const result=forecastEnginePrecipitation(rows,{engine,localWeights,calibration});
+    const wet=rows.filter(row=>Number.isFinite(row.amount)&&row.amount>=0.1).length,wetShare=rows.length?wet/rows.length*100:null;
+    return {epochMs,amountMm:result.centralAmountMm,conditionalAmountMm:result.conditionalAmountMm,probabilityPercent:result.probabilityPercent,wetSharePercent:wetShare,modelCount:result.count,forecastEngine:engine,effectiveEngine:result.effectiveEngine};
   });
 }
 
@@ -159,8 +161,8 @@ function applyRadarGeometry(image,rangeConfig){
   image.style.transform='translate(-50%,-50%)';
 }
 
-function renderForecast(container,forecast,{t,locale}){
-  const hours=radarForecastHours(forecast),timezone=forecast?.city?.timezone||forecast?.timezone||'UTC',trend=radarForecastTrend(hours),trendKey={approaching:'radarTrendApproaching',leaving:'radarTrendLeaving',persistent:'radarTrendPersistent',quiet:'radarTrendQuiet',uncertain:'radarTrendUncertain'}[trend];
+function renderForecast(container,forecast,{t,locale,forecastOptions=null}){
+  const hours=radarForecastHours(forecast,Date.now(),4,forecastOptions||{}),timezone=forecast?.city?.timezone||forecast?.timezone||'UTC',trend=radarForecastTrend(hours),trendKey={approaching:'radarTrendApproaching',leaving:'radarTrendLeaving',persistent:'radarTrendPersistent',quiet:'radarTrendQuiet',uncertain:'radarTrendUncertain'}[trend];
   const cards=hours.map(row=>`<div class="radar-forecast-hour"><span>${esc(hourText(row.epochMs,locale,timezone))}</span><strong>${Number.isFinite(row.probabilityPercent)?Math.round(row.probabilityPercent)+' %':'—'}</strong><small>${Number.isFinite(row.amountMm)?row.amountMm.toLocaleString(locale,{maximumFractionDigits:1})+' mm':'—'} · ${row.modelCount} ${esc(t(row.modelCount===1?'modelSingular':'models'))}</small></div>`).join('');
   container.innerHTML=`<div class="radar-trend ${trend}"><span class="radar-trend-dot" aria-hidden="true"></span><div><strong>${esc(t(trendKey))}</strong><small>${esc(t('radarTrendModelNote'))}</small></div></div>${hours.length?`<div class="radar-forecast-hours">${cards}</div>`:`<div class="radar-empty-small">${esc(t('radarForecastUnavailable'))}</div>`}`;
 }
@@ -227,12 +229,12 @@ function cleanup(){
 
 export function destroyRadarModal(){cleanup();}
 
-export async function mountRadarModal({root,city,forecast,t,locale='fr-FR',onRangeChange=null}){
+export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',onRangeChange=null}){
   cleanup();if(!root||!city)return;
   const abortController=new AbortController();
   controller={root,city,forecast,t,locale,index:0,range:'near',frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false};
   const status=root.querySelector('[data-radar-status]'),stage=root.querySelector('[data-radar-stage]'),radarImage=root.querySelector('[data-radar-image]'),timeLabel=root.querySelector('[data-radar-time]'),slider=root.querySelector('[data-radar-slider]'),play=root.querySelector('[data-radar-play]'),forecastRoot=root.querySelector('[data-radar-forecast]');
-  if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale});
+  if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale,forecastOptions});
   if(!stage||!radarImage)return;
   const paintBase=()=>{const rangeConfig=RADAR_RANGE_CONFIG[controller?.range]||RADAR_RANGE_CONFIG.near;renderBaseTiles(stage,city,rangeConfig.mapZoom);applyRadarGeometry(radarImage,rangeConfig);paintNowcast();};paintBase();
   if(typeof ResizeObserver!=='undefined'){controller.resizeObserver=new ResizeObserver(paintBase);controller.resizeObserver.observe(stage);}

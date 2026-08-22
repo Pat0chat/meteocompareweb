@@ -6,7 +6,7 @@ const version=APP_VERSION,app=read('js/app.js'),css=read('styles.css'),sw=read('
 assert.ok(version.localeCompare('1.10.17',undefined,{numeric:true,sensitivity:'base'})>=0);
 assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
-const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
+const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);
 assert.match(home,/homeModernKicker/);
 assert.match(home,/homeModernTitle/);

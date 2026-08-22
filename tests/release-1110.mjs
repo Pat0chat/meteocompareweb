@@ -25,7 +25,7 @@ assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail|home-mode
 assert.doesNotMatch(css,/\.home-consensus-rail|\.home-model-dot/);
 
 const summaryStart=app.indexOf('function summaryDispersionCard(');
-const summaryEnd=app.indexOf('function renderInsights(',summaryStart);
+const summaryEnd=app.indexOf('function scenarioLabel(',summaryStart);
 const summary=app.slice(summaryStart,summaryEnd);
 assert.ok(summaryStart>=0&&summaryEnd>summaryStart);
 assert.match(summary,/summary-dispersion-grid/);

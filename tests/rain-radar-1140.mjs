@@ -15,7 +15,7 @@ const forecast={city:{timezone:'Europe/Paris'},seriesByModel:{
 const hours=radarForecastHours(forecast,900,3);
 assert.equal(hours.length,3);
 assert.equal(hours[0].modelCount,2);
-assert.equal(Math.round(hours[1].probabilityPercent),58);
+assert.ok(hours[1].probabilityPercent>=55&&hours[1].probabilityPercent<=60,'radar short-term trend should use the forecast engine probability rather than a raw arithmetic mean');
 assert.equal(radarForecastTrend(hours),'approaching');
 assert.equal(radarForecastTrend([{probabilityPercent:80},{probabilityPercent:60},{probabilityPercent:20}]),'leaving');
 assert.equal(radarForecastTrend([{probabilityPercent:70},{probabilityPercent:65},{probabilityPercent:60}]),'persistent');

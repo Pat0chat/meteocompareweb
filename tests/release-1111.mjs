@@ -21,7 +21,7 @@ assert.ok(weatherIndex>=0 && marineIndex>weatherIndex,'marine refresh must sit b
 assert.match(detail,/btn-icon \$\{loading\?'spinning'/);
 assert.match(detail,/btn-icon \$\{state\.marineLoading\.has\(city\.id\)\?'spinning'/);
 
-const summary=app.slice(app.indexOf('function summaryDispersionCard('),app.indexOf('function renderInsights('));
+const summary=app.slice(app.indexOf('function summaryDispersionCard('),app.indexOf('function scenarioLabel('));
 assert.doesNotMatch(summary,/summary-dispersion-chip/);
 assert.match(summary,/summary-dispersion-meta-item/);
 assert.match(summary,/summary-agreement-label/);

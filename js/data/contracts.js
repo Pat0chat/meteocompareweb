@@ -1,4 +1,5 @@
 import { DEFAULT_MODEL_IDS, REFRESH_INTERVALS, WEATHER_MODELS } from '../models.js';
+import { DEFAULT_FORECAST_ENGINE, FORECAST_ENGINES } from '../forecast-engines.js';
 
 const KNOWN_MODEL_IDS = new Set(WEATHER_MODELS.map(model => model.id));
 const REFRESH_IDS = new Set(REFRESH_INTERVALS.map(row => row.id));
@@ -11,6 +12,7 @@ const CONFIDENCE_METRICS = new Set(['TEMPERATURE','PRECIPITATION','WIND']);
 const TIMELINE_MODES = new Set(['HOURLY','DAILY']);
 const DENSITIES = new Set(['COMFORTABLE','COMPACT']);
 const CHART_HORIZONS = new Set([24,72,168]);
+const FORECAST_ENGINE_IDS = new Set(FORECAST_ENGINES);
 
 export const DEFAULT_SETTINGS = Object.freeze({
   enabledModelIds: Object.freeze([...DEFAULT_MODEL_IDS]),
@@ -25,6 +27,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   timelineMode: 'HOURLY',
   density: 'COMFORTABLE',
   localWeightedConsensus: false,
+  forecastEngine: DEFAULT_FORECAST_ENGINE,
   collapsedSections: Object.freeze({}),
 });
 
@@ -61,6 +64,7 @@ export function normalizeSettings(value={}){
     timelineMode: enumValue(source.timelineMode,TIMELINE_MODES,DEFAULT_SETTINGS.timelineMode),
     density: enumValue(source.density,DENSITIES,DEFAULT_SETTINGS.density),
     localWeightedConsensus: source.localWeightedConsensus===true,
+    forecastEngine: enumValue(source.forecastEngine,FORECAST_ENGINE_IDS,DEFAULT_SETTINGS.forecastEngine),
     collapsedSections: Object.fromEntries(Object.entries(collapsed).filter(([key,val])=>typeof key==='string'&&key.length<=160&&typeof val==='boolean')),
   };
 }

@@ -8,7 +8,7 @@ assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 
 // Home: parallel headings above the two columns; the old dispersion strip is intentionally absent from v1.11.
-const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
+const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
 assert.match(home,/home-cities-section/);
 assert.match(home,/home-watch-column/);
 assert.match(home,/home-column-heading/);

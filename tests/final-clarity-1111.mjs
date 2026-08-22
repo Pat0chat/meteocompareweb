@@ -13,7 +13,7 @@ assert.match(app,/rainExpectedAmount/);
 assert.match(app,/rainProbabilityShort/);
 assert.match(app,/maxProbabilityTitle/);
 assert.match(app,/dailyRainProbabilityLegend/);
-assert.match(app,/if\(revisions\.length\)chosen\.push\(revisions\[0\]\)/);
+assert.doesNotMatch(app,/function renderInsights\(/,'the redundant À retenir block must stay removed');
 assert.match(css,/\.timeline-precip-heat \{[\s\S]*height: 22px;[\s\S]*margin: 2px 0 5px;/);
 assert.match(css,/:where\(\.table-wrap table\) tbody tr > \* \{[\s\S]*height: 64px;/);
 assert.match(css,/\.forecast-table tbody tr > \* \{ height: 78px; \}/);

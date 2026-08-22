@@ -9,7 +9,7 @@ const fr=read('js/locales/fr.js');
 assert.match(fr,/"homeModernTitle":"Aujourd’hui, voyez le temps et le niveau d’accord des modèles\."/);
 const effectiveTitle=fr.slice(fr.lastIndexOf('Object.assign(catalog'));
 assert.doesNotMatch(effectiveTitle,/"homeModernTitle":"[^"]*—[^"]*"/);
-const home=app.slice(app.indexOf('function homeConsensusWeights'),app.indexOf('function renderCityDetail'));
+const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
 assert.match(home,/home-weather-coherence/);
 assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail|home-model-dot/);
 
