@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { preparePreviewHtml } from './preview-html.mjs';
 
 const root=resolve(fileURLToPath(new URL('../dist/',import.meta.url)));
 const port=Number(process.env.PORT)||4173;
@@ -28,7 +29,8 @@ createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`),file=await resolveRequest(url.pathname);
     if(!file){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});res.end('Not found');return;}
-    const body=await readFile(file),type=types[extname(file).toLowerCase()]||'application/octet-stream';
+    let body=await readFile(file),type=types[extname(file).toLowerCase()]||'application/octet-stream';
+    if(type.startsWith('text/html'))body=Buffer.from(preparePreviewHtml(body.toString('utf8')),'utf8');
     res.writeHead(200,{'content-type':type,'cache-control':'no-store'});res.end(body);
   }catch(error){res.writeHead(500,{'content-type':'text/plain; charset=utf-8'});res.end(String(error?.message||error));}
 }).listen(port,'127.0.0.1',()=>console.log(`MeteoCompare preview: http://127.0.0.1:${port}`));

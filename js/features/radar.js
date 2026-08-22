@@ -198,7 +198,7 @@ function paintNowcast(){
 function renderNowcastSummary(){
   if(!controller)return;const node=controller.root.querySelector('[data-radar-nowcast-summary]');if(!node)return;
   if(controller.nowcastBusy){node.className='radar-nowcast-summary loading';node.innerHTML=`<span class="loader"></span><span>${esc(controller.t('radarNowcastAnalyzing'))}</span>`;return;}
-  const result=controller.nowcast;if(!result){node.className='radar-nowcast-summary unavailable';node.textContent=controller.t('radarNowcastUnavailable');return;}
+  const result=controller.nowcast;if(!result){node.className='radar-nowcast-summary unavailable';node.textContent=controller.t(controller.nowcastReason==='uncertain'?'radarNowcastUncertain':'radarNowcastUnavailable');return;}
   const latest=controller.frames.at(-1)?.time||Date.now()/1000,eta=result.eta,timezone=controller.forecast?.city?.timezone||'UTC',speedPxPerMin=Math.hypot(result.motion.vx,result.motion.vy),pixelKm=mapResolutionKm(controller.city.latitude,(RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near).radarZoom)*(512/ANALYSIS_SIZE),speedKmh=Math.round(speedPxPerMin*pixelKm*60),direction=compass(result.motion.vx,result.motion.vy),confidence=Math.round(result.motion.confidence*100);
   let headline='';
   if(eta.kind==='approaching')headline=controller.t('radarNowcastArrival',{time:timeText(latest+eta.minute*60,controller.locale,timezone),minutes:eta.uncertaintyMinutes});
@@ -213,8 +213,8 @@ async function analyzeNowcast(){
   try{
     const sourceFrames=controller.frames,indices=[...new Set([0,Math.round((sourceFrames.length-1)*.25),Math.round((sourceFrames.length-1)*.5),Math.round((sourceFrames.length-1)*.75),sourceFrames.length-1])],candidates=indices.map(index=>sourceFrames[index]).filter(Boolean),samples=[];
     for(const frame of candidates){const mask=await imageMask(radarImageUrl(controller.meta,frame,controller.city,(RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near).radarZoom),controller.abortController.signal);samples.push({mask,time:frame.time});}
-    if(!controller||controller.abortController.signal.aborted)return;const motion=estimateRadarMotion(samples);if(!motion)throw new Error('RADAR_MOTION_UNCERTAIN');const mask=samples.at(-1).mask,eta=radarNowcastEta(mask,motion);controller.nowcast={mask,motion,eta};controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();
-  }catch(error){if(!controller||controller.abortController.signal.aborted)return;controller.nowcast=null;controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();console.warn('Radar nowcast:',error);}
+    if(!controller||controller.abortController.signal.aborted)return;const motion=estimateRadarMotion(samples);if(!motion){controller.nowcast=null;controller.nowcastReason='uncertain';controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();return;}const mask=samples.at(-1).mask,eta=radarNowcastEta(mask,motion);controller.nowcast={mask,motion,eta};controller.nowcastReason=null;controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();
+  }catch(error){if(!controller||controller.abortController.signal.aborted)return;controller.nowcast=null;controller.nowcastReason='error';controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();console.warn('Radar nowcast unavailable:',error?.message||error);}
 }
 
 function cleanup(){
@@ -230,7 +230,7 @@ export function destroyRadarModal(){cleanup();}
 export async function mountRadarModal({root,city,forecast,t,locale='fr-FR',onRangeChange=null}){
   cleanup();if(!root||!city)return;
   const abortController=new AbortController();
-  controller={root,city,forecast,t,locale,index:0,range:'near',frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastBusy:false};
+  controller={root,city,forecast,t,locale,index:0,range:'near',frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false};
   const status=root.querySelector('[data-radar-status]'),stage=root.querySelector('[data-radar-stage]'),radarImage=root.querySelector('[data-radar-image]'),timeLabel=root.querySelector('[data-radar-time]'),slider=root.querySelector('[data-radar-slider]'),play=root.querySelector('[data-radar-play]'),forecastRoot=root.querySelector('[data-radar-forecast]');
   if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale});
   if(!stage||!radarImage)return;
@@ -244,7 +244,7 @@ export async function mountRadarModal({root,city,forecast,t,locale='fr-FR',onRan
   root.addEventListener('click',event=>{
     if(!controller)return;const target=event.target.closest?.('[data-radar-play],[data-radar-range]');if(!target)return;
     if(target.hasAttribute('data-radar-play')){setPlaying(!controller.playing);paintFrame();return;}
-    const range=target.dataset.radarRange;if(!(range in RADAR_RANGE_CONFIG)||range===controller.range)return;controller.range=range;root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});paintBase();paintFrame();controller.nowcast=null;void analyzeNowcast();onRangeChange?.(range);
+    const range=target.dataset.radarRange;if(!(range in RADAR_RANGE_CONFIG)||range===controller.range)return;controller.range=range;root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});paintBase();paintFrame();controller.nowcast=null;controller.nowcastReason=null;void analyzeNowcast();onRangeChange?.(range);
   },{signal:abortController.signal});
   slider?.addEventListener('input',()=>{if(!controller)return;setPlaying(false);controller.index=Math.max(0,Math.min(controller.frames.length-1,Number(slider.value)||0));paintFrame();},{signal:abortController.signal});
   try{

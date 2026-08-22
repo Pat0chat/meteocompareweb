@@ -21,7 +21,7 @@ npm run tests
 
 Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
 
-Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue.
+Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. En local, `npm run preview` retire uniquement la balise réseau du tracker Plausible de la réponse HTML : le build `dist/` reste inchangé et contient le snippet officiel, mais le navigateur de développement ne tente aucun chargement vers `plausible.io`.
 
 ## Déployer sur Cloudflare Pages — configuration recommandée
 

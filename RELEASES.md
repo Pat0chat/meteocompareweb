@@ -2,7 +2,6 @@
 
 `main` is the deployment branch. Stable releases are tags named `vMAJOR.MINOR.PATCH` and must match the single application version declared in `app-version.js`.
 
-
 ## Publish a release
 
 1. Update **only** `app-version.js` for the application version, then update the human release notes below. Runtime modules, the service worker, tests and CI all consume that centralized value automatically.

@@ -10,7 +10,7 @@ La configuration active est dans `js/analytics-config.js` :
 - hôtes autorisés : `meteocompare.app`, `www.meteocompare.app` ;
 - endpoint : `https://plausible.io/api/event`.
 
-Les previews, localhost et autres forks ne sont pas comptés tant que leur hôte n’est pas explicitement ajouté.
+Les previews, localhost et autres forks ne sont pas comptés tant que leur hôte n’est pas explicitement ajouté. `npm run preview` va plus loin : le serveur local retire la balise `<script src="https://plausible.io/...">` de la réponse HTML afin d’éviter tout accès réseau Plausible et les avertissements des protections anti-tracking du navigateur. Le contenu de `dist/` n’est pas modifié et conserve le snippet officiel pour la production et la vérification Plausible.
 
 ## Pages
 
