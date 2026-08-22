@@ -1,5 +1,5 @@
 const APP_VERSION = '1.14.0';
-const CACHE_VERSION = 'v73-seo-context-before-insights';
+const CACHE_VERSION = 'v74-plausible-seo-analytics';
 const CACHE_PREFIX = 'meteocompare-web-';
 const CACHE = `${CACHE_PREFIX}${APP_VERSION}-shell-${CACHE_VERSION}`;
 const SHELL = [

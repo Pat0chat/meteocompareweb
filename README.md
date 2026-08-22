@@ -186,8 +186,8 @@ Ils couvrent notamment :
 - `js/domain.js` : calculs météo, accord, scénarios, biais, ERA5, évolution ;
 - `js/storage.js` : réglages/favoris + cache IndexedDB ;
 - `js/i18n.js` : interface multilingue ;
-- `js/analytics-config.js` : activation explicite de la mesure d’audience ;
-- `js/analytics.js` : pageviews expurgées + événements PWA minimaux ;
+- `js/analytics-config.js` : configuration de la mesure d’audience Plausible et restriction aux domaines de production ;
+- `js/analytics.js` : pageviews expurgées, acquisition UTM/referrer minimisée et événements fonctionnels Plausible ;
 - `js/app.js` : composition des vues, routeur et interactions, branchés sur le kernel ;
 - `js/seo-cities.mjs` : catalogue contrôlé des villes indexables et helpers des URLs publiques ;
 - `tools/build-site.mjs` : génération du dossier `dist/`, pré-rendu HTML, sitemap, robots et redirections ;
@@ -203,9 +203,9 @@ Ils couvrent notamment :
 
 Aucun secret ni clé API n'est embarqué. Les requêtes météo sont envoyées directement depuis le navigateur vers Open-Meteo. Les villes, réglages, caches, biais et snapshots MeteoCompare restent dans le stockage local du navigateur.
 
-La version web intègre une **mesure d’audience minimale facultative** basée sur l’Events API de Plausible : pageviews sur des routes expurgées (`/city`, `/bias`, etc.), clic sur le bouton d’installation PWA et installation PWA détectée. Sa finalité est limitée à la mesure de la fréquentation/charge, au dimensionnement de l’hébergement et au suivi des installations PWA détectées. Aucun nom de ville, coordonnée, modèle, prévision, biais ou historique n’est ajouté aux événements. Aucun cookie analytics ni identifiant persistant n’est créé par MeteoCompare, et ces statistiques ne sont pas réutilisées pour la publicité ou le profilage.
+La version web utilise une **mesure d’audience respectueuse** basée directement sur l’Events API de Plausible. Les routes SEO sont regroupées avant envoi (`/meteo/toulouse` → `/city`), les paramètres applicatifs et identifiants de ville sont supprimés, et seuls `utm_source`, `utm_medium` et `utm_campaign` sont conservés pour l’attribution des campagnes. Le referrer externe est réduit à son origine (domaine uniquement). Des propriétés à faible cardinalité décrivent la version de l’application, la langue, le mode navigateur/PWA et certains choix d’affichage ; des événements fonctionnels mesurent recherche/ajout de ville, comparaisons, marine, export, partage, rafraîchissement et installation PWA.
 
-Par sécurité, `js/analytics-config.js` est livré avec `enabled: false`. Après création de ton site Plausible, renseigne son `domain` exact puis passe `enabled` à `true`. Voir `ANALYTICS.md` pour la procédure, les limites du comptage PWA, GPC/DNT et le rappel CNIL : l’éventuelle exemption de consentement dépend de conditions strictes et de la configuration réelle du fournisseur au déploiement.
+Aucun cookie analytics ni identifiant persistant n’est créé par MeteoCompare. Aucun nom/identifiant de ville, coordonnée, requête de recherche, favori, valeur météo, prévision brute ou historique local n’est envoyé. GPC, DNT et l’opt-out local restent respectés. L’envoi est limité aux domaines de production configurés afin que localhost et les previews ne polluent pas les statistiques. Voir `ANALYTICS.md` pour la liste des événements/propriétés et la configuration recommandée du tableau de bord Plausible.
 
 La politique complète est dans `PRIVACY.md`.
 ### Configuration Cloudflare détaillée

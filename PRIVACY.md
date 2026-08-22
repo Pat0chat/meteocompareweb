@@ -8,7 +8,7 @@ MeteoCompare ne contient ni publicité, ni tracker publicitaire, ni profilage ut
 
 La **version Android native** conserve son fonctionnement sans analytics MeteoCompare.
 
-La **version web** peut activer une mesure d’audience minimale via Plausible Analytics. Sa finalité est limitée à la mesure de la fréquentation et de la charge du site, au dimensionnement de l’hébergement et au suivi des installations PWA détectées. Ces statistiques ne servent ni à la publicité, ni au profilage, ni au suivi inter-sites. Cette mesure est livrée **désactivée tant que l’éditeur du site n’a pas configuré son propre site Plausible**.
+La **version web** peut activer une mesure d’audience minimale via Plausible Analytics. Sa finalité est limitée à la mesure de la fréquentation et de la charge du site, au dimensionnement de l’hébergement et au suivi des installations PWA détectées. Ces statistiques ne servent ni à la publicité, ni au profilage, ni au suivi inter-sites. Sur le déploiement public `meteocompare.app`, cette mesure est activée et limitée aux hôtes de production explicitement autorisés ; localhost et les previews ne sont pas comptés.
 
 ## 1. Données locales
 
@@ -41,32 +41,50 @@ Lorsqu’elle est activée par l’éditeur du site, MeteoCompare utilise direct
 La mesure est utilisée uniquement pour :
 
 - mesurer la fréquentation et la charge globale du site ;
+- comprendre quelles fonctions de l’application sont réellement utilisées ;
+- mesurer l’origine agrégée du trafic et l’efficacité de campagnes balisées ;
 - estimer la capacité d’hébergement/serveur nécessaire ;
 - suivre le nombre d’installations PWA détectées et les clics sur le bouton d’installation.
 
 MeteoCompare n’utilise pas ces statistiques pour la publicité, le ciblage commercial, le profilage utilisateur, le suivi inter-sites ou l’enrichissement de profils individuels. Les résultats recherchés sont des **statistiques agrégées** et MeteoCompare ne cherche pas à identifier les visiteurs.
 
-### Événements envoyés
+### Événements et informations envoyés
 
-- pageview sur une catégorie de route expurgée : `/`, `/city`, `/bias`, `/compare`, `/data`, `/settings`, `/about` ;
-- `PWA Install Click` ;
-- `PWA Installed` lorsque le navigateur signale effectivement l’installation.
+Les pages sont regroupées avant envoi afin d’éviter de transmettre la ville consultée :
+
+- `/` ;
+- `/city` pour toutes les pages ville, y compris les nouvelles routes SEO `/meteo/<ville>` ;
+- `/bias` ;
+- `/compare` ;
+- `/data` ;
+- `/settings` ;
+- `/about` ;
+- `/404` pour une route SEO inconnue.
+
+Des propriétés à faible cardinalité peuvent être jointes aux pageviews : version de MeteoCompare, langue de l’interface, mode navigateur/PWA, type de navigation (`seo`, `spa` ou `direct`), onglet/mode/métrique/horizon de la vue ville, nombre de modèles comparés, ainsi que la variable et le modèle consultés sur la page de biais. Pour une comparaison de villes, seul le **nombre** de villes est envoyé.
+
+Les événements fonctionnels suivants peuvent également être envoyés : ouverture de la recherche de ville, ajout d’une ville, ajout en favori depuis une page SEO, rafraîchissement manuel, changement de vue, changement du nombre de modèles comparés, démarrage d’une comparaison de villes, activation marine, export, copie d’un lien, activation/désactivation de la pondération locale, clic d’installation PWA et installation PWA détectée.
+
+Pour l’attribution d’acquisition :
+
+- seuls `utm_source`, `utm_medium` et `utm_campaign` sont conservés parmi les paramètres de l’URL ;
+- le referrer externe peut être envoyé mais il est réduit à son **origine** (`https://www.google.com/`, par exemple) : son chemin, ses paramètres et son fragment sont supprimés ;
+- les referrers internes ne sont pas envoyés.
 
 ### Données que MeteoCompare n’ajoute jamais à ces événements
 
-- nom ou identifiant de ville ;
+- nom, slug ou identifiant de ville ;
 - coordonnées ;
+- texte saisi dans la recherche de ville ;
 - favoris ;
-- modèle météo ;
-- valeurs de prévision ;
-- accord, scénario, biais ou historique ;
-- propriétés personnalisées ;
-- referrer ;
+- valeurs météo ou séries de prévision ;
+- valeurs d’accord, scénarios, biais chiffrés ou historiques locaux ;
+- contenu des exports ;
 - identifiant persistant analytics créé par MeteoCompare.
 
-Les appels utilisent `credentials: omit` et `referrerPolicy: no-referrer`.
+Les propriétés et événements acceptés sont filtrés par une liste blanche dans le code afin qu’un identifiant ou une chaîne arbitraire ne puisse pas être ajouté accidentellement. Les appels utilisent `credentials: omit` et `referrerPolicy: no-referrer`; le referrer minimisé, lorsqu’il existe, est ajouté explicitement dans le corps JSON.
 
-Plausible reçoit néanmoins les métadonnées réseau normales de la requête HTTPS. Sa documentation indique que l’IP et le User-Agent servent au calcul des visiteurs uniques et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
+Plausible reçoit néanmoins les métadonnées réseau normales de la requête HTTPS. Sa documentation indique que l’IP et le User-Agent servent au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
 
 ## 4. Cookies, identifiants et signaux de confidentialité
 

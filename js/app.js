@@ -1026,7 +1026,7 @@ function buildExportRows(cityId){
   return rows;
 }
 function exportCityData(cityId,format){
-  const city=state.cities.find(c=>c.id===cityId),f=state.forecasts[cityId];if(!city||!f){toast(i18n().t('nothingToExport'));return;}const rows=buildExportRows(cityId),stamp=new Date().toISOString().slice(0,10),base=`meteocompare-${city.name.toLowerCase().replace(/[^a-z0-9]+/gi,'-')}-${stamp}`;
+  const city=state.cities.find(c=>c.id===cityId),f=state.forecasts[cityId];if(!city||!f){toast(i18n().t('nothingToExport'));return;}void trackAnalyticsEvent('Data Exported',state.route,{format});const rows=buildExportRows(cityId),stamp=new Date().toISOString().slice(0,10),base=`meteocompare-${city.name.toLowerCase().replace(/[^a-z0-9]+/gi,'-')}-${stamp}`;
   if(format==='json'){const payload={exportedAt:new Date().toISOString(),city,view:{mode:state.settings.detailViewMode,tab:state.settings.detailTab,metric:state.settings.confidenceMetric,horizon:state.settings.chartHorizon,compareModels:state.compareModelIds},forecast:f,agreement:{temperature:cachedBand(f,'TEMPERATURE',168),precipitation:cachedBand(f,'PRECIPITATION',168),wind:cachedBand(f,'WIND',168)},bias:state.bias[cityId],rows};downloadText(`${base}.json`,JSON.stringify(payload,null,2),'application/json;charset=utf-8');return;}
   const keys=[...new Set(rows.flatMap(r=>Object.keys(r)))],csv=[keys.map(csvCell).join(';'),...rows.map(r=>keys.map(k=>csvCell(r[k])).join(';'))].join('\n');downloadText(`${base}.csv`,csv,'text/csv;charset=utf-8');
 }
@@ -1388,24 +1388,24 @@ function handleAppClick(e){
   if(target.dataset.errorAction){handleErrorAction(target);return;}
   if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
   if(target.dataset.cityMenu){e.stopPropagation();lastFocusedBeforeModal=document.activeElement;state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
-  if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;refreshCity(target.dataset.refreshCity,true);return;}
+  if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'city'});refreshCity(target.dataset.refreshCity,true);return;}
   if(target.dataset.removeCity){removeCity(target.dataset.removeCity);return;}
   if(target.dataset.addCityId){addCityFromSearch(target.dataset.addCityId);return;}
-  if(target.dataset.confidenceMetric){state.settings.confidenceMetric=target.dataset.confidenceMetric;persistSettings();syncCityViewUrl();rerenderCitySectionOrPage('agreement');return;}
-  if(target.dataset.chartHorizon){state.settings.chartHorizon=Number(target.dataset.chartHorizon);persistSettings();syncCityViewUrl();rerenderCitySectionOrPage('agreement');return;}
-  if(target.dataset.detailMode){state.settings.detailViewMode=target.dataset.detailMode;persistSettings();syncCityViewUrl();rerenderCitySectionOrPage('details');return;}
-  if(target.dataset.detailTab){state.settings.detailTab=target.dataset.detailTab;persistSettings();syncCityViewUrl();rerenderCitySectionOrPage('details');return;}
-  if(target.dataset.timelineMode){state.settings.timelineMode=target.dataset.timelineMode;persistSettings();syncCityViewUrl();rerenderCitySectionOrPage('timeline');return;}
-  if(target.dataset.evolutionVariable){state.evolutionVariable=target.dataset.evolutionVariable;rerenderCitySectionOrPage('evolution');return;}
-  if(target.dataset.reliabilityVariable){state.reliabilityVariable=target.dataset.reliabilityVariable;rerenderCitySectionOrPage('reliability');return;}
-  if(target.dataset.localWeighting){state.settings.localWeightedConsensus=target.dataset.localWeighting==='on';persistSettings();updateSettingsChoiceButtons('data-local-weighting',target.dataset.localWeighting);stabilizeLocalScroll(interactionScrollContext);return;}
+  if(target.dataset.confidenceMetric){state.settings.confidenceMetric=target.dataset.confidenceMetric;persistSettings();syncCityViewUrl();void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'metric',value:target.dataset.confidenceMetric});rerenderCitySectionOrPage('agreement');return;}
+  if(target.dataset.chartHorizon){state.settings.chartHorizon=Number(target.dataset.chartHorizon);persistSettings();syncCityViewUrl();void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'horizon',value:target.dataset.chartHorizon});rerenderCitySectionOrPage('agreement');return;}
+  if(target.dataset.detailMode){state.settings.detailViewMode=target.dataset.detailMode;persistSettings();syncCityViewUrl();void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'mode',value:target.dataset.detailMode});rerenderCitySectionOrPage('details');return;}
+  if(target.dataset.detailTab){state.settings.detailTab=target.dataset.detailTab;persistSettings();syncCityViewUrl();void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'tab',value:target.dataset.detailTab});rerenderCitySectionOrPage('details');return;}
+  if(target.dataset.timelineMode){state.settings.timelineMode=target.dataset.timelineMode;persistSettings();syncCityViewUrl();void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'timeline',value:target.dataset.timelineMode});rerenderCitySectionOrPage('timeline');return;}
+  if(target.dataset.evolutionVariable){state.evolutionVariable=target.dataset.evolutionVariable;void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'evolution',value:target.dataset.evolutionVariable});rerenderCitySectionOrPage('evolution');return;}
+  if(target.dataset.reliabilityVariable){state.reliabilityVariable=target.dataset.reliabilityVariable;void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'reliability',value:target.dataset.reliabilityVariable});rerenderCitySectionOrPage('reliability');return;}
+  if(target.dataset.localWeighting){state.settings.localWeightedConsensus=target.dataset.localWeighting==='on';persistSettings();updateSettingsChoiceButtons('data-local-weighting',target.dataset.localWeighting);stabilizeLocalScroll(interactionScrollContext);void trackAnalyticsEvent('Local Weighting Changed',state.route,{enabled:state.settings.localWeightedConsensus});return;}
   if(target.dataset.theme){state.settings.theme=target.dataset.theme;persistSettings();updateSettingsChoiceButtons('data-theme',target.dataset.theme);stabilizeLocalScroll(interactionScrollContext);return;}
   if(target.dataset.language){const nextLanguage=target.dataset.language,directive=interactionScrollContext;void changeLanguage(nextLanguage,directive);return;}
   if(target.dataset.refreshInterval){state.settings.refreshInterval=target.dataset.refreshInterval;persistSettings();updateSettingsChoiceButtons('data-refresh-interval',target.dataset.refreshInterval);stabilizeLocalScroll(interactionScrollContext);void refreshDueCities();return;}
   if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render({scroll:interactionScrollContext,immediate:true});return;}
   if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
   if(target.dataset.density){state.settings.density=target.dataset.density;persistSettings();updateSettingsChoiceButtons('data-density',target.dataset.density);stabilizeLocalScroll(interactionScrollContext);return;}
-  if(target.dataset.compareModel){const key=state.route.name==='city'?state.route.id:'global',panel=target.closest?.('[data-target-compare]');if(panel)state.comparePanelOpen[key]=panel.dataset.open==='true';const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'));return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();rerenderTargetedComparisonPanel();return;}
+  if(target.dataset.compareModel){const key=state.route.name==='city'?state.route.id:'global',panel=target.closest?.('[data-target-compare]');if(panel)state.comparePanelOpen[key]=panel.dataset.open==='true';const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'));return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();void trackAnalyticsEvent('Model Comparison Changed',state.route,{model_count:state.compareModelIds.length});rerenderTargetedComparisonPanel();return;}
   if(target.dataset.exportFormat){exportCityData(state.route.id,target.dataset.exportFormat);return;}
   if(target.dataset.agreementTime){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id,focusTimestamp:target.dataset.agreementTime,focusEpoch:Number.isFinite(Number(target.dataset.agreementEpoch))?Number(target.dataset.agreementEpoch):null};render();return;}
   if(target.dataset.cityCompareToggle&&state.modal?.type==='cityCompare'){const id=target.dataset.cityCompareToggle,set=new Set(state.modal.selectedIds||[]);if(set.has(id))set.delete(id);else{if(set.size>=3){toast(i18n().t('cityComparisonMax3'));return;}set.add(id);}state.modal.selectedIds=[...set];render();return;}
@@ -1432,7 +1432,7 @@ function handleAction(e){
   const action=e.currentTarget.dataset.action;
   if(action==='back')history.length>1?history.back():go('#/');
   else if(action==='home')go('#/');
-  else if(action==='favorite-route-city'){const city=promoteRouteCity();if(city){toast(i18n().t('seoFavoriteAdded',{city:city.name}));render();}}
+  else if(action==='favorite-route-city'){const city=promoteRouteCity();if(city){void trackAnalyticsEvent('SEO City Favorite Added',state.route);toast(i18n().t('seoFavoriteAdded',{city:city.name}));render();}}
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='toggle-target-compare'){const key=state.route.name==='city'?state.route.id:'global',panel=e.currentTarget.closest?.('[data-target-compare]'),next=panel?.dataset.open!=='true';state.comparePanelOpen[key]=next;if(panel){panel.dataset.open=String(next);const btn=panel.querySelector?.('[data-action="toggle-target-compare"]');if(btn)btn.setAttribute('aria-expanded',String(next));const body=panel.querySelector?.('.target-compare-body');if(body)body.hidden=!next;} }
@@ -1440,16 +1440,16 @@ function handleAction(e){
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}
   else if(action==='about')go('#/about');
   else if(action==='install-pwa'){if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}void trackAnalyticsEvent('PWA Install Click',state.route);const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{if(choice?.outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();}).catch(()=>toast(pwaInstallGuidance().text));}
-  else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast(i18n().t('linkCopied'))).catch(()=>prompt(i18n().t('copyLinkPrompt'),url));else prompt(i18n().t('copyLinkPrompt'),url);}
+  else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();void trackAnalyticsEvent('Share Link Copied',state.route);const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast(i18n().t('linkCopied'))).catch(()=>prompt(i18n().t('copyLinkPrompt'),url));else prompt(i18n().t('copyLinkPrompt'),url);}
   else if(action==='open-city-compare'){lastFocusedBeforeModal=document.activeElement;const favorites=favoriteCities(),initial=state.route.name==='compare'?(state.route.ids||[]):favorites.slice(0,Math.min(2,favorites.length)).map(c=>c.id);state.modal={type:'cityCompare',selectedIds:[...initial]};render();}
-  else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'));return;}state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
-  else if(action==='refresh-all')refreshAll(true);
-  else if(action==='open-add-city'){lastFocusedBeforeModal=document.activeElement;cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
+  else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'));return;}void trackAnalyticsEvent('City Comparison Started',state.route,{city_count:ids.length});state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
+  else if(action==='refresh-all'){void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'all'});refreshAll(true);}
+  else if(action==='open-add-city'){void trackAnalyticsEvent('City Search Opened',state.route);lastFocusedBeforeModal=document.activeElement;cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
   else if(action==='close-modal'){closeModal();}
   else if(action==='modal-backdrop'&&e.target===e.currentTarget){closeModal();}
   else if(action==='why-confidence'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id};render();}
   else if(action==='donate'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'donate'};render();}
-  else if(action==='activate-marine'){const id=e.currentTarget.dataset.marineCity;state.modal=null;render();if(id)void refreshMarineData(id,true,true);}
+  else if(action==='activate-marine'){const id=e.currentTarget.dataset.marineCity;void trackAnalyticsEvent('Marine Activated',state.route);state.modal=null;render();if(id)void refreshMarineData(id,true,true);}
   else if(action==='refresh-marine'){const id=e.currentTarget.dataset.marineCity||state.route.id;state.modal=null;if(id)void refreshMarineData(id,true,false);}
   else if(action==='refresh-local-data'){state.localDataStats=null;state.localDataError=null;void refreshLocalDataStats(interactionScrollContext);}
   else if(action==='refresh-model-health'){const id=state.route.id;if(id)void refreshModelHealthData(id,true);}
@@ -1517,7 +1517,7 @@ function sameCityPlace(a,b){
   const sameName=slugifyCityName(a.name)===slugifyCityName(b.name),latDelta=Math.abs(Number(a.latitude)-Number(b.latitude)),lonDelta=Math.abs(Number(a.longitude)-Number(b.longitude));return sameName&&Number.isFinite(latDelta)&&Number.isFinite(lonDelta)&&latDelta<.04&&lonDelta<.04;
 }
 function addCityFromSearch(id){
-  const city=state.modal?.results?.find(c=>c.id===id);if(!city)return;cancelCitySearch();let target=state.cities.find(c=>c.id===city.id||sameCityPlace(c,city));
+  const city=state.modal?.results?.find(c=>c.id===id);if(!city)return;cancelCitySearch();void trackAnalyticsEvent('City Added',state.route);let target=state.cities.find(c=>c.id===city.id||sameCityPlace(c,city));
   if(target){if(target.seoTransient){delete target.seoTransient;persistFavoriteCities();toast(i18n().t('seoFavoriteAdded',{city:target.name}));}}
   else{target=city;state.cities.push(target);persistFavoriteCities();state.evolution[target.id]=[];state.bias[target.id]={forecasts:[],observations:[],updatedAt:null};}
   state.modal=null;render();refreshCity(target.id,true);

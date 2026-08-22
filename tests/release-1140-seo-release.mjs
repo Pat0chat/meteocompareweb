@@ -10,7 +10,7 @@ const read=path=>fs.readFileSync(resolve(root,path),'utf8');
 assert.equal(read('VERSION').trim(),'1.14.0');
 assert.match(read('js/version.js'),/APP_VERSION = '1\.14\.0'/);
 assert.match(read('sw.js'),/APP_VERSION = '1\.14\.0'/);
-assert.match(read('sw.js'),/CACHE_VERSION = 'v73-seo-context-before-insights'/);
+assert.match(read('sw.js'),/CACHE_VERSION = 'v74-plausible-seo-analytics'/);
 
 const index=read('index.html');
 assert.match(index,/rel="icon" href="assets\/icon\.png"/);
