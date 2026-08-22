@@ -76,4 +76,4 @@ for(const locale of ['fr','en','es','de','it']){
   for(const key of ['forecastEngineTitle','forecastEngineMulti','forecastEngineCalibration','forecastEngineScenarios','forecastEngineAdaptive','forecastEngineCompare','forecastEngineModalTitle']) assert.ok(text.includes(`"${key}"`),`${locale} missing ${key}`);
 }
 
-console.log('MeteoCompare Forecast Engines V3: OK');
+console.log('MeteoCompare historical Forecast Engines guard: OK');

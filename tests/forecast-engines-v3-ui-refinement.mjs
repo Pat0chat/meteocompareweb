@@ -21,4 +21,4 @@ for(const locale of ['fr','en','es','de','it']){
   const text=read(`js/locales/${locale}.js`);
   for(const key of ['aboutStepEngineTitle','aboutStepEngineBody','aboutForecastEnginesTitle','aboutForecastEnginesBody','aboutForecastEngineCurrent','aboutForecastEnginesCallout','forecastEngineActiveLabel']) assert.ok(text.includes(`"${key}"`),`${locale} missing ${key}`);
 }
-console.log('Forecast Engines V3 UI refinement: OK');
+console.log('Forecast Engines historical UI refinement guard: OK');
