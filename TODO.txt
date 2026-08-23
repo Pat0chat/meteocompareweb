@@ -1,0 +1,1 @@
+Pour la prochaine évolution du moteur, je privilégierais clairement l’intégration des ensembles probabilistes et des modèles IA dans des familles séparées, plutôt que de continuer à empiler des modèles déterministes. C’est probablement là que MeteoCompare peut gagner le plus en valeur ajoutée.
