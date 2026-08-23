@@ -119,7 +119,7 @@ export function saveSettings(settings) { return writeLocalRecord(SETTINGS_KEY,'s
 export function loadCities() { return normalizeCities(readLocalRecord(CITIES_KEY,'cities',[])); }
 export function saveCities(cities) { return writeLocalRecord(CITIES_KEY,'cities',normalizeCities(cities)); }
 
-/* Forecast payloads are the largest records (17 models × hourly arrays).
+/* Forecast payloads are the largest records (multiple models × hourly arrays).
    Keep legacy localStorage reads for migration, but persist new payloads in IndexedDB
    so several cities do not exhaust the small synchronous localStorage quota. */
 export function loadForecast(cityId) { return readLocalRecord(FORECAST_PREFIX+cityId,'forecast',null); }

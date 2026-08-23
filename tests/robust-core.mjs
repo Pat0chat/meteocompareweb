@@ -28,7 +28,7 @@ const center=new ErrorCenter();center.report('city:paris:network',network);asser
 assert.match(app,/data-error-action/,'user error actions must be rendered');
 assert.match(app,/ERROR_ACTIONS/,'error actions must use the centralized action registry');
 
-// 3 — diagnostics report all 17 models without letting one damaged model invalidate healthy ones.
+// 3 — diagnostics report all configured models without letting one damaged model invalidate healthy ones.
 const enabled=WEATHER_MODELS.map(m=>m.id);
 const makeMeta=(count,last='2026-08-20T12:00')=>({coverageByVariable:{temperature:{count,lastTimestamp:last},precipitation:{count,lastTimestamp:last},wind:{count,lastTimestamp:last},conditions:{count,lastTimestamp:last}},loadedAt:'2026-08-18T12:00:00Z'});
 const seriesByModel={},modelMeta={};
@@ -38,13 +38,13 @@ modelMeta.GFS={...makeMeta(24),recoveredFromBatch:true,recoveryAttempted:true};
 modelMeta.ECMWF={...makeMeta(24),coverageByVariable:{...makeMeta(24).coverageByVariable,precipitation:{count:0,lastTimestamp:null}}};
 delete seriesByModel.METNO_NORDIC;
 const diagnostic=buildCityDiagnostics({city:{timezone:'Europe/Paris'},fetchedAt:'2026-08-18T12:00:00Z',seriesByModel,modelMeta,errors:{}},WEATHER_MODELS,enabled);
-assert.equal(diagnostic.rows.length,17);
+assert.equal(diagnostic.rows.length,WEATHER_MODELS.length);
 assert.equal(diagnostic.rows.find(x=>x.modelId==='ICON_D2').status,'PARTIAL');
 assert.equal(diagnostic.rows.find(x=>x.modelId==='GFS').status,'RECOVERED');
 assert.equal(diagnostic.rows.find(x=>x.modelId==='ECMWF').status,'VARIABLE_MISSING');
 assert.equal(diagnostic.rows.find(x=>x.modelId==='METNO_NORDIC').status,'OUT_OF_DOMAIN_OR_UNAVAILABLE');
 assert.equal(diagnostic.rows.find(x=>x.modelId==='AROME_FRANCE_HD').status,'OK');
-assert.equal(diagnostic.summary.total,17);
+assert.equal(diagnostic.summary.total,WEATHER_MODELS.length);
 assert.match(app,/data-scroll-section="diagnostics"/,'city page must expose diagnostics navigation');
 assert.match(app,/data-action="toggle-diagnostics"/,'diagnostics must be expandable without leaving the city');
 

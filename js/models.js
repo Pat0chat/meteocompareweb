@@ -17,7 +17,9 @@ export const WEATHER_MODELS = [
   { id:'ICON_D2', openDataKey:'dwd_icon_d2', apiKey:'icon_d2', aliases:[], name:'ICON-D2', resolutionKm:2, maxForecastDays:2, horizonHours:48, recoveryRequestHours:48, nativeStepMinutes:60, updateMinutes:180, supportsDay1Bias:true, coverage:'EUROPE', family:'DWD' },
   { id:'HRRR_CONUS', openDataKey:'ncep_hrrr_conus', apiKey:'ncep_hrrr_conus', aliases:[], name:'HRRR', resolutionKm:3, maxForecastDays:2, horizonHours:18, recoveryRequestHours:48, nativeStepMinutes:60, updateMinutes:60, supportsDay1Bias:false, coverage:'UNITED_STATES', family:'NOAA' },
   { id:'METNO_NORDIC', openDataKey:'metno_nordic_pp', apiKey:'metno_nordic', aliases:[], name:'MET Nordic', resolutionKm:1, maxForecastDays:3, horizonHours:60, recoveryRequestHours:60, nativeStepMinutes:60, updateMinutes:60, supportsDay1Bias:true, coverage:'EUROPE', family:'MET Norway' },
-  { id:'KNMI_HARMONIE_EU', openDataKey:'knmi_harmonie_arome_europe', apiKey:'knmi_harmonie_arome_europe', aliases:[], name:'HARMONIE', resolutionKm:5.5, maxForecastDays:3, horizonHours:60, recoveryRequestHours:60, nativeStepMinutes:60, updateMinutes:60, supportsDay1Bias:true, coverage:'EUROPE', family:'KNMI' },
+  { id:'KNMI_HARMONIE_EU', openDataKey:'knmi_harmonie_arome_europe', apiKey:'knmi_harmonie_arome_europe', aliases:[], name:'HARMONIE KNMI', resolutionKm:5.5, maxForecastDays:3, horizonHours:60, recoveryRequestHours:60, nativeStepMinutes:60, updateMinutes:60, supportsDay1Bias:true, coverage:'EUROPE', family:'KNMI' },
+  { id:'DMI_HARMONIE_EU', openDataKey:'dmi_harmonie_arome_europe', apiKey:'dmi_harmonie_arome_europe', aliases:[], name:'HARMONIE DMI', resolutionKm:2, maxForecastDays:3, horizonHours:60, recoveryRequestHours:60, nativeStepMinutes:60, updateMinutes:180, supportsDay1Bias:true, coverage:'EUROPE', family:'DMI' },
+  { id:'METEOSWISS_ICON_CH2', openDataKey:'meteoswiss_icon_ch2', apiKey:'meteoswiss_icon_ch2', aliases:[], name:'ICON-CH2', resolutionKm:2, maxForecastDays:5, horizonHours:120, recoveryRequestHours:120, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'EUROPE', family:'MeteoSwiss' },
   { id:'BOM_ACCESS', openDataKey:'bom_access_global', metadataKey:null, apiKey:'bom_access_global', aliases:[], name:'BOM', resolutionKm:15, maxForecastDays:10, horizonHours:240, recoveryRequestHours:240, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'BOM' },
   { id:'CMA_GRAPES', openDataKey:'cma_grapes_global', apiKey:'cma_grapes_global', aliases:[], name:'CMA', resolutionKm:15, maxForecastDays:10, horizonHours:240, recoveryRequestHours:240, nativeStepMinutes:180, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'CMA' },
 ];
@@ -69,7 +71,7 @@ export const CONSENSUS_GROUPS = Object.freeze({
   ICON_D2:'DWD_ICON', ICON_EU:'DWD_ICON', ICON_GLOBAL:'DWD_ICON',
   ECMWF:'ECMWF_GLOBAL', ECMWF_AIFS:'ECMWF_GLOBAL',
   GFS:'NOAA_GFS', HRRR_CONUS:'NOAA_HRRR',
-  METNO_NORDIC:'METNO_NORDIC', KNMI_HARMONIE_EU:'KNMI_HARMONIE',
+  METNO_NORDIC:'METNO_NORDIC', KNMI_HARMONIE_EU:'UWC_HARMONIE', DMI_HARMONIE_EU:'UWC_HARMONIE', METEOSWISS_ICON_CH2:'DWD_ICON',
   UKMO_GLOBAL:'UKMO_GLOBAL', GEM_GLOBAL:'ECCC_GEM', BOM_ACCESS:'BOM_ACCESS', CMA_GRAPES:'CMA_GRAPES'
 });
 

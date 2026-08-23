@@ -17,6 +17,10 @@ assert.match(app,/forecast-engine-compare-card/,'engine comparison must be a ded
 assert.match(app,/forecastEngineCompareIntro/);
 assert.match(app,/renderForecastEngineLineChart/);
 assert.match(app,/renderForecastEngineDivergenceTimeline/);
+const engineComparison=app.slice(app.indexOf('function renderForecastEngineComparisonModal('),app.indexOf('function renderModal('));
+assert.match(engineComparison,/data-engine-chart-variable/,'comparison must expose a variable selector');
+assert.match(engineComparison,/cloudCoverage/,'cloud cover must be selectable and present in the comparison');
+assert.equal((engineComparison.match(/renderForecastEngineLineChart\(dates,matrix,selected,chartConfig\)/g)||[]).length,1,'comparison must render one selected-variable chart at a time');
 assert.match(app,/forecastEngineTempTrend/);
 assert.match(app,/forecastEngineRainTrend/);
 assert.match(app,/forecastEngineWindTrend/,'comparison must include a wind chart');

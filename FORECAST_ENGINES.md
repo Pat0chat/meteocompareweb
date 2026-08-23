@@ -62,7 +62,7 @@ Settings > Forecast lets the user select Multi-consensus, Calibration, Scenarios
 
 Home and City Details use the same selected-engine context, including optional local weights and available calibration profiles. Home cards, current conditions, daily summaries, watchlist signals and mini-timelines therefore stay consistent with City Details.
 
-City Details places **Compare engines** between model convergence and weather scenarios. Its modal provides full-width seven-day charts for maximum temperature, expected rain and mean wind, a daily divergence timeline and detailed per-day matrices. The active engine, fallbacks, calibration coverage and detected scenario count are exposed where meaningful.
+City Details places **Compare engines** between model convergence and weather scenarios. Its modal uses a single full-width seven-day chart with an in-place variable selector for maximum temperature, minimum temperature, expected precipitation, mean wind, gusts and cloud cover. The selector avoids stacking several charts while keeping every variable directly comparable across the four engines. A daily divergence timeline now includes cloud-cover spread alongside temperature, precipitation and wind, and detailed per-day matrices remain available below. The active engine, fallbacks, calibration coverage and detected scenario count are exposed where meaningful.
 
 ## Verification limits and next statistical step
 

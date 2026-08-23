@@ -4137,6 +4137,16 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   line-height: 1.45;
 }
 .forecast-engine-visual-head.compact { display: block; }
+.forecast-engine-variable-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0 0;
+}
+.forecast-engine-variable-selector .chip {
+  min-height: 34px;
+  padding-inline: 12px;
+}
 .forecast-engine-chart-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -4158,7 +4168,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 .forecast-engine-chart-head h4 { margin: 0; font-size: var(--type-ui); }
 .forecast-engine-chart-head span { color: var(--muted); font-size: .70rem; }
-.forecast-engine-chart { display: block; width: 100%; height: auto; min-height: 245px; overflow: visible; }
+.forecast-engine-chart { display: block; width: 100%; height: auto; min-height: 300px; overflow: visible; }
 .forecast-engine-chart-gridline { stroke: color-mix(in srgb,var(--border) 72%,transparent); stroke-width: 1; }
 .forecast-engine-chart-axis { fill: var(--muted); font-size: 11px; }
 .forecast-engine-chart-axis.date { font-weight: 680; }

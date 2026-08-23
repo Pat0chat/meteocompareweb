@@ -13,7 +13,7 @@ const modelSource=fs.readFileSync(new URL('../js/models.js',import.meta.url),'ut
 
 // Provider-contract metadata used by health checks / recovery. Short regional
 // models must not inherit the 7-day request horizon of a long global model.
-assert.equal(WEATHER_MODELS.length,17);
+assert.ok(WEATHER_MODELS.length>=19,'weather catalogue should include the expanded regional model set');
 assert.equal(getModel('AROME_FRANCE_HD').horizonHours,48);
 assert.equal(getModel('AROME_FRANCE_HD').maxForecastDays,2);
 assert.equal(getModel('AROME_FRANCE').maxForecastDays,2);
@@ -22,6 +22,8 @@ assert.equal(getModel('ICON_D2').horizonHours,48);
 assert.equal(getModel('ICON_D2').nativeStepMinutes,60,'hourly icon_d2 must not be labelled as the separate 15-minute product');
 assert.equal(getModel('METNO_NORDIC').horizonHours,60);
 assert.equal(getModel('KNMI_HARMONIE_EU').horizonHours,60);
+assert.equal(getModel('DMI_HARMONIE_EU').horizonHours,60);
+assert.equal(getModel('METEOSWISS_ICON_CH2').horizonHours,120);
 assert.equal(getModel('HRRR_CONUS').horizonHours,18);
 assert.equal(getModel('HRRR_CONUS').recoveryRequestHours,48);
 assert.equal(getModel('HRRR_CONUS').supportsDay1Bias,false);
@@ -67,7 +69,7 @@ function allModelRaw(n=168,short={}){
   return {timezone:'Europe/Paris',hourly};
 }
 
-// Every one of the 17 suffixes must split/map independently and the nominal
+// Every configured model suffix must split/map independently and the nominal
 // short horizons must be considered healthy inside a 168 h batched timeline.
 const normalized=normalizeBatchedForecast(allModelRaw(),city,WEATHER_MODELS,168);
 for(const m of WEATHER_MODELS){

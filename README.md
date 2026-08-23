@@ -80,7 +80,7 @@ Le service worker :
 
 - système d’icônes météo SVG détaillé et homogène dans toute l’interface, avec animations multi-couches plus naturelles sur la Home et Today Summary ;
 - favoris : recherche, ajout, retrait et affichage multi-ville ;
-- comparaison des 17 modèles du projet Android et sélection des modèles ;
+- comparaison multi-modèles et sélection fine des modèles disponibles ;
 - résumé journalier, conditions actuelles, lever/coucher du soleil ;
 - heatmap 12 h et scénarios multi-modèles ;
 - chronologie riche avec modes 24 h / 7 jours, repères réguliers, bande thermique, signal pluie, nébulosité, vent/rafales, accord et variables en désaccord ;
@@ -215,7 +215,7 @@ Voir [`CLOUDFLARE.md`](CLOUDFLARE.md) pour les valeurs exactes à saisir dans **
 
 ### Radar pluie
 
-La page **Détails** propose une vue radar optionnelle centrée sur la localité. Elle anime les observations RainViewer des deux dernières heures, sur fond OpenStreetMap, avec trois portées de visualisation. À partir de plusieurs images réparties dans l'historique disponible, le navigateur estime le déplacement dominant des précipitations et extrapole une zone probabiliste à +15, +30, +45 et +60 minutes. L'incertitude augmente avec l'horizon et une heure d'arrivée ou d'éloignement est affichée lorsqu'un signal suffisamment net traverse la localité. Cette projection courte durée est calculée localement et reste distincte de la synthèse multi-modèles affichée en dessous.
+La page **Détails** propose une vue radar optionnelle centrée sur la localité. Elle anime les observations RainViewer des deux dernières heures, sur fond OpenStreetMap, avec trois portées de visualisation. À partir de plusieurs images réparties dans l'historique disponible, le navigateur estime le déplacement dominant des précipitations et extrapole une zone estimée à +15, +30, +45 et +60 minutes. L'incertitude augmente avec l'horizon et une heure d'arrivée ou d'éloignement est affichée lorsqu'un signal suffisamment net traverse la localité. Cette projection courte durée est calculée localement et reste distincte de la synthèse multi-modèles affichée en dessous.
 
 Le module est chargé à la demande (`js/features/radar.js`) et ne contacte RainViewer/OpenStreetMap qu'après ouverture explicite de la modale. Le radar reste donc hors du chemin critique de chargement de l'application. Si l'analyse pixel des images n'est pas disponible, la projection se désactive proprement sans empêcher l'animation radar observée.
 
@@ -229,7 +229,7 @@ La version produit est centralisée de la même manière dans **`app-version.js`
 
 ## Forecast Engines
 
-The city Details view can now use one of four forecast engines: **Multi-consensus**, **Calibration**, **Scenarios** or **Adaptive**. The engine is selected in Settings and is applied consistently to central temperature, precipitation, wind, gust and cloud forecasts. A dedicated **Compare engines** modal shows seven days of results for all four methods side by side while highlighting the active engine. Raw model convergence remains independent from the chosen post-processing engine. See `FORECAST_ENGINES.md` for formulas, fallbacks and interpretation rules.
+The city Details view can now use one of four forecast engines: **Multi-consensus**, **Calibration**, **Scenarios** or **Adaptive**. The engine is selected in Settings and is applied consistently to central temperature, precipitation, wind, gust and cloud forecasts. A dedicated **Compare engines** modal uses one full-width seven-day graph with a variable selector (temperature min/max, precipitation, wind, gusts and cloud cover), while highlighting the active engine. Raw model convergence remains independent from the chosen post-processing engine. See `FORECAST_ENGINES.md` for formulas, fallbacks and interpretation rules.
 
 - La Home utilise le même moteur que les pages Détails pour les conditions actuelles, agrégats journaliers et mini-timelines.
 - La page À propos documente les quatre moteurs et l’étape de sélection dans la construction de la prévision.
