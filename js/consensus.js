@@ -2,6 +2,7 @@ import { consensusGroupFor } from './models.js';
 
 const EPS=1e-12;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+const canonicalCompare=(a,b)=>{const valueDelta=Number(a?.value)-Number(b?.value);if(Number.isFinite(valueDelta)&&valueDelta!==0)return valueDelta;return String(a?.modelId||'').localeCompare(String(b?.modelId||''));};
 
 export function scoreFromDispersion(stdDev,tight,wide){
   if(!Number.isFinite(stdDev))return null;
@@ -16,7 +17,7 @@ export function scoreFromDispersion(stdDev,tight,wide){
  * the lineage rather than creating extra independent votes.
  */
 export function familyBalancedWeights(modelIds,localWeights={}){
-  const ids=[...new Set((modelIds||[]).filter(Boolean))];
+  const ids=[...new Set((modelIds||[]).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
   const groups=new Map();
   for(const modelId of ids){
     const group=consensusGroupFor(modelId),raw=clamp(Number(localWeights?.[modelId])||1,.5,1.5),rows=groups.get(group)||[];
@@ -31,13 +32,13 @@ export function familyBalancedWeights(modelIds,localWeights={}){
 }
 
 export function familyBalancedEntries(entries,localWeights={}){
-  const rows=(entries||[]).filter(x=>x?.modelId&&Number.isFinite(x?.value));
+  const rows=(entries||[]).filter(x=>x?.modelId&&Number.isFinite(x?.value)).slice().sort(canonicalCompare);
   const balanced=familyBalancedWeights(rows.map(x=>x.modelId),localWeights);
   return {entries:rows.map(x=>({...x,weight:balanced.weights[x.modelId]||0})).filter(x=>x.weight>0),familyCount:balanced.familyCount,modelCount:balanced.modelCount};
 }
 
 export function weightedMedian(entries){
-  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0).sort((a,b)=>a.value-b.value);
+  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0).sort(canonicalCompare);
   if(!rows.length)return null;
   const total=rows.reduce((s,x)=>s+x.weight,0),half=total/2;let cumulative=0;
   for(let i=0;i<rows.length;i++){
@@ -49,7 +50,7 @@ export function weightedMedian(entries){
 }
 
 export function weightedStats(entries){
-  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0);
+  const rows=(entries||[]).filter(x=>Number.isFinite(x?.value)&&Number.isFinite(x?.weight)&&x.weight>0).slice().sort(canonicalCompare);
   if(!rows.length)return null;
   const total=rows.reduce((s,x)=>s+x.weight,0),mean=rows.reduce((s,x)=>s+x.value*x.weight,0)/total;
   const variance=rows.reduce((s,x)=>s+x.weight*(x.value-mean)**2,0)/total;
@@ -63,7 +64,7 @@ export function continuousConsensus(entries,localWeights={},tight=.5,wide=3){
 }
 
 export function weightedVote(entries,localWeights={},severity=()=>0){
-  const rows=(entries||[]).filter(x=>x?.modelId&&x?.value!=null),balanced=familyBalancedWeights(rows.map(x=>x.modelId),localWeights),votes=new Map();
+  const rows=(entries||[]).filter(x=>x?.modelId&&x?.value!=null).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId))),balanced=familyBalancedWeights(rows.map(x=>x.modelId),localWeights),votes=new Map();
   for(const row of rows){const w=balanced.weights[row.modelId]||0;if(w>0)votes.set(row.value,(votes.get(row.value)||0)+w);}
   if(!votes.size)return {value:null,percent:null,count:0,familyCount:0};
   const total=[...votes.values()].reduce((a,b)=>a+b,0),top=Math.max(...votes.values());
@@ -78,7 +79,7 @@ export function weightedVote(entries,localWeights={},severity=()=>0){
  * weighted median only when P(wet) >= 50%; expectedAmountMm remains available separately.
  */
 export function precipitationConsensus(rows,{threshold=.1,localWeights={},amountTight=1,amountWide=8}={}){
-  const usable=(rows||[]).filter(x=>x?.modelId&&(Number.isFinite(x.amount)||Number.isFinite(x.probability)));
+  const usable=(rows||[]).filter(x=>x?.modelId&&(Number.isFinite(x.amount)||Number.isFinite(x.probability))).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
   if(!usable.length)return {probabilityPercent:null,conditionalAmountMm:null,centralAmountMm:null,expectedAmountMm:null,convergencePercent:null,count:0,familyCount:0,wetModelCount:0,wetFamilyCount:0,source:null};
   const occurrence=familyBalancedWeights(usable.map(x=>x.modelId),localWeights);let probability=0,total=0,nativeProbCount=0;
   for(const row of usable){const w=occurrence.weights[row.modelId]||0;if(w<=0)continue;let p;if(Number.isFinite(row.probability)){p=clamp(row.probability/100,0,1);nativeProbCount++;}else p=Number.isFinite(row.amount)&&row.amount>=threshold?1:0;probability+=w*p;total+=w;}

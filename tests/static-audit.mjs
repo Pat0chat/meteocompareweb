@@ -52,7 +52,7 @@ assert.match(css, /\.overview-layout\s*\{[^}]*align-items:\s*start/s, 'overview 
 assert.match(css, /\.overview-primary\s*\{[^}]*display:\s*block[^}]*min-height:\s*0/s, 'TodaySummary must not stretch to the secondary column height');
 assert.match(css, /\.overview-primary \.today-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2/s, 'TodaySummary variables should use a 2x2 desktop matrix');
 assert.match(css, /Modern professional UI/, 'the modern professional visual layer must be present');
-assert.match(css, /professional-hero::before, \.professional-hero::after \{ display: none; \}/, 'decorative hero grids must be disabled');
+assert.match(css, /professional-hero::before,\s*\.professional-hero::after\s*\{\s*display:\s*none;\s*\}/, 'decorative hero grids must be disabled');
 assert.match(css, /\.chart-wrap \{ background: var\(--surface\); background-image: none; \}/, 'chart containers must not use decorative graph-paper backgrounds');
 assert.match(css, /\.topbar-system-status/, 'the data availability status must remain visible without terminal styling');
 assert.match(app, /onlineData/, 'top bar should use the localized online status text');

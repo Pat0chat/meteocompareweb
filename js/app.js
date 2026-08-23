@@ -794,15 +794,15 @@ function renderMarineSection(city){
 async function refreshMarineData(cityId,force=false,activate=false,silent=false){
   const city=state.cities.find(c=>c.id===cityId);if(!city||state.marineLoading.has(cityId))return;const {t}=i18n();if(!state.online){if(!silent)toast(t('historyOnlineRequired'));return;}
   const marine=await loadFeature('marine'),cached=ensureMarineLoaded(cityId);
-  if(!force&&cached&&marine.marineCacheFresh(cached)){
+  if(!force&&cached&&marine.marineCacheFresh(cached)&&!(activate&&cached.coastal!==true)&&!(city.marineAvailable===true&&cached.coastal!==true)){
     const available=cached.coastal===true;
-    if(city.marineAvailable!==available){city.marineAvailable=available;persistFavoriteCities();if(state.route.name==='home')render();}
+    if(city.marineAvailable!==available){city.marineAvailable=available;city.marineCapabilityCheckedAt=Date.now();persistFavoriteCities();if(state.route.name==='home')render();}
     return;
   }
   state.marineLoading.add(cityId);if(state.route.name==='city'&&state.route.id===cityId)rerenderCitySectionOrPage('marine');
   try{
     const data=await marine.fetchMarineForCity(city),available=data.coastal===true;
-    if(city.marineAvailable!==available){city.marineAvailable=available;persistFavoriteCities();}
+    if(city.marineAvailable!==available||!Number.isFinite(Number(city.marineCapabilityCheckedAt))){city.marineAvailable=available;city.marineCapabilityCheckedAt=Date.now();persistFavoriteCities();}
     if(!available){if(activate)toast(t('marineNotCoastal'));if(state.route.name==='home')render();return;}
     state.marine[cityId]=data;analysisStore.mark('marine',cityId);saveMarine(cityId,data);
     if(activate&&!city.marineEnabled){city.marineEnabled=true;city.marineAvailable=true;persistFavoriteCities();toast(t('marineEnabled'));}

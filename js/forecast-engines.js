@@ -26,7 +26,8 @@ const finite = value => Number.isFinite(value);
 function validWeightedRows(entries) {
   return (entries || [])
     .filter(row => finite(row?.value) && finite(row?.weight) && row.weight > 0)
-    .map(row => ({ ...row }));
+    .map(row => ({ ...row }))
+    .sort((a, b) => a.value - b.value || String(a.modelId || '').localeCompare(String(b.modelId || '')));
 }
 
 function weightedQuantile(entries, quantile) {
@@ -152,7 +153,7 @@ function calibrationConsensus(
   entries,
   { localWeights = {}, calibration = {}, tight = 0.5, wide = 3, min = null, max = null } = {},
 ) {
-  const usable = (entries || []).filter(row => row?.modelId && finite(row?.value));
+  const usable = (entries || []).filter(row => row?.modelId && finite(row?.value)).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
   if (!usable.length) return emptyResult('CALIBRATION');
 
   const familyBalance = familyBalancedWeights(usable.map(row => row.modelId), localWeights);
@@ -474,7 +475,7 @@ export function forecastEngineContinuous(entries, options = {}) {
 }
 
 function occurrenceAdjustment(calibration = {}, modelIds = [], localWeights = {}) {
-  const ids = [...new Set((modelIds || []).filter(Boolean))];
+  const ids = [...new Set((modelIds || []).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
   if (!ids.length) return { delta: 0, coverage: 0, familyCount: 0 };
 
   const balance = familyBalancedWeights(ids, localWeights);
@@ -527,7 +528,7 @@ export function forecastEnginePrecipitation(
   const requested = FORECAST_ENGINES.includes(engine) ? engine : DEFAULT_FORECAST_ENGINE;
   const usable = (rows || []).filter(
     row => row?.modelId && (finite(row.amount) || finite(row.probability)),
-  );
+  ).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
 
   if (!usable.length) {
     return {

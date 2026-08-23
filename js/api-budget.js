@@ -11,8 +11,8 @@ function keys(now=Date.now()){
   return {day,hour,minute,month};
 }
 function prune(value,k){
-  const buckets=value.buckets||{};
-  for(const key of Object.keys(buckets))if(!key.startsWith(k.month)&&key!==k.day&&key!==k.hour&&key!==k.minute)delete buckets[key];
+  const buckets=value.buckets||{},active=new Set([k.minute,k.hour,k.day,k.month]);
+  for(const key of Object.keys(buckets))if(!active.has(key))delete buckets[key];
   value.buckets=buckets;
   const categories=value.categories||{};for(const key of Object.keys(categories))if(!key.startsWith(k.month))delete categories[key];value.categories=categories;return value;
 }

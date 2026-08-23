@@ -257,10 +257,6 @@ html[data-theme="dark"] body {
   position: relative;
 
 }
-.professional-hero::after {
-  content: ""; position: absolute;
-   pointer-events: none;
-}
 .professional-hero > * { position: relative; z-index: 1; }
 .detail-weather-mark { width: 84px; height: 84px;    }
 .detail-title h1 { font-size: clamp(2.35rem, 3.6vw, 3.65rem); }
@@ -467,16 +463,6 @@ html[data-theme="dark"] body {
   border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
 }
 
-.professional-hero::before {
-
-  background-image:
-    linear-gradient(90deg, color-mix(in srgb, var(--primary) 8%, transparent) 1px, transparent 1px),
-    linear-gradient(color-mix(in srgb, var(--primary) 8%, transparent) 1px, transparent 1px);
-  background-size: 24px 24px;
-  mask-image: linear-gradient(90deg, #000, transparent 63%);
-  pointer-events: none;
-}
-.professional-hero::after { border-radius: 0; width: 1px; height: 100%; right: 34%; top: 0; background: color-mix(in srgb, var(--border) 58%, transparent); }
 .hero-meta { font-family: var(--tech-font);  }
 .hero-meta span + span::before { display: none; }
 
@@ -641,7 +627,6 @@ html[data-theme="dark"] body {
   border-top: 1px solid var(--border);
 
 }
-.professional-hero::before, .professional-hero::after { display: none; }
 .detail-weather-mark {  box-shadow: inset 0 0 0 1px var(--border);  }
 .hero-meta { font-size: .74rem; gap: 8px; }
 .hero-meta span {     color: var(--muted); }
@@ -849,7 +834,6 @@ body, html[data-theme="dark"] body { background-image: none; }
   box-shadow: var(--panel-shadow);
   overflow: hidden;
 }
-.professional-hero::before { display: block; content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(180deg,var(--primary),color-mix(in srgb,var(--rain) 72%,var(--primary))); }
 .detail-weather-mark { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
 .hero-meta span { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
 
@@ -2119,23 +2103,6 @@ html[data-theme="dark"] {
 }
 
 /* Clarity and data-density polish */
-/* City detail: title and former context bar are one single information surface. */
-.professional-hero {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 22px;
-}
-.professional-hero::after { display: none; }
-.detail-hero-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: center;
-  gap: 8px;
-  min-width: 148px;
-}
-.detail-hero-actions .btn { justify-content: center; white-space: nowrap; }
 .hero-meta .data-health { font-family: inherit; font-weight: 760; }
 .hero-meta .data-health i { flex: 0 0 auto; }
 /* Timeline rain marker: give the dot breathing room above the following separator. */
@@ -2161,24 +2128,6 @@ html[data-theme="dark"] {
 .disagreement-table table tbody tr > * { height: 58px; }
 :where(.table-wrap table) tbody tr > * > :first-child { margin-top: 0; }
 :where(.table-wrap table) tbody tr > * > :last-child { margin-bottom: 0; }
-
-@media (max-width: 760px) {
-  .professional-hero {
-    grid-template-columns: auto minmax(0,1fr);
-    gap: 16px;
-  }
-  .detail-hero-actions {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    min-width: 0;
-    width: 100%;
-  }
-  .detail-hero-actions .btn { flex: 1 1 0; }
-}
-@media (max-width: 520px) {
-  .professional-hero { align-items: start; }
-  .detail-hero-actions { gap: 6px; }
-}
 
 /* Settings controls use intrinsic flow.
    No min-height spacers or auto margins are allowed between labels and actions. */
@@ -2966,7 +2915,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .summary-dispersion:nth-last-child(-n+2) { border-bottom:0; }
   .summary-dispersion-value { font-size:1.20rem; }
   .summary-dispersion-meta { align-items:flex-start; }
-  .detail-hero-actions { flex-wrap:wrap; }
 }
 @media (max-width:520px) {
   .summary-dispersion-grid { grid-template-columns:1fr; }
@@ -2976,12 +2924,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 
 /* Lighter detail metadata and consensus timeline */
-.detail-hero-actions .detail-refresh-action {
-  width:100%;
-  min-height:38px;
-  gap:7px;
-  justify-content:center;
-}
 .detail-hero-actions .detail-refresh-action .btn-icon { display:inline-grid; place-items:center; width:16px; height:16px; }
 
 .summary-context-chips {
@@ -3169,11 +3111,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   line-height:1.35;
 }
 .divergence-list.stable { color:var(--good); }
-
-@media (max-width:760px) {
-  .detail-hero-actions { flex-direction:column; }
-  .detail-hero-actions .btn { flex:none; width:100%; }
-}
 
 .timeline-point.high .timeline-consensus { color:var(--good); }
 .timeline-point.medium .timeline-consensus { color:var(--medium); }
@@ -4282,8 +4219,8 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .detail-hero-primary { align-items: flex-start; gap: 13px; }
   .detail-weather-mark { width: 62px; height: 62px; }
   .detail-title h1 { font-size: 2.05rem; }
-  .detail-hero-actions { gap: 6px; }
-  .detail-hero-actions .btn { flex: 1 1 calc(50% - 6px); }
+  .detail-hero-actions { gap: 6px; flex-direction: column; }
+  .detail-hero-actions .btn { flex: none; width: 100%; }
   .detail-seo-context { gap: 2px; }
   .summary-dispersion-meta { margin-top: 4px; }
   .forecast-engine-compare-card { min-height: 0; padding: 14px 14px 14px 17px; }
@@ -4302,6 +4239,9 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .detail-hero-actions .detail-refresh-action {
   width: auto;
   max-width: 168px;
+  min-height: 38px;
+  gap: 7px;
+  justify-content: center;
 }
 .summary-dispersion .summary-agreement {
   margin-top: auto;

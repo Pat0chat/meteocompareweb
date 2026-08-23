@@ -36,6 +36,10 @@ function safeSet(key, value) {
   }
 }
 function safeRemove(key) { try { localStorage.removeItem(key); } catch {} }
+function safeGet(key) {
+  try { return localStorage.getItem(key); }
+  catch (err) { storageIssue('LOCAL_STORAGE_UNAVAILABLE',{key,message:String(err?.message||err||'')}); return null; }
+}
 
 function recordKindForKey(key){
   if(key===SETTINGS_KEY)return 'settings';if(key===CITIES_KEY)return 'cities';
@@ -78,7 +82,7 @@ function payloadChanged(kind,before,after,context={}){
   return false;
 }
 function readLocalRecord(key,kind,fallback){
-  const raw=safeParse(localStorage.getItem(key),null);if(raw==null)return fallback;
+  const raw=safeParse(safeGet(key),null);if(raw==null)return fallback;
   const ctx={...recordContext(key),kind};const migrated=migrateRecord(kind,raw,ctx);
   if(!migrated.valid){storageIssue('CORRUPT_LOCAL_RECORD',{key,kind,error:migrated.error||'INVALID_PAYLOAD'});return fallback;}
   const normalized=normalizedPayload(kind,migrated.payload,ctx);
@@ -205,7 +209,7 @@ function serializedBytes(value) {
 }
 function localStorageRecord(key) {
   try {
-    const raw=localStorage.getItem(key);
+    const raw=safeGet(key);
     if(raw==null)return null;const parsed=safeParse(raw,null),ctx=recordContext(key),mig=ctx.kind?migrateRecord(ctx.kind,parsed,ctx):null;return {key,raw,bytes:textBytes(key)+textBytes(raw),value:mig?.valid?mig.payload:parsed,record:parsed,schemaVersion:mig?.record?.schemaVersion??null};
   } catch { return null; }
 }
@@ -303,7 +307,7 @@ export async function verifyLocalDataIntegrity(cities=[], {repair=false}={}) {
     const keys=Array.from({length:localStorage.length},(_,i)=>localStorage.key(i)).filter(Boolean);
     for(const key of keys){
       if(!key.startsWith('meteocompare.web.')||key===ANALYTICS_OPTOUT_KEY)continue;
-      const result=inspect(key,safeParse(localStorage.getItem(key),null));if(!result||!repair)continue;
+      const result=inspect(key,safeParse(safeGet(key),null));if(!result||!repair)continue;
       if(result.invalid){safeRemove(key);repairs.push({action:'REMOVE_INVALID',key});continue;}
       if(result.orphan){safeRemove(key);repairs.push({action:'REMOVE_ORPHAN',key});continue;}
       if(result.mig.migrated||result.changed){if(writeLocalRecord(key,result.ctx.kind,result.normalized))repairs.push({action:result.changed?'SANITIZE':'MIGRATE',key});}
@@ -318,7 +322,7 @@ export async function verifyLocalDataIntegrity(cities=[], {repair=false}={}) {
       if(result.mig.migrated||result.changed){const value=envelope(result.ctx.kind,result.normalized,{cityId:result.ctx.cityId});if(await idbPut(key,value))repairs.push({action:result.changed?'SANITIZE':'MIGRATE',key,store:'indexedDB'});}
     }
     if(result.ctx.kind==='forecast'&&!result.invalid){
-      const legacyKey=FORECAST_PREFIX+result.ctx.cityId;try{if(localStorage.getItem(legacyKey)!=null){duplicates++;add('DUPLICATE_FORECAST',{key:legacyKey,cityId:result.ctx.cityId});if(repair){safeRemove(legacyKey);repairs.push({action:'REMOVE_DUPLICATE',key:legacyKey});}}}catch{}
+      const legacyKey=FORECAST_PREFIX+result.ctx.cityId;if(safeGet(legacyKey)!=null){duplicates++;add('DUPLICATE_FORECAST',{key:legacyKey,cityId:result.ctx.cityId});if(repair){safeRemove(legacyKey);repairs.push({action:'REMOVE_DUPLICATE',key:legacyKey});}}
     }
   }
   const runtime=getStorageIssues();for(const item of runtime)add(item.code,item.detail);
@@ -338,7 +342,7 @@ export async function createLocalBackup(cities=[], options={}) {
     if(include.marine){const v=loadMarine(id);if(v)data.marine[id]=v;}
     if(include.health){const v=loadModelHealth(id);if(v?.length)data.health[id]=v;}
   }
-  let analyticsOptOut=false;try{analyticsOptOut=localStorage.getItem(ANALYTICS_OPTOUT_KEY)==='1';}catch{}
+  const analyticsOptOut=safeGet(ANALYTICS_OPTOUT_KEY)==='1';
   return {type:'meteocompare-backup',formatVersion:BACKUP_FORMAT_VERSION,dataSchemaVersion:DATA_SCHEMA_VERSION,appVersion:APP_VERSION,exportedAt:new Date().toISOString(),includes:include,privacy:{analyticsOptOut},data};
 }
 function validBackup(value){return Boolean(value&&value.type==='meteocompare-backup'&&Number(value.formatVersion)>=1&&Number(value.formatVersion)<=BACKUP_FORMAT_VERSION&&value.data&&typeof value.data==='object'&&Array.isArray(value.data.cities)&&value.data.settings&&typeof value.data.settings==='object');}
@@ -346,7 +350,7 @@ function cleanImportedSettings(settings){return normalizeSettings(settings);}
 export async function restoreLocalBackup(value,{replace=true}={}){
   if(!validBackup(value)){const err=new Error('INVALID_BACKUP');err.code='INVALID_BACKUP';throw err;}
   if(Number(value.dataSchemaVersion)>DATA_SCHEMA_VERSION){const err=new Error('BACKUP_FUTURE_SCHEMA');err.code='BACKUP_FUTURE_SCHEMA';throw err;}
-  let currentAnalyticsOptOut=false;try{currentAnalyticsOptOut=localStorage.getItem(ANALYTICS_OPTOUT_KEY)==='1';}catch{}
+  const currentAnalyticsOptOut=safeGet(ANALYTICS_OPTOUT_KEY)==='1';
   const backupAnalyticsOptOut=value?.privacy?.analyticsOptOut===true;
   if(replace)await clearAllData();
   // A restore must never silently relax a privacy choice: opt-out wins if set on either device/backup.
