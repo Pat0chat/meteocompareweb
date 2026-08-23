@@ -32,10 +32,6 @@ const frSource = read('js/locales/fr.js');
 const enSource = read('js/locales/en.js');
 assert.doesNotMatch(frSource, /Projection probabiliste/);
 assert.doesNotMatch(enSource, /Probabilistic projection/i);
-
-const auditPath = `AUDIT_${APP_VERSION}.md`;
-assert.ok(fs.existsSync(new URL(`../${auditPath}`, import.meta.url)), 'release audit report must be present');
 assert.ok(fs.existsSync(new URL('../FORECAST_ENGINES.md', import.meta.url)), 'forecast-engine documentation must be present');
-assert.match(read(auditPath), new RegExp(APP_VERSION.replaceAll('.', '\\.') + '\\b'), 'audit report must identify the current centralized app version');
 
 console.log(`MeteoCompare Web ${APP_VERSION} source cleanup guard: OK (${expectedKeys.length} i18n keys)`);

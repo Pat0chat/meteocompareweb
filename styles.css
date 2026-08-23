@@ -4318,3 +4318,24 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
     max-height: 94vh;
   }
 }
+
+/* Marine availability, engine divergence and evolution thresholds */
+.home-city-title-line{display:inline-flex;align-items:center;gap:7px;min-width:0}
+.home-city-marine-icon{display:inline-flex;align-items:center;justify-content:center;font-size:.92rem;line-height:1;filter:saturate(.92)}
+.home-city-menu-button{position:relative;overflow:visible}
+.home-city-marine-available-dot{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:999px;background:var(--primary);box-shadow:0 0 0 2px var(--surface-raised)}
+.home-city-card-empty .home-city-marine-available-dot{box-shadow:0 0 0 2px var(--surface-raised)}
+
+.forecast-engine-chart-divergence-bg{pointer-events:none}
+.forecast-engine-chart-divergence-bg.low{fill:color-mix(in srgb,var(--good) 8%,transparent)}
+.forecast-engine-chart-divergence-bg.medium{fill:color-mix(in srgb,var(--medium) 10%,transparent)}
+.forecast-engine-chart-divergence-bg.high{fill:color-mix(in srgb,var(--low) 9%,transparent)}
+
+.evolution-track{height:108px}
+.evolution-track-grid{stroke:color-mix(in srgb,var(--border) 66%,transparent);stroke-width:1}
+.evolution-track-axis{fill:var(--muted);font-size:10px;font-variant-numeric:tabular-nums}
+.evolution-track-y-axis{stroke:var(--border-strong);stroke-width:1}
+.evolution-threshold-band{fill:color-mix(in srgb,var(--good) 7%,transparent)}
+.evolution-threshold-line{stroke:color-mix(in srgb,var(--good) 64%,var(--border));stroke-width:1;stroke-dasharray:4 4}
+.evolution-threshold-label{fill:var(--good);font-size:10px;font-weight:720}
+.evolution-reference-line{stroke:color-mix(in srgb,var(--primary) 48%,var(--border));stroke-width:1;stroke-dasharray:2 3}

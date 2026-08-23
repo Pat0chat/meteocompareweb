@@ -83,6 +83,7 @@ export function normalizeCity(value){
     longitude,
     timezone: validTimezone(value.timezone),
     marineEnabled: value.marineEnabled===true,
+    marineAvailable: value.marineEnabled===true ? true : (typeof value.marineAvailable==='boolean' ? value.marineAvailable : null),
   };
 }
 

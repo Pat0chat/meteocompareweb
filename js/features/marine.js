@@ -11,6 +11,19 @@ function validTimeIndices(values){return (Array.isArray(values)?values:[]).map((
 function alignedNumbers(values,indices){return indices.map(index=>Number.isFinite(values?.[index])?values[index]:null);}
 function countFinite(a){return Array.isArray(a)?a.filter(Number.isFinite).length:0;}
 
+function validCityCoordinates(city){
+  const latitude=Number(city?.latitude),longitude=Number(city?.longitude);
+  if(!Number.isFinite(latitude)||latitude<-90||latitude>90||!Number.isFinite(longitude)||longitude<-180||longitude>180){const error=new Error('INVALID_CITY');error.code='INVALID_CITY';throw error;}
+  return {...city,latitude,longitude};
+}
+function marineGridAvailability(raw,city,waveValues=raw?.hourly?.wave_height){
+  const gridLat=Number(raw?.latitude),gridLon=Number(raw?.longitude),distanceKm=Number.isFinite(gridLat)&&Number.isFinite(gridLon)?haversineKm(Number(city.latitude),Number(city.longitude),gridLat,gridLon):null,usablePoints=countFinite(waveValues);
+  return {available:Number.isFinite(distanceKm)&&distanceKm<=COASTAL_MAX_DISTANCE_KM&&usablePoints>=6,distanceKm,usablePoints};
+}
+function capabilityUrlFor(city){
+  const u=new URL(MARINE_URL);u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));u.searchParams.set('hourly','wave_height');u.searchParams.set('timezone',city.timezone||'auto');u.searchParams.set('forecast_days','1');u.searchParams.set('cell_selection','sea');return u;
+}
+
 function urlFor(city){
   const u=new URL(MARINE_URL);
   u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));
@@ -81,6 +94,8 @@ export function tideRangeNext24h(data,now=Date.now()){
   const epochs=marineEpochs(data),v=data?.hourly?.seaLevelHeightMsl||[],vals=[];for(let i=0;i<Math.min(epochs.length,v.length);i++){const ms=epochs[i];if(ms>=now&&ms<now+24*3600e3&&Number.isFinite(v[i]))vals.push(v[i]);}return vals.length?{min:Math.min(...vals),max:Math.max(...vals),range:Math.max(...vals)-Math.min(...vals)}:null;
 }
 
-export async function fetchMarineForCity(city){const latitude=Number(city?.latitude),longitude=Number(city?.longitude);if(!Number.isFinite(latitude)||latitude<-90||latitude>90||!Number.isFinite(longitude)||longitude<-180||longitude>180){const error=new Error('INVALID_CITY');error.code='INVALID_CITY';throw error;}const normalizedCity={...city,latitude,longitude};const raw=await fetchOpenMeteoJson(urlFor(normalizedCity),{timeoutMs:30000,category:'marine'});return normalizeMarine(raw,normalizedCity);}
+export function marineAvailabilityFromRaw(raw,city){const normalizedCity=validCityCoordinates(city);return marineGridAvailability(raw,normalizedCity);}
+export async function probeMarineAvailability(city){const normalizedCity=validCityCoordinates(city),raw=await fetchOpenMeteoJson(capabilityUrlFor(normalizedCity),{timeoutMs:15000,category:'marine'});return marineGridAvailability(raw,normalizedCity);}
+export async function fetchMarineForCity(city){const normalizedCity=validCityCoordinates(city),raw=await fetchOpenMeteoJson(urlFor(normalizedCity),{timeoutMs:30000,category:'marine'});return normalizeMarine(raw,normalizedCity);}
 export function marineCacheFresh(data){const age=Date.now()-Date.parse(data?.fetchedAt||'');return Number.isFinite(age)&&age>=0&&age<MARINE_CACHE_TTL_MS;}
 export function nearestMarineIndex(data,now=Date.now()){const epochs=marineEpochs(data);if(!epochs.length)return -1;let best=-1,delta=Infinity;for(let i=0;i<epochs.length;i++){const d=Math.abs(epochs[i]-now);if(Number.isFinite(d)&&d<delta){delta=d;best=i;}}return best;}
