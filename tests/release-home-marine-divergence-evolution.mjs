@@ -16,7 +16,7 @@ assert.equal(enabled.marineAvailable,true,'enabled marine mode must always imply
 
 assert.match(app,/home-city-marine-available-dot/,'home city menu must expose the marine-availability marker');
 assert.match(app,/city\.marineEnabled\?`<span class="home-city-marine-icon"/,'marine icon next to locality must be conditional on activation');
-assert.match(app,/scanHomeMarineCapabilities[\s\S]*marineAvailable[\s\S]*checkMarineCapability\(city\.id\)/,'home must resolve unknown marine capability quietly in the background');
+assert.match(app,/scanHomeMarineCapabilities[\s\S]*marineCapabilityNeedsCheck\(city\)[\s\S]*checkMarineCapability\(city\.id\)/,'home must resolve unknown or stale marine capability quietly in the background');
 assert.match(css,/\.home-city-marine-available-dot[\s\S]*background:var\(--primary\)/,'marine availability marker must use the application blue primary color');
 
 assert.match(app,/forecastEngineDivergenceForDate/,'engine chart and divergence timeline must share one divergence calculation');

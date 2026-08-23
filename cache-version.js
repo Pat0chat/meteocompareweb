@@ -1,2 +1,2 @@
 /* Single source of truth for the PWA shell cache generation. */
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v91-marine-capability-on-add';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v92-marine-capability-reliable-probe';
