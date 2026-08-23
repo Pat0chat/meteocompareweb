@@ -1,52 +1,84 @@
 # MeteoCompare Forecast Engines
 
-MeteoCompare 1.15.0 can compute the central forecast with four interchangeable engines. The raw model forecasts and the model-convergence indicators remain unchanged: engines only change how the central forecast and its engine interval are derived.
+MeteoCompare 1.16.0 computes the central forecast with four interchangeable post-processing engines. The raw source-model forecasts and the model-convergence indicators remain separate: changing the selected engine changes the synthesized forecast, not the measured agreement between the underlying models.
 
 ## Engines
 
 ### Multi-consensus
 
-Default and always-available baseline. Models are balanced by independent model family, then combined with a robust weighted estimator. Values far from the family-balanced centre are progressively downweighted rather than deleted. Optional local reliability weights are bounded before entering this calculation.
+Default and always-available baseline. Models are balanced by independent numerical-model family, then combined with a robust weighted estimator. Values far from the family-balanced centre are progressively downweighted rather than deleted. Optional local reliability weights are bounded before entering this calculation.
 
 ### Calibration
 
-Uses the local verification history already collected by MeteoCompare. Per model and variable, a local mean bias is removed and historical skill slightly adjusts the model weight. Historical residual spread widens the engine interval. A model needs at least 14 valid observations. If fewer than two models, or less than 34% of the currently usable models, can be calibrated, the engine falls back to Multi-consensus and exposes that fallback in the comparison view.
+Uses the local verification history already collected by MeteoCompare. For a verified variable, a measured local bias is corrected before aggregation and historical skill can slightly adjust model influence.
 
-Precipitation is handled in two parts: occurrence probability and amount conditional on rain. Historical wet-day frequency can adjust occurrence probability; the amount calibration is applied once to the conditional amount calculation.
+The 1.16.0 audit makes this deliberately conservative:
 
-The current local verification archive validates daily maximum temperature, daily precipitation total and daily maximum wind. Calibration is therefore applied only to forecast quantities with a matching verified target. Hourly/current temperature and wind, daily minimum temperature, gusts and cloud cover transparently fall back to the robust engine until dedicated verification series exist; the comparison modal exposes that fallback instead of applying an invalid bias correction.
+- a model still needs at least 14 valid observations before it can contribute calibrated information;
+- at 14 samples the measured bias is only partially corrected; calibration strength grows progressively and reaches full strength at 30 samples;
+- calibration coverage is measured with family-balanced mass, not raw model count;
+- at least two independent calibrated model families are required;
+- at least 34% of the currently usable family-balanced mass must be calibratable;
+- residual historical error widens the descriptive engine interval.
+
+If these conditions are not met, the engine falls back to Multi-consensus and exposes the fallback in the comparison view.
+
+Precipitation is handled in two parts: occurrence probability and amount conditional on rain. Historical wet-day frequency can adjust occurrence probability only when the same independent-family safeguards are met. Amount calibration is applied once to the conditional amount calculation.
+
+The current local verification archive validates daily maximum temperature, daily precipitation total and daily maximum wind. Calibration is therefore applied only to forecast quantities with a matching verified target. Hourly/current temperature and wind, daily minimum temperature, gusts and cloud cover transparently fall back to the robust engine until dedicated verification series exist.
 
 ### Scenarios
 
-Looks for a statistically meaningful split in the family-balanced one-dimensional forecast distribution. A split must contain enough weight on both sides and a gap large enough relative to the variable's normal tolerance and current median absolute deviation. When a dominant scenario exists, its central value is used instead of averaging incompatible clusters. The engine exposes scenario count, shares, central values and ranges.
+Looks for a statistically meaningful split in the family-balanced one-dimensional forecast distribution for the variable being synthesized. A split must contain enough weight on both sides and a gap large enough relative to the variable tolerance and current median absolute deviation.
+
+When a meaningful split exists, the dominant cluster provides the central value instead of averaging two incompatible groups. When no meaningful split exists, the engine explicitly reports a `SINGLE_SCENARIO` fallback to Multi-consensus rather than presenting the robust result as if scenario selection had occurred.
+
+This is intentionally a lightweight local scalar clustering mechanism. It is not equivalent to synoptic-flow clustering of complete ensemble weather fields.
 
 ### Adaptive
 
-Runs Multi-consensus, Calibration and Scenarios on the same input. A strong multimodal split selects Scenarios. Otherwise, sufficiently covered and reasonably skilled calibration is blended with the robust baseline. If neither condition is met, it uses Multi-consensus. The effective engine is always exposed so the decision is inspectable.
+Runs Multi-consensus, Calibration and Scenarios on the same input. A strong multimodal split selects Scenarios. Otherwise, sufficiently covered calibration is blended conservatively with the robust baseline. The trust given to calibration depends on independent-family coverage, calibration maturity and historical skill and is capped so the robust baseline remains represented. If neither route is sufficiently supported, Adaptive uses Multi-consensus.
 
-## Variables
+The effective engine is always exposed so the decision remains inspectable.
 
-The forecast engine is applied to temperature, precipitation, wind, gusts and cloud cover for hourly and daily central forecasts. Weather-condition codes remain a categorical family-balanced vote because a numeric bias correction is not meaningful for WMO condition classes.
+## Variables and convergence
+
+The forecast engine is applied to continuous forecast quantities where an aggregation is meaningful. Weather-condition codes remain a categorical family-balanced vote because a numeric bias correction is not meaningful for WMO condition classes.
+
+A central audit correction in 1.16.0 separates two concepts everywhere:
+
+1. **source-model agreement** — calculated only from raw comparable model values and family balancing;
+2. **central forecast** — calculated by the selected forecast engine.
+
+Hourly agreement bands, timeline convergence, daily confidence and cloud agreement therefore no longer inherit an engine-specific convergence score. A change from Multi-consensus to Calibration or Scenarios can move the forecast value without artificially making the raw models appear more or less convergent.
+
+## Intervals
+
+Engine intervals are **descriptive spread intervals**, not calibrated probability intervals. They combine weighted quantiles with a dispersion envelope so source spread remains visible. The UI and documentation must not describe them as an 80%, 90% or other probabilistic confidence interval until a separately verified probabilistic calibration pipeline exists.
 
 ## User interface
 
-Settings > Forecast lets the user select Multi-consensus, Calibration, Scenarios or Adaptive. The selected engine is persisted locally.
+Settings > Forecast lets the user select Multi-consensus, Calibration, Scenarios or Adaptive. The choice is persisted locally.
 
 Home and City Details use the same selected-engine context, including optional local weights and available calibration profiles. Home cards, current conditions, daily summaries, watchlist signals and mini-timelines therefore stay consistent with City Details.
 
-City Details places a dedicated **Compare engines** card between model convergence and weather scenarios. The modal starts with three full-width seven-day comparison charts (maximum temperature, expected rain and mean wind), followed by a visual divergence timeline with separate temperature, rain and wind spread bars for each day. Detailed daily matrices remain available underneath with minimum and maximum temperature, precipitation probability/amount, wind, gusts, cloud cover and condition, plus engine ranges, fallbacks, calibration coverage and detected scenario count when available.
+City Details places **Compare engines** between model convergence and weather scenarios. Its modal provides full-width seven-day charts for maximum temperature, expected rain and mean wind, a daily divergence timeline and detailed per-day matrices. The active engine, fallbacks, calibration coverage and detected scenario count are exposed where meaningful.
 
-## Interpretation and safeguards
+## Verification limits and next statistical step
 
-A fallback is not an error. It means the requested engine does not have enough evidence to improve safely over the robust baseline for that variable/deadline.
+The current engine deliberately does **not** claim to implement a trained EMOS or Bayesian Model Averaging system. Operational statistical post-processing normally relies on a representative archive of forecast–observation pairs and evaluates both central error and probabilistic calibration. MeteoCompare's local archive is smaller, browser-local and currently covers only selected daily targets.
 
-Model convergence is intentionally calculated from the raw comparable model forecasts, not from engine output. This keeps two questions separate:
+The next statistical milestone should therefore be an out-of-sample engine benchmark rather than a more complex formula: rolling holdout evaluation by variable and horizon, MAE/RMSE/bias for central forecasts, Brier score for binary rain occurrence and CRPS/reliability once true predictive distributions are introduced. Training/calibration observations must be separated from the periods used to claim comparative skill.
 
-1. What do the source models agree on?
-2. Given those models and local history, what central forecast does the selected engine produce?
+## Audit invariants
 
-The implementation is designed for transparent client-side post-processing. It does not label the lightweight calibration as a full trained EMOS implementation, and it does not label scenario clustering as formal Bayesian Model Averaging. Those methods require a larger, consistently verified training archive and parameter fitting pipeline than the current local-history store provides.
+`tests/forecast-engine-audit-1160.mjs` now locks the following properties:
 
-## About-page documentation
-
-The About page describes all four engines and includes engine selection as a dedicated step in the forecast-construction flow. The former “À retenir” summary block was removed from City Details because its signals duplicated convergence, scenarios, evolution and timeline information.
+- order-invariant results;
+- no mutation of caller-owned input rows;
+- bounded output intervals;
+- sample-size shrinkage of bias correction;
+- independent-family calibration requirements;
+- explicit single-scenario fallback;
+- bounded precipitation probability;
+- timeline and hourly agreement invariant to the selected forecast engine.

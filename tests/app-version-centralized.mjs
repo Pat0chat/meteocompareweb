@@ -29,7 +29,7 @@ assert.equal(fs.existsSync(new URL('../VERSION',import.meta.url)),false,'source 
 for(const file of fs.readdirSync(new URL('.',import.meta.url)).filter(name=>name.endsWith('.mjs'))){
   if(file==='app-version-centralized.mjs')continue;
   const source=read(`tests/${file}`);
-  assert.doesNotMatch(source,/1\.15\.0/,`${file} must not hardcode the current product version`);
+  assert.equal(source.includes(APP_VERSION),false,`${file} must not hardcode the current product version`);
   assert.doesNotMatch(source,/readFileSync\([^\n]*['"]VERSION['"]|read\(['"]VERSION['"]\)/,`${file} must use the centralized runtime version instead of a duplicate VERSION file`);
 }
 

@@ -1,62 +1,22 @@
 :root {
   color-scheme: light dark;
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   --on-primary: #ffffff;
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 html[data-theme="dark"] {
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   --on-primary: #071b42;
-  
-  
-  
+
   --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
   --shadow: 0 12px 30px rgba(0,0,0,.24);
   --shadow-lg: 0 28px 72px rgba(0,0,0,.46);
   --temp: #ff9b73;
   --rain: #89b8ff;
   --wind: #7ed8c2;
-  
-  
-  
-  
+
   --focus: 0 0 0 3px rgba(143,181,255,.22);
 }
 
@@ -76,8 +36,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 
 .topbar {
   position: sticky; top: 0; z-index: 30;
-   
-  
+
 }
 .topbar-inner { width: min(var(--content-max), 100%); margin: 0 auto;  display: flex; align-items: center; gap: 20px; padding: 10px 28px; }
 .brand { display: flex; align-items: center; gap: 11px; min-width: 210px; cursor: pointer; }
@@ -110,7 +69,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .hero h1, .page-header h1 { margin: 0; font-size: clamp(2rem, 3vw, 2.8rem); letter-spacing: -.045em; line-height: 1.06; }
 .hero p, .page-header p { margin: 10px 0 0; color: var(--muted); max-width: 760px; line-height: 1.58; }
 .page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-
 
 .grid { display: grid; gap: 16px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
@@ -295,14 +253,12 @@ html[data-theme="dark"] body {
   margin-top: 24px;
   min-height: 154px;
   padding: 28px 30px;
-  
-  
-  
+
   position: relative;
-  
+
 }
 .professional-hero::after {
-  content: ""; position: absolute;     
+  content: ""; position: absolute;
    pointer-events: none;
 }
 .professional-hero > * { position: relative; z-index: 1; }
@@ -461,26 +417,7 @@ tr.current .heatmap-data-cell[style*="--heat"] { background: color-mix(in srgb, 
 /* Technical desktop UI pass                                                  */
 /* ========================================================================== */
 :root {
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   --tech-font: "SFMono-Regular", Consolas, "Liberation Mono", ui-monospace, monospace;
 }
 body {
@@ -508,7 +445,7 @@ html[data-theme="dark"] body {
 
 .eyebrow, .section-eyebrow, .sidebar-title, .kpi-label, .tile-label, .global-agreement-label, .metric-label {
   font-family: var(--tech-font);
-  
+
 }
 .hero h1, .page-header h1, .detail-title h1 { letter-spacing: -.035em; }
 .kpi-value, .current-temp, .summary-current-temp, .global-agreement-value, .big-value,
@@ -526,14 +463,12 @@ html[data-theme="dark"] body {
   background: color-mix(in srgb, var(--primary) 72%, transparent);
 }
 .section-head {
-  
-  
+
   border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
 }
 
 .professional-hero::before {
-  
-   
+
   background-image:
     linear-gradient(90deg, color-mix(in srgb, var(--primary) 8%, transparent) 1px, transparent 1px),
     linear-gradient(color-mix(in srgb, var(--primary) 8%, transparent) 1px, transparent 1px);
@@ -544,7 +479,6 @@ html[data-theme="dark"] body {
 .professional-hero::after { border-radius: 0; width: 1px; height: 100%; right: 34%; top: 0; background: color-mix(in srgb, var(--border) 58%, transparent); }
 .hero-meta { font-family: var(--tech-font);  }
 .hero-meta span + span::before { display: none; }
-
 
 /* Overview columns keep their natural height: TodaySummary must not inherit the
    variable height of Agreement + Insights + Scenarios. */
@@ -576,7 +510,7 @@ html[data-theme="dark"] body {
 .timeline-legend, .chart-legend, .table-legend { font-family: var(--tech-font); }
 .chart-wrap {
   background-color: var(--surface);
-  
+
   background-size: 28px 28px;
 }
 .chart-axis { font-family: var(--tech-font); }
@@ -622,45 +556,16 @@ html[data-theme="dark"] .forecast-table thead th:first-child { background: #071d
 /* Modern professional UI                                                     */
 /* ========================================================================== */
 :root {
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   --panel-border: #e1e7ef;
-  
-  
-  
-  
-  
+
   --content-max: 1560px;
   --focus: 0 0 0 3px rgba(37,99,235,.18);
 }
 html[data-theme="dark"] {
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
   --panel-border: #273449;
-  
-  
+
 }
 
 body,
@@ -677,7 +582,7 @@ html[data-theme="dark"] body {
 .topbar {
   background: var(--topbar);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 92%, transparent);
-  
+
   backdrop-filter: blur(18px) saturate(150%);
 }
 .topbar .brand-title { color: var(--text); font-weight: 800; }
@@ -731,11 +636,10 @@ html[data-theme="dark"] body {
 .section-head p { font-size: .8rem; }
 
 .professional-hero {
-  
+
   border: 1px solid var(--border);
   border-top: 1px solid var(--border);
-  
-  
+
 }
 .professional-hero::before, .professional-hero::after { display: none; }
 .detail-weather-mark {  box-shadow: inset 0 0 0 1px var(--border);  }
@@ -884,18 +788,13 @@ html[data-theme="dark"] .forecast-table thead th:first-child {
   --primary-soft: #eff6ff;
   --border: #e3e8ef;
   --border-strong: #cbd3df;
-  
-  
-  
+
   --temp: #e4572e;
   --rain: #2775d9;
   --wind: #12836f;
-  
-  
-  
-  
+
   --radius: 11px;
-  
+
   --topbar: rgba(255,255,255,.92);
 }
 html[data-theme="dark"] {
@@ -1063,10 +962,9 @@ body, html[data-theme="dark"] body { background-image: none; }
 /* Reserve a distinct row for calibration/bias so it never covers model metadata. */
 .model-header-stack {
   display: grid;
-  
+
   justify-items: center;
-  
-  
+
   min-width: 108px;
   line-height: 1.18;
 }
@@ -1648,17 +1546,16 @@ html[data-theme="dark"] {
 
 .feature-inline-loading{display:flex;align-items:center;gap:.6rem;min-height:54px;padding:.76rem 1rem;color:var(--muted);font-size:.92rem}.loader.small{width:18px;height:18px;border-width:2px}
 
-/* v1.9 production foundation */
+/* Production foundation */
 .backup-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.55rem;margin:1rem 0}.backup-option{display:flex;align-items:center;gap:.65rem;padding:.74rem .84rem;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);cursor:pointer}.backup-option input{width:1rem;height:1rem}.api-usage-section .storage-kpis.compact{grid-template-columns:repeat(4,minmax(0,1fr));margin:1rem 0}.marine-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));}.marine-kpis>div{padding:.80rem .85rem;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);min-width:0}.marine-kpis span{display:block;font-size:.76rem;color:var(--text-muted);margin-bottom:.25rem}.marine-kpis strong{font-size:1.08rem;font-variant-numeric:tabular-nums}@media(max-width:900px){.api-usage-section .storage-kpis.compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.marine-kpis{grid-template-columns:1fr}.backup-options{grid-template-columns:1fr}.api-usage-section .storage-kpis.compact{grid-template-columns:1fr 1fr}}
 
-/* v1.10 — tides, model health, locally weighted consensus */
+/* Marine tides, model health and locally weighted consensus */
 .weighted-consensus{margin-top:10px;padding-top:10px;border-top:1px solid color-mix(in srgb,var(--border) 75%,transparent);display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:end}.weighted-consensus span{font-size:.76rem;font-weight:700}.weighted-consensus strong{font-size:1.4rem;line-height:1}.weighted-consensus small{grid-column:1/-1;opacity:.72}.weighted-consensus.unavailable strong{opacity:.45}
 .chart-zero-line{stroke:var(--border);stroke-width:1;stroke-dasharray:4 5}.health-table{min-width:1320px}.health-table th:first-child,.health-table td:first-child{min-width:150px}.health-table td,.health-table th{vertical-align:top}.health-table td small,.health-table th small{display:block;margin-top:3px;white-space:nowrap}.health-monitor .diagnostic-summary{margin-bottom:12px}
 @media(max-width:900px){.weighted-consensus{grid-template-columns:1fr auto}}
 
-
-/* v1.10.1–1.10.2 — UI/marine cleanup, true full-width agreement chart, richer marine charts and About page */
+/* Marine UI, full-width agreement chart and About layout */
 .agreement-chart-wrap { width:100%; box-sizing:border-box; padding-inline:0; overflow:hidden; }
 .agreement-chart-wrap .agreement-band-hover { display:block; width:100%; min-width:0; }
 .agreement-chart-wrap .agreement-band-hover .chart { display:block; width:100%; height:auto; min-width:0; min-height:0; }
@@ -1719,8 +1616,7 @@ html[data-theme="dark"] {
   .marine-chart-block { overflow-x:auto; padding-bottom:2px; }
 }
 
-
-/* v1.10.4 — cohesive marine / coast dashboard */
+/* Marine / coast dashboard */
 .marine-section { overflow:hidden; }
 .marine-section-head { margin-bottom:14px; }
 .marine-section-head p { display:inline-flex; align-items:center; gap:6px; }
@@ -1806,8 +1702,7 @@ html[data-theme="dark"] {
   .marine-surface-head { flex-direction:column; gap:8px; }
   }
 
-
-/* v1.10.7 — full-size tide workspace + vertically aligned detailed-model headers */
+/* Tide workspace and detailed-model header alignment */
 /* Every model header uses identical reserved tracks so wrapped names, metadata,
    run coverage and optional warnings cannot shift the bias pill vertically. */
 .model-header-stack {
@@ -1913,7 +1808,7 @@ html[data-theme="dark"] {
   .marine-tide-chart-zone .tide-chart { min-width:660px; aspect-ratio:8 / 3; }
 }
 
-/* v1.10.10 — clarity pass for Settings, Local data and About */
+/* Settings, Local data and About clarity */
 .settings-page-header,.storage-page-header{margin-bottom:14px}
 .settings-page-header .page-header-copy p,.storage-page-header .page-header-copy p{max-width:720px}
 .settings-list-simple{grid-template-columns:1fr;gap:14px}
@@ -1988,7 +1883,7 @@ html[data-theme="dark"] {
 @media(max-width:760px){.settings-control-grid,.settings-control-grid-two,.about-reading-grid,.about-install-grid,.about-engine-grid{grid-template-columns:1fr;justify-content:stretch}.about-method-flow{grid-template-columns:1fr}.storage-kpis-simple{grid-template-columns:1fr}.about-hero-simple{padding:20px}.storage-advanced>summary{align-items:flex-start}.storage-category-grid-simple{grid-template-columns:1fr}}
 @media(max-width:900px){.storage-category-grid-simple{grid-template-columns:1fr}}
 
-/* v1.10.11 — global copy rhythm, alignment and positioning */
+/* Global copy rhythm, alignment and positioning */
 /* One visual grammar for headings and explanatory copy across all views. */
 :where(.hero-copy,.page-header-copy,.detail-title,.section-head>div,.settings-section-head>div,.bias-panel-head,.about-section-head>div,.marine-surface-head>div) {
   min-width: 0;
@@ -2080,8 +1975,7 @@ html[data-theme="dark"] {
   .section-head .section-actions { width:100%; }
 }
 
-
-/* v1.10.11 — typography audit (same app version)
+/* Typography system
    Canonical UI scale: 0.70 / 0.74 / 0.76 / 0.80 / 0.84 / 0.88 / 0.92 / 0.96 / 1.00 / 1.08 / 1.20 / 1.30 / 1.40 rem.
    No readable UI copy is intentionally set below 0.7rem. */
 :root {
@@ -2130,7 +2024,7 @@ html[data-theme="dark"] {
   :where(.section-head p,.settings-section>p,.setting-control p,.about-reading-grid p,.about-install-grid p,.privacy-grid p) { font-size: var(--type-body-compact); }
 }
 
-/* v1.10.11 — final visual consistency pass (same app version) */
+/* Visual consistency pass */
 /* TodaySummary: sunrise and sunset are one visual unit and can only wrap together. */
 .summary-context-chips {
   align-items: center;
@@ -2224,7 +2118,7 @@ html[data-theme="dark"] {
   .summary-solar-pair > .summary-solar-chip { padding-inline: 6px; }
 }
 
-/* MeteoCompare 1.10.11 — final clarity & data-density polish (same app version) */
+/* Clarity and data-density polish */
 /* City detail: title and former context bar are one single information surface. */
 .professional-hero {
   display: grid;
@@ -2286,13 +2180,12 @@ html[data-theme="dark"] {
   .detail-hero-actions { gap: 6px; }
 }
 
-
-/* v1.10.12 — release clean: Settings controls use intrinsic flow.
+/* Settings controls use intrinsic flow.
    No min-height spacers or auto margins are allowed between labels and actions. */
 .setting-control > :where(h3,p,.option-row,small) { min-height: 0; }
 .setting-control > .option-row { justify-content: flex-start; }
 
-/* v1.10.11 — final interaction/layout consistency pass (version unchanged) */
+/* Interaction and layout consistency */
 /* Timeline metrics share one strict geometry so rain/cloud/wind never drift vertically. */
 .timeline-metric {
   box-sizing: border-box;
@@ -2337,7 +2230,7 @@ html[data-theme="dark"] {
   min-width: 0;
   display: flex;
   align-items: center;
-  
+
   gap: 10px;
 }
 .model-row-head .model-title {
@@ -2402,8 +2295,7 @@ html[data-theme="dark"] {
 .model-row-head .model-title { flex: 0 1 auto; max-width: calc(100% - 52px); }
 .model-row-head .switch { margin-left: 2px; }
 
-
-/* v1.10.12 — final marine/readability polish (version unchanged) */
+/* Marine readability polish */
 .marine-chart-integrated { padding:10px 12px 5px; }
 .marine-chart-integrated .wave-chart { aspect-ratio:4 / 1; }
 .marine-chart-integrated .tide-chart { aspect-ratio:8 / 3; }
@@ -2417,12 +2309,12 @@ html[data-theme="dark"] {
   .settings-control-grid,.settings-control-grid-two{grid-template-columns:1fr;}
 }
 
-/* v1.10.13 — back navigation without shifting the topbar */
+/* Back navigation without shifting the topbar */
 
 .agreement-strip button.unknown { background: color-mix(in srgb, var(--muted) 16%, var(--surface-3)); }
 .confidence.unknown { color: var(--muted); }
 
-/* v1.10.14 — formalized visual system, quick city navigation and collapsible primary cards */
+/* Visual system, quick city navigation and collapsible cards */
 :root {
   /* Spacing scale */
   --space-1: 4px;
@@ -2564,7 +2456,7 @@ html[data-theme="dark"] {
   border-radius:var(--radius-sm);
   background:transparent;
   color:var(--muted);
-  
+
   transition:color .14s ease,background .14s ease,border-color .14s ease,transform .18s ease;
 }
 .collapse-card-btn:hover { color:var(--text); background:var(--surface-2); border-color:var(--border); }
@@ -2598,7 +2490,7 @@ html[data-theme="dark"] {
 .diag-chip.low { color:var(--semantic-danger); background:color-mix(in srgb,var(--semantic-danger) 9%,var(--surface)); border-color:color-mix(in srgb,var(--semantic-danger) 28%,var(--border)); }
 
 /* ========================================================================== */
-/* 1.10.17 — Modern home, compact dashboard polish                            */
+/* Modern home and compact dashboard */
 /* ========================================================================== */
 .home-page { padding-top:var(--space-6); padding-bottom:var(--space-10); }
 .home-hero {
@@ -2728,10 +2620,8 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .home-mini-time,.home-mini-rain,.home-mini-hour small { font-size:.7rem; }
 }
 
-
-/* 1.10.17 — final home/detail interaction polish (product version unchanged) */
+/* Home/detail interaction polish */
 .home-watch-section { overflow:hidden; box-shadow:var(--shadow-1), inset 0 3px 0 color-mix(in srgb,var(--semantic-warning) 82%,var(--rain)); }
-.home-watch-section::before { content:none; display:none; }
 
 .home-weather-primary { grid-template-columns:auto minmax(0,1fr) auto; }
 .home-weather-coherence {
@@ -2746,7 +2636,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .home-weather-coherence.low strong,.home-weather-coherence.low small { color:var(--semantic-danger); }
 .home-weather-coherence.neutral strong,.home-weather-coherence.neutral small { color:var(--semantic-neutral); }
 .home-weather-facts>div:first-child { justify-content:center; }
-
 
 /* City back navigation belongs to the page, not halfway across the topbar. */
 .detail-back-button {
@@ -2774,7 +2663,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .home-weather-coherence span,.home-weather-coherence small { font-size:.7rem; }
 }
 
-/* 1.10.17 — home/detail stability polish (product version unchanged) */
+/* Home/detail stability polish */
 .home-dashboard { margin-top:var(--space-7); }
 .home-cities-section,.home-watch-column { min-width:0; }
 .home-column-heading {  margin:0 0 var(--space-4); align-items:flex-end; }
@@ -2817,7 +2706,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .home-column-heading { min-height:0; }
 .home-watch-lead { margin:0 0 var(--space-3); color:var(--muted); font-size:.7rem; line-height:1.45; }
 
-/* 1.10.17 — final UI stability pass (product version unchanged) */
+/* UI stability pass */
 /* Configuration/information pages are intentionally static: folding belongs to city forecast content only. */
 .settings-control-grid { align-items:stretch; }
 .settings-control-grid > .setting-control { align-self:stretch; }
@@ -2889,8 +2778,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .page-back-button { min-height:42px; }
 }
 
-
-/* 1.10.18 — consolidated city-detail geometry */
+/* Consolidated city-detail geometry */
 :root { --detail-sidebar-width: 248px; }
 
 /* City detail returns to the regular application canvas. The navigation rail is
@@ -2944,7 +2832,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .page-back-shell.is-sticky .page-back-button { min-height:46px; font-size:.80rem; }
 }
 
-/* 1.11.0 — detailed metric dispersion friezes */
+/* Detailed metric dispersion friezes */
 .summary-dispersion-grid {
   grid-template-columns:repeat(2,minmax(0,1fr));
   grid-template-rows:repeat(2,minmax(178px,1fr));
@@ -2960,8 +2848,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   border-right:1px solid var(--border);
   border-bottom:1px solid var(--border);
 }
-.summary-dispersion:nth-child(2n) { border-right:0; }
-.summary-dispersion:nth-last-child(-n+2) { border-bottom:0; }
 .summary-dispersion.metric-temp-min { --dispersion-accent:#2384d8; }
 .summary-dispersion.metric-temp-max { --dispersion-accent:#e66b45; }
 .summary-dispersion.metric-rain { --dispersion-accent:var(--rain); }
@@ -3089,8 +2975,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .summary-dispersion-title .tile-hint { white-space:normal; }
 }
 
-
-/* 1.11.1 — lighter detail metadata and modernized consensus timeline */
+/* Lighter detail metadata and consensus timeline */
 .detail-hero-actions .detail-refresh-action {
   width:100%;
   min-height:38px;
@@ -3295,8 +3180,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .timeline-point.low .timeline-consensus { color:var(--low); }
 .timeline-point.muted .timeline-consensus { color:var(--subtle); }
 
-
-/* 1.11.1 — same-version visual polish: ruler, watch card and cloud coverage */
+/* Ruler, watch card and cloud coverage */
 .home-watch-section {
   border:1px solid var(--border);
   background:var(--surface-raised);
@@ -3396,7 +3280,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 
 /* ========================================================================== */
-/* 1.12.1 — detailed vector weather icon system + refined motion             */
+/* Detailed vector weather icon system and motion */
 /* ========================================================================== */
 .wx-icon {
   display:block;
@@ -3632,7 +3516,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 
 /* ========================================================================== */
-/* 1.12.1 — detail hierarchy polish: context, global agreement, ruler link    */
+/* Detail hierarchy: context, global agreement and ruler link */
 /* ========================================================================== */
 .summary-header {
   grid-template-columns:minmax(0,1fr);
@@ -3774,9 +3658,8 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .summary-context-chips > .summary-context-item::after { content:none !important; }
 }
 
-
 /* ========================================================================== */
-/* 1.13.1 — empty-home branding and dedicated “À retenir” card               */
+/* Empty-home branding */
 /* ========================================================================== */
 .home-empty .home-empty-logo-wrap {
   display:grid;
@@ -3816,7 +3699,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 @media(max-width:1050px){.seo-link-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-directory{margin-top:18px}}
 @media(max-width:480px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:1fr}.seo-city-link{padding:12px 13px}}
-
 
 /* Rain radar modal */
 .radar-hero-action{gap:7px}
@@ -3869,7 +3751,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .radar-panel-head{align-items:center}.radar-model-badge{display:none}
 }
 
-/* v1.15 — Unified installation menu in the top bar. */
+/* Unified installation menu in the top bar */
 .nav-install-menu { position:relative; display:flex; }
 .install-nav-icon { position:relative; }
 .install-opportunity-dot {
@@ -3957,7 +3839,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .about-engine-head h3{margin:0;font-size:var(--type-ui)}
 .about-engine-head span,.about-engine-current{display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border-radius:999px;background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);font-size:var(--type-caption);font-weight:760;white-space:nowrap}
 .about-engine-card p{margin:0;color:var(--muted);font-size:var(--type-body-compact);line-height:1.48}
-.forecast-engine-compare-slot{margin:0}
 .forecast-engine-overview-action{width:100%;min-height:54px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:11px;padding:10px 13px;text-align:left}
 .forecast-engine-overview-symbol{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:color-mix(in srgb,var(--primary) 13%,var(--surface));color:var(--primary);font-weight:850;font-size:1rem}
 .forecast-engine-overview-copy{display:grid;gap:2px;min-width:0}
@@ -3977,8 +3858,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .forecast-engine-choice-head i,.forecast-engine-selected-pill{font-style:normal;font-size:var(--type-caption);font-weight:750;border-radius:999px;padding:3px 7px;background:color-mix(in srgb,var(--primary) 14%,var(--surface));color:var(--primary)}
 .forecast-engine-choice small{font-size:var(--type-body-compact);line-height:1.42;color:var(--muted)}
 .forecast-engine-modal{width:min(1240px,calc(100vw - 28px))}
-.forecast-engine-modal-head{z-index:20}.forecast-engine-modal-head>div{flex:1;min-width:0}.forecast-engine-modal-head>.icon-btn{margin-left:auto;flex:0 0 auto}
-.forecast-engine-modal-content{display:grid;gap:16px}
+.forecast-engine-modal-head>div{flex:1;min-width:0}
 .forecast-engine-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .forecast-engine-overview-card{border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--surface);display:grid;align-content:start;gap:7px;min-height:112px}
 .forecast-engine-overview-card.selected-engine{border-color:color-mix(in srgb,var(--primary) 70%,var(--border));background:color-mix(in srgb,var(--primary) 8%,var(--surface))}
@@ -4006,7 +3886,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 @media(max-width:980px){.forecast-engine-choice-grid,.forecast-engine-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:620px){.forecast-engine-choice-grid,.forecast-engine-overview{grid-template-columns:1fr}.forecast-engine-choice{min-height:0}.forecast-engine-modal{width:calc(100vw - 12px)}.forecast-engine-modal-content{padding:12px}.forecast-engine-comparison-title{align-items:flex-start;flex-direction:column;gap:2px}}
 
-/* 1.15.0 — City detail hierarchy + forecast engine comparison polish */
+/* City detail hierarchy and forecast-engine comparison */
 .professional-hero {
   display: grid;
   grid-template-columns: minmax(0,1fr) auto;
@@ -4402,8 +4282,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   .forecast-engine-chart { min-height: 210px; }
 }
 
-
-/* 1.15.0 — Detail spacing + comparison modal height refinement */
+/* Detail spacing and comparison modal height */
 .detail-hero-support .hero-meta {
   gap: 8px 14px;
 }

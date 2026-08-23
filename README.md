@@ -1,5 +1,7 @@
 # MeteoCompare Web
 
+La release **1.16.0** consolide le moteur de prévision et le socle web après un audit global. Le rapport technique est disponible dans [`AUDIT_1.16.0.md`](AUDIT_1.16.0.md).
+
 ## Démarrage local
 
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
@@ -21,7 +23,7 @@ npm run tests
 
 Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
 
-Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. En local, `npm run preview` retire uniquement la balise du tracker Plausible de la réponse HTML : le serveur Node ne lance pas le Worker Cloudflare. En production Worker, le navigateur charge Plausible via les chemins first-party `/_mcx/p.js` et `/_mcx/e`, sans requête directe vers `plausible.io`.
+Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. En local, `npm run preview` sert exactement le HTML de production ; le bootstrap analytics détecte que l’hôte n’est pas `meteocompare.app` et ne charge donc aucun tracker réseau. En production Worker, le navigateur charge Plausible via les chemins first-party `/_mcx/p.js` et `/_mcx/e`, sans requête directe vers `plausible.io`.
 
 ## Déployer sur Cloudflare Workers — configuration recommandée
 

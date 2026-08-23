@@ -13,5 +13,5 @@ assert.match(app,/class="summary-solar-chip"/,'TodaySummary solar chips must use
 assert.match(css,/\.summary-context-chips > \.summary-solar-pair\s*\{/,'solar pair layout rule missing');
 assert.match(css,/flex:\s*0 0 auto/,'solar pair must wrap as a single unit');
 assert.match(css,/min-height:\s*26px/,'shared badge baseline missing');
-assert.match(css,/final visual consistency pass/,'final design polish layer missing');
+assert.match(css,/\.summary-context-chips > \.summary-solar-pair\s*\{/,'final design polish rules must remain present without relying on historical release comments');
 console.log('MeteoCompare Web final UI polish 1.10.11: OK');

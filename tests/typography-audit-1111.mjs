@@ -11,7 +11,6 @@ assert.ok(version.localeCompare('1.10.11',undefined,{numeric:true,sensitivity:'b
 assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
-assert.match(css,/v1\.10\.11 — typography audit/);
 assert.match(css,/--type-micro:\s*\.7rem/);
 assert.match(css,/--type-section:\s*1\.08rem/);
 

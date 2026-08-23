@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import { ApplicationKernel } from '../js/core/application-kernel.js';
 import { FeatureRegistry } from '../js/core/feature-registry.js';
 import { OperationRegistry } from '../js/core/cache-registry.js';
@@ -15,11 +14,11 @@ assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';
-const inlineScripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)].filter(match=>!match[1].includes('src='));
-assert.equal(inlineScripts.length,1,'only the Plausible bootstrap should be inline');
-const inlineHash=crypto.createHash('sha256').update(inlineScripts[0][2]).digest('base64');
-assert.ok(csp.includes(`script-src 'self' 'sha256-${inlineHash}'`),'script-src must authorize the current inline bootstrap hash');
-assert.ok(csp.includes(`script-src-elem 'self' 'sha256-${inlineHash}'`),'script-src-elem must authorize the current inline bootstrap hash');
+const scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
+const inlineScripts=scripts.filter(match=>!match[1].includes('src='));
+assert.equal(inlineScripts.length,0,'all executable JavaScript should live in external modules');
+assert.ok(scripts.some(match=>/src="js\/plausible-bootstrap\.js"/.test(match[1])),'external Plausible bootstrap must be loaded');
+assert.ok(csp.includes(`script-src 'self'`),'script-src must restrict scripts to same-origin modules');
 assert.doesNotMatch(csp,/script-src[^;]*'unsafe-inline'/,'scripts must not use unsafe-inline');
 
 const icons=new WeatherIconRenderer();

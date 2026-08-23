@@ -35,10 +35,12 @@ for(const file of jsFiles){const item='./'+rel(file);assert.ok(shell.includes(it
 
 const html=read('index.html'),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 assert.equal(scripts.length,2,'only the Plausible bootstrap + MeteoCompare app scripts are expected');
-const plausibleInline=scripts.find(([_,attrs,body])=>!attrs.includes('src=')&&/plausible\.init/.test(body));
-assert.ok(plausibleInline,'Plausible bootstrap/init must be present');assert.match(plausibleInline[2],/autoCapturePageviews:false/);assert.match(plausibleInline[2],/script\.src='\.\/_mcx\/p\.js'/);assert.match(plausibleInline[2],/host==='meteocompare\.app'/);
-const appScript=scripts.find(([_,attrs])=>/type="module"/.test(attrs));
-assert.ok(appScript,'application module script must be present');assert.match(appScript[1],/src="\/?js\/app\.js"/);assert.equal(appScript[2].trim(),'','no application inline script expected');
+assert.ok(scripts.every(([_,attrs,body])=>attrs.includes('src=')&&!body.trim()),'all static scripts must be external modules with no inline body');
+const plausibleScript=scripts.find(([_,attrs])=>/src="\/?js\/plausible-bootstrap\.js"/.test(attrs));
+assert.ok(plausibleScript,'external Plausible bootstrap must be present');
+const plausibleBootstrap=read('js/plausible-bootstrap.js');assert.match(plausibleBootstrap,/autoCapturePageviews:\s*false/);assert.match(plausibleBootstrap,/ANALYTICS_CONFIG\.scriptSrc/);assert.match(plausibleBootstrap,/allowedHosts\.includes\(host\)/);
+const appScript=scripts.find(([_,attrs])=>/src="\/?js\/app\.js"/.test(attrs));
+assert.ok(appScript,'application module script must be present');assert.match(appScript[1],/type="module"/);assert.equal(appScript[2].trim(),'','no application inline script expected');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'static HTML IDs must be unique');
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';assert.match(csp,/default-src 'self'/);assert.doesNotMatch(csp,/script-src[^;]*'unsafe-inline'/);assert.match(csp,/object-src 'none'/);assert.match(csp,/base-uri 'self'/);
 

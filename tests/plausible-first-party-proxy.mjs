@@ -3,13 +3,14 @@ import fs from 'node:fs';
 import { ANALYTICS_CONFIG } from '../js/analytics-config.js';
 
 const read=rel=>fs.readFileSync(new URL(`../${rel}`,import.meta.url),'utf8');
-const html=read('index.html'),worker=read('worker.js'),wrangler=read('wrangler.jsonc'),preview=read('tools/preview-html.mjs');
+const html=read('index.html'),bootstrap=read('js/plausible-bootstrap.js'),worker=read('worker.js'),wrangler=read('wrangler.jsonc'),preview=read('tools/preview-html.mjs');
 assert.equal(ANALYTICS_CONFIG.scriptSrc,'/_mcx/p.js');
 assert.equal(ANALYTICS_CONFIG.endpoint,'/_mcx/e');
 assert.match(ANALYTICS_CONFIG.upstreamScriptSrc,/^https:\/\/plausible\.io\/js\/pa-/);
 assert.equal(ANALYTICS_CONFIG.upstreamEndpoint,'https://plausible.io/api/event');
-assert.match(html,/script\.src='\.\/_mcx\/p\.js'/);
-assert.match(html,/endpoint:'\/_mcx\/e'/);
+assert.match(html,/src="js\/plausible-bootstrap\.js"/);
+assert.match(bootstrap,/ANALYTICS_CONFIG\.scriptSrc/);
+assert.match(bootstrap,/ANALYTICS_CONFIG\.endpoint/);
 assert.doesNotMatch(html,/<script[^>]+src="https:\/\/plausible\.io/);
 assert.match(worker,/env\.ASSETS\.fetch\(request\)/);
 assert.match(worker,/ANALYTICS_CONFIG\.upstreamScriptSrc/);
