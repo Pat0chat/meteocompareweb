@@ -72,6 +72,30 @@ export function weightedVote(entries,localWeights={},severity=()=>0){
   return {value,percent:balanced.familyCount>=2?top*100/total:null,count:balanced.modelCount,familyCount:balanced.familyCount};
 }
 
+const SKY_CONDITION_ORDER=Object.freeze({CLEAR:0,MAINLY_CLEAR:1,PARTLY_CLOUDY:2,OVERCAST:3});
+const SKY_CONDITION_GROUP='__SKY_COVER__';
+function weatherConditionGroup(value){return Object.hasOwn(SKY_CONDITION_ORDER,value)?SKY_CONDITION_GROUP:value;}
+
+/**
+ * Resolve categorical weather conditions without fragmenting adjacent sky-cover states.
+ * CLEAR / MAINLY_CLEAR / PARTLY_CLOUDY / OVERCAST first compete as one semantic family,
+ * then the winning sky state is selected with a family-balanced ordinal median.
+ * Hazard categories remain independent and still win true inter-family ties by severity.
+ */
+export function weatherConditionConsensus(entries,localWeights={},severity=()=>0){
+  const rows=(entries||[]).filter(x=>x?.modelId&&x?.value!=null).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId))),balanced=familyBalancedWeights(rows.map(x=>x.modelId),localWeights);
+  if(!rows.length)return {value:null,percent:null,count:0,familyCount:0,group:null};
+  const weighted=rows.map(row=>({...row,weight:balanced.weights[row.modelId]||0})).filter(row=>row.weight>0),groups=new Map(),groupSeverity=new Map();
+  for(const row of weighted){const group=weatherConditionGroup(row.value),weight=(groups.get(group)||0)+row.weight;groups.set(group,weight);groupSeverity.set(group,Math.max(groupSeverity.get(group)??-Infinity,severity(row.value)));}
+  if(!groups.size)return {value:null,percent:null,count:0,familyCount:0,group:null};
+  const total=[...groups.values()].reduce((a,b)=>a+b,0),top=Math.max(...groups.values()),winningGroup=[...groups].filter(([,weight])=>Math.abs(weight-top)<=EPS).map(([group])=>group).sort((a,b)=>(groupSeverity.get(b)||0)-(groupSeverity.get(a)||0)||String(a).localeCompare(String(b)))[0];
+  if(winningGroup!==SKY_CONDITION_GROUP)return {value:winningGroup,percent:balanced.familyCount>=2?top*100/total:null,count:balanced.modelCount,familyCount:balanced.familyCount,group:winningGroup};
+  const sky=weighted.filter(row=>weatherConditionGroup(row.value)===SKY_CONDITION_GROUP).map(row=>({...row,index:SKY_CONDITION_ORDER[row.value]})).sort((a,b)=>a.index-b.index||String(a.modelId).localeCompare(String(b.modelId))),skyWeight=sky.reduce((sum,row)=>sum+row.weight,0),half=skyWeight/2;
+  let cumulative=0,selected=sky[0]?.value??null;for(const row of sky){cumulative+=row.weight;selected=row.value;if(cumulative>=half-EPS)break;}
+  const meanIndex=skyWeight?sky.reduce((sum,row)=>sum+row.index*row.weight,0)/skyWeight:0,variance=skyWeight?sky.reduce((sum,row)=>sum+row.weight*(row.index-meanIndex)**2,0)/skyWeight:0,skyAgreement=1-clamp(Math.sqrt(Math.max(0,variance))/2,0,1),groupShare=skyWeight/Math.max(EPS,total);
+  return {value:selected,percent:balanced.familyCount>=2?groupShare*skyAgreement*100:null,count:balanced.modelCount,familyCount:balanced.familyCount,group:SKY_CONDITION_GROUP,skyAgreementPercent:balanced.familyCount>=2?skyAgreement*100:null};
+}
+
 /**
  * Precipitation is decomposed into P(wet) and amount conditional on a wet event.
  * Native model probabilities are used when present; deterministic models contribute

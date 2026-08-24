@@ -1,5 +1,5 @@
 import { CONDITION, CONDITION_INFO, consensusGroupFor } from './models.js';
-import { continuousConsensus, precipitationConsensus, weightedVote, familyBalancedWeights } from './consensus.js';
+import { continuousConsensus, precipitationConsensus, weatherConditionConsensus, familyBalancedWeights } from './consensus.js';
 import { DEFAULT_FORECAST_ENGINE, forecastEngineContinuous, forecastEnginePrecipitation, forecastEngineSummary } from './forecast-engines.js';
 
 const zonedFormatters = new Map();
@@ -126,7 +126,7 @@ export function currentConditions(forecast, now=new Date(), options={}) {
     const vote=hourlyCondition(series,i);rows.push({modelId,temperature:series.hourly.temperature2m[i],wind:series.hourly.windSpeed10m[i],cloud:series.hourly.cloudCover[i],condition:vote.condition,conditionInferred:vote.inferred});
   }
   const temp=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.temperature})),engineConfig(options,'temperature',.5,3,{calibration:{}})),wind=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.wind})),engineConfig(options,'wind',2,12,{min:0,calibration:{}})),cloud=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.cloud})),engineConfig(options,'condition',10,50,{min:0,max:100}));
-  const cv=weightedVote(rows.filter(x=>x.condition).map(x=>({modelId:x.modelId,value:x.condition})),{},c=>conditionInfo(c).severity),condition=cv.value,conditionInferred=Boolean(condition)&&!rows.some(x=>x.condition===condition&&!x.conditionInferred);
+  const cv=weatherConditionConsensus(rows.filter(x=>x.condition).map(x=>({modelId:x.modelId,value:x.condition})),{},c=>conditionInfo(c).severity),condition=cv.value,conditionInferred=Boolean(condition)&&!rows.some(x=>x.condition===condition&&!x.conditionInferred);
   return {temperature:temp.central,wind:wind.central,cloudCover:Number.isFinite(cloud.central)?Math.round(cloud.central):null,condition,conditionInferred,modelCount:rows.length,familyCount:Math.max(temp.familyCount,wind.familyCount,cv.familyCount),forecastEngine:options?.forecastEngine||DEFAULT_FORECAST_ENGINE,engineDetails:{temperature:forecastEngineSummary(temp),wind:forecastEngineSummary(wind),cloud:forecastEngineSummary(cloud)}};
 }
 
@@ -137,7 +137,7 @@ export function dailyCondition(series,date){
   const di=series.daily.dates.indexOf(date); if(di>=0){const c=fromWmoCode(series.daily.weatherCode[di]);if(c&&c!==CONDITION.UNKNOWN)return {condition:c,inferred:false};}
   const codes=[];let precip=0,pCount=0,minTemp=null,clouds=[];
   series.hourly.timestamps.forEach((ts,i)=>{if(ts.slice(0,10)!==date)return;const c=fromWmoCode(series.hourly.weatherCode[i]);if(c&&c!==CONDITION.UNKNOWN)codes.push(c);const p=series.hourly.precipitation[i];if(Number.isFinite(p)){precip+=p;pCount++;}const t=series.hourly.temperature2m[i];if(Number.isFinite(t))minTemp=minTemp==null?t:Math.min(minTemp,t);const cl=series.hourly.cloudCover[i];if(Number.isFinite(cl))clouds.push(cl);});
-  if(codes.length){const counts=new Map();codes.forEach(c=>counts.set(c,(counts.get(c)||0)+1));const max=Math.max(...counts.values());const condition=[...counts].filter(([,v])=>v===max).map(([c])=>c).sort((a,b)=>conditionInfo(b).severity-conditionInfo(a).severity)[0];return {condition,inferred:true};}
+  if(codes.length){const condition=weatherConditionConsensus(codes.map((value,index)=>({modelId:`hour-${index}`,value})),{},value=>conditionInfo(value).severity).value;return {condition,inferred:true};}
   const cond=inferCondition(pCount?precip:null,minTemp,clouds.length?stats(clouds).mean:null);return cond?{condition:cond,inferred:true}:{condition:null,inferred:true};
 }
 
@@ -244,7 +244,7 @@ export function aggregateDay(forecast, date, options={}) {
   const cloudEntries=entries('cloud');
   const cloudConsensus=forecastEngineContinuous(cloudEntries,engineConfig(options,'condition',10,50,{min:0,max:100}));
   const cloudAgreement=continuousConsensus(cloudEntries,{},10,50);
-  const conditionVote=weightedVote(
+  const conditionVote=weatherConditionConsensus(
     data.filter(row=>row.comparable.condition&&row.condition).map(row=>({modelId:row.modelId,value:row.condition})),
     {},condition=>conditionInfo(condition).severity,
   );
@@ -359,7 +359,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       threshold:rainThreshold,localWeights:weights.precipitation||{},
       amountTight:hourly?.5:1,amountWide:hourly?4:8,
     });
-    const conditionVote=weightedVote(
+    const conditionVote=weatherConditionConsensus(
       snaps.filter(row=>row.condition&&row.condition!==CONDITION.UNKNOWN).map(row=>({modelId:row.modelId,value:row.condition})),
       {},conditionValue=>conditionInfo(conditionValue).severity,
     );
