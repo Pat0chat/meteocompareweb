@@ -44,8 +44,10 @@ assert.doesNotMatch(app,/radar-method-note/);
 assert.ok(app.indexOf('class=\"radar-legend\"')<app.indexOf('class=\"radar-playback\"'),'precipitation legend must be directly below the radar before playback');
 const css=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf8');
 assert.match(css,/\.radar-map-stage\{[^}]*width:100%[^}]*height:clamp\(300px,40vh,390px\)/s,'radar must use full width with reduced height');
-assert.match(css,/\.radar-modal-head>div\{flex:1;min-width:0\}/,'radar modal title must reserve space so close stays right');
-assert.match(css,/\.radar-modal-head>\.icon-btn\{margin-left:auto/,'radar close button must stay at the right edge');
+assert.match(css,/\.radar-modal-head>div:first-child\{flex:1;min-width:0\}/,'radar modal title must reserve space for right-side actions');
+assert.match(css,/\.radar-modal-actions\{[^}]*margin-left:auto/s,'fullscreen and close actions must stay at the right edge');
+assert.match(app,/data-radar-fullscreen/,'radar must expose a fullscreen toggle');
+assert.match(css,/\.radar-modal\.is-fullscreen \.radar-map-stage\{height:clamp\(460px,64dvh,820px\)\}/,'fullscreen mode must materially enlarge the radar map');
 assert.match(css,/\.radar-map-stage\{[^}]*isolation:isolate[^}]*z-index:0/s,'radar overlays must stay below sticky modal header');
 assert.match(app,/class="radar-intensity-scale"/,'intensity labels must be integrated with the gradient scale');
 assert.match(css,/\.radar-precip-layer\{[^}]*image-rendering:crisp-edges[^}]*image-rendering:pixelated/s,'scaled source radar must avoid browser bilinear blur');
@@ -62,5 +64,7 @@ for(const lang of ['fr','en','es','de','it']){
   assert.match(locale,/"rainRadar"/);
   assert.match(locale,/"radarPrivacyNote"/);
   assert.match(locale,/"radarNowcastArrival"/);
+  assert.match(locale,/"radarEnterFullscreen"/);
+  assert.match(locale,/"radarExitFullscreen"/);
 }
 console.log('MeteoCompare rain radar tests: OK');

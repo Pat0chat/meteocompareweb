@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import { RADAR_ANALYSIS_ZOOM, RADAR_RANGE_CONFIG, radarNowcastDisplayGeometry, filterPeripheralRainCells } from '../../../js/features/radar.js';
+
+assert.equal(RADAR_ANALYSIS_ZOOM,7,'cell segmentation must use one high-resolution canonical radar zoom');
+const width=1000,height=620;
+const near=radarNowcastDisplayGeometry('near',width,height);
+const regional=radarNowcastDisplayGeometry('regional',width,height);
+const wide=radarNowcastDisplayGeometry('wide',width,height);
+assert.equal(near.analysisZoom,7);
+assert.equal(regional.analysisZoom,7);
+assert.equal(wide.analysisZoom,7);
+assert.equal(near.sourceScale,4,'near view should magnify canonical cell geometry');
+assert.equal(regional.sourceScale,2,'regional view should magnify the same canonical cells less');
+assert.equal(wide.sourceScale,.5,'wide view should shrink the same canonical cells instead of resegmenting them');
+const wideSupplement=radarNowcastDisplayGeometry('wide',width,height,5);
+assert.equal(wideSupplement.sourceScale,2,'peripheral wide-area cells may use lower-resolution coverage while preserving their own geometry');
+assert.equal(near.sourceLeft,(width-512*4)/2);
+assert.equal(regional.sourceLeft,(width-512*2)/2);
+assert.equal(wide.sourceLeft,(width-512*.5)/2);
+const cell=(x,y,w=30,h=30)=>({centroid:{x,y},bbox:{width:w,height:h}});
+const peripheral=filterPeripheralRainCells([cell(256,256,40,40),cell(470,256,20,20)],{latitude:48.8,radarZoom:5});
+assert.equal(peripheral.length,1,'wide-area supplementation must ignore low-resolution cells overlapping the high-resolution canonical core');
+assert.equal(peripheral[0].centroid.x,470);
+assert.deepEqual(Object.keys(RADAR_RANGE_CONFIG),['near','regional','wide']);
+console.log('Radar canonical analysis remains identity-stable across visual ranges: OK');
