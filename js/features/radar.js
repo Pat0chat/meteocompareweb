@@ -10,7 +10,8 @@ export const RADAR_RANGE_CONFIG={
   wide:{mapZoom:6,radarZoom:5,radarScale:2}
 };
 const ANALYSIS_SIZE=96;
-const NOWCAST_HORIZONS=[15,30,45,60];
+export const RADAR_PROJECTION_HORIZONS=Object.freeze([15,30,45,60]);
+const NOWCAST_HORIZONS=RADAR_PROJECTION_HORIZONS;
 const NOWCAST_COLORS=['#38bdf8','#22c55e','#f59e0b','#e879f9'];
 let metaCache=null;
 let metaCacheAt=0;
@@ -35,6 +36,58 @@ function hourText(epochMs,locale='fr-FR',timezone='UTC'){
 function median(values){const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;}
 function mean(values){const a=values.filter(Number.isFinite);return a.length?a.reduce((sum,v)=>sum+v,0)/a.length:null;}
 function maskCount(mask){let count=0;for(const value of mask)if(value)count++;return count;}
+
+
+export function extractRainCells(mask,width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,{minPixels=10,maxCells=16}={}){
+  if(!mask||mask.length!==width*height)return [];
+  const visited=new Uint8Array(mask.length),cells=[],neighbors=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+  for(let start=0;start<mask.length;start++){
+    if(!mask[start]||visited[start])continue;
+    const queue=[start],pixels=[];visited[start]=1;let q=0,sx=0,sy=0,minX=width,minY=height,maxX=0,maxY=0;
+    while(q<queue.length){
+      const index=queue[q++],x=index%width,y=Math.floor(index/width);pixels.push(index);sx+=x;sy+=y;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+      for(const [ox,oy] of neighbors){const nx=x+ox,ny=y+oy;if(nx<0||ny<0||nx>=width||ny>=height)continue;const ni=ny*width+nx;if(mask[ni]&&!visited[ni]){visited[ni]=1;queue.push(ni);}}
+    }
+    if(pixels.length<minPixels)continue;
+    const set=new Set(pixels),boundary=[];
+    for(const index of pixels){const x=index%width,y=Math.floor(index/width);if(x===0||y===0||x===width-1||y===height-1||!set.has(index-1)||!set.has(index+1)||!set.has(index-width)||!set.has(index+width))boundary.push(index);}
+    cells.push({id:`cell-${cells.length+1}`,pixels,boundary,count:pixels.length,centroid:{x:sx/pixels.length,y:sy/pixels.length},bbox:{minX,minY,maxX,maxY,width:maxX-minX+1,height:maxY-minY+1}});
+  }
+  return cells.sort((a,b)=>b.count-a.count).slice(0,maxCells);
+}
+
+function cellMatchScore(reference,candidate,width,height){
+  if(!reference||!candidate)return -Infinity;
+  const distance=Math.hypot(reference.centroid.x-candidate.centroid.x,reference.centroid.y-candidate.centroid.y),diagonal=Math.hypot(width,height),areaRatio=Math.min(reference.count,candidate.count)/Math.max(reference.count,candidate.count),distanceScore=1-clamp(distance/(diagonal*.32),0,1);
+  return distanceScore*.72+areaRatio*.28;
+}
+
+function regressionVelocity(points,key){
+  if(points.length<2)return 0;const base=points.at(-1).time,ts=points.map(row=>(row.time-base)/60),meanT=mean(ts),meanV=mean(points.map(row=>row[key]));let num=0,den=0;for(let i=0;i<points.length;i++){const dt=ts[i]-meanT;num+=dt*(points[i][key]-meanV);den+=dt*dt;}return den?num/den:0;
+}
+
+export function estimateRainCellMotions(samples,{width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,minPixels=10,maxCells=12}={}){
+  const rows=(samples||[]).filter(row=>row?.mask?.length===width*height&&Number.isFinite(row.time)).slice(-6).map(row=>({...row,cells:extractRainCells(row.mask,width,height,{minPixels,maxCells:maxCells*2})}));
+  if(rows.length<2)return [];
+  const latest=rows.at(-1),result=[];
+  for(const cell of latest.cells.slice(0,maxCells)){
+    const track=[{time:latest.time,x:cell.centroid.x,y:cell.centroid.y,count:cell.count}],used=[];let reference=cell;
+    for(let rowIndex=rows.length-2;rowIndex>=0;rowIndex--){
+      const candidates=rows[rowIndex].cells.map(candidate=>({candidate,score:cellMatchScore(reference,candidate,width,height)})).filter(row=>row.score>=.34).sort((a,b)=>b.score-a.score);if(!candidates.length)continue;
+      const best=candidates[0];used.push(best.score);reference=best.candidate;track.push({time:rows[rowIndex].time,x:reference.centroid.x,y:reference.centroid.y,count:reference.count});
+    }
+    track.sort((a,b)=>a.time-b.time);if(track.length<2)continue;
+    const vx=regressionVelocity(track,'x'),vy=regressionVelocity(track,'y'),spanMinutes=(track.at(-1).time-track[0].time)/60;if(spanMinutes<=0)continue;
+    const residuals=track.map(point=>{const dt=(point.time-track.at(-1).time)/60;return Math.hypot(point.x-(cell.centroid.x+vx*dt),point.y-(cell.centroid.y+vy*dt));}),speed=Math.hypot(vx,vy),residual=mean(residuals)||0,matchConfidence=mean(used)||.45,historyConfidence=clamp((track.length-1)/3,0,1),residualConfidence=clamp(1-residual/(2.5+speed*8),0,1),confidence=clamp(matchConfidence*.45+historyConfidence*.3+residualConfidence*.25,0,1);
+    result.push({...cell,motion:{vx,vy,confidence,history:track.length,spanMinutes},track});
+  }
+  return result;
+}
+
+export function projectRainCell(cell,horizonMinutes){
+  if(!cell?.motion||!Number.isFinite(horizonMinutes))return null;const {vx,vy,confidence}=cell.motion,uncertaintyPx=1.25+(horizonMinutes/15)*(1.15+(1-confidence)*2.15);
+  return {horizon:horizonMinutes,dx:vx*horizonMinutes,dy:vy*horizonMinutes,x:cell.centroid.x+vx*horizonMinutes,y:cell.centroid.y+vy*horizonMinutes,uncertaintyPx,confidence};
+}
 
 export function radarForecastHours(forecast,now=Date.now(),limit=4,options={}){
   const series=Object.entries(forecast?.seriesByModel||{}),epochs=new Set();
@@ -180,34 +233,48 @@ async function imageMask(url,signal){
   }finally{bitmap?.close?.();if(objectUrl)URL.revokeObjectURL(objectUrl);}
 }
 
-function maskCentroid(mask,width,height){let sx=0,sy=0,count=0;for(let y=0;y<height;y++)for(let x=0;x<width;x++)if(mask[y*width+x]){sx+=x;sy+=y;count++;}return count?{x:sx/count,y:sy/count,count}:null;}
 function mapResolutionKm(lat,zoom){return 156543.03392*Math.cos(clampLat(lat)*Math.PI/180)/(2**zoom)/1000;}
-function compass(vx,vy){const labels=['N','NE','E','SE','S','SO','O','NO'];const angle=(Math.atan2(vx,-vy)*180/Math.PI+360)%360;return labels[Math.round(angle/45)%8];}
-function roundedLabel(ctx,text,x,y,color,width,height){ctx.save();ctx.font='700 12px system-ui, sans-serif';const metrics=ctx.measureText(text),padding=7,w=metrics.width+padding*2,h=24,left=clamp(x-w/2,6,width-w-6),top=clamp(y-h/2,6,height-h-6);ctx.fillStyle='rgba(15,23,42,.78)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(left,top,w,h,7);else ctx.rect(left,top,w,h);ctx.fill();ctx.fillStyle=color;ctx.textBaseline='middle';ctx.fillText(text,left+padding,top+h/2);ctx.restore();}
+function roundedLabel(ctx,text,x,y,color,width,height){ctx.save();ctx.font='750 11px system-ui, sans-serif';const metrics=ctx.measureText(text),padding=6,w=metrics.width+padding*2,h=22,left=clamp(x-w/2,6,width-w-6),top=clamp(y-h/2,6,height-h-6);ctx.fillStyle='rgba(15,23,42,.84)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(left,top,w,h,7);else ctx.rect(left,top,w,h);ctx.fill();ctx.fillStyle=color;ctx.textBaseline='middle';ctx.fillText(text,left+padding,top+h/2);ctx.restore();}
+function cellRaster(cell,color,{boundaryOnly=false,texture=false}={}){
+  const canvas=document.createElement('canvas');canvas.width=ANALYSIS_SIZE;canvas.height=ANALYSIS_SIZE;const ctx=canvas.getContext('2d');ctx.fillStyle=color;
+  const pixels=boundaryOnly?cell.boundary:cell.pixels,boundarySet=texture?new Set(cell.boundary):null;
+  for(const index of pixels){const x=index%ANALYSIS_SIZE,y=Math.floor(index/ANALYSIS_SIZE);if(texture&&((x+y)%6>1)&&!boundarySet.has(index))continue;ctx.fillRect(x,y,1,1);}
+  return canvas;
+}
+function cellVisible(cell,dx,dy,sourceLeft,sourceTop,sourceScale,width,height,padding=60){const x=sourceLeft+(cell.centroid.x+dx)*sourceScale,y=sourceTop+(cell.centroid.y+dy)*sourceScale,r=Math.max(cell.bbox.width,cell.bbox.height)*sourceScale*.65;return x+r>=-padding&&y+r>=-padding&&x-r<=width+padding&&y-r<=height+padding;}
+function drawArrow(ctx,from,to,color){
+  const angle=Math.atan2(to.y-from.y,to.x-from.x),head=8;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(15,23,42,.52)';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.90)';ctx.lineWidth=2.4;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.restore();
+}
 
 function paintNowcast(){
   if(!controller)return;const canvas=controller.root.querySelector('[data-radar-nowcast]'),stage=controller.root.querySelector('[data-radar-stage]');if(!canvas||!stage)return;
-  const visible=Boolean(controller.nowcast&&controller.index===controller.frames.length-1),badge=controller.root.querySelector('.radar-nowcast-badge');canvas.classList.toggle('active',visible);badge?.classList.toggle('active',visible);if(!visible)return;
-  const {mask,motion}=controller.nowcast,width=stage.clientWidth||512,height=stage.clientHeight||360,dpr=Math.min(2,window.devicePixelRatio||1),rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near,sourceSize=512*rangeConfig.radarScale,sourceScale=sourceSize/ANALYSIS_SIZE,sourceLeft=(width-sourceSize)/2,sourceTop=(height-sourceSize)/2;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
-  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);const centroid=maskCentroid(mask,ANALYSIS_SIZE,ANALYSIS_SIZE);if(!centroid)return;
-  const maskCanvas=document.createElement('canvas');maskCanvas.width=ANALYSIS_SIZE;maskCanvas.height=ANALYSIS_SIZE;const maskCtx=maskCanvas.getContext('2d'),image=maskCtx.createImageData(ANALYSIS_SIZE,ANALYSIS_SIZE);for(let index=0,pixel=0;index<mask.length;index++,pixel+=4)if(mask[index]){image.data[pixel]=255;image.data[pixel+1]=255;image.data[pixel+2]=255;image.data[pixel+3]=215;}maskCtx.putImageData(image,0,0);
-  const current={x:sourceLeft+centroid.x*sourceScale,y:sourceTop+centroid.y*sourceScale},points=[];
-  for(let idx=NOWCAST_HORIZONS.length-1;idx>=0;idx--){const horizon=NOWCAST_HORIZONS[idx],dx=motion.vx*horizon*sourceScale,dy=motion.vy*horizon*sourceScale,uncertainty=1.1+(horizon/15)*(1.0+(1-motion.confidence)*1.7),color=NOWCAST_COLORS[idx],opacity=clamp(.29-horizon*.0025,.10,.24);const tint=document.createElement('canvas');tint.width=ANALYSIS_SIZE;tint.height=ANALYSIS_SIZE;const tintCtx=tint.getContext('2d');tintCtx.drawImage(maskCanvas,0,0);tintCtx.globalCompositeOperation='source-in';tintCtx.fillStyle=color;tintCtx.fillRect(0,0,ANALYSIS_SIZE,ANALYSIS_SIZE);ctx.save();ctx.globalAlpha=opacity;ctx.filter=`blur(${Math.max(2,uncertainty*sourceScale*.62)}px)`;ctx.drawImage(tint,sourceLeft+dx,sourceTop+dy,sourceSize,sourceSize);ctx.restore();points.unshift({horizon,x:current.x+dx,y:current.y+dy,uncertainty:uncertainty*sourceScale,color});}
-  ctx.save();ctx.strokeStyle='rgba(255,255,255,.86)';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(current.x,current.y);for(const point of points)ctx.lineTo(point.x,point.y);ctx.stroke();for(const point of points){ctx.beginPath();ctx.strokeStyle=point.color;ctx.globalAlpha=.82;ctx.lineWidth=1.5;ctx.ellipse(point.x,point.y,point.uncertainty*1.35,point.uncertainty,Math.atan2(motion.vy,motion.vx),0,Math.PI*2);ctx.stroke();}ctx.restore();
-  const timezone=controller.forecast?.city?.timezone||'UTC',latest=controller.frames.at(-1)?.time||Date.now()/1000;for(const point of points){const label=timeText(latest+point.horizon*60,controller.locale,timezone);roundedLabel(ctx,label,point.x,point.y-point.uncertainty-14,point.color,width,height);}
+  const visible=Boolean(controller.mode==='projection'&&controller.nowcast&&controller.index===controller.frames.length-1),badge=controller.root.querySelector('.radar-nowcast-badge');canvas.classList.toggle('active',visible);badge?.classList.toggle('active',visible);if(!visible)return;
+  const {cells}=controller.nowcast,width=stage.clientWidth||512,height=stage.clientHeight||360,dpr=Math.min(2,window.devicePixelRatio||1),rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near,sourceSize=512*rangeConfig.radarScale,sourceScale=sourceSize/ANALYSIS_SIZE,sourceLeft=(width-sourceSize)/2,sourceTop=(height-sourceSize)/2;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);ctx.imageSmoothingEnabled=true;const primary=getComputedStyle(stage).getPropertyValue('--primary').trim()||'#2563eb';
+  const drawn=cells.filter(cell=>cellVisible(cell,0,0,sourceLeft,sourceTop,sourceScale,width,height)||NOWCAST_HORIZONS.some(h=>{const p=projectRainCell(cell,h);return p&&cellVisible(cell,p.dx,p.dy,sourceLeft,sourceTop,sourceScale,width,height);}));
+  for(const cell of drawn){
+    const currentOutline=cellRaster(cell,'rgba(255,255,255,.96)',{boundaryOnly:true});ctx.save();ctx.globalAlpha=.72;ctx.drawImage(currentOutline,sourceLeft,sourceTop,sourceSize,sourceSize);ctx.restore();
+    for(let idx=NOWCAST_HORIZONS.length-1;idx>=0;idx--){
+      const horizon=NOWCAST_HORIZONS[idx],projection=projectRainCell(cell,horizon);if(!projection||!cellVisible(cell,projection.dx,projection.dy,sourceLeft,sourceTop,sourceScale,width,height))continue;const color=NOWCAST_COLORS[idx],x=sourceLeft+projection.dx*sourceScale,y=sourceTop+projection.dy*sourceScale,uncertainty=projection.uncertaintyPx*sourceScale;
+      const probable=cellRaster(cell,color);ctx.save();ctx.globalAlpha=clamp(.14-horizon*.0007,.075,.13);ctx.filter=`blur(${Math.max(3,uncertainty*.48)}px)`;ctx.drawImage(probable,x,y,sourceSize,sourceSize);ctx.restore();
+      const projected=cellRaster(cell,color,{texture:true});ctx.save();ctx.globalAlpha=clamp(.30-horizon*.0016,.17,.28);ctx.drawImage(projected,x,y,sourceSize,sourceSize);ctx.restore();
+      const outline=cellRaster(cell,color,{boundaryOnly:true});ctx.save();ctx.globalAlpha=.90;ctx.drawImage(outline,x,y,sourceSize,sourceSize);ctx.restore();
+    }
+  }
+  for(const [cellIndex,cell] of drawn.entries()){
+    const current={x:sourceLeft+cell.centroid.x*sourceScale,y:sourceTop+cell.centroid.y*sourceScale},points=NOWCAST_HORIZONS.map((horizon,index)=>{const projection=projectRainCell(cell,horizon);return {...projection,screenX:sourceLeft+projection.x*sourceScale,screenY:sourceTop+projection.y*sourceScale,color:NOWCAST_COLORS[index]};});const last=points.at(-1);if(!last)continue;drawArrow(ctx,current,{x:last.screenX,y:last.screenY},primary);
+    for(const point of points){if(point.screenX<-20||point.screenY<-20||point.screenX>width+20||point.screenY>height+20)continue;ctx.save();ctx.fillStyle=point.color;ctx.strokeStyle='rgba(15,23,42,.62)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(point.screenX,point.screenY,4.2,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
+    if(last.screenX>=0&&last.screenX<=width&&last.screenY>=0&&last.screenY<=height)roundedLabel(ctx,`+60`,last.screenX,last.screenY-18,last.color,width,height);
+    if(cellIndex<3&&current.x>=0&&current.x<=width&&current.y>=0&&current.y<=height)roundedLabel(ctx,`${cellIndex+1}`,current.x,current.y-17,'#ffffff',width,height);
+  }
 }
 
 function renderNowcastSummary(){
   if(!controller)return;const node=controller.root.querySelector('[data-radar-nowcast-summary]');if(!node)return;
   if(controller.nowcastBusy){node.className='radar-nowcast-summary loading';node.innerHTML=`<span class="loader"></span><span>${esc(controller.t('radarNowcastAnalyzing'))}</span>`;return;}
   const result=controller.nowcast;if(!result){node.className='radar-nowcast-summary unavailable';node.textContent=controller.t(controller.nowcastReason==='uncertain'?'radarNowcastUncertain':'radarNowcastUnavailable');return;}
-  const latest=controller.frames.at(-1)?.time||Date.now()/1000,eta=result.eta,timezone=controller.forecast?.city?.timezone||'UTC',speedPxPerMin=Math.hypot(result.motion.vx,result.motion.vy),pixelKm=mapResolutionKm(controller.city.latitude,(RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near).radarZoom)*(512/ANALYSIS_SIZE),speedKmh=Math.round(speedPxPerMin*pixelKm*60),direction=compass(result.motion.vx,result.motion.vy),confidence=Math.round(result.motion.confidence*100);
-  let headline='';
-  if(eta.kind==='approaching')headline=controller.t('radarNowcastArrival',{time:timeText(latest+eta.minute*60,controller.locale,timezone),minutes:eta.uncertaintyMinutes});
-  else if(eta.kind==='leaving')headline=controller.t('radarNowcastDeparture',{time:timeText(latest+eta.minute*60,controller.locale,timezone),minutes:eta.uncertaintyMinutes});
-  else if(eta.kind==='persistent')headline=controller.t('radarNowcastPersistent');
-  else headline=controller.t('radarNowcastQuiet');
-  node.className=`radar-nowcast-summary ${eta.kind}`;node.innerHTML=`<strong>${esc(headline)}</strong><span>${esc(controller.t('radarNowcastMotion',{speed:speedKmh,direction,confidence}))}</span>`;
+  const confidence=Math.round((mean(result.cells.map(cell=>cell.motion.confidence))||0)*100),rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near,pixelKm=mapResolutionKm(controller.city.latitude,rangeConfig.radarZoom)*(512/ANALYSIS_SIZE),speeds=result.cells.map(cell=>Math.hypot(cell.motion.vx,cell.motion.vy)*pixelKm*60).filter(Number.isFinite),speed=Math.round(median(speeds)||0);
+  node.className='radar-nowcast-summary ready';node.innerHTML=`<strong>${esc(controller.t('radarProjectionCells',{count:result.cells.length}))}</strong><span>${esc(controller.t('radarProjectionDetail',{confidence,speed}))}</span>`;
 }
 
 async function analyzeNowcast(){
@@ -215,7 +282,7 @@ async function analyzeNowcast(){
   try{
     const sourceFrames=controller.frames,indices=[...new Set([0,Math.round((sourceFrames.length-1)*.25),Math.round((sourceFrames.length-1)*.5),Math.round((sourceFrames.length-1)*.75),sourceFrames.length-1])],candidates=indices.map(index=>sourceFrames[index]).filter(Boolean),samples=[];
     for(const frame of candidates){const mask=await imageMask(radarImageUrl(controller.meta,frame,controller.city,(RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near).radarZoom),controller.abortController.signal);samples.push({mask,time:frame.time});}
-    if(!controller||controller.abortController.signal.aborted)return;const motion=estimateRadarMotion(samples);if(!motion){controller.nowcast=null;controller.nowcastReason='uncertain';controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();return;}const mask=samples.at(-1).mask,eta=radarNowcastEta(mask,motion);controller.nowcast={mask,motion,eta};controller.nowcastReason=null;controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();
+    if(!controller||controller.abortController.signal.aborted)return;const cells=estimateRainCellMotions(samples);if(!cells.length){controller.nowcast=null;controller.nowcastReason='uncertain';controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();return;}controller.nowcast={mask:samples.at(-1).mask,cells};controller.nowcastReason=null;controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();
   }catch(error){if(!controller||controller.abortController.signal.aborted)return;controller.nowcast=null;controller.nowcastReason='error';controller.nowcastBusy=false;renderNowcastSummary();paintNowcast();console.warn('Radar nowcast unavailable:',error?.message||error);}
 }
 
@@ -229,29 +296,35 @@ function cleanup(){
 
 export function destroyRadarModal(){cleanup();}
 
-export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',onRangeChange=null}){
+export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',onRangeChange=null,onModeChange=null}){
   cleanup();if(!root||!city)return;
   const abortController=new AbortController();
-  controller={root,city,forecast,t,locale,index:0,range:'near',frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false};
+  controller={root,city,forecast,t,locale,index:0,range:'near',mode:'observation',frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false};root.dataset.radarMode='observation';
   const status=root.querySelector('[data-radar-status]'),stage=root.querySelector('[data-radar-stage]'),radarImage=root.querySelector('[data-radar-image]'),timeLabel=root.querySelector('[data-radar-time]'),slider=root.querySelector('[data-radar-slider]'),play=root.querySelector('[data-radar-play]'),forecastRoot=root.querySelector('[data-radar-forecast]');
   if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale,forecastOptions});
   if(!stage||!radarImage)return;
   const paintBase=()=>{const rangeConfig=RADAR_RANGE_CONFIG[controller?.range]||RADAR_RANGE_CONFIG.near;renderBaseTiles(stage,city,rangeConfig.mapZoom);applyRadarGeometry(radarImage,rangeConfig);paintNowcast();};paintBase();
   if(typeof ResizeObserver!=='undefined'){controller.resizeObserver=new ResizeObserver(paintBase);controller.resizeObserver.observe(stage);}
-  const setPlaying=playing=>{if(!controller)return;controller.playing=Boolean(playing);if(controller.timer){clearInterval(controller.timer);controller.timer=null;}if(controller.playing&&controller.index>=controller.frames.length-1)controller.index=0;if(play){play.textContent=controller.playing?'❚❚':'▶';play.setAttribute('aria-label',t(controller.playing?'radarPause':'radarPlay'));play.title=t(controller.playing?'radarPause':'radarPlay');}if(controller.playing&&controller.frames.length>1)controller.timer=setInterval(()=>{if(!controller)return;if(controller.index>=controller.frames.length-1){setPlaying(false);paintFrame();return;}controller.index++;paintFrame();},700);};
+  const setPlaying=playing=>{if(!controller)return;controller.playing=Boolean(playing)&&controller.mode==='observation';if(controller.timer){clearInterval(controller.timer);controller.timer=null;}if(controller.playing&&controller.index>=controller.frames.length-1)controller.index=0;if(play){play.textContent=controller.playing?'❚❚':'▶';play.setAttribute('aria-label',t(controller.playing?'radarPause':'radarPlay'));play.title=t(controller.playing?'radarPause':'radarPlay');}if(controller.playing&&controller.frames.length>1)controller.timer=setInterval(()=>{if(!controller)return;if(controller.index>=controller.frames.length-1){setPlaying(false);paintFrame();return;}controller.index++;paintFrame();},700);};
   const paintFrame=()=>{
     if(!controller?.meta||!controller.frames.length)return;const frame=controller.frames[controller.index];const rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near;applyRadarGeometry(radarImage,rangeConfig);radarImage.src=radarImageUrl(controller.meta,frame,city,rangeConfig.radarZoom);radarImage.alt=t('radarFrameAlt',{time:timeText(frame.time,locale,forecast?.city?.timezone||'UTC')});
     if(timeLabel)timeLabel.textContent=timeText(frame.time,locale,forecast?.city?.timezone||'UTC');if(slider){slider.max=String(controller.frames.length-1);slider.value=String(controller.index);}paintNowcast();
   };
+  const setMode=mode=>{
+    if(!controller||!['observation','projection'].includes(mode)||mode===controller.mode)return;setPlaying(false);controller.mode=mode;root.dataset.radarMode=mode;root.querySelectorAll('[data-radar-mode]').forEach(button=>{const active=button.dataset.radarMode===mode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
+    if(mode==='projection'){controller.index=Math.max(0,controller.frames.length-1);if(status)status.textContent=t(controller.nowcastBusy?'radarNowcastAnalyzing':controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');}
+    else if(status)status.textContent=t('radarObservedWindow');paintFrame();renderNowcastSummary();paintNowcast();onModeChange?.(mode);
+  };
   root.addEventListener('click',event=>{
-    if(!controller)return;const target=event.target.closest?.('[data-radar-play],[data-radar-range]');if(!target)return;
-    if(target.hasAttribute('data-radar-play')){setPlaying(!controller.playing);paintFrame();return;}
-    const range=target.dataset.radarRange;if(!(range in RADAR_RANGE_CONFIG)||range===controller.range)return;controller.range=range;root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});paintBase();paintFrame();controller.nowcast=null;controller.nowcastReason=null;void analyzeNowcast();onRangeChange?.(range);
+    if(!controller)return;const target=event.target.closest?.('[data-radar-play],[data-radar-range],[data-radar-mode]');if(!target)return;
+    if(target.hasAttribute('data-radar-play')){if(controller.mode!=='observation')setMode('observation');setPlaying(!controller.playing);paintFrame();return;}
+    if(target.hasAttribute('data-radar-mode')){setMode(target.dataset.radarMode);return;}
+    const range=target.dataset.radarRange;if(!(range in RADAR_RANGE_CONFIG)||range===controller.range)return;controller.range=range;root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});paintBase();paintFrame();controller.nowcast=null;controller.nowcastReason=null;controller.nowcastBusy=true;renderNowcastSummary();if(status&&controller.mode==='projection')status.textContent=t('radarNowcastAnalyzing');void analyzeNowcast().then(()=>{if(controller?.mode==='projection'&&status)status.textContent=t(controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');});onRangeChange?.(range);
   },{signal:abortController.signal});
-  slider?.addEventListener('input',()=>{if(!controller)return;setPlaying(false);controller.index=Math.max(0,Math.min(controller.frames.length-1,Number(slider.value)||0));paintFrame();},{signal:abortController.signal});
+  slider?.addEventListener('input',()=>{if(!controller)return;if(controller.mode!=='observation')setMode('observation');setPlaying(false);controller.index=Math.max(0,Math.min(controller.frames.length-1,Number(slider.value)||0));paintFrame();},{signal:abortController.signal});
   try{
     if(status)status.innerHTML=`<span class="loader"></span>${esc(t('radarLoading'))}`;
-    const meta=await fetchMetadata();if(!controller||controller.abortController.signal.aborted)return;controller.meta=meta;controller.frames=meta.past;controller.index=Math.max(0,meta.past.length-1);if(status)status.textContent=t('radarObservedWindow');paintFrame();void analyzeNowcast();
-    if(controller.frames.length>1){controller.index=0;paintFrame();setPlaying(true);}
+    const meta=await fetchMetadata();if(!controller||controller.abortController.signal.aborted)return;controller.meta=meta;controller.frames=meta.past;controller.index=Math.max(0,meta.past.length-1);if(status)status.textContent=t('radarObservedWindow');paintFrame();void analyzeNowcast().then(()=>{if(controller?.mode==='projection'&&status)status.textContent=t(controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');});
+    if(controller.frames.length>1&&controller.mode==='observation'){controller.index=0;paintFrame();setPlaying(true);}else{controller.index=Math.max(0,controller.frames.length-1);paintFrame();}
   }catch(error){if(!controller||controller.abortController.signal.aborted)return;if(status)status.textContent=t('radarUnavailable');radarImage.removeAttribute('src');radarImage.alt='';root.classList.add('radar-error');controller.nowcastBusy=false;renderNowcastSummary();console.warn('Rain radar:',error);}
 }

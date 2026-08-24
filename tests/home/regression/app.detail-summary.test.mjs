@@ -5,7 +5,7 @@ const read=p=>fs.readFileSync(new URL('../../../'+p,import.meta.url),'utf8');
 const version=APP_VERSION,app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js');
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 const fr=read('js/locales/fr.js');
-assert.match(fr,/"homeModernTitle":"Aujourd’hui, voyez le temps et le niveau d’accord des modèles\."/);
+assert.match(fr,/"homeModernTitle":"Comparez les modèles\. Repérez l’accord\. Comprenez l’incertitude\."/);
 const effectiveTitle=fr.slice(fr.lastIndexOf('Object.assign(catalog'));
 assert.doesNotMatch(effectiveTitle,/"homeModernTitle":"[^"]*—[^"]*"/);
 const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
