@@ -1,4 +1,4 @@
-import { consensusGroupFor } from './models.js';
+import { consensusGroupFor, CONDITION } from './models.js';
 
 const EPS=1e-12;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
@@ -72,28 +72,77 @@ export function weightedVote(entries,localWeights={},severity=()=>0){
   return {value,percent:balanced.familyCount>=2?top*100/total:null,count:balanced.modelCount,familyCount:balanced.familyCount};
 }
 
-const SKY_CONDITION_ORDER=Object.freeze({CLEAR:0,MAINLY_CLEAR:1,PARTLY_CLOUDY:2,OVERCAST:3});
-const SKY_CONDITION_GROUP='__SKY_COVER__';
-function weatherConditionGroup(value){return Object.hasOwn(SKY_CONDITION_ORDER,value)?SKY_CONDITION_GROUP:value;}
+const WEATHER_CONDITION_FAMILY=Object.freeze({
+  [CONDITION.CLEAR]:'SKY',
+  [CONDITION.MAINLY_CLEAR]:'SKY',
+  [CONDITION.PARTLY_CLOUDY]:'SKY',
+  [CONDITION.OVERCAST]:'SKY',
+  [CONDITION.FOG]:'FOG',
+  [CONDITION.DRIZZLE]:'LIQUID',
+  [CONDITION.RAIN]:'LIQUID',
+  [CONDITION.RAIN_SHOWERS]:'LIQUID',
+  [CONDITION.SNOW]:'SNOW',
+  [CONDITION.SNOW_SHOWERS]:'SNOW',
+  [CONDITION.FREEZING_RAIN]:'FREEZING',
+  [CONDITION.THUNDERSTORM]:'THUNDER',
+});
+const WEATHER_PHENOMENON_GROUP=Object.freeze({SKY:'DRY',FOG:'DRY',LIQUID:'PRECIPITATION',SNOW:'PRECIPITATION',FREEZING:'PRECIPITATION',THUNDER:'PRECIPITATION'});
+const WEATHER_CONDITION_ORDER=Object.freeze({
+  SKY:Object.freeze([CONDITION.CLEAR,CONDITION.MAINLY_CLEAR,CONDITION.PARTLY_CLOUDY,CONDITION.OVERCAST]),
+  LIQUID:Object.freeze([CONDITION.DRIZZLE,CONDITION.RAIN,CONDITION.RAIN_SHOWERS]),
+  SNOW:Object.freeze([CONDITION.SNOW,CONDITION.SNOW_SHOWERS]),
+});
+
+function weatherConditionFamily(value){return WEATHER_CONDITION_FAMILY[value]||null;}
+function weatherPhenomenonGroup(value){const family=weatherConditionFamily(value);return family?WEATHER_PHENOMENON_GROUP[family]||null:null;}
+function weightedGroupWinner(rows,groupFor,severity){
+  const totals=new Map(),groupSeverity=new Map();
+  for(const row of rows){const group=groupFor(row.value);if(!group)continue;totals.set(group,(totals.get(group)||0)+row.weight);groupSeverity.set(group,Math.max(groupSeverity.get(group)??-Infinity,severity(row.value)));}
+  if(!totals.size)return null;
+  const total=[...totals.values()].reduce((sum,value)=>sum+value,0),top=Math.max(...totals.values()),group=[...totals].filter(([,weight])=>Math.abs(weight-top)<=EPS).map(([key])=>key).sort((a,b)=>(groupSeverity.get(b)??-Infinity)-(groupSeverity.get(a)??-Infinity)||String(a).localeCompare(String(b)))[0];
+  return {group,weight:totals.get(group)||0,total,share:total>0?(totals.get(group)||0)/total:0,totals};
+}
+function weightedOrdinalCondition(rows,order){
+  const index=new Map(order.map((value,i)=>[value,i])),sorted=rows.filter(row=>index.has(row.value)).slice().sort((a,b)=>index.get(a.value)-index.get(b.value)||String(a.modelId).localeCompare(String(b.modelId)));
+  if(!sorted.length)return {value:null,agreement:0};
+  const total=sorted.reduce((sum,row)=>sum+row.weight,0),half=total/2;let cumulative=0,selected=sorted[0].value;
+  for(const row of sorted){cumulative+=row.weight;selected=row.value;if(cumulative>=half-EPS)break;}
+  const meanIndex=total?sorted.reduce((sum,row)=>sum+index.get(row.value)*row.weight,0)/total:0,variance=total?sorted.reduce((sum,row)=>sum+row.weight*(index.get(row.value)-meanIndex)**2,0)/total:0,scale=Math.max(1,order.length/2),agreement=1-clamp(Math.sqrt(Math.max(0,variance))/scale,0,1);
+  return {value:selected,agreement};
+}
 
 /**
- * Resolve categorical weather conditions without fragmenting adjacent sky-cover states.
- * CLEAR / MAINLY_CLEAR / PARTLY_CLOUDY / OVERCAST first compete as one semantic family,
- * then the winning sky state is selected with a family-balanced ordinal median.
- * Hazard categories remain independent and still win true inter-family ties by severity.
+ * Hierarchical weather-condition consensus.
+ *
+ * 1. Numerical model lineages are family-balanced, exactly like the other consensus paths.
+ * 2. Conditions first vote as DRY vs PRECIPITATION so rain/snow/showers cannot fragment a
+ *    broad precipitation signal into several losing categories.
+ * 3. The winning phenomenon is resolved into a semantic family: SKY, FOG, LIQUID, SNOW,
+ *    FREEZING or THUNDER. True ties between different families still use severity as a
+ *    conservative safety tie-breaker.
+ * 4. Ordered variants inside SKY, LIQUID and SNOW use a lower weighted median instead of
+ *    severity, preventing adjacent states from being biased toward the harshest label.
  */
 export function weatherConditionConsensus(entries,localWeights={},severity=()=>0){
-  const rows=(entries||[]).filter(x=>x?.modelId&&x?.value!=null).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId))),balanced=familyBalancedWeights(rows.map(x=>x.modelId),localWeights);
-  if(!rows.length)return {value:null,percent:null,count:0,familyCount:0,group:null};
-  const weighted=rows.map(row=>({...row,weight:balanced.weights[row.modelId]||0})).filter(row=>row.weight>0),groups=new Map(),groupSeverity=new Map();
-  for(const row of weighted){const group=weatherConditionGroup(row.value),weight=(groups.get(group)||0)+row.weight;groups.set(group,weight);groupSeverity.set(group,Math.max(groupSeverity.get(group)??-Infinity,severity(row.value)));}
-  if(!groups.size)return {value:null,percent:null,count:0,familyCount:0,group:null};
-  const total=[...groups.values()].reduce((a,b)=>a+b,0),top=Math.max(...groups.values()),winningGroup=[...groups].filter(([,weight])=>Math.abs(weight-top)<=EPS).map(([group])=>group).sort((a,b)=>(groupSeverity.get(b)||0)-(groupSeverity.get(a)||0)||String(a).localeCompare(String(b)))[0];
-  if(winningGroup!==SKY_CONDITION_GROUP)return {value:winningGroup,percent:balanced.familyCount>=2?top*100/total:null,count:balanced.modelCount,familyCount:balanced.familyCount,group:winningGroup};
-  const sky=weighted.filter(row=>weatherConditionGroup(row.value)===SKY_CONDITION_GROUP).map(row=>({...row,index:SKY_CONDITION_ORDER[row.value]})).sort((a,b)=>a.index-b.index||String(a.modelId).localeCompare(String(b.modelId))),skyWeight=sky.reduce((sum,row)=>sum+row.weight,0),half=skyWeight/2;
-  let cumulative=0,selected=sky[0]?.value??null;for(const row of sky){cumulative+=row.weight;selected=row.value;if(cumulative>=half-EPS)break;}
-  const meanIndex=skyWeight?sky.reduce((sum,row)=>sum+row.index*row.weight,0)/skyWeight:0,variance=skyWeight?sky.reduce((sum,row)=>sum+row.weight*(row.index-meanIndex)**2,0)/skyWeight:0,skyAgreement=1-clamp(Math.sqrt(Math.max(0,variance))/2,0,1),groupShare=skyWeight/Math.max(EPS,total);
-  return {value:selected,percent:balanced.familyCount>=2?groupShare*skyAgreement*100:null,count:balanced.modelCount,familyCount:balanced.familyCount,group:SKY_CONDITION_GROUP,skyAgreementPercent:balanced.familyCount>=2?skyAgreement*100:null};
+  const rows=(entries||[]).filter(row=>row?.modelId&&row?.value!=null&&row.value!==CONDITION.UNKNOWN&&weatherConditionFamily(row.value)).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId))),balanced=familyBalancedWeights(rows.map(row=>row.modelId),localWeights);
+  if(!rows.length)return {value:null,percent:null,count:0,familyCount:0,group:null,phenomenonGroup:null};
+  const weighted=rows.map(row=>({...row,weight:balanced.weights[row.modelId]||0})).filter(row=>row.weight>0),phenomenon=weightedGroupWinner(weighted,weatherPhenomenonGroup,severity);
+  if(!phenomenon)return {value:null,percent:null,count:0,familyCount:0,group:null,phenomenonGroup:null};
+  const phenomenonRows=weighted.filter(row=>weatherPhenomenonGroup(row.value)===phenomenon.group),family=weightedGroupWinner(phenomenonRows,weatherConditionFamily,severity);
+  if(!family)return {value:null,percent:null,count:balanced.modelCount,familyCount:balanced.familyCount,group:null,phenomenonGroup:phenomenon.group};
+  const familyRows=phenomenonRows.filter(row=>weatherConditionFamily(row.value)===family.group),order=WEATHER_CONDITION_ORDER[family.group];
+  let value=familyRows[0]?.value??null,subtypeAgreement=1;
+  if(order){const ordinal=weightedOrdinalCondition(familyRows,order);value=ordinal.value;subtypeAgreement=ordinal.agreement;}
+  else if(familyRows.length>1){const subtype=weightedGroupWinner(familyRows,row=>row.value,severity);value=subtype?.group??value;subtypeAgreement=subtype?.share??1;}
+  const percent=balanced.familyCount>=2?phenomenon.share*family.share*subtypeAgreement*100:null;
+  return {
+    value,percent,count:balanced.modelCount,familyCount:balanced.familyCount,
+    group:family.group,phenomenonGroup:phenomenon.group,
+    phenomenonSharePercent:balanced.familyCount>=2?phenomenon.share*100:null,
+    familySharePercent:balanced.familyCount>=2?family.share*100:null,
+    subtypeAgreementPercent:balanced.familyCount>=2?subtypeAgreement*100:null,
+    skyAgreementPercent:family.group==='SKY'&&balanced.familyCount>=2?subtypeAgreement*100:null,
+  };
 }
 
 /**

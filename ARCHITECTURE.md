@@ -10,7 +10,8 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 - `js/data/forecast-normalizer.js` aligne les axes horaires/journaliers, filtre les valeurs impossibles, conserve les métadonnées de run, qualifie la couverture et marque les journées civiles partielles.
 - `js/data/contracts.js` est la frontière de confiance pour les réglages, villes et prévisions. Les IDs de modèles inconnus, coordonnées invalides, séries désalignées ou caches incohérents sont rejetés ou assainis avant le domaine.
 - `js/storage.js` applique les contrats aux lectures, migrations, imports et caches. Les réparations d'intégrité privilégient l'assainissement d'un record récupérable avant sa suppression.
-- `js/domain.js` ne traite que des données normalisées et contient les calculs de consensus, agrégations, chronologies et scénarios.
+- `js/domain.js` ne traite que des données normalisées et orchestre agrégations, chronologies et scénarios ; 
+- `js/consensus.js` centralise les consensus numériques, précipitations et conditions météo hiérarchiques.
 
 ## Composition runtime
 
