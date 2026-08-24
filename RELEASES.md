@@ -4,7 +4,7 @@
 
 ## Publish a release
 
-1. Update **only** `app-version.js` for the application version, then update the human release notes below. Runtime modules, the service worker, tests and CI all consume that centralized value automatically.
+1. Update `app-version.js` for the application version. If runtime shell assets changed, also increment the generation in `cache-version.js` so existing PWA installations fetch the new shell. Runtime modules and the service worker consume these centralized values.
 2. Merge the tested changes into `main`.
 3. Create and push an annotated tag, for example `git tag -a v1.9.0 -m "MeteoCompare 1.9.0" && git push origin v1.9.0`.
 4. `.github/workflows/release.yml` reruns every regression test, creates a versioned ZIP and SHA-256 file, calls GitHub's generated-release-notes API to produce `CHANGELOG-vX.Y.Z.md`, uploads the build as a workflow artifact, and publishes a GitHub Release using that generated changelog.

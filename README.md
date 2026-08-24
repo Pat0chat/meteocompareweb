@@ -1,7 +1,5 @@
 # MeteoCompare Web
 
-La release **1.16.0** consolide le moteur de prévision et le socle web après un audit global. Le rapport technique est disponible dans [`AUDIT_1.16.0.md`](AUDIT_1.16.0.md).
-
 ## Démarrage local
 
 Le site utilise des modules JavaScript ES. Il doit être servi via HTTP(S), et non ouvert directement en `file://`.
@@ -220,7 +218,7 @@ Voir [`CLOUDFLARE.md`](CLOUDFLARE.md) pour les valeurs exactes à saisir dans **
 
 ### Radar pluie
 
-La page **Détails** propose une vue radar optionnelle centrée sur la localité. Elle anime les observations RainViewer des deux dernières heures, sur fond OpenStreetMap, avec trois portées de visualisation. À partir de plusieurs images réparties dans l'historique disponible, le navigateur détecte et suit les zones de pluie séparément, conserve leur identité entre recalculs et changements de portée, puis projette leurs positions à +15, +30, +45 et +60 minutes. La projection combine déplacement, évolution de largeur/hauteur et tendance de surface afin de représenter prudemment croissance, déformation ou dissipation. Chaque cellule reçoit aussi un score de pertinence pour la localité : celles susceptibles de l'atteindre sont mises en avant avec une fenêtre d'impact, tandis que les cellules qui s'éloignent restent calculées mais visuellement secondaires. L'incertitude augmente avec l'horizon. Cette projection courte durée est calculée localement et reste distincte de la synthèse multi-modèles affichée en dessous.
+La page **Détails** propose une vue radar optionnelle centrée sur la localité. Elle anime les observations RainViewer des deux dernières heures, sur fond OpenStreetMap, avec trois portées de visualisation. Le nowcast exploite les **7 dernières frames consécutives** : le navigateur détecte et suit les zones de pluie séparément, conserve leur identité entre recalculs et changements de portée, puis estime leur advection à partir du recouvrement spatial réellement observé d'une frame à la suivante, complété par le déplacement du centroïde. En mode Projection, l'utilisateur choisit une échéance unique **+15, +30, +45 ou +60 min** ; la carte affiche alors le contour projeté, l'enveloppe probable et la trajectoire depuis les positions observées. La projection combine aussi l'évolution de largeur/hauteur et la tendance de surface afin de représenter prudemment croissance, déformation ou dissipation. Chaque cellule reçoit un score de pertinence pour la localité et l'incertitude augmente avec l'horizon. Cette projection courte durée est calculée localement et reste distincte de la synthèse multi-modèles affichée en dessous.
 
 Le module est chargé à la demande (`js/features/radar.js`) et ne contacte RainViewer/OpenStreetMap qu'après ouverture explicite de la modale. Le radar reste donc hors du chemin critique de chargement de l'application. Si l'analyse pixel des images n'est pas disponible, la projection se désactive proprement sans empêcher l'animation radar observée.
 

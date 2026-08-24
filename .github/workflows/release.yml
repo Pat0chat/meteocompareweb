@@ -37,7 +37,7 @@ jobs:
           ROOT="meteocompare-web-v${VERSION}"
           rm -rf release "$ROOT"
           mkdir -p "$ROOT" release
-          rsync -a --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'release' ./ "$ROOT/"
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'tests' --exclude 'dist' --exclude '_site' --exclude 'release' ./ "$ROOT/"
           zip -qr "release/${ROOT}.zip" "$ROOT"
           sha256sum "release/${ROOT}.zip" > "release/${ROOT}.zip.sha256"
       - name: Generate release changelog
