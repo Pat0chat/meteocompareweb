@@ -3,14 +3,14 @@ const RADAR_META_URL='https://api.rainviewer.com/public/weather-maps.json';
 const OSM_TILE_URL='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const RADAR_META_TTL_MS=5*60_000;
 const RADAR_COLOR_SCHEME=2;
-const RADAR_OPTIONS='1_1';
+const RADAR_OPTIONS='0_1';
 export const RADAR_RANGE_CONFIG={
   near:{mapZoom:9,radarZoom:7,radarScale:4},
   regional:{mapZoom:8,radarZoom:7,radarScale:2},
   wide:{mapZoom:6,radarZoom:5,radarScale:2}
 };
-const ANALYSIS_SIZE=320;
-const ANALYSIS_MIN_CELL_PIXELS=72;
+const ANALYSIS_SIZE=512;
+const ANALYSIS_MIN_CELL_PIXELS=180;
 export const RADAR_PROJECTION_HORIZONS=Object.freeze([15,30,45,60]);
 const NOWCAST_HORIZONS=RADAR_PROJECTION_HORIZONS;
 export const RADAR_CELL_COLORS=Object.freeze(['#0ea5e9','#8b5cf6','#f97316','#10b981','#e11d48','#eab308','#14b8a6','#6366f1']);
@@ -52,7 +52,7 @@ export function extractRainCells(mask,width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,{
     if(pixels.length<minPixels)continue;
     const set=new Set(pixels),boundary=[];
     for(const index of pixels){const x=index%width,y=Math.floor(index/width);if(x===0||y===0||x===width-1||y===height-1||!set.has(index-1)||!set.has(index+1)||!set.has(index-width)||!set.has(index+width))boundary.push(index);}
-    cells.push({id:`cell-${cells.length+1}`,pixels,boundary,count:pixels.length,centroid:{x:sx/pixels.length,y:sy/pixels.length},bbox:{minX,minY,maxX,maxY,width:maxX-minX+1,height:maxY-minY+1}});
+    cells.push({id:`cell-${cells.length+1}`,pixels,boundary,count:pixels.length,width,height,centroid:{x:sx/pixels.length,y:sy/pixels.length},bbox:{minX,minY,maxX,maxY,width:maxX-minX+1,height:maxY-minY+1}});
   }
   return cells.sort((a,b)=>b.count-a.count).slice(0,maxCells);
 }
@@ -86,7 +86,7 @@ export function estimateRainCellMotions(samples,{width=ANALYSIS_SIZE,height=ANAL
 }
 
 export function projectRainCell(cell,horizonMinutes){
-  if(!cell?.motion||!Number.isFinite(horizonMinutes))return null;const {vx,vy,confidence}=cell.motion,uncertaintyPx=1.25+(horizonMinutes/15)*(1.15+(1-confidence)*2.15);
+  if(!cell?.motion||!Number.isFinite(horizonMinutes))return null;const {vx,vy,confidence}=cell.motion,resolutionScale=(cell.width||ANALYSIS_SIZE)/320,uncertaintyPx=resolutionScale*(1.25+(horizonMinutes/15)*(1.15+(1-confidence)*2.15));
   return {horizon:horizonMinutes,dx:vx*horizonMinutes,dy:vy*horizonMinutes,x:cell.centroid.x+vx*horizonMinutes,y:cell.centroid.y+vy*horizonMinutes,uncertaintyPx,confidence};
 }
 
@@ -236,56 +236,59 @@ async function imageMask(url,signal){
 
 function mapResolutionKm(lat,zoom){return 156543.03392*Math.cos(clampLat(lat)*Math.PI/180)/(2**zoom)/1000;}
 function roundedLabel(ctx,text,x,y,color,width,height){ctx.save();ctx.font='750 11px system-ui, sans-serif';const metrics=ctx.measureText(text),padding=6,w=metrics.width+padding*2,h=22,left=clamp(x-w/2,6,width-w-6),top=clamp(y-h/2,6,height-h-6);ctx.fillStyle='rgba(15,23,42,.84)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(left,top,w,h,7);else ctx.rect(left,top,w,h);ctx.fill();ctx.fillStyle=color;ctx.textBaseline='middle';ctx.fillText(text,left+padding,top+h/2);ctx.restore();}
-function cellRaster(cell,color,{boundaryOnly=false,texture=false,expandPx=0}={}){
-  const canvas=document.createElement('canvas');canvas.width=ANALYSIS_SIZE;canvas.height=ANALYSIS_SIZE;const ctx=canvas.getContext('2d');ctx.fillStyle=color;
-  if(expandPx>0){
-    const radius=Math.max(1,Math.ceil(expandPx)),seed=cell.boundary?.length?cell.boundary:cell.pixels;ctx.beginPath();
-    for(const index of seed){const x=index%ANALYSIS_SIZE+.5,y=Math.floor(index/ANALYSIS_SIZE)+.5;ctx.moveTo(x+radius,y);ctx.arc(x,y,radius,0,Math.PI*2);}
-    ctx.fill();
-    for(const index of cell.pixels){const x=index%ANALYSIS_SIZE,y=Math.floor(index/ANALYSIS_SIZE);ctx.fillRect(x,y,1,1);}
-    return canvas;
-  }
-  const pixels=boundaryOnly?cell.boundary:cell.pixels,boundarySet=texture?new Set(cell.boundary):null;
-  for(const index of pixels){const x=index%ANALYSIS_SIZE,y=Math.floor(index/ANALYSIS_SIZE);if(texture&&((x*3+y*5)%11>3)&&!boundarySet.has(index))continue;ctx.fillRect(x,y,1,1);}
-  return canvas;
+const contourCache=new WeakMap();
+function maskForCell(cell,expandPx=0){
+  const width=cell?.width||ANALYSIS_SIZE,height=cell?.height||ANALYSIS_SIZE,mask=new Uint8Array(width*height),radius=Math.max(0,Math.ceil(expandPx));
+  for(const index of cell?.pixels||[])if(index>=0&&index<mask.length)mask[index]=1;
+  if(!radius)return mask;
+  const seeds=cell?.boundary?.length?cell.boundary:cell?.pixels||[],radiusSq=radius*radius;
+  for(const index of seeds){const cx=index%width,cy=Math.floor(index/width);for(let oy=-radius;oy<=radius;oy++){const y=cy+oy;if(y<0||y>=height)continue;const span=Math.floor(Math.sqrt(Math.max(0,radiusSq-oy*oy)));for(let ox=-span;ox<=span;ox++){const x=cx+ox;if(x>=0&&x<width)mask[y*width+x]=1;}}}
+  return mask;
 }
+function edgeDirection(sx,sy,ex,ey){if(ex>sx)return 0;if(ey>sy)return 1;if(ex<sx)return 2;return 3;}
+function contourLoopsFromMask(mask,width,height){
+  const edges=[],byStart=new Map(),push=(sx,sy,ex,ey)=>{const edge={sx,sy,ex,ey,dir:edgeDirection(sx,sy,ex,ey),used:false},idx=edges.push(edge)-1,key=`${sx}:${sy}`;if(!byStart.has(key))byStart.set(key,[]);byStart.get(key).push(idx);};
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){const index=y*width+x;if(!mask[index])continue;if(y===0||!mask[index-width])push(x,y,x+1,y);if(x===width-1||!mask[index+1])push(x+1,y,x+1,y+1);if(y===height-1||!mask[index+width])push(x+1,y+1,x,y+1);if(x===0||!mask[index-1])push(x,y+1,x,y);}
+  const rank=new Map([[1,0],[0,1],[3,2],[2,3]]),loops=[];
+  for(let startIndex=0;startIndex<edges.length;startIndex++){
+    if(edges[startIndex].used)continue;let edge=edges[startIndex],startX=edge.sx,startY=edge.sy,points=[],guard=0;
+    while(edge&&!edge.used&&guard++<edges.length+4){edge.used=true;points.push({x:edge.sx,y:edge.sy});const endX=edge.ex,endY=edge.ey;if(endX===startX&&endY===startY)break;const candidates=(byStart.get(`${endX}:${endY}`)||[]).map(index=>edges[index]).filter(row=>!row.used);if(!candidates.length)break;candidates.sort((a,b)=>(rank.get((a.dir-edge.dir+4)%4)??9)-(rank.get((b.dir-edge.dir+4)%4)??9));edge=candidates[0];}
+    if(points.length<4)continue;
+    const reduced=[];for(let i=0;i<points.length;i++){const prev=points[(i-1+points.length)%points.length],cur=points[i],next=points[(i+1)%points.length],cross=(cur.x-prev.x)*(next.y-cur.y)-(cur.y-prev.y)*(next.x-cur.x);if(cross!==0)reduced.push(cur);}if(reduced.length<4)continue;
+    const smooth=[];for(let i=0;i<reduced.length;i++){const a=reduced[i],b=reduced[(i+1)%reduced.length];smooth.push({x:a.x*.75+b.x*.25,y:a.y*.75+b.y*.25},{x:a.x*.25+b.x*.75,y:a.y*.25+b.y*.75});}loops.push(smooth);
+  }
+  return loops;
+}
+export function rainCellContours(cell,expandPx=0){
+  if(!cell)return [];let cache=contourCache.get(cell);if(!cache){cache=new Map();contourCache.set(cell,cache);}const radius=Math.max(0,Math.round(expandPx*2)/2),key=String(radius);if(cache.has(key))return cache.get(key);const width=cell.width||ANALYSIS_SIZE,height=cell.height||ANALYSIS_SIZE,loops=contourLoopsFromMask(maskForCell(cell,radius),width,height);cache.set(key,loops);return loops;
+}
+export function rainCellDisplayMode(cell,sourceScale=1,{minTrajectoryPixels=26}={}){const projection=projectRainCell(cell,60);const displacement=projection?Math.hypot(projection.dx,projection.dy)*Math.max(.01,sourceScale):0;return {lowMotion:!projection||displacement<minTrajectoryPixels,displacementPixels:displacement};}
+function traceCellPath(ctx,cell,{dx=0,dy=0,sourceLeft,sourceTop,sourceScale,expandPx=0}){const loops=rainCellContours(cell,expandPx);ctx.beginPath();for(const loop of loops){if(!loop.length)continue;ctx.moveTo(sourceLeft+(loop[0].x+dx)*sourceScale,sourceTop+(loop[0].y+dy)*sourceScale);for(let i=1;i<loop.length;i++)ctx.lineTo(sourceLeft+(loop[i].x+dx)*sourceScale,sourceTop+(loop[i].y+dy)*sourceScale);ctx.closePath();}return loops.length>0;}
+function drawCellShape(ctx,cell,geometry,{dx=0,dy=0,expandPx=0,color,fillAlpha=0,strokeAlpha=1,lineWidth=1.6,dash=[]}={}){ctx.save();ctx.lineJoin='round';ctx.lineCap='round';if(!traceCellPath(ctx,cell,{...geometry,dx,dy,expandPx})){ctx.restore();return;}if(fillAlpha>0){ctx.fillStyle=color;ctx.globalAlpha=fillAlpha;try{ctx.fill('evenodd');}catch{ctx.fill();}}ctx.globalAlpha=strokeAlpha;ctx.strokeStyle=color;ctx.lineWidth=lineWidth;ctx.setLineDash(dash);ctx.stroke();ctx.restore();}
 function cellVisible(cell,dx,dy,sourceLeft,sourceTop,sourceScale,width,height,padding=60){const x=sourceLeft+(cell.centroid.x+dx)*sourceScale,y=sourceTop+(cell.centroid.y+dy)*sourceScale,r=Math.max(cell.bbox.width,cell.bbox.height)*sourceScale*.65;return x+r>=-padding&&y+r>=-padding&&x-r<=width+padding&&y-r<=height+padding;}
 function drawArrow(ctx,from,to,color){
-  const angle=Math.atan2(to.y-from.y,to.x-from.x),head=9;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(15,23,42,.70)';ctx.lineWidth=5.8;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle='rgba(15,23,42,.70)';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.restore();
+  const distance=Math.hypot(to.y-from.y,to.x-from.x);if(distance<5)return;const angle=Math.atan2(to.y-from.y,to.x-from.x),head=8;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(15,23,42,.78)';ctx.lineWidth=4.6;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle='rgba(15,23,42,.78)';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.restore();
 }
-function renderCellLegend(cells=[]){
-  if(!controller)return;const node=controller.root.querySelector('[data-radar-cell-legend]');if(!node)return;
-  if(controller.mode!=='projection'||!cells.length){node.innerHTML='';return;}
-  const all=controller.nowcast?.cells||cells;node.innerHTML=cells.slice(0,RADAR_CELL_COLORS.length).map(cell=>{const index=Math.max(0,all.indexOf(cell));return `<span class="radar-cell-chip"><i style="--radar-cell:${RADAR_CELL_COLORS[index%RADAR_CELL_COLORS.length]}"></i>Z${index+1}</span>`;}).join('');
-}
-function drawHorizonMarker(ctx,point,index,color){
-  const x=point.screenX,y=point.screenY;ctx.save();ctx.strokeStyle='rgba(15,23,42,.82)';ctx.fillStyle=color;ctx.lineWidth=2.2;
-  if(index===0){ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.stroke();}
-  else if(index===1){ctx.beginPath();ctx.arc(x,y,4.6,0,Math.PI*2);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(x,y,3.1,0,Math.PI*2);ctx.stroke();}
-  else if(index===2){ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.strokeRect(-4,-4,8,8);}
-  else{ctx.fillRect(x-4.5,y-4.5,9,9);ctx.strokeRect(x-4.5,y-4.5,9,9);}
-  ctx.restore();
-}
+function drawLeadText(ctx,text,x,y,color,width,height){if(x<-20||y<-20||x>width+20||y>height+20)return;ctx.save();ctx.font='800 10px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3.5;ctx.strokeStyle='rgba(15,23,42,.86)';ctx.strokeText(text,x,y);ctx.fillStyle=color;ctx.fillText(text,x,y);ctx.restore();}
 
 function paintNowcast(){
   if(!controller)return;const canvas=controller.root.querySelector('[data-radar-nowcast]'),stage=controller.root.querySelector('[data-radar-stage]');if(!canvas||!stage)return;
-  const visible=Boolean(controller.mode==='projection'&&controller.nowcast&&controller.index===controller.frames.length-1),badge=controller.root.querySelector('.radar-nowcast-badge');canvas.classList.toggle('active',visible);badge?.classList.toggle('active',visible);if(!visible){renderCellLegend([]);return;}
-  const {cells}=controller.nowcast,width=stage.clientWidth||512,height=stage.clientHeight||360,dpr=Math.min(2,window.devicePixelRatio||1),rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near,sourceSize=512*rangeConfig.radarScale,sourceScale=sourceSize/ANALYSIS_SIZE,sourceLeft=(width-sourceSize)/2,sourceTop=(height-sourceSize)/2;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
+  const visible=Boolean(controller.mode==='projection'&&controller.nowcast&&controller.index===controller.frames.length-1),badge=controller.root.querySelector('.radar-nowcast-badge');canvas.classList.toggle('active',visible);badge?.classList.toggle('active',visible);if(!visible)return;
+  const {cells}=controller.nowcast,width=stage.clientWidth||512,height=stage.clientHeight||360,dpr=Math.min(2.5,window.devicePixelRatio||1),rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near,sourceSize=512*rangeConfig.radarScale,sourceScale=sourceSize/ANALYSIS_SIZE,sourceLeft=(width-sourceSize)/2,sourceTop=(height-sourceSize)/2,geometry={sourceLeft,sourceTop,sourceScale};canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
   const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
-  const drawn=cells.filter(cell=>cellVisible(cell,0,0,sourceLeft,sourceTop,sourceScale,width,height)||NOWCAST_HORIZONS.some(h=>{const p=projectRainCell(cell,h);return p&&cellVisible(cell,p.dx,p.dy,sourceLeft,sourceTop,sourceScale,width,height);}));renderCellLegend(drawn);
+  const drawn=cells.filter(cell=>cellVisible(cell,0,0,sourceLeft,sourceTop,sourceScale,width,height)||NOWCAST_HORIZONS.some(h=>{const p=projectRainCell(cell,h);return p&&cellVisible(cell,p.dx,p.dy,sourceLeft,sourceTop,sourceScale,width,height);}));
   for(const cell of drawn){
-    const cellIndex=Math.max(0,cells.indexOf(cell)),color=RADAR_CELL_COLORS[cellIndex%RADAR_CELL_COLORS.length],currentOutline=cellRaster(cell,color,{boundaryOnly:true});ctx.save();ctx.globalAlpha=.96;ctx.drawImage(currentOutline,sourceLeft,sourceTop,sourceSize,sourceSize);ctx.restore();
-    for(let idx=NOWCAST_HORIZONS.length-1;idx>=0;idx--){
-      const horizon=NOWCAST_HORIZONS[idx],projection=projectRainCell(cell,horizon);if(!projection||!cellVisible(cell,projection.dx,projection.dy,sourceLeft,sourceTop,sourceScale,width,height))continue;const x=sourceLeft+projection.dx*sourceScale,y=sourceTop+projection.dy*sourceScale;
-      const probable=cellRaster(cell,color,{expandPx:projection.uncertaintyPx});ctx.save();ctx.globalAlpha=clamp(.105-horizon*.00055,.055,.095);ctx.drawImage(probable,x,y,sourceSize,sourceSize);ctx.restore();
-      const projected=cellRaster(cell,color,{texture:true});ctx.save();ctx.globalAlpha=clamp(.34-horizon*.0018,.21,.32);ctx.drawImage(projected,x,y,sourceSize,sourceSize);ctx.restore();
-      const outline=cellRaster(cell,color,{boundaryOnly:true});ctx.save();ctx.globalAlpha=clamp(1-horizon*.0025,.82,.96);ctx.drawImage(outline,x,y,sourceSize,sourceSize);ctx.restore();
+    const cellIndex=Math.max(0,cells.indexOf(cell)),label=`Z${cellIndex+1}`,color=RADAR_CELL_COLORS[cellIndex%RADAR_CELL_COLORS.length],display=rainCellDisplayMode(cell,sourceScale),current={x:sourceLeft+cell.centroid.x*sourceScale,y:sourceTop+cell.centroid.y*sourceScale},projections=NOWCAST_HORIZONS.map(horizon=>projectRainCell(cell,horizon)).filter(Boolean),last=projections.at(-1);if(!last)continue;
+    drawCellShape(ctx,cell,geometry,{color,strokeAlpha:.72,lineWidth:1.35,dash:[3,3]});
+    drawCellShape(ctx,cell,geometry,{dx:last.dx,dy:last.dy,expandPx:last.uncertaintyPx,color,fillAlpha:.055,strokeAlpha:.62,lineWidth:1.45,dash:[6,4]});
+    if(display.lowMotion){
+      drawCellShape(ctx,cell,geometry,{dx:last.dx,dy:last.dy,color,fillAlpha:.055,strokeAlpha:.98,lineWidth:2.15});
+      if(current.x>=0&&current.x<=width&&current.y>=0&&current.y<=height)roundedLabel(ctx,`${label} · ${controller.t('radarLowMotionShort')}`,current.x,current.y+20,color,width,height);
+      drawLeadText(ctx,'+15 → +60',current.x,current.y-18,color,width,height);continue;
     }
-  }
-  for(const cell of drawn){
-    const cellIndex=Math.max(0,cells.indexOf(cell)),label=`Z${cellIndex+1}`,color=RADAR_CELL_COLORS[cellIndex%RADAR_CELL_COLORS.length],current={x:sourceLeft+cell.centroid.x*sourceScale,y:sourceTop+cell.centroid.y*sourceScale},points=NOWCAST_HORIZONS.map(horizon=>{const projection=projectRainCell(cell,horizon);return {...projection,screenX:sourceLeft+projection.x*sourceScale,screenY:sourceTop+projection.y*sourceScale};}),last=points.at(-1);if(!last)continue;drawArrow(ctx,current,{x:last.screenX,y:last.screenY},color);
-    for(const [pointIndex,point] of points.entries()){if(point.screenX<-28||point.screenY<-28||point.screenX>width+28||point.screenY>height+28)continue;drawHorizonMarker(ctx,point,pointIndex,color);}
-    if(last.screenX>=0&&last.screenX<=width&&last.screenY>=0&&last.screenY<=height)roundedLabel(ctx,`${label} · +60`,last.screenX,last.screenY-18,color,width,height);
+    for(let index=projections.length-1;index>=0;index--){const projection=projections[index],horizon=NOWCAST_HORIZONS[index],alpha=clamp(.98-index*.13,.58,.98);drawCellShape(ctx,cell,geometry,{dx:projection.dx,dy:projection.dy,color,fillAlpha:.018,strokeAlpha:alpha,lineWidth:index===0?1.8:1.55});}
+    const lastScreen={x:sourceLeft+last.x*sourceScale,y:sourceTop+last.y*sourceScale};drawArrow(ctx,current,lastScreen,color);
+    projections.forEach((projection,index)=>{const x=sourceLeft+projection.x*sourceScale,y=sourceTop+projection.y*sourceScale,offset=index%2===0?-10:10;drawLeadText(ctx,`+${NOWCAST_HORIZONS[index]}`,x,y+offset,color,width,height);});
     if(current.x>=0&&current.x<=width&&current.y>=0&&current.y<=height)roundedLabel(ctx,label,current.x,current.y+18,color,width,height);
   }
 }

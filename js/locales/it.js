@@ -1465,7 +1465,6 @@ export const catalog = Object.freeze({
   "expandSection":"Espandi sezione",
   "versionInfoLabel":"MeteoCompare Web {version} · dati v{schema}",
   "homeModernKicker":"Previsione multi-modello",
-  "homeModernTitle":"Confronta i modelli. Individua l’accordo. Leggi l’incertezza.",
   "homeModernLead":"MeteoCompare riunisce più previsioni per evidenziare dove i modelli convergono, dove divergono e cosa merita attenzione nelle tue località.",
 
   "homeHeroPillModels":"Più modelli",
@@ -1546,6 +1545,7 @@ export const catalog = Object.freeze({
   "radarModeProjection":"Proiezione +60 min",
   "radarProjectionReady":"Proiezione radar · traiettorie +15 a +60 min",
   "radarProjectionWaiting":"Proiezione non disponibile · osservazioni disponibili",
+  "radarLowMotionShort":"movimento ridotto",
   "radarProjectionReading":"Lettura della proiezione",
   "radarProbableZone":"Zona probabile",
   "radarForecastZone":"Zona prevista",

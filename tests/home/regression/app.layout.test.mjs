@@ -21,6 +21,6 @@ assert.doesNotMatch(css,/\.home-consensus-rail/);
 assert.match(css,/\.home-watch-grid/);
 for(const lang of ['fr','en','es','de','it']){
   const locale=read(`js/locales/${lang}.js`);
-  for(const key of ['homeModernTitle','homeSearchPrompt','homeConsensusTitle','homeWatchTitle','homeAgreementUnavailable','homeFamilyCountOne']) assert.match(locale,new RegExp(key));
+  for(const key of ['homeModernKicker','homeModernLead','homeSearchPrompt','homeConsensusTitle','homeWatchTitle','homeAgreementUnavailable','homeFamilyCountOne']) assert.match(locale,new RegExp(key));
 }
 console.log('tests/home/regression/app.layout.test.mjs: OK');

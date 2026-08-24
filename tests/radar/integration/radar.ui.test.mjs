@@ -21,7 +21,7 @@ assert.equal(radarForecastTrend([{probabilityPercent:80},{probabilityPercent:60}
 assert.equal(radarForecastTrend([{probabilityPercent:70},{probabilityPercent:65},{probabilityPercent:60}]),'persistent');
 assert.equal(radarForecastTrend([{probabilityPercent:10},{probabilityPercent:20},{probabilityPercent:25}]),'quiet');
 const url=radarImageUrl({host:'https://tilecache.rainviewer.com'},{path:'/v2/radar/123'}, {latitude:48.8566,longitude:2.3522},7);
-assert.equal(url,'https://tilecache.rainviewer.com/v2/radar/123/512/7/48.85660/2.35220/2/1_1.png');
+assert.equal(url,'https://tilecache.rainviewer.com/v2/radar/123/512/7/48.85660/2.35220/2/0_1.png');
 
 
 const mask=(width,height,left,top,w=4,h=5)=>{const data=new Uint8Array(width*height);for(let y=top;y<top+h;y++)for(let x=left;x<left+w;x++)data[y*width+x]=1;return data;};
@@ -48,6 +48,7 @@ assert.match(css,/\.radar-modal-head>div\{flex:1;min-width:0\}/,'radar modal tit
 assert.match(css,/\.radar-modal-head>\.icon-btn\{margin-left:auto/,'radar close button must stay at the right edge');
 assert.match(css,/\.radar-map-stage\{[^}]*isolation:isolate[^}]*z-index:0/s,'radar overlays must stay below sticky modal header');
 assert.match(app,/class="radar-intensity-scale"/,'intensity labels must be integrated with the gradient scale');
+assert.match(css,/\.radar-precip-layer\{[^}]*image-rendering:crisp-edges[^}]*image-rendering:pixelated/s,'scaled source radar must avoid browser bilinear blur');
 
 const html=fs.readFileSync(new URL('../../../index.html',import.meta.url),'utf8');
 assert.match(html,/img-src[^\"]*tile\.openstreetmap\.org[^\"]*rainviewer\.com/);

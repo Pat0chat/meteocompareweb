@@ -1465,7 +1465,6 @@ export const catalog = Object.freeze({
   "expandSection":"Expand section",
   "versionInfoLabel":"MeteoCompare Web {version} · data v{schema}",
   "homeModernKicker":"Multi-model forecast",
-  "homeModernTitle":"Compare the models. See the agreement. Read the uncertainty.",
   "homeModernLead":"MeteoCompare brings several forecasts together to highlight where models converge, where they diverge and what deserves attention for your cities.",
 
   "homeHeroPillModels":"Multiple models",
@@ -1546,6 +1545,7 @@ export const catalog = Object.freeze({
   "radarModeProjection":"Projection +60 min",
   "radarProjectionReady":"Radar projection · trajectories +15 to +60 min",
   "radarProjectionWaiting":"Projection unavailable · observations remain available",
+  "radarLowMotionShort":"low motion",
   "radarProjectionReading":"Projection guide",
   "radarProbableZone":"Probable area",
   "radarForecastZone":"Forecast area",

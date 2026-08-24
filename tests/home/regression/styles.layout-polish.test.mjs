@@ -8,7 +8,7 @@ assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);
 assert.match(home,/homeModernKicker/);
-assert.match(home,/homeModernTitle/);
+assert.doesNotMatch(home,/homeModernTitle|<h1>/,'Home hero must stay title-free');
 assert.match(home,/homeModernLead/);
 assert.match(home,/home-hero-actions/);
 assert.match(home,/data-action="open-add-city"/);
