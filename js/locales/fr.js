@@ -1552,7 +1552,7 @@ export const catalog = Object.freeze({
   "radarTrajectory":"Trajectoire",
   "radarProjectionHorizons":"Échéances de projection",
   "radarProjectionTitle":"Projection par zone de pluie",
-  "radarProjectionLead":"Chaque zone détectée est suivie séparément puis projetée à +15, +30, +45 et +60 minutes. L’enveloppe douce représente l’incertitude autour de la zone prévisionnelle.",
+  "radarProjectionLead":"Chaque couleur identifie une zone de pluie. Les zones sont suivies séparément puis projetées à +15, +30, +45 et +60 minutes ; l’aplat translucide représente l’incertitude autour de la zone prévisionnelle.",
   "radarProjectionCells":"Zones de pluie suivies individuellement : {count}",
   "radarProjectionDetail":"Vitesse médiane ≈ {speed} km/h · confiance moyenne {confidence} %",
   "radarRange":"Portée radar",

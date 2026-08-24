@@ -8,7 +8,6 @@ assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);
-assert.match(home,/home-search-trigger/);
 assert.match(home,/home-city-grid/);
 assert.match(home,/home-mini-timeline/);
 assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail/);

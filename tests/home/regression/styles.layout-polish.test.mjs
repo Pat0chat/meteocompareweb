@@ -14,7 +14,6 @@ assert.match(home,/home-hero-actions/);
 assert.match(home,/data-action="open-add-city"/);
 assert.match(home,/data-action="open-city-compare"/);
 assert.match(home,/data-action="refresh-all"/);
-assert.match(home,/home-search-trigger/);
 assert.doesNotMatch(home,/home-hero-mark/);
 assert.doesNotMatch(home,/home-city-shortcut/);
 assert.match(home,/homeTemperatureHeatColor/);

@@ -9,10 +9,11 @@ export const RADAR_RANGE_CONFIG={
   regional:{mapZoom:8,radarZoom:7,radarScale:2},
   wide:{mapZoom:6,radarZoom:5,radarScale:2}
 };
-const ANALYSIS_SIZE=96;
+const ANALYSIS_SIZE=320;
+const ANALYSIS_MIN_CELL_PIXELS=72;
 export const RADAR_PROJECTION_HORIZONS=Object.freeze([15,30,45,60]);
 const NOWCAST_HORIZONS=RADAR_PROJECTION_HORIZONS;
-const NOWCAST_COLORS=['#38bdf8','#22c55e','#f59e0b','#e879f9'];
+export const RADAR_CELL_COLORS=Object.freeze(['#0ea5e9','#8b5cf6','#f97316','#10b981','#e11d48','#eab308','#14b8a6','#6366f1']);
 let metaCache=null;
 let metaCacheAt=0;
 let controller=null;
@@ -38,7 +39,7 @@ function mean(values){const a=values.filter(Number.isFinite);return a.length?a.r
 function maskCount(mask){let count=0;for(const value of mask)if(value)count++;return count;}
 
 
-export function extractRainCells(mask,width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,{minPixels=10,maxCells=16}={}){
+export function extractRainCells(mask,width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,{minPixels=ANALYSIS_MIN_CELL_PIXELS,maxCells=16}={}){
   if(!mask||mask.length!==width*height)return [];
   const visited=new Uint8Array(mask.length),cells=[],neighbors=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
   for(let start=0;start<mask.length;start++){
@@ -66,7 +67,7 @@ function regressionVelocity(points,key){
   if(points.length<2)return 0;const base=points.at(-1).time,ts=points.map(row=>(row.time-base)/60),meanT=mean(ts),meanV=mean(points.map(row=>row[key]));let num=0,den=0;for(let i=0;i<points.length;i++){const dt=ts[i]-meanT;num+=dt*(points[i][key]-meanV);den+=dt*dt;}return den?num/den:0;
 }
 
-export function estimateRainCellMotions(samples,{width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,minPixels=10,maxCells=12}={}){
+export function estimateRainCellMotions(samples,{width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,minPixels=ANALYSIS_MIN_CELL_PIXELS,maxCells=8}={}){
   const rows=(samples||[]).filter(row=>row?.mask?.length===width*height&&Number.isFinite(row.time)).slice(-6).map(row=>({...row,cells:extractRainCells(row.mask,width,height,{minPixels,maxCells:maxCells*2})}));
   if(rows.length<2)return [];
   const latest=rows.at(-1),result=[];
@@ -235,37 +236,57 @@ async function imageMask(url,signal){
 
 function mapResolutionKm(lat,zoom){return 156543.03392*Math.cos(clampLat(lat)*Math.PI/180)/(2**zoom)/1000;}
 function roundedLabel(ctx,text,x,y,color,width,height){ctx.save();ctx.font='750 11px system-ui, sans-serif';const metrics=ctx.measureText(text),padding=6,w=metrics.width+padding*2,h=22,left=clamp(x-w/2,6,width-w-6),top=clamp(y-h/2,6,height-h-6);ctx.fillStyle='rgba(15,23,42,.84)';ctx.beginPath();if(ctx.roundRect)ctx.roundRect(left,top,w,h,7);else ctx.rect(left,top,w,h);ctx.fill();ctx.fillStyle=color;ctx.textBaseline='middle';ctx.fillText(text,left+padding,top+h/2);ctx.restore();}
-function cellRaster(cell,color,{boundaryOnly=false,texture=false}={}){
+function cellRaster(cell,color,{boundaryOnly=false,texture=false,expandPx=0}={}){
   const canvas=document.createElement('canvas');canvas.width=ANALYSIS_SIZE;canvas.height=ANALYSIS_SIZE;const ctx=canvas.getContext('2d');ctx.fillStyle=color;
+  if(expandPx>0){
+    const radius=Math.max(1,Math.ceil(expandPx)),seed=cell.boundary?.length?cell.boundary:cell.pixels;ctx.beginPath();
+    for(const index of seed){const x=index%ANALYSIS_SIZE+.5,y=Math.floor(index/ANALYSIS_SIZE)+.5;ctx.moveTo(x+radius,y);ctx.arc(x,y,radius,0,Math.PI*2);}
+    ctx.fill();
+    for(const index of cell.pixels){const x=index%ANALYSIS_SIZE,y=Math.floor(index/ANALYSIS_SIZE);ctx.fillRect(x,y,1,1);}
+    return canvas;
+  }
   const pixels=boundaryOnly?cell.boundary:cell.pixels,boundarySet=texture?new Set(cell.boundary):null;
-  for(const index of pixels){const x=index%ANALYSIS_SIZE,y=Math.floor(index/ANALYSIS_SIZE);if(texture&&((x+y)%6>1)&&!boundarySet.has(index))continue;ctx.fillRect(x,y,1,1);}
+  for(const index of pixels){const x=index%ANALYSIS_SIZE,y=Math.floor(index/ANALYSIS_SIZE);if(texture&&((x*3+y*5)%11>3)&&!boundarySet.has(index))continue;ctx.fillRect(x,y,1,1);}
   return canvas;
 }
 function cellVisible(cell,dx,dy,sourceLeft,sourceTop,sourceScale,width,height,padding=60){const x=sourceLeft+(cell.centroid.x+dx)*sourceScale,y=sourceTop+(cell.centroid.y+dy)*sourceScale,r=Math.max(cell.bbox.width,cell.bbox.height)*sourceScale*.65;return x+r>=-padding&&y+r>=-padding&&x-r<=width+padding&&y-r<=height+padding;}
 function drawArrow(ctx,from,to,color){
-  const angle=Math.atan2(to.y-from.y,to.x-from.x),head=8;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(15,23,42,.52)';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.90)';ctx.lineWidth=2.4;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=1.4;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.restore();
+  const angle=Math.atan2(to.y-from.y,to.x-from.x),head=9;ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='rgba(15,23,42,.70)';ctx.lineWidth=5.8;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(from.x,from.y);ctx.lineTo(to.x,to.y);ctx.stroke();ctx.strokeStyle='rgba(15,23,42,.70)';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(to.x-head*Math.cos(angle-Math.PI/6),to.y-head*Math.sin(angle-Math.PI/6));ctx.lineTo(to.x,to.y);ctx.lineTo(to.x-head*Math.cos(angle+Math.PI/6),to.y-head*Math.sin(angle+Math.PI/6));ctx.stroke();ctx.restore();
+}
+function renderCellLegend(cells=[]){
+  if(!controller)return;const node=controller.root.querySelector('[data-radar-cell-legend]');if(!node)return;
+  if(controller.mode!=='projection'||!cells.length){node.innerHTML='';return;}
+  const all=controller.nowcast?.cells||cells;node.innerHTML=cells.slice(0,RADAR_CELL_COLORS.length).map(cell=>{const index=Math.max(0,all.indexOf(cell));return `<span class="radar-cell-chip"><i style="--radar-cell:${RADAR_CELL_COLORS[index%RADAR_CELL_COLORS.length]}"></i>Z${index+1}</span>`;}).join('');
+}
+function drawHorizonMarker(ctx,point,index,color){
+  const x=point.screenX,y=point.screenY;ctx.save();ctx.strokeStyle='rgba(15,23,42,.82)';ctx.fillStyle=color;ctx.lineWidth=2.2;
+  if(index===0){ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();ctx.stroke();}
+  else if(index===1){ctx.beginPath();ctx.arc(x,y,4.6,0,Math.PI*2);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=2.4;ctx.beginPath();ctx.arc(x,y,3.1,0,Math.PI*2);ctx.stroke();}
+  else if(index===2){ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.strokeRect(-4,-4,8,8);}
+  else{ctx.fillRect(x-4.5,y-4.5,9,9);ctx.strokeRect(x-4.5,y-4.5,9,9);}
+  ctx.restore();
 }
 
 function paintNowcast(){
   if(!controller)return;const canvas=controller.root.querySelector('[data-radar-nowcast]'),stage=controller.root.querySelector('[data-radar-stage]');if(!canvas||!stage)return;
-  const visible=Boolean(controller.mode==='projection'&&controller.nowcast&&controller.index===controller.frames.length-1),badge=controller.root.querySelector('.radar-nowcast-badge');canvas.classList.toggle('active',visible);badge?.classList.toggle('active',visible);if(!visible)return;
+  const visible=Boolean(controller.mode==='projection'&&controller.nowcast&&controller.index===controller.frames.length-1),badge=controller.root.querySelector('.radar-nowcast-badge');canvas.classList.toggle('active',visible);badge?.classList.toggle('active',visible);if(!visible){renderCellLegend([]);return;}
   const {cells}=controller.nowcast,width=stage.clientWidth||512,height=stage.clientHeight||360,dpr=Math.min(2,window.devicePixelRatio||1),rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near,sourceSize=512*rangeConfig.radarScale,sourceScale=sourceSize/ANALYSIS_SIZE,sourceLeft=(width-sourceSize)/2,sourceTop=(height-sourceSize)/2;canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);canvas.style.width=`${width}px`;canvas.style.height=`${height}px`;
-  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);ctx.imageSmoothingEnabled=true;const primary=getComputedStyle(stage).getPropertyValue('--primary').trim()||'#2563eb';
-  const drawn=cells.filter(cell=>cellVisible(cell,0,0,sourceLeft,sourceTop,sourceScale,width,height)||NOWCAST_HORIZONS.some(h=>{const p=projectRainCell(cell,h);return p&&cellVisible(cell,p.dx,p.dy,sourceLeft,sourceTop,sourceScale,width,height);}));
+  const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
+  const drawn=cells.filter(cell=>cellVisible(cell,0,0,sourceLeft,sourceTop,sourceScale,width,height)||NOWCAST_HORIZONS.some(h=>{const p=projectRainCell(cell,h);return p&&cellVisible(cell,p.dx,p.dy,sourceLeft,sourceTop,sourceScale,width,height);}));renderCellLegend(drawn);
   for(const cell of drawn){
-    const currentOutline=cellRaster(cell,'rgba(255,255,255,.96)',{boundaryOnly:true});ctx.save();ctx.globalAlpha=.72;ctx.drawImage(currentOutline,sourceLeft,sourceTop,sourceSize,sourceSize);ctx.restore();
+    const cellIndex=Math.max(0,cells.indexOf(cell)),color=RADAR_CELL_COLORS[cellIndex%RADAR_CELL_COLORS.length],currentOutline=cellRaster(cell,color,{boundaryOnly:true});ctx.save();ctx.globalAlpha=.96;ctx.drawImage(currentOutline,sourceLeft,sourceTop,sourceSize,sourceSize);ctx.restore();
     for(let idx=NOWCAST_HORIZONS.length-1;idx>=0;idx--){
-      const horizon=NOWCAST_HORIZONS[idx],projection=projectRainCell(cell,horizon);if(!projection||!cellVisible(cell,projection.dx,projection.dy,sourceLeft,sourceTop,sourceScale,width,height))continue;const color=NOWCAST_COLORS[idx],x=sourceLeft+projection.dx*sourceScale,y=sourceTop+projection.dy*sourceScale,uncertainty=projection.uncertaintyPx*sourceScale;
-      const probable=cellRaster(cell,color);ctx.save();ctx.globalAlpha=clamp(.14-horizon*.0007,.075,.13);ctx.filter=`blur(${Math.max(3,uncertainty*.48)}px)`;ctx.drawImage(probable,x,y,sourceSize,sourceSize);ctx.restore();
-      const projected=cellRaster(cell,color,{texture:true});ctx.save();ctx.globalAlpha=clamp(.30-horizon*.0016,.17,.28);ctx.drawImage(projected,x,y,sourceSize,sourceSize);ctx.restore();
-      const outline=cellRaster(cell,color,{boundaryOnly:true});ctx.save();ctx.globalAlpha=.90;ctx.drawImage(outline,x,y,sourceSize,sourceSize);ctx.restore();
+      const horizon=NOWCAST_HORIZONS[idx],projection=projectRainCell(cell,horizon);if(!projection||!cellVisible(cell,projection.dx,projection.dy,sourceLeft,sourceTop,sourceScale,width,height))continue;const x=sourceLeft+projection.dx*sourceScale,y=sourceTop+projection.dy*sourceScale;
+      const probable=cellRaster(cell,color,{expandPx:projection.uncertaintyPx});ctx.save();ctx.globalAlpha=clamp(.105-horizon*.00055,.055,.095);ctx.drawImage(probable,x,y,sourceSize,sourceSize);ctx.restore();
+      const projected=cellRaster(cell,color,{texture:true});ctx.save();ctx.globalAlpha=clamp(.34-horizon*.0018,.21,.32);ctx.drawImage(projected,x,y,sourceSize,sourceSize);ctx.restore();
+      const outline=cellRaster(cell,color,{boundaryOnly:true});ctx.save();ctx.globalAlpha=clamp(1-horizon*.0025,.82,.96);ctx.drawImage(outline,x,y,sourceSize,sourceSize);ctx.restore();
     }
   }
-  for(const [cellIndex,cell] of drawn.entries()){
-    const current={x:sourceLeft+cell.centroid.x*sourceScale,y:sourceTop+cell.centroid.y*sourceScale},points=NOWCAST_HORIZONS.map((horizon,index)=>{const projection=projectRainCell(cell,horizon);return {...projection,screenX:sourceLeft+projection.x*sourceScale,screenY:sourceTop+projection.y*sourceScale,color:NOWCAST_COLORS[index]};});const last=points.at(-1);if(!last)continue;drawArrow(ctx,current,{x:last.screenX,y:last.screenY},primary);
-    for(const point of points){if(point.screenX<-20||point.screenY<-20||point.screenX>width+20||point.screenY>height+20)continue;ctx.save();ctx.fillStyle=point.color;ctx.strokeStyle='rgba(15,23,42,.62)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(point.screenX,point.screenY,4.2,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
-    if(last.screenX>=0&&last.screenX<=width&&last.screenY>=0&&last.screenY<=height)roundedLabel(ctx,`+60`,last.screenX,last.screenY-18,last.color,width,height);
-    if(cellIndex<3&&current.x>=0&&current.x<=width&&current.y>=0&&current.y<=height)roundedLabel(ctx,`${cellIndex+1}`,current.x,current.y-17,'#ffffff',width,height);
+  for(const cell of drawn){
+    const cellIndex=Math.max(0,cells.indexOf(cell)),label=`Z${cellIndex+1}`,color=RADAR_CELL_COLORS[cellIndex%RADAR_CELL_COLORS.length],current={x:sourceLeft+cell.centroid.x*sourceScale,y:sourceTop+cell.centroid.y*sourceScale},points=NOWCAST_HORIZONS.map(horizon=>{const projection=projectRainCell(cell,horizon);return {...projection,screenX:sourceLeft+projection.x*sourceScale,screenY:sourceTop+projection.y*sourceScale};}),last=points.at(-1);if(!last)continue;drawArrow(ctx,current,{x:last.screenX,y:last.screenY},color);
+    for(const [pointIndex,point] of points.entries()){if(point.screenX<-28||point.screenY<-28||point.screenX>width+28||point.screenY>height+28)continue;drawHorizonMarker(ctx,point,pointIndex,color);}
+    if(last.screenX>=0&&last.screenX<=width&&last.screenY>=0&&last.screenY<=height)roundedLabel(ctx,`${label} · +60`,last.screenX,last.screenY-18,color,width,height);
+    if(current.x>=0&&current.x<=width&&current.y>=0&&current.y<=height)roundedLabel(ctx,label,current.x,current.y+18,color,width,height);
   }
 }
 

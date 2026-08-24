@@ -1552,7 +1552,7 @@ export const catalog = Object.freeze({
   "radarTrajectory":"Trajectory",
   "radarProjectionHorizons":"Projection horizons",
   "radarProjectionTitle":"Projection for each rain area",
-  "radarProjectionLead":"Each detected rain area is tracked separately and projected to +15, +30, +45 and +60 minutes. The soft envelope shows uncertainty around the forecast area.",
+  "radarProjectionLead":"Each colour identifies one rain area. Areas are tracked separately and projected at +15, +30, +45 and +60 minutes; the translucent fill shows uncertainty around the forecast area.",
   "radarProjectionCells":"Rain areas tracked individually: {count}",
   "radarProjectionDetail":"Median speed ≈ {speed} km/h · average confidence {confidence}%",
   "radarRange":"Radar range",

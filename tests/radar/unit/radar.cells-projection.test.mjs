@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { RADAR_PROJECTION_HORIZONS, extractRainCells, estimateRainCellMotions, projectRainCell } from '../../../js/features/radar.js';
+import { RADAR_PROJECTION_HORIZONS, RADAR_CELL_COLORS, extractRainCells, estimateRainCellMotions, projectRainCell } from '../../../js/features/radar.js';
 
 const width=48,height=36;
 const makeMask=cells=>{const mask=new Uint8Array(width*height);for(const cell of cells)for(let y=cell.y;y<cell.y+cell.h;y++)for(let x=cell.x;x<cell.x+cell.w;x++)mask[y*width+x]=1;return mask;};
@@ -10,6 +10,8 @@ const samples=[
 ];
 
 assert.deepEqual([...RADAR_PROJECTION_HORIZONS],[15,30,45,60]);
+assert.ok(RADAR_CELL_COLORS.length>=8,'projection must provide enough distinct cell colours for complex radar scenes');
+assert.equal(new Set(RADAR_CELL_COLORS).size,RADAR_CELL_COLORS.length,'cell identity colours must be unique');
 const latestCells=extractRainCells(samples.at(-1).mask,width,height,{minPixels:5});
 assert.equal(latestCells.length,2,'distinct rain areas must remain distinct cells');
 assert.ok(latestCells.every(cell=>cell.boundary.length>0&&cell.count>=20),'each detected cell must expose a usable outline');

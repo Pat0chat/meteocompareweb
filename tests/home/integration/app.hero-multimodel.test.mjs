@@ -8,18 +8,17 @@ const home=app.slice(app.indexOf('function renderHome()'),app.indexOf('function 
 
 assert.match(home,/class="home-hero"/);
 assert.match(home,/class="home-hero-main"/);
-assert.match(home,/class="home-hero-side"/);
-assert.match(home,/homeHeroPillModels/);
-assert.match(home,/homeHeroPillConvergence/);
-assert.match(home,/homeHeroPillDivergence/);
-assert.match(home,/homeHeroSearchTitle/);
-assert.match(home,/homeHeroSearchLead/);
+assert.doesNotMatch(home,/home-hero-side|home-hero-search-panel|home-hero-pill-row/,'Home hero must not duplicate search/value-proposition UI in secondary blocks');
+assert.match(home,/homeModernKicker/);
+assert.match(home,/homeModernTitle/);
+assert.match(home,/homeModernLead/);
+assert.match(home,/home-hero-actions/);
 assert.ok(home.indexOf('${renderForecastExpertiseDisclaimer()}')>home.indexOf('class="home-hero"'),'the expertise disclaimer must be rendered inside the Home hero');
 assert.ok(home.indexOf('${renderForecastExpertiseDisclaimer()}')<home.indexOf('</section>${hasCities?'),'the Home disclaimer must remain inside the hero boundary');
 assert.doesNotMatch(home,/<\/section>\$\{renderForecastExpertiseDisclaimer\(\)\}/,'Home must not render a detached disclaimer below the hero');
 
 for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']){
-  for(const key of ['homeModernKicker','homeModernTitle','homeModernLead','homeHeroPillModels','homeHeroPillConvergence','homeHeroPillDivergence','homeHeroSearchTitle','homeHeroSearchLead']) assert.equal(hasTranslation(pref,key),true,`${pref}.${key} missing`);
+  for(const key of ['homeModernKicker','homeModernTitle','homeModernLead']) assert.equal(hasTranslation(pref,key),true,`${pref}.${key} missing`);
   const tr=makeI18n(pref);assert.ok(tr.t('homeModernTitle').length>=40,`${pref}: Home hero title must explain the value proposition`);assert.ok(tr.t('homeModernLead').length>=90,`${pref}: Home hero lead must explain model comparison`);
 }
 const fr=makeI18n('FRENCH');
@@ -27,11 +26,12 @@ assert.match(fr.t('homeModernLead'),/prévisions|modèles/i);
 assert.match(fr.t('homeModernLead'),/converge/i);
 assert.match(fr.t('homeModernLead'),/diverge/i);
 
-assert.match(css,/\.home-hero\s*\{[\s\S]*?border:1px solid var\(--border\)[\s\S]*?surface-raised[\s\S]*?box-shadow:var\(--shadow-1\)/,'Home hero must reuse the core surface/border/shadow system');
-assert.match(css,/\.home-hero \.forecast-expertise-disclaimer\s*\{[^}]*margin:0/s,'the embedded disclaimer must integrate into the hero spacing');
-assert.match(build,/rootPrerender\(\)[\s\S]*?Comparez les modèles\. Repérez l’accord\. Comprenez l’incertitude\./,'SEO prerender must share the new Home hero value proposition');
+assert.match(css,/\.home-hero\s*\{[\s\S]*?padding:var\(--space-5\)[\s\S]*?border:1px solid var\(--border\)[\s\S]*?surface-raised[\s\S]*?box-shadow:var\(--shadow-1\)/,'Home hero must remain compact and reuse the core surface/border/shadow system');
+assert.match(css,/\.home-hero-main\s*\{[^}]*grid-template-columns:minmax\(0,1\.65fr\) minmax\(260px,\.75fr\)/s,'desktop hero must use horizontal space instead of stacking extra vertical panels');
+assert.match(css,/\.home-hero \.forecast-expertise-disclaimer\s*\{[^}]*margin:0[^}]*padding:10px 11px/s,'the embedded disclaimer must use compact hero spacing');
+assert.match(css,/@media \(max-width: 980px\)[\s\S]*?\.home-hero-main \{ grid-template-columns:1fr;/,'compact hero must collapse cleanly on smaller screens');
+assert.match(build,/rootPrerender\(\)[\s\S]*?Comparez les modèles\. Repérez l’accord\. Comprenez l’incertitude\./,'SEO prerender must share the Home hero value proposition');
 assert.match(build,/rootPrerender\(\)[\s\S]*?forecast-expertise-disclaimer[\s\S]*?ne remplacera jamais l’expertise humaine/,'SEO prerender must preserve the embedded expertise disclaimer');
+assert.doesNotMatch(build,/home-hero-pill-row|home-hero-search-panel/,'SEO prerender must preserve the same compact hero structure');
 
-assert.match(css,/\.home-hero-search-panel\s*\{[\s\S]*?background:color-mix\(in srgb,var\(--surface\)/,'the search rail must remain a themed app surface');
-
-console.log('Home multi-model hero + embedded expertise disclaimer: OK');
+console.log('Compact Home multi-model hero + embedded expertise disclaimer: OK');
