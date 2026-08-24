@@ -4,8 +4,9 @@ import fs from 'node:fs';
 const read=file=>fs.readFileSync(new URL(`../../../${file}`,import.meta.url),'utf8');
 const app=read('js/app.js'),radar=read('js/features/radar.js'),css=read('styles.css');
 
-assert.match(app,/data-radar-mode="observation"/);
-assert.match(app,/data-radar-mode="projection"/);
+assert.match(app,/data-radar-mode="\$\{radarMode\}"/,'radar root must render the persisted mode instead of hard-resetting to observation');
+assert.match(app,/modeButton\('observation','radarModeObservation'\)/);
+assert.match(app,/modeButton\('projection','radarModeProjection'\)/);
 assert.match(app,/radarModeObservation/);
 assert.match(app,/radarModeProjection/);
 assert.match(app,/data-radar-observation-controls/);
@@ -40,9 +41,9 @@ assert.match(radar,/controller\.nowcast=null[\s\S]*?void analyzeNowcast\(\)/,'ra
 
 assert.match(css,/\.radar-precip-layer\{[^}]*image-rendering:crisp-edges[^}]*image-rendering:pixelated/s,'scaled RainViewer imagery must prefer crisp browser rendering instead of bilinear blur');
 assert.match(css,/\.radar-modal-content\[data-radar-mode="projection"\] \.radar-precip-layer/,'latest observed radar must be visually subordinated in projection mode');
-assert.match(css,/\.radar-zone-key\.probable/);
-assert.match(css,/\.radar-zone-key\.forecast/);
-assert.match(css,/\.radar-zone-key\.trajectory/);
+assert.match(css,/\.radar-zone-key\.probable i\{[^}]*border:1\.5px dashed var\(--primary\)/s,'probable-area legend must match the dashed uncertainty envelope');
+assert.match(css,/\.radar-zone-key\.forecast i\{[^}]*border:2px solid var\(--primary\)/s,'forecast legend must match solid projected outlines');
+assert.match(css,/\.radar-zone-key\.trajectory i\{[^}]*border-top:2px solid var\(--primary\)/s,'trajectory legend must match the line/arrow rendering');
 assert.doesNotMatch(css,/\.radar-cell-chip|\.radar-horizon-step/,'removed duplicate visual codes must not linger in CSS');
 assert.match(css,/\.radar-modal-content\[data-radar-mode="observation"\][^\n]*\.radar-projection-legend/,'projection-only guidance must stay hidden in observation mode');
 assert.match(css,/\.radar-modal-content\[data-radar-mode="projection"\] \[data-radar-observation-controls\]\{display:none\}/,'historical playback must not compete with the +60 min projection controls');

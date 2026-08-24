@@ -279,14 +279,13 @@ function paintNowcast(){
   const drawn=cells.filter(cell=>cellVisible(cell,0,0,sourceLeft,sourceTop,sourceScale,width,height)||NOWCAST_HORIZONS.some(h=>{const p=projectRainCell(cell,h);return p&&cellVisible(cell,p.dx,p.dy,sourceLeft,sourceTop,sourceScale,width,height);}));
   for(const cell of drawn){
     const cellIndex=Math.max(0,cells.indexOf(cell)),label=`Z${cellIndex+1}`,color=RADAR_CELL_COLORS[cellIndex%RADAR_CELL_COLORS.length],display=rainCellDisplayMode(cell,sourceScale),current={x:sourceLeft+cell.centroid.x*sourceScale,y:sourceTop+cell.centroid.y*sourceScale},projections=NOWCAST_HORIZONS.map(horizon=>projectRainCell(cell,horizon)).filter(Boolean),last=projections.at(-1);if(!last)continue;
-    drawCellShape(ctx,cell,geometry,{color,strokeAlpha:.72,lineWidth:1.35,dash:[3,3]});
-    drawCellShape(ctx,cell,geometry,{dx:last.dx,dy:last.dy,expandPx:last.uncertaintyPx,color,fillAlpha:.055,strokeAlpha:.62,lineWidth:1.45,dash:[6,4]});
+    drawCellShape(ctx,cell,geometry,{dx:last.dx,dy:last.dy,expandPx:last.uncertaintyPx,color,fillAlpha:.045,strokeAlpha:.70,lineWidth:1.5,dash:[6,4]});
     if(display.lowMotion){
-      drawCellShape(ctx,cell,geometry,{dx:last.dx,dy:last.dy,color,fillAlpha:.055,strokeAlpha:.98,lineWidth:2.15});
+      drawCellShape(ctx,cell,geometry,{dx:last.dx,dy:last.dy,color,fillAlpha:.045,strokeAlpha:.98,lineWidth:2.15});
       if(current.x>=0&&current.x<=width&&current.y>=0&&current.y<=height)roundedLabel(ctx,`${label} · ${controller.t('radarLowMotionShort')}`,current.x,current.y+20,color,width,height);
       drawLeadText(ctx,'+15 → +60',current.x,current.y-18,color,width,height);continue;
     }
-    for(let index=projections.length-1;index>=0;index--){const projection=projections[index],horizon=NOWCAST_HORIZONS[index],alpha=clamp(.98-index*.13,.58,.98);drawCellShape(ctx,cell,geometry,{dx:projection.dx,dy:projection.dy,color,fillAlpha:.018,strokeAlpha:alpha,lineWidth:index===0?1.8:1.55});}
+    for(let index=projections.length-1;index>=0;index--){const projection=projections[index],horizon=NOWCAST_HORIZONS[index],isDestination=horizon===60,alpha=isDestination?.98:.56+index*.08;drawCellShape(ctx,cell,geometry,{dx:projection.dx,dy:projection.dy,color,fillAlpha:isDestination?.035:.006,strokeAlpha:alpha,lineWidth:isDestination?2.15:1.2});}
     const lastScreen={x:sourceLeft+last.x*sourceScale,y:sourceTop+last.y*sourceScale};drawArrow(ctx,current,lastScreen,color);
     projections.forEach((projection,index)=>{const x=sourceLeft+projection.x*sourceScale,y=sourceTop+projection.y*sourceScale,offset=index%2===0?-10:10;drawLeadText(ctx,`+${NOWCAST_HORIZONS[index]}`,x,y+offset,color,width,height);});
     if(current.x>=0&&current.x<=width&&current.y>=0&&current.y<=height)roundedLabel(ctx,label,current.x,current.y+18,color,width,height);
@@ -320,10 +319,12 @@ function cleanup(){
 
 export function destroyRadarModal(){cleanup();}
 
-export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',onRangeChange=null,onModeChange=null}){
+export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',initialMode='observation',initialRange='near',onRangeChange=null,onModeChange=null}){
   cleanup();if(!root||!city)return;
-  const abortController=new AbortController();
-  controller={root,city,forecast,t,locale,index:0,range:'near',mode:'observation',frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false};root.dataset.radarMode='observation';
+  const abortController=new AbortController(),mode=['observation','projection'].includes(initialMode)?initialMode:'observation',range=initialRange in RADAR_RANGE_CONFIG?initialRange:'near';
+  controller={root,city,forecast,t,locale,index:0,range,mode,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false};root.dataset.radarMode=mode;
+  root.querySelectorAll('[data-radar-mode]').forEach(button=>{const active=button.dataset.radarMode===mode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
+  root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   const status=root.querySelector('[data-radar-status]'),stage=root.querySelector('[data-radar-stage]'),radarImage=root.querySelector('[data-radar-image]'),timeLabel=root.querySelector('[data-radar-time]'),slider=root.querySelector('[data-radar-slider]'),play=root.querySelector('[data-radar-play]'),forecastRoot=root.querySelector('[data-radar-forecast]');
   if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale,forecastOptions});
   if(!stage||!radarImage)return;
@@ -348,7 +349,7 @@ export async function mountRadarModal({root,city,forecast,forecastOptions=null,t
   slider?.addEventListener('input',()=>{if(!controller)return;if(controller.mode!=='observation')setMode('observation');setPlaying(false);controller.index=Math.max(0,Math.min(controller.frames.length-1,Number(slider.value)||0));paintFrame();},{signal:abortController.signal});
   try{
     if(status)status.innerHTML=`<span class="loader"></span>${esc(t('radarLoading'))}`;
-    const meta=await fetchMetadata();if(!controller||controller.abortController.signal.aborted)return;controller.meta=meta;controller.frames=meta.past;controller.index=Math.max(0,meta.past.length-1);if(status)status.textContent=t('radarObservedWindow');paintFrame();void analyzeNowcast().then(()=>{if(controller?.mode==='projection'&&status)status.textContent=t(controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');});
+    const meta=await fetchMetadata();if(!controller||controller.abortController.signal.aborted)return;controller.meta=meta;controller.frames=meta.past;controller.index=Math.max(0,meta.past.length-1);if(status)status.textContent=t(controller.mode==='projection'?'radarNowcastAnalyzing':'radarObservedWindow');paintFrame();void analyzeNowcast().then(()=>{if(controller?.mode==='projection'&&status)status.textContent=t(controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');});
     if(controller.frames.length>1&&controller.mode==='observation'){controller.index=0;paintFrame();setPlaying(true);}else{controller.index=Math.max(0,controller.frames.length-1);paintFrame();}
   }catch(error){if(!controller||controller.abortController.signal.aborted)return;if(status)status.textContent=t('radarUnavailable');radarImage.removeAttribute('src');radarImage.alt='';root.classList.add('radar-error');controller.nowcastBusy=false;renderNowcastSummary();console.warn('Rain radar:',error);}
 }
