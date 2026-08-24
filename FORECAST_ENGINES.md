@@ -72,7 +72,7 @@ The next statistical milestone should therefore be an out-of-sample engine bench
 
 ## Audit invariants
 
-`tests/forecast-engine-audit-1160.mjs` now locks the following properties:
+`tests/forecast/unit/forecast-engines.audit.test.mjs` locks the following properties:
 
 - order-invariant results;
 - no mutation of caller-owned input rows;

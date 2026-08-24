@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { APP_VERSION } from '../../../js/version.js';
+const read=p=>fs.readFileSync(new URL('../../../'+p,import.meta.url),'utf8');
+const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),domain=read('js/domain.js'),css=read('styles.css');
+assert.match(versionJs,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
+assert.doesNotMatch(domain,/if\(c\.familyCount<2\|\|!c\.stats\)return null/);
+assert.doesNotMatch(domain,/if\(p\.familyCount<2\)return null/);
+assert.match(app,/function renderPageBack\(\)/);
+assert.doesNotMatch(app,/class="topbar-back"/);
+assert.match(css,/\.page-back-shell\s*\{/);
+console.log('tests/navigation/regression/app.back-navigation.test.mjs: OK');

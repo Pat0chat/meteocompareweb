@@ -1618,6 +1618,8 @@ export const catalog = Object.freeze({
   "aboutForecastEnginesBody":"Quatre mécanismes interprètent exactement les mêmes modèles. Le choix modifie la prévision centrale sur l’accueil et dans les pages Détails, sans modifier les valeurs brutes.",
   "aboutForecastEngineCurrent":"Moteur actif : {engine}",
   "aboutForecastEnginesCallout":"La convergence reste calculée sur les modèles bruts : changer de moteur modifie la synthèse, pas le niveau d’accord observé entre les modèles.",
+  "forecastExpertiseDisclaimerTitle":"Une aide à l’interprétation, jamais un substitut à l’expertise",
+  "forecastExpertiseDisclaimerBody":"MeteoCompare permet d’explorer des prévisions multi-modèles en mettant en évidence leurs convergences et divergences pour mieux lire l’incertitude. Cette synthèse reste indicative et ne remplacera jamais l’expertise humaine : l’analyse, le contexte et le jugement d’un météorologue ou d’un professionnel compétent restent indispensables.",
   "forecastEngineActiveLabel":"Moteur actif : {engine}",
   "forecastEngineCompareIntro":"Visualisez comment les quatre moteurs interprètent les mêmes modèles et repérez immédiatement les jours où leurs prévisions divergent.",
   "forecastEngineVisualOverview":"Lecture visuelle sur 7 jours",

@@ -1618,6 +1618,8 @@ export const catalog = Object.freeze({
   "aboutForecastEnginesBody":"Vier Verfahren interpretieren exakt dieselben Modelle. Die Auswahl ändert die zentrale Prognose auf der Startseite und in den Stadtdetails, nicht die Rohwerte.",
   "aboutForecastEngineCurrent":"Aktiver Motor: {engine}",
   "aboutForecastEnginesCallout":"Die Konvergenz wird weiterhin aus den Rohmodellen berechnet: Ein Motorwechsel verändert die Synthese, nicht die beobachtete Übereinstimmung der Modelle.",
+  "forecastExpertiseDisclaimerTitle":"Eine Interpretationshilfe, niemals ein Ersatz für Fachwissen",
+  "forecastExpertiseDisclaimerBody":"MeteoCompare hilft, Multi-Modell-Prognosen zu erkunden, indem Übereinstimmungen und Abweichungen hervorgehoben werden und Unsicherheit leichter einzuordnen ist. Diese Zusammenfassung bleibt orientierend und ersetzt niemals menschliche Fachkompetenz: Analyse, Kontext und Urteil eines Meteorologen oder einer qualifizierten Fachperson bleiben unverzichtbar.",
   "forecastEngineActiveLabel":"Aktiver Motor: {engine}",
   "forecastEngineCompareIntro":"Sieh, wie die vier Engines dieselben Modelle interpretieren, und erkenne Tage mit abweichenden Prognosen sofort.",
   "forecastEngineVisualOverview":"Visueller 7-Tage-Überblick",

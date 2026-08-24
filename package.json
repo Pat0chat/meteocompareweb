@@ -5,6 +5,13 @@
   "scripts": {
     "build": "node tools/build-site.mjs",
     "preview": "node tools/preview-site.mjs",
-    "tests": "node tools/run-tests.mjs"
+    "tests": "node tools/run-tests.mjs",
+    "test": "node tools/run-tests.mjs",
+    "test:unit": "node tools/run-tests.mjs --scope unit",
+    "test:integration": "node tools/run-tests.mjs --scope integration",
+    "test:regression": "node tools/run-tests.mjs --scope regression",
+    "test:static": "node tools/run-tests.mjs --scope static",
+    "test:smoke": "node tools/run-tests.mjs --scope smoke",
+    "test:performance": "node tools/run-tests.mjs --feature performance"
   }
 }

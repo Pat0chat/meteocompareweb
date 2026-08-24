@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { APP_VERSION } from '../../../js/version.js';
+const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
+const css=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf8');
+const version=APP_VERSION;
+assert.match(version,/^\d+\.\d+\.\d+$/);
+assert.ok(!app.includes("<details style=\"margin-top:10px\" data-city-scenarios"),'inactive home scenarios disclosure removed');
+assert.ok(app.includes('agreement-chart-wrap'),'agreement chart wrapper is explicit');
+assert.ok(css.includes('.agreement-chart-wrap .agreement-band-hover .chart { display:block; width:100%; height:auto; min-width:0; min-height:0; }'),'agreement chart fills desktop width');
+assert.ok(css.includes('stroke:var(--accent,var(--primary))'),'marine wave line has an explicit fallback stroke');
+assert.ok(app.includes('marine-tide-layout') && app.includes('marine-tide-rail') && app.includes('marineTideChart(data,tideEvents)'),'richer unified tide workspace rendered');
+assert.ok(app.includes('about-method-flow') && app.includes('aboutAgreementCallout'),'About page has coherent method and interpretation sections');
+console.log('Marine/About layout: OK');

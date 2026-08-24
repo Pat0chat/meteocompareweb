@@ -1618,6 +1618,8 @@ export const catalog = Object.freeze({
   "aboutForecastEnginesBody":"Four mechanisms interpret the exact same model set. The choice changes the central forecast on Home and City Details without altering raw model values.",
   "aboutForecastEngineCurrent":"Active engine: {engine}",
   "aboutForecastEnginesCallout":"Convergence is still calculated from raw model outputs: changing the engine changes the synthesis, not the observed agreement between models.",
+  "forecastExpertiseDisclaimerTitle":"An interpretation aid, never a substitute for expertise",
+  "forecastExpertiseDisclaimerBody":"MeteoCompare helps explore multi-model forecasts by highlighting where models converge and diverge, making uncertainty easier to read. This synthesis remains indicative and can never replace human expertise: the analysis, context and judgement of a meteorologist or qualified professional remain essential.",
   "forecastEngineActiveLabel":"Active engine: {engine}",
   "forecastEngineCompareIntro":"See how the four engines interpret the same models and spot the days when their forecasts diverge.",
   "forecastEngineVisualOverview":"7-day visual overview",

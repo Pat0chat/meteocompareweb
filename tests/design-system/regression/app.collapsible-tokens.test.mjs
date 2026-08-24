@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { APP_VERSION } from '../../../js/version.js';
+const read=p=>fs.readFileSync(new URL('../../../'+p,import.meta.url),'utf8');
+const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js'),app=read('js/app.js'),css=read('styles.css');
+assert.match(versionJs,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
+assert.match(app,/nav-cities-popover/);
+assert.match(app,/enhanceCollapsibleCards/);
+assert.match(css,/--space-4:/);
+assert.match(css,/--radius-md:/);
+assert.match(css,/--shadow-2:/);
+assert.match(css,/--semantic-success:/);
+assert.match(css,/\.collapsible-card/);
+console.log('tests/design-system/regression/app.collapsible-tokens.test.mjs: OK');

@@ -4,7 +4,7 @@
 // first-party Cloudflare Worker proxy and loaded by index.html, but
 // automatic pageviews and optional auto-tracking are disabled. MeteoCompare
 // sends only its own allow-listed, redacted pageviews/events through the
-// global plausible() queue. See PRIVACY.md and tests/minimal-analytics.mjs.
+// global plausible() queue. See PRIVACY.md and tests/analytics/integration/analytics.privacy.test.mjs.
 export const ANALYTICS_CONFIG = Object.freeze({
   enabled: true,
   provider: 'plausible',

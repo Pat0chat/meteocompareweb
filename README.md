@@ -23,7 +23,7 @@ npm run tests
 
 Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
 
-Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre automatiquement tous les fichiers `tests/*.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. En local, `npm run preview` sert exactement le HTML de production ; le bootstrap analytics détecte que l’hôte n’est pas `meteocompare.app` et ne charge donc aucun tracker réseau. En production Worker, le navigateur charge Plausible via les chemins first-party `/_mcx/p.js` et `/_mcx/e`, sans requête directe vers `plausible.io`.
+Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre récursivement les fichiers `tests/<fonctionnalité>/<portée>/*.test.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. Les suites peuvent aussi être filtrées par fonctionnalité, portée ou nom de fichier via `tools/run-tests.mjs`. En local, `npm run preview` sert exactement le HTML de production ; le bootstrap analytics détecte que l’hôte n’est pas `meteocompare.app` et ne charge donc aucun tracker réseau. En production Worker, le navigateur charge Plausible via les chemins first-party `/_mcx/p.js` et `/_mcx/e`, sans requête directe vers `plausible.io`.
 
 ## Déployer sur Cloudflare Workers — configuration recommandée
 
@@ -122,21 +122,26 @@ Un site statique ne peut pas garantir l'équivalent de WorkManager lorsque le na
 
 ## Tests inclus
 
-```bash
-node tests/smoke.mjs
-node tests/ui-performance.mjs
-node tests/static-audit.mjs
-node tests/pages-compat.mjs
-node tests/fidelity-regression.mjs
-node tests/analysis-suite.mjs
-node tests/stability-i18n-audit.mjs
-node tests/chart-redesign.mjs
-node tests/pwa-about-legends.mjs
-node tests/interactive-legends.mjs
-node tests/evolution-reliability-icon.mjs
-node tests/model-data-audit.mjs
-node tests/settings-short-models.mjs
+La suite est organisée par **fonctionnalité**, **portée** et **fichier ciblé**. Elle n’est plus structurée par numéro de version :
+
+```text
+tests/<fonctionnalité>/<portée>/<fichier>.<comportement>.test.mjs
 ```
+
+Exécution courante :
+
+```bash
+npm run tests
+npm run test:unit
+npm run test:integration
+npm run test:regression
+npm run test:static
+npm run test:performance
+node tools/run-tests.mjs --feature radar
+node tools/run-tests.mjs --scope integration --feature analytics
+```
+
+Les conventions détaillées et des exemples de chemins sont documentés dans [`tests/README.md`](tests/README.md).
 
 Ils couvrent notamment :
 
@@ -198,7 +203,7 @@ Ils couvrent notamment :
 - `manifest.webmanifest`, `manifest.{fr,en,es,de,it}.webmanifest`, `sw.js` : PWA et métadonnées localisées ;
 - `.github/workflows/pages.yml` : publication GitHub Pages après génération de `dist/` ;
 - `.nojekyll` : compatibilité de publication statique ;
-- `tests/` : suites de non-régression, performance, architecture, audit, fidélité UI/données, graphes, PWA, i18n, analytics et Pages.
+- `tests/` : suites structurées par fonctionnalité puis portée (`unit`, `integration`, `regression`, `static`, `smoke`), avec des noms de fichiers centrés sur la source/comportement testé ; voir `tests/README.md`.
 
 ## Confidentialité et mesure d’audience
 

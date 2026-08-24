@@ -4279,3 +4279,48 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .evolution-threshold-line{stroke:color-mix(in srgb,var(--good) 64%,var(--border));stroke-width:1;stroke-dasharray:4 4}
 .evolution-threshold-label{fill:var(--good);font-size:10px;font-weight:720}
 .evolution-reference-line{stroke:color-mix(in srgb,var(--primary) 48%,var(--border));stroke-width:1;stroke-dasharray:2 3}
+
+/* Multi-model interpretation disclaimer shared by Home, Settings and About. */
+.forecast-expertise-disclaimer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-5);
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--primary-soft) 38%, var(--surface));
+  color: var(--text);
+}
+.forecast-expertise-disclaimer-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 11%, var(--surface));
+  color: var(--primary);
+}
+.forecast-expertise-disclaimer strong {
+  display: block;
+  margin: 0 0 3px;
+  font-size: .84rem;
+  line-height: 1.35;
+}
+.forecast-expertise-disclaimer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: .76rem;
+  line-height: 1.55;
+}
+.about-page .forecast-expertise-disclaimer,
+.home-page .forecast-expertise-disclaimer,
+.settings-page .forecast-expertise-disclaimer {
+  margin-top: 0;
+}
+@media (max-width: 640px) {
+  .forecast-expertise-disclaimer { padding: 12px 13px; }
+  .forecast-expertise-disclaimer-icon { width: 28px; height: 28px; }
+}

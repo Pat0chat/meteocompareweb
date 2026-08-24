@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'../../..');
+const read=p=>fs.readFileSync(resolve(root,p),'utf8');
+const app=read('js/app.js'),css=read('styles.css');
+const summary=app.slice(app.indexOf('function summaryDispersionCard('),app.indexOf('function renderGlobalAgreementCard('));
+const modal=app.slice(app.indexOf('function renderForecastEngineComparisonModal('),app.indexOf('function renderModal('));
+const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function diagnosticStatusLabel('));
+assert.doesNotMatch(modal,/forecast-engine-reading/,'engine comparison must not repeat the reading banner');
+assert.doesNotMatch(summary,/summary-dispersion-facts[^`]*modelRange/s,'model range must not be repeated as a summary fact');
+assert.match(summary,/const metadata=probabilityMeta\|\|secondaryMeta\?/,'summary metadata must disappear entirely when there is no complementary fact');
+assert.match(app,/forecast-engine-compare-icon" aria-hidden="true">Σ</,'engine comparison must use the Sigma icon');
+assert.match(css,/\.forecast-engine-compare-card::before \{ content: none; \}/,'engine comparison must not use a colored accent border');
+assert.match(css,/\.forecast-engine-compare-card:hover \{[\s\S]*?border-color: var\(--panel-border\);/,'engine comparison hover must keep the neutral border');
+assert.match(css,/\.summary-dispersion-meta-item \{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/,'summary facts must be plain text rather than pills');
+assert.match(detail,/detail-hero-support.*detail-hero-support-meta.*hero-meta.*detail-hero-support-context.*renderSeoDetailTitleContext\(city\)/s,'hero support must render metadata first and SEO context below');
+assert.match(css,/\.detail-hero-support \{[\s\S]*?grid-template-columns: minmax\(0,1fr\);/,'hero support must be stacked vertically');
+
+assert.match(css,/\.summary-dispersion \.summary-agreement \{[\s\S]*?margin-top: auto;/,'summary agreement must stay anchored at the bottom of dispersion cards');
+assert.match(css,/\.detail-hero-support \.hero-meta \{[\s\S]*?gap: 8px 14px;/,'hero metadata spans must have visible spacing');
+assert.match(css,/\.detail-hero-actions \.detail-refresh-action \{[\s\S]*?width: auto;[\s\S]*?max-width: 168px;/,'refresh action must no longer consume the full hero action row');
+assert.match(css,/\.forecast-engine-modal \{[\s\S]*?height: min\(94vh, 1080px\);[\s\S]*?max-height: min\(94vh, 1080px\);/,'engine comparison modal must use more of the viewport height');
+console.log('MeteoCompare detail density polish: OK');

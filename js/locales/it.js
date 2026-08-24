@@ -1618,6 +1618,8 @@ export const catalog = Object.freeze({
   "aboutForecastEnginesBody":"Quattro meccanismi interpretano esattamente gli stessi modelli. La scelta modifica la previsione centrale nella Home e nei Dettagli senza alterare i valori grezzi.",
   "aboutForecastEngineCurrent":"Motore attivo: {engine}",
   "aboutForecastEnginesCallout":"La convergenza continua a essere calcolata sui modelli grezzi: cambiare motore modifica la sintesi, non l’accordo osservato tra i modelli.",
+  "forecastExpertiseDisclaimerTitle":"Un aiuto all’interpretazione, mai un sostituto dell’esperienza professionale",
+  "forecastExpertiseDisclaimerBody":"MeteoCompare consente di esplorare previsioni multi-modello evidenziandone convergenze e divergenze per leggere meglio l’incertezza. Questa sintesi resta indicativa e non sostituirà mai l’esperienza umana: l’analisi, il contesto e il giudizio di un meteorologo o di un professionista qualificato restano indispensabili.",
   "forecastEngineActiveLabel":"Motore attivo: {engine}",
   "forecastEngineCompareIntro":"Visualizza come i quattro motori interpretano gli stessi modelli e individua subito i giorni in cui le previsioni divergono.",
   "forecastEngineVisualOverview":"Lettura visiva a 7 giorni",
