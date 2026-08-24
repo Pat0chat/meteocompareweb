@@ -1,6 +1,6 @@
 # MeteoCompare Forecast Engines
 
-MeteoCompare 1.16.0 computes the central forecast with four interchangeable post-processing engines. The raw source-model forecasts and the model-convergence indicators remain separate: changing the selected engine changes the synthesized forecast, not the measured agreement between the underlying models.
+MeteoCompare computes quantitative central forecasts with four interchangeable post-processing engines. The raw source-model forecasts and the model-convergence indicators remain separate: changing the selected engine changes synthesized continuous/quantitative variables, not the measured agreement between the underlying models. Weather conditions follow a separate categorical consensus path described below.
 
 ## Engines
 
@@ -43,7 +43,11 @@ The effective engine is always exposed so the decision remains inspectable.
 
 ## Variables and convergence
 
-The forecast engine is applied to continuous forecast quantities where an aggregation is meaningful. Weather-condition codes remain a categorical family-balanced vote because a numeric bias correction is not meaningful for WMO condition classes.
+The selected forecast engine is applied to continuous or quantitative forecast quantities where numeric aggregation/post-processing is meaningful: temperature, precipitation occurrence/amount, wind, gusts and cloud cover.
+
+Weather-condition codes deliberately do **not** pass through Calibration, Scenarios or Adaptive. They use the shared `weatherConditionConsensus()` hierarchy in every synthesized view. Model lineages are family-balanced first; the resolver then selects `DRY` vs `PRECIPITATION`, then a semantic family (`SKY`, `FOG`, `LIQUID`, `SNOW`, `FREEZING`, `THUNDER`), and finally an ordered subtype where appropriate. Severity is reserved for genuine ties between distinct meteorological families rather than adjacent sky/rain/snow variants.
+
+This means changing the selected quantitative forecast engine may change temperatures, rain amounts/probabilities, wind or cloud cover, while the central weather-condition label remains the same hierarchical multi-model consensus for the same source-model inputs.
 
 A central audit correction in 1.16.0 separates two concepts everywhere:
 
