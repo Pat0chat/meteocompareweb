@@ -66,5 +66,7 @@ for(const lang of ['fr','en','es','de','it']){
   assert.match(locale,/"radarNowcastArrival"/);
   assert.match(locale,/"radarEnterFullscreen"/);
   assert.match(locale,/"radarExitFullscreen"/);
+  assert.match(locale,/"radarProjectionRecalculate"/);
+  assert.match(locale,/"radarProjectionRecalculating"/);
 }
 console.log('MeteoCompare rain radar tests: OK');

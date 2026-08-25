@@ -1547,6 +1547,8 @@ export const catalog = Object.freeze({
   "radarModeProjection":"Proyección +60 min",
   "radarProjectionReady":"Proyección radar lista",
   "radarProjectionWaiting":"Proyección no disponible · observaciones disponibles",
+  "radarProjectionRecalculate":"Recalcular la proyección",
+  "radarProjectionRecalculating":"Recalculando la proyección…",
   "radarLowMotionShort":"poco desplazamiento",
   "radarProjectionReading":"Lectura · color = zona",
   "radarProbableZone":"Envolvente probable",

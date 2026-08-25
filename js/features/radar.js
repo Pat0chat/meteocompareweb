@@ -229,9 +229,9 @@ export function radarNowcastEta(mask,motion,{width=ANALYSIS_SIZE,height=ANALYSIS
   return {kind:'quiet',minute:maxMinutes,current,points};
 }
 
-async function fetchMetadata(fetchImpl=fetch){
-  if(metaCache&&Date.now()-metaCacheAt<RADAR_META_TTL_MS)return metaCache;
-  const response=await fetchImpl(RADAR_META_URL,{credentials:'omit',cache:'default',referrerPolicy:'no-referrer'});
+async function fetchMetadata(fetchImpl=fetch,{forceRefresh=false}={}){
+  if(!forceRefresh&&metaCache&&Date.now()-metaCacheAt<RADAR_META_TTL_MS)return metaCache;
+  const response=await fetchImpl(RADAR_META_URL,{credentials:'omit',cache:forceRefresh?'no-store':'default',referrerPolicy:'no-referrer'});
   if(!response.ok)throw new Error(`RADAR_HTTP_${response.status}`);
   const payload=await response.json(),host=String(payload?.host||'');
   if(!/^https:\/\/[a-z0-9.-]+\.rainviewer\.com$/i.test(host))throw new Error('RADAR_INVALID_HOST');
@@ -350,9 +350,12 @@ function paintNowcast(){
     if(priority)drawLeadText(ctx,`+${horizon}`,destination.x,destination.y-13,color,width,height,.86);
   }
 }
+function syncRecalculateButton(){
+  if(!controller)return;const button=controller.root.querySelector('[data-radar-recalculate]');if(!button)return;const busy=Boolean(controller.nowcastBusy||controller.recalculateBusy||controller.coverageBusy?.size);button.disabled=busy;button.setAttribute('aria-busy',String(busy));button.title=controller.t(busy?'radarProjectionRecalculating':'radarProjectionRecalculate');const label=button.querySelector('[data-radar-recalculate-label]');if(label)label.textContent=controller.t(busy?'radarProjectionRecalculating':'radarProjectionRecalculate');
+}
 function renderNowcastSummary(){
-  if(!controller)return;const node=controller.root.querySelector('[data-radar-nowcast-summary]');if(!node)return;
-  if(controller.nowcastBusy){node.className='radar-nowcast-summary loading';node.innerHTML=`<span class="loader"></span><span>${esc(controller.t('radarNowcastAnalyzing'))}</span>`;return;}
+  if(!controller)return;syncRecalculateButton();const node=controller.root.querySelector('[data-radar-nowcast-summary]');if(!node)return;
+  if(controller.nowcastBusy||controller.recalculateBusy){node.className='radar-nowcast-summary loading';node.innerHTML=`<span class="loader"></span><span>${esc(controller.t('radarNowcastAnalyzing'))}</span>`;return;}
   const result=controller.nowcast;if(!result){node.className='radar-nowcast-summary unavailable';node.textContent=controller.t(controller.nowcastReason==='uncertain'?'radarNowcastUncertain':'radarNowcastUnavailable');return;}
   const confidence=Math.round((mean(result.cells.map(cell=>cell.motion.confidence))||0)*100),speeds=result.cells.map(cell=>Math.hypot(cell.motion.vx,cell.motion.vy)*mapResolutionKm(controller.city.latitude,cell.analysisZoom||result.analysisZoom||RADAR_ANALYSIS_ZOOM)*(512/ANALYSIS_SIZE)*60).filter(Number.isFinite),speed=Math.round(median(speeds)||0),impacting=result.cells.filter(cell=>['impact','current','current-leaving'].includes(cell.impact?.kind)).sort((a,b)=>(b.impact?.relevanceScore||0)-(a.impact?.relevanceScore||0)),approaching=result.cells.filter(cell=>cell.impact?.kind==='approaching').sort((a,b)=>(b.impact?.relevanceScore||0)-(a.impact?.relevanceScore||0));
   let impactText=controller.t('radarImpactNone');
@@ -374,7 +377,7 @@ async function augmentNowcastCoverage(range){
   if(!controller?.meta||!controller.nowcast||range!=='wide'||controller.coverageRanges.has(range)||controller.coverageBusy.has(range))return;const rangeConfig=RADAR_RANGE_CONFIG[range];controller.coverageBusy.add(range);
   try{const sourceFrames=controller.frames,indices=recentRadarFrameIndices(sourceFrames.length,7),samples=[];for(const index of indices){const frame=sourceFrames[index];if(!frame)continue;const mask=await imageMask(radarImageUrl(controller.meta,frame,controller.city,rangeConfig.radarZoom),controller.abortController.signal);samples.push({mask,time:frame.time});}if(!controller||controller.abortController.signal.aborted||!samples.length)return;const peripheral=filterPeripheralRainCells(estimateRainCellMotions(samples).map(cell=>({...cell,analysisZoom:rangeConfig.radarZoom})),{latitude:controller.city.latitude,radarZoom:rangeConfig.radarZoom});if(peripheral.length){const latestTime=samples.at(-1).time,identity=stabilizeRainCellIdentities(peripheral,controller.identityRegistry,{latitude:controller.city.latitude,radarZoom:rangeConfig.radarZoom,time:latestTime,nextId:controller.nextCellId}),extra=identity.cells.map(cell=>({...cell,impact:evaluateRainCellLocalityImpact(cell)}));controller.identityRegistry=identity.registry;controller.nextCellId=identity.nextId;const existingIds=new Set(controller.nowcast.cells.map(cell=>cell.stableId));controller.nowcast.cells=[...controller.nowcast.cells,...extra.filter(cell=>!existingIds.has(cell.stableId))];}controller.coverageRanges.add(range);renderNowcastSummary();paintNowcast();}
   catch(error){if(!controller||controller.abortController.signal.aborted)return;console.warn('Radar wide-area supplement unavailable:',error?.message||error);}
-  finally{controller?.coverageBusy?.delete(range);}
+  finally{controller?.coverageBusy?.delete(range);syncRecalculateButton();}
 }
 function cleanup(){
   if(!controller)return;
@@ -386,10 +389,10 @@ function cleanup(){
 
 export function destroyRadarModal(){cleanup();}
 
-export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',initialMode='observation',initialRange='near',initialHorizon=30,initialFullscreen=false,onRangeChange=null,onModeChange=null,onHorizonChange=null,onFullscreenChange=null}){
+export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',initialMode='observation',initialRange='near',initialHorizon=30,initialFullscreen=false,onRangeChange=null,onModeChange=null,onHorizonChange=null,onFullscreenChange=null,onRecalculate=null}){
   cleanup();if(!root||!city)return;
   const abortController=new AbortController(),mode=['observation','projection'].includes(initialMode)?initialMode:'observation',range=initialRange in RADAR_RANGE_CONFIG?initialRange:'near',horizon=RADAR_PROJECTION_HORIZONS.includes(Number(initialHorizon))?Number(initialHorizon):30,fullscreen=Boolean(initialFullscreen);
-  controller={root,city,forecast,t,locale,index:0,range,mode,horizon,fullscreen,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false,identityRegistry:[],nextCellId:1,coverageRanges:new Set(),coverageBusy:new Set()};root.dataset.radarMode=mode;root.dataset.radarHorizon=String(horizon);root.dataset.radarFullscreen=String(fullscreen);
+  controller={root,city,forecast,t,locale,index:0,range,mode,horizon,fullscreen,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false,recalculateBusy:false,identityRegistry:[],nextCellId:1,coverageRanges:new Set(),coverageBusy:new Set()};root.dataset.radarMode=mode;root.dataset.radarHorizon=String(horizon);root.dataset.radarFullscreen=String(fullscreen);
   root.querySelectorAll('[data-radar-mode]').forEach(button=>{const active=button.dataset.radarMode===mode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   root.querySelectorAll('[data-radar-horizon]').forEach(button=>{const active=Number(button.dataset.radarHorizon)===horizon;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
@@ -411,8 +414,15 @@ export async function mountRadarModal({root,city,forecast,forecastOptions=null,t
     if(mode==='projection'){controller.index=Math.max(0,controller.frames.length-1);if(status)status.textContent=t(controller.nowcastBusy?'radarNowcastAnalyzing':controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');}
     else if(status)status.textContent=t('radarObservedWindow');paintFrame();renderNowcastSummary();paintNowcast();onModeChange?.(mode);
   };
+  const recalculateProjection=async()=>{
+    if(!controller||controller.recalculateBusy||controller.nowcastBusy||controller.coverageBusy.size)return;setPlaying(false);if(controller.mode!=='projection')setMode('projection');const previous={meta:controller.meta,frames:controller.frames,index:controller.index,nowcast:controller.nowcast,nowcastReason:controller.nowcastReason,identityRegistry:controller.identityRegistry,nextCellId:controller.nextCellId,coverageRanges:controller.coverageRanges};controller.recalculateBusy=true;controller.nowcast=null;controller.nowcastReason=null;controller.identityRegistry=[];controller.nextCellId=1;controller.coverageRanges=new Set();renderNowcastSummary();if(status)status.innerHTML=`<span class="loader"></span>${esc(t('radarNowcastAnalyzing'))}`;
+    try{const meta=await fetchMetadata(fetch,{forceRefresh:true});if(!controller||controller.abortController.signal.aborted)return;controller.meta=meta;controller.frames=meta.past;controller.index=Math.max(0,controller.frames.length-1);root.classList.remove('radar-error');paintFrame();await analyzeNowcast();if(!controller||controller.abortController.signal.aborted)return;if(controller.range==='wide')await augmentNowcastCoverage('wide');if(status)status.textContent=t(controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');onRecalculate?.({success:Boolean(controller.nowcast),frameTime:controller.frames.at(-1)?.time||null});}
+    catch(error){if(!controller||controller.abortController.signal.aborted)return;controller.meta=previous.meta;controller.frames=previous.frames;controller.index=previous.index;controller.nowcast=previous.nowcast;controller.nowcastReason=previous.nowcastReason||'error';controller.identityRegistry=previous.identityRegistry;controller.nextCellId=previous.nextCellId;controller.coverageRanges=previous.coverageRanges;controller.nowcastBusy=false;if(status)status.textContent=t(controller.nowcast?'radarProjectionReady':'radarProjectionWaiting');paintFrame();renderNowcastSummary();paintNowcast();console.warn('Radar projection recalculation unavailable:',error?.message||error);onRecalculate?.({success:false,frameTime:controller.frames.at(-1)?.time||null});}
+    finally{if(controller){controller.recalculateBusy=false;renderNowcastSummary();syncRecalculateButton();}}
+  };
   root.addEventListener('click',event=>{
-    if(!controller)return;const target=event.target.closest?.('[data-radar-play],[data-radar-range],[data-radar-mode],[data-radar-horizon]');if(!target)return;
+    if(!controller)return;const target=event.target.closest?.('[data-radar-play],[data-radar-range],[data-radar-mode],[data-radar-horizon],[data-radar-recalculate]');if(!target)return;
+    if(target.hasAttribute('data-radar-recalculate')){void recalculateProjection();return;}
     if(target.hasAttribute('data-radar-play')){if(controller.mode!=='observation')setMode('observation');setPlaying(!controller.playing);paintFrame();return;}
     if(target.hasAttribute('data-radar-mode')){setMode(target.dataset.radarMode);return;}
     if(target.hasAttribute('data-radar-horizon')){const next=Number(target.dataset.radarHorizon);if(!RADAR_PROJECTION_HORIZONS.includes(next)||next===controller.horizon)return;controller.horizon=next;root.dataset.radarHorizon=String(next);root.querySelectorAll('[data-radar-horizon]').forEach(button=>{const active=Number(button.dataset.radarHorizon)===next;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});paintNowcast();onHorizonChange?.(next);return;}

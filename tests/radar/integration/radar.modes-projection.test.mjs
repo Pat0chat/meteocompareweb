@@ -13,6 +13,8 @@ assert.match(app,/data-radar-horizon="\$\{minute\}"/);
 assert.match(app,/Rain Radar Horizon Changed/,'lead-time changes should remain observable through privacy-safe analytics');
 assert.match(app,/data-radar-observation-controls/);
 assert.match(app,/data-radar-projection-controls/);
+assert.match(app,/data-radar-recalculate/,'projection UI must expose a manual recalculation button');
+assert.match(app,/Rain Radar Projection Recalculated/,'manual recalculation should remain observable through privacy-safe analytics');
 assert.match(app,/radarProbableZone/);
 assert.match(app,/radarForecastZone/);
 assert.match(app,/radarTrajectory/);
@@ -36,10 +38,17 @@ assert.match(radar,/imageSmoothingEnabled=false/,'projection canvas rendering mu
 assert.match(radar,/stabilizeRainCellIdentities/,'stable cell identities must be preserved');
 assert.match(radar,/evaluateRainCellLocalityImpact/,'locality relevance must still prioritize meaningful cells');
 assert.match(radar,/radarImageUrl\(controller\.meta,frame,controller\.city,RADAR_ANALYSIS_ZOOM\)/,'analysis must remain independent from visual range');
+assert.match(radar,/fetchMetadata\(fetch,\{forceRefresh:true\}\)/,'manual recalculation must fetch the latest radar metadata instead of replaying cached inputs');
+assert.match(radar,/cache:forceRefresh\?'no-store':'default'/,'forced radar refresh must bypass the browser metadata cache');
+assert.match(radar,/controller\.identityRegistry=\[\];controller\.nextCellId=1;controller\.coverageRanges=new Set\(\)/,'manual recalculation must restart the projection analysis from a clean tracking state');
+assert.match(radar,/controller\.meta=previous\.meta;controller\.frames=previous\.frames/,'a metadata refresh failure must preserve the last usable radar projection');
+assert.match(radar,/button\.disabled=busy/,'manual recalculation must be disabled while radar analysis is busy');
 
 assert.match(css,/\.radar-modal-content\[data-radar-mode="projection"\] \.radar-precip-layer\{opacity:\.38;filter:saturate\(\.90\) contrast\(1\.02\) brightness\(1\.03\)\}/,'latest observation must remain visible but secondary in projection mode');
 assert.match(css,/\.radar-horizon-selector\{/,'projection lead-time selector must have a dedicated compact style');
 assert.match(css,/\.radar-horizon-selector \.seg-btn\.active\{/,'selected horizon must be visually obvious');
+assert.match(css,/\.radar-projection-actions\{/,'projection actions must accommodate the lead selector and recalculation button');
+assert.match(css,/\.radar-recalculate-button\[aria-busy=\"true\"] \.radar-recalculate-icon\{animation:meteo-spin/,'recalculation button must expose a visible busy state');
 assert.match(css,/\.radar-zone-key\.probable i\{[^}]*border:1\.5px dashed var\(--primary\)/s,'probable-area legend must match the dashed uncertainty envelope');
 assert.match(css,/\.radar-zone-key\.forecast i\{[^}]*border:2px solid var\(--primary\)/s,'forecast legend must match the solid projected outline');
 assert.match(css,/\.radar-zone-key\.trajectory i\{[^}]*border-top:2px solid var\(--primary\)/s,'trajectory legend must match line/arrow rendering');
@@ -47,7 +56,7 @@ assert.match(css,/\.radar-modal-content\[data-radar-mode="projection"\] \[data-r
 
 for(const lang of ['fr','en','es','de','it']){
   const locale=read(`js/locales/${lang}.js`);
-  for(const key of ['radarModeObservation','radarModeProjection','radarProbableZone','radarForecastZone','radarTrajectory','radarProjectionTitle','radarProjectionLead','radarProjectionHorizons']) assert.match(locale,new RegExp(`"${key}"`),`${lang}.${key} missing`);
+  for(const key of ['radarModeObservation','radarModeProjection','radarProbableZone','radarForecastZone','radarTrajectory','radarProjectionTitle','radarProjectionLead','radarProjectionHorizons','radarProjectionRecalculate','radarProjectionRecalculating']) assert.match(locale,new RegExp(`"${key}"`),`${lang}.${key} missing`);
 }
 
 console.log('Single-horizon radar observation/projection visual contract: OK');
