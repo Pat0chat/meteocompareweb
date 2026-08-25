@@ -32,26 +32,30 @@ assert.match(local,/renderIntegritySection\(\)/);
 assert.match(local,/renderApiUsageSection\(\)/);
 assert.doesNotMatch(local,/class="eyebrow"|section-eyebrow/);
 
-// About: method + three reading cues + concise data/install blocks; legacy help-card wall removed.
+// About: one visual pedagogical flow + concise practical/install blocks; legacy help-card wall removed.
 assert.match(about,/about-method-flow/);
-assert.match(about,/about-reading-grid/);
-assert.match(about,/aboutConvergenceTitle/);
-assert.match(about,/aboutHistoryTitle/);
-assert.match(about,/aboutRawTitle/);
+assert.match(about,/about-visual-steps/);
+assert.match(about,/about-visual-engine-grid/);
+assert.match(about,/about-visual-consensus/);
+assert.match(about,/about-visual-agreement-grid/);
+assert.match(about,/about-visual-radar-frames/);
+assert.match(about,/about-visual-dashboard/);
+assert.match(about,/about-visual-takeaways/);
 assert.match(about,/about-install-grid/);
 assert.match(about,/aboutAgreementCallout/);
 assert.doesNotMatch(about,/help-grid|about-intro-card/);
 
 assert.match(css,/\.settings-control-grid/);
 assert.match(css,/\.storage-advanced>summary/);
-assert.match(css,/\.about-reading-grid/);
+assert.match(css,/\.about-visual-step/);
+assert.match(css,/\.about-visual-takeaways/);
 assert.match(css,/\.about-install-grid/);
 
 const audit=webTranslationAudit();
 for(const lang of ['fr','en','es','de','it']) assert.deepEqual(audit[lang],[],`missing translation in ${lang}`);
 for(const lang of ['fr','en','es','de','it']){
   const {catalog}=await import(`../../../js/locales/${lang}.js?clarity=${Date.now()}`);
-  for(const key of ['settingsInterfaceTitle','settingsForecastTitle','storageAdvancedTitle','aboutIndicatorsTitle','aboutConvergenceTitle','aboutHistoryTitle','aboutRawTitle','aboutInstallTitle','storageConfigGroup','storageWeatherGroup','storageAnalysisGroup','learnMore']){
+  for(const key of ['settingsInterfaceTitle','settingsForecastTitle','storageAdvancedTitle','aboutVisualTitle','aboutVisualStepModelsTitle','aboutVisualStepEnginesTitle','aboutVisualStepConditionsTitle','aboutVisualStepAgreementTitle','aboutVisualStepRadarTitle','aboutVisualStepDecisionTitle','aboutInstallTitle','storageConfigGroup','storageWeatherGroup','storageAnalysisGroup','learnMore']){
     assert.ok(typeof catalog[key]==='string'&&catalog[key].trim(),`${lang}:${key} missing`);
   }
   for(const key of ['settingsIntro','localDataIntro','aboutLead']) assert.ok(catalog[key].length<=180,`${lang}:${key} too verbose`);
