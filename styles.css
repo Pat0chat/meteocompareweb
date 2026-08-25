@@ -2869,18 +2869,27 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   z-index:3;
 }
 .summary-dispersion-scale {
-  display:grid;
-  grid-template-columns:1fr auto 1fr;
-  align-items:center;
-  gap:8px;
-  margin-top:1px;
+  position:relative;
+  height:18px;
+  margin:1px 2px 0;
   color:var(--muted);
   font-family:var(--tech-font);
   font-size:.70rem;
   font-variant-numeric:tabular-nums;
+  line-height:18px;
 }
-.summary-dispersion-scale strong { color:var(--text); font-size:.74rem; text-align:center; }
-.summary-dispersion-scale span:last-child { text-align:right; }
+.summary-dispersion-scale span,
+.summary-dispersion-scale strong { position:absolute; top:0; white-space:nowrap; }
+.summary-dispersion-scale span:first-child { left:0; }
+.summary-dispersion-scale span:last-child { right:0; text-align:right; }
+.summary-dispersion-scale strong {
+  left:var(--center,50%);
+  transform:translateX(-50%);
+  color:var(--text);
+  font-size:.74rem;
+  text-align:center;
+  z-index:1;
+}
 .summary-dispersion-meta {
   display:flex;
   flex-wrap:wrap;
