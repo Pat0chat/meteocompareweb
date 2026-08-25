@@ -1,4 +1,5 @@
 import { forecastEnginePrecipitation, DEFAULT_FORECAST_ENGINE } from '../forecast-engines.js';
+import { isWetPrecipitation } from '../consensus.js';
 const RADAR_META_URL='https://api.rainviewer.com/public/weather-maps.json';
 const OSM_TILE_URL='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const RADAR_META_TTL_MS=5*60_000;
@@ -148,7 +149,7 @@ export function radarForecastHours(forecast,now=Date.now(),limit=4,options={}){
     const rows=[];
     for(const [modelId,row] of series){const h=row?.hourly||{},axis=h.timestampEpochMs||[],index=axis.indexOf(epochMs);if(index<0)continue;const amount=h.precipitation?.[index],probability=h.precipitationProbability?.[index];if(Number.isFinite(amount)||Number.isFinite(probability))rows.push({modelId,amount,probability});}
     const result=forecastEnginePrecipitation(rows,{engine,localWeights,calibration});
-    const wet=rows.filter(row=>Number.isFinite(row.amount)&&row.amount>=0.1).length,wetShare=rows.length?wet/rows.length*100:null;
+    const wet=rows.filter(row=>isWetPrecipitation(row.amount)).length,wetShare=rows.length?wet/rows.length*100:null;
     return {epochMs,amountMm:result.centralAmountMm,conditionalAmountMm:result.conditionalAmountMm,probabilityPercent:result.probabilityPercent,wetSharePercent:wetShare,modelCount:result.count,forecastEngine:engine,effectiveEngine:result.effectiveEngine};
   });
 }

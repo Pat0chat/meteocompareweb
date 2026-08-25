@@ -1,6 +1,8 @@
 import { consensusGroupFor, CONDITION } from './models.js';
 
 const EPS=1e-12;
+export const RAIN_THRESHOLD_MM=0.1;
+export function isWetPrecipitation(amount,threshold=RAIN_THRESHOLD_MM){return Number.isFinite(amount)&&amount>threshold;}
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const canonicalCompare=(a,b)=>{const valueDelta=Number(a?.value)-Number(b?.value);if(Number.isFinite(valueDelta)&&valueDelta!==0)return valueDelta;return String(a?.modelId||'').localeCompare(String(b?.modelId||''));};
 
@@ -151,12 +153,12 @@ export function weatherConditionConsensus(entries,localWeights={},severity=()=>0
  * a binary wet/dry probability. The displayed deterministic amount is the conditional
  * weighted median only when P(wet) >= 50%; expectedAmountMm remains available separately.
  */
-export function precipitationConsensus(rows,{threshold=.1,localWeights={},amountTight=1,amountWide=8}={}){
+export function precipitationConsensus(rows,{threshold=RAIN_THRESHOLD_MM,localWeights={},amountTight=1,amountWide=8}={}){
   const usable=(rows||[]).filter(x=>x?.modelId&&(Number.isFinite(x.amount)||Number.isFinite(x.probability))).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
   if(!usable.length)return {probabilityPercent:null,conditionalAmountMm:null,centralAmountMm:null,expectedAmountMm:null,convergencePercent:null,count:0,familyCount:0,wetModelCount:0,wetFamilyCount:0,source:null};
   const occurrence=familyBalancedWeights(usable.map(x=>x.modelId),localWeights);let probability=0,total=0,nativeProbCount=0;
-  for(const row of usable){const w=occurrence.weights[row.modelId]||0;if(w<=0)continue;let p;if(Number.isFinite(row.probability)){p=clamp(row.probability/100,0,1);nativeProbCount++;}else p=Number.isFinite(row.amount)&&row.amount>=threshold?1:0;probability+=w*p;total+=w;}
-  const p=total>0?probability/total:null,wet=usable.filter(x=>Number.isFinite(x.amount)&&x.amount>=threshold),wetBalanced=familyBalancedEntries(wet.map(x=>({modelId:x.modelId,value:x.amount})),localWeights),conditional=weightedMedian(wetBalanced.entries),amountStats=weightedStats(wetBalanced.entries);
+  for(const row of usable){const w=occurrence.weights[row.modelId]||0;if(w<=0)continue;let p;if(Number.isFinite(row.probability)){p=clamp(row.probability/100,0,1);nativeProbCount++;}else p=isWetPrecipitation(row.amount,threshold)?1:0;probability+=w*p;total+=w;}
+  const p=total>0?probability/total:null,wet=usable.filter(x=>isWetPrecipitation(x.amount,threshold)),wetBalanced=familyBalancedEntries(wet.map(x=>({modelId:x.modelId,value:x.amount})),localWeights),conditional=weightedMedian(wetBalanced.entries),amountStats=weightedStats(wetBalanced.entries),amounts=usable.map(x=>x.amount).filter(Number.isFinite),hasAmount=amounts.length>0;
   const occurrenceConv=Number.isFinite(p)&&occurrence.familyCount>=2?Math.abs(p-.5)*200:null;
   const amountConv=amountStats&&wetBalanced.familyCount>=2?scoreFromDispersion(amountStats.stdDev,amountTight,amountWide):null;
   const convergence=Number.isFinite(occurrenceConv)?(Number.isFinite(amountConv)&&p>=.5?Math.round(occurrenceConv*.7+amountConv*.3):Math.round(occurrenceConv)):null;
@@ -164,12 +166,12 @@ export function precipitationConsensus(rows,{threshold=.1,localWeights={},amount
   return {
     probabilityPercent:Number.isFinite(p)?Math.round(p*100):null,
     conditionalAmountMm:Number.isFinite(conditional)?conditional:(wet.length?0:null),
-    centralAmountMm:Number.isFinite(p)&&p>=.5&&Number.isFinite(conditional)?conditional:0,
-    expectedAmountMm:Number.isFinite(p)&&Number.isFinite(conditional)?p*conditional:0,
+    centralAmountMm:!hasAmount?null:(Number.isFinite(p)&&p>=.5?(Number.isFinite(conditional)?conditional:null):0),
+    expectedAmountMm:Number.isFinite(p)&&Number.isFinite(conditional)?p*conditional:(hasAmount&&p===0?0:null),
     convergencePercent:convergence,count:usable.length,familyCount:occurrence.familyCount,
     wetModelCount:wet.length,wetFamilyCount:wetBalanced.familyCount,source,
-    minMm:usable.some(x=>Number.isFinite(x.amount))?Math.min(...usable.map(x=>x.amount).filter(Number.isFinite)):null,
-    maxMm:usable.some(x=>Number.isFinite(x.amount))?Math.max(...usable.map(x=>x.amount).filter(Number.isFinite)):null,
+    minMm:amounts.length?Math.min(...amounts):null,
+    maxMm:amounts.length?Math.max(...amounts):null,
     conditionalStdDev:amountStats?.stdDev??null
   };
 }

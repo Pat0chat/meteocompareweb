@@ -4,6 +4,8 @@ import {
   scoreFromDispersion,
   weightedMedian,
   weightedStats,
+  RAIN_THRESHOLD_MM,
+  isWetPrecipitation,
 } from './consensus.js';
 
 export const FORECAST_ENGINES = Object.freeze([
@@ -518,7 +520,7 @@ export function forecastEnginePrecipitation(
   rows,
   {
     engine = DEFAULT_FORECAST_ENGINE,
-    threshold = 0.1,
+    threshold = RAIN_THRESHOLD_MM,
     localWeights = {},
     calibration = {},
     amountTight = 1,
@@ -570,7 +572,7 @@ export function forecastEnginePrecipitation(
       probability = clamp(row.probability / 100, 0, 1);
       nativeProbabilityCount++;
     } else {
-      probability = finite(row.amount) && row.amount >= threshold ? 1 : 0;
+      probability = isWetPrecipitation(row.amount, threshold) ? 1 : 0;
     }
 
     if (canCalibrateOccurrence) {
@@ -582,7 +584,7 @@ export function forecastEnginePrecipitation(
   }
 
   const probability = totalWeight ? probabilitySum / totalWeight : null;
-  const wetRows = usable.filter(row => finite(row.amount) && row.amount >= threshold);
+  const wetRows = usable.filter(row => isWetPrecipitation(row.amount, threshold));
   const amountEntries = wetRows.map(row => ({ modelId: row.modelId, value: row.amount }));
   const amountResult = forecastEngineContinuous(amountEntries, {
     engine: requested,
@@ -604,15 +606,16 @@ export function forecastEnginePrecipitation(
     : null;
 
   const amounts = usable.map(row => row.amount).filter(finite);
+  const hasAmount = amounts.length > 0;
   return {
     engine: requested,
     effectiveEngine: amountResult.effectiveEngine,
     probabilityPercent: finite(probability) ? Math.round(probability * 100) : null,
     conditionalAmountMm: finite(conditionalAmount) ? conditionalAmount : wetRows.length ? 0 : null,
     centralAmountMm:
-      finite(probability) && probability >= 0.5 && finite(conditionalAmount) ? conditionalAmount : 0,
+      !hasAmount ? null : finite(probability) && probability >= 0.5 ? (finite(conditionalAmount) ? conditionalAmount : null) : 0,
     expectedAmountMm:
-      finite(probability) && finite(conditionalAmount) ? probability * conditionalAmount : 0,
+      finite(probability) && finite(conditionalAmount) ? probability * conditionalAmount : hasAmount && probability === 0 ? 0 : null,
     convergencePercent: convergence,
     count: usable.length,
     familyCount: occurrence.familyCount,
