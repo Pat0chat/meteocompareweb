@@ -21,9 +21,13 @@ assert.match(app,/about-visual-takeaways/,'About must expose lightweight key tak
 const heroIndex=app.indexOf('about-hero about-hero-simple about-visual-hero'),takeawaysIndex=app.indexOf('about-visual-takeaways'),disclaimerIndex=app.indexOf('${renderForecastExpertiseDisclaimer()}'),storyIndex=app.indexOf('about-visual-story about-method');
 assert.ok(heroIndex>=0&&takeawaysIndex>heroIndex&&takeawaysIndex<disclaimerIndex&&disclaimerIndex<storyIndex,'key takeaways must sit directly below the About hero, before the disclaimer and detailed story');
 assert.doesNotMatch(app,/aboutVisualPracticalTitle|aboutVisualPracticalLead/,'practical cards must flow directly after the explainer without a disruptive section heading');
+assert.match(app,/about-community/,'About must include a dedicated community/contact block');
+assert.match(app,/meteocompare\.bsky\.social/,'About community block must point to the official MeteoCompare Bluesky account');
+assert.match(app,/function blueskyIcon\(size=18\)/,'About community block must render the Bluesky vector inline');
+assert.doesNotMatch(app,/🦋|about-install/,'About must not show the emoji placeholder or duplicate installation section');
 
 for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']){
-  for(const key of ['aboutVisualTitle','aboutVisualLead','aboutVisualStepModelsTitle','aboutVisualStepEnginesTitle','aboutVisualEngineAdaptiveShort','aboutVisualStepConditionsTitle','aboutVisualConsensusNote','aboutVisualStepAgreementTitle','aboutVisualStepRadarTitle','aboutVisualRadarHelp','aboutVisualStepDecisionTitle','aboutVisualTakeawayUncertaintyTitle']) assert.equal(hasTranslation(pref,key),true,`${pref}.${key} missing`);
+  for(const key of ['aboutVisualTitle','aboutVisualLead','aboutVisualStepModelsTitle','aboutVisualStepEnginesTitle','aboutVisualEngineAdaptiveShort','aboutVisualStepConditionsTitle','aboutVisualConsensusNote','aboutVisualStepAgreementTitle','aboutVisualStepRadarTitle','aboutVisualRadarHelp','aboutVisualStepDecisionTitle','aboutVisualTakeawayUncertaintyTitle','aboutCommunityTitle','aboutCommunityBody','aboutCommunityAction']) assert.equal(hasTranslation(pref,key),true,`${pref}.${key} missing`);
   for(const removedKey of ['aboutVisualEyebrow','aboutVisualPracticalTitle','aboutVisualPracticalLead']) assert.equal(hasTranslation(pref,removedKey),false,`${pref}.${removedKey} should be removed after layout simplification`);
 }
 const fr=makeI18n('FRENCH');
