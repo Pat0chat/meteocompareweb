@@ -65,15 +65,6 @@ export function continuousConsensus(entries,localWeights={},tight=.5,wide=3){
   return {central:weightedMedian(balanced.entries),convergencePercent:balanced.familyCount>=2?scoreFromDispersion(stats.stdDev,tight,wide):null,count:balanced.modelCount,familyCount:balanced.familyCount,stats};
 }
 
-export function weightedVote(entries,localWeights={},severity=()=>0){
-  const rows=(entries||[]).filter(x=>x?.modelId&&x?.value!=null).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId))),balanced=familyBalancedWeights(rows.map(x=>x.modelId),localWeights),votes=new Map();
-  for(const row of rows){const w=balanced.weights[row.modelId]||0;if(w>0)votes.set(row.value,(votes.get(row.value)||0)+w);}
-  if(!votes.size)return {value:null,percent:null,count:0,familyCount:0};
-  const total=[...votes.values()].reduce((a,b)=>a+b,0),top=Math.max(...votes.values());
-  const value=[...votes].filter(([,w])=>Math.abs(w-top)<=EPS).map(([v])=>v).sort((a,b)=>severity(b)-severity(a))[0]??null;
-  return {value,percent:balanced.familyCount>=2?top*100/total:null,count:balanced.modelCount,familyCount:balanced.familyCount};
-}
-
 const WEATHER_CONDITION_FAMILY=Object.freeze({
   [CONDITION.CLEAR]:'SKY',
   [CONDITION.MAINLY_CLEAR]:'SKY',

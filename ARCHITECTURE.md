@@ -7,6 +7,7 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 `transport réseau → normalisation → contrats → persistance → domaine → vues`
 
 - `js/api.js` orchestre les appels Open-Meteo, les budgets réseau et les récupérations ciblées. Un lot rejeté pour sélection de modèle est subdivisé jusqu'à isoler les modèles fautifs ; 408/429/5xx et erreurs réseau restent des erreurs globales afin d'éviter une multiplication des requêtes. Il ne porte plus le décodage détaillé des séries.
+- `js/network-config.js` centralise les destinations, chemins first-party et politiques de transport. `js/network.js` applique les invariants communs navigateur (timeout/abort, `credentials: omit`, `no-referrer`, erreurs HTTP/JSON). Les flux Open-Meteo volumineux restent directs ; les métadonnées modèles et Plausible passent par `/_mcx/*`. Voir `NETWORK_AUDIT.md`.
 - `js/data/forecast-normalizer.js` aligne les axes horaires/journaliers, filtre les valeurs impossibles, conserve les métadonnées de run, qualifie la couverture et marque les journées civiles partielles.
 - `js/data/contracts.js` est la frontière de confiance pour les réglages, villes et prévisions. Les IDs de modèles inconnus, coordonnées invalides, séries désalignées ou caches incohérents sont rejetés ou assainis avant le domaine.
 - `js/storage.js` applique les contrats aux lectures, migrations, imports et caches. Les réparations d'intégrité privilégient l'assainissement d'un record récupérable avant sa suppression.
@@ -24,6 +25,8 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 - `OperationRegistry` : jetons d'opérations pour ignorer les réponses réseau devenues obsolètes.
 
 `js/app.js` reste le point d'entrée et la couche de composition des vues. Une nouvelle responsabilité transverse doit être ajoutée au kernel ou à un module dédié, pas sous forme d'un nouvel état global implicite.
+
+Les primitives de rendu graphique génériques (`chartScale`, sélection de ticks, unités/décimales et construction de chemins SVG) vivent dans `js/ui/chart-utils.js`. Les vues et features doivent les réutiliser plutôt que recopier ces algorithmes.
 
 ## Présentation météo
 

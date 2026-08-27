@@ -636,7 +636,6 @@ export const catalog = Object.freeze({
   "scenarios12":"Scenarios · 12 h",
   "openScenarios":"Open to compute scenarios.",
   "noScenario":"No scenario available.",
-  "tempForecast12Aria":"12-hour temperature forecast",
   "rainProbabilityShort":"P(rain) {probability}%",
   "crossAnalysis":"Cross analysis",
   "compareCities":"Compare cities",

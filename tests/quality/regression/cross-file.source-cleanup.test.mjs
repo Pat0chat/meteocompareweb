@@ -32,10 +32,18 @@ assert.doesNotMatch(css,/--city-context-height|\.city-context-bar\s*\{/);
 assert.match(css,/\.detail-sidebar\s*\{[\s\S]*top:\s*calc\(var\(--topbar-height\) \+ var\(--sticky-context-gap\)\)/);
 
 // Known dead helpers removed during the release clean.
-for(const token of ['deleteMarine','cityNowLocal','nearestIndex','dailyMatrix','reliabilityRanking','formatWindDirection','weightedMean','RELEASE_CHANNEL','analyticsOptOutKey','COVERAGE_LABELS','loadedLanguages']){
+for(const token of ['deleteMarine','cityNowLocal','nearestIndex','dailyMatrix','reliabilityRanking','formatWindDirection','weightedMean','RELEASE_CHANNEL','analyticsOptOutKey','COVERAGE_LABELS','loadedLanguages','weightedVote','homeHeatmap','cachedHeatmap','renderHeatmap','confidencePill','chartPointTitle','diagnosticCoverageCell','diagnosticStatusClass','diagnosticStatusLabel','backupPayloadFor','NOWCAST_HORIZONS','NETWORK_POLICY','medianValue']){
   const runtime=['js/app.js','js/storage.js','js/domain.js','js/consensus.js','js/models.js','js/i18n.js','js/analytics.js','js/version.js'].map(read).join('\n');
   assert.doesNotMatch(runtime,new RegExp(`\\b${token}\\b`),`dead runtime symbol remains: ${token}`);
 }
+
+const chartUtils=read('js/ui/chart-utils.js');
+const comparison=read('js/features/comparison.js');
+assert.match(app,/from '\.\/ui\/chart-utils\.js'/,'app chart primitives must come from the shared chart utility module');
+assert.match(comparison,/from '\.\.\/ui\/chart-utils\.js'/,'comparison chart primitives must come from the shared chart utility module');
+for(const symbol of ['chartScale','chartTickIndices','chartMetricUnit','chartMetricDigits','svgLinePath']) assert.match(chartUtils,new RegExp(`export function ${symbol}\\b`),`shared chart utility missing ${symbol}`);
+assert.doesNotMatch(app,/function (?:niceStep|chartScale|chartTickIndices|chartMetricUnit|chartMetricDigits|svgLinePath)\b/,'app must not duplicate shared chart primitives');
+assert.doesNotMatch(comparison,/function (?:niceStep|chartScale|chartTickIndices|chartMetricUnit|chartMetricDigits|svgLinePath)\b/,'comparison must not duplicate shared chart primitives');
 
 // Runtime source contains no debug leftovers and every relative module import resolves.
 const runtimeFiles=[];

@@ -25,7 +25,7 @@ assert.match(home,/homeCoherenceLabel/);
 assert.match(home,/home-weather-coherence/);
 assert.match(home,/precipitationConditionalMm/);
 assert.match(home,/tempMinMax/);
-const card=home.slice(home.indexOf('function renderCityCard'),home.indexOf('function renderHeatmap'));
+const card=home.slice(home.indexOf('function renderCityCard'),home.indexOf('function comparisonRenderContext'));
 assert.match(card,/home-weather-facts/);
 assert.doesNotMatch(card,/home-weather-range/);
 assert.doesNotMatch(card,/homeModelSignal/);

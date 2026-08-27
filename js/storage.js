@@ -330,7 +330,6 @@ export async function verifyLocalDataIntegrity(cities=[], {repair=false}={}) {
 }
 
 
-function backupPayloadFor(prefix,cityId,kind,fallback=null){return readLocalRecord(prefix+cityId,kind,fallback);}
 export async function createLocalBackup(cities=[], options={}) {
   const include={forecasts:Boolean(options.forecasts),normals:Boolean(options.normals),bias:Boolean(options.bias),evolution:Boolean(options.evolution),marine:Boolean(options.marine),health:Boolean(options.health)};
   const data={settings:loadSettings(),cities:loadCities(),forecasts:{},normals:{},bias:{},evolution:{},marine:{},health:{}};

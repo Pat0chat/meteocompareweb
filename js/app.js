@@ -1,7 +1,7 @@
 import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels, consensusGroupFor } from './models.js';
 import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, loadModelHealth, saveModelHealth, createLocalBackup, restoreLocalBackup, clearAllData, clearPwaRuntime, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
-import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, homeHeatmap, buildScenarios, aggregateNormals, windArrow, dateLabel, timeLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, activeTodayHourlyPoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch } from './domain.js';
+import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, buildScenarios, aggregateNormals, windArrow, dateLabel, timeLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, activeTodayHourlyPoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch } from './domain.js';
 import { makeI18n, languageCode, ensureLanguage } from './i18n.js';
 import { analyticsStatus, trackPageView, trackAnalyticsEvent, setAnalyticsOptOut } from './analytics.js';
 import { ErrorCenter, classifyError, storageIssueDescriptor, ERROR_ACTIONS } from './errors.js';
@@ -9,6 +9,7 @@ import { APP_VERSION } from './version.js';
 import { apiUsageSnapshot } from './api-budget.js';
 import { ApplicationKernel } from './core/application-kernel.js';
 import { weatherIcons } from './ui/weather-icons.js';
+import { chartScale, chartTickIndices, chartMetricUnit, chartMetricDigits, svgLinePath } from './ui/chart-utils.js';
 import { SEO_CITIES, seoCityBySlug, matchSeoCity, cityPublicPath, nearbySeoCities, slugifyCityName } from './seo-cities.mjs';
 import { FORECAST_ENGINES } from './forecast-engines.js';
 import { isWetPrecipitation } from './consensus.js';
@@ -432,7 +433,6 @@ function renderHomeForecastMeta(favorites){
 }
 function archiveCallLabel(count){const n=Number(count)||0;return i18n().t(n===1?'archiveCallOne':'archiveCallMany',{count:n});}
 function localizedWindDirection(direction){if(!Number.isFinite(direction))return '';const keys=['windDirN','windDirNE','windDirE','windDirSE','windDirS','windDirSW','windDirW','windDirNW'];return i18n().t(keys[Math.round(direction/45)%8]);}
-function confidencePill(percent,count){ if(!Number.isFinite(percent))return '';return `<span class="pill confidence ${confidenceClass(percent)}">◎ ${percent}%${Number.isFinite(count)?` · ${modelCountLabel(count)}`:''}</span>`; }
 function summaryMetricIcon(kind){return weatherIcons.renderMetric(kind,{size:'small'});}
 function uiIcon(kind,size=17){
   const common=`viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"`;
@@ -514,14 +514,13 @@ function renderErrorIssue(item,{cityId=null}={}){
 function renderCityErrors(cityId){return state.errorCenter.list(`city:${cityId}:`).map(item=>renderErrorIssue(item,{cityId})).join('');}
 function syncStorageErrors(){for(const issue of getStorageIssues())state.errorCenter.report(`storage:${issue.code}`,storageIssueDescriptor(issue));}
 
-function viewCache(f){let c=forecastViewCache.get(f);if(!c){c={days:new Map(),scenarios:new Map(),bands:new Map(),heat:new Map(),evolutionSource:null,evolutionReport:null,biasSource:null,biasToday:null,biasReport:null,visibleModelIds:null,newestRunTimestamp:undefined};forecastViewCache.set(f,c);}return c;}
+function viewCache(f){let c=forecastViewCache.get(f);if(!c){c={days:new Map(),scenarios:new Map(),bands:new Map(),evolutionSource:null,evolutionReport:null,biasSource:null,biasToday:null,biasReport:null,visibleModelIds:null,newestRunTimestamp:undefined};forecastViewCache.set(f,c);}return c;}
 function consensusWeightSignature(weights){if(!weights)return 'family';return ['temperature','precipitation','wind'].map(k=>`${k}:${Object.entries(weights[k]||{}).sort(([a],[b])=>a.localeCompare(b)).map(([id,w])=>`${id}=${Number(w).toFixed(3)}`).join(',')}`).join('|');}
 function normalizeForecastOptions(value){return value&&typeof value==='object'&&('forecastEngine' in value||'weightsByVariable' in value||'calibrationByVariable' in value)?value:{weightsByVariable:value||{}};}
 function forecastOptionsSignature(value){const o=normalizeForecastOptions(value),cal=Object.fromEntries(['temperature','precipitation','wind'].map(k=>[k,Object.entries(o.calibrationByVariable?.[k]||{}).sort(([a],[b])=>a.localeCompare(b)).map(([id,p])=>`${id}:${Number(p.bias||0).toFixed(2)}:${Number(p.sampleSize||0)}`).join(',')]));return `${o.forecastEngine||'MULTI_CONSENSUS'}|${consensusWeightSignature(o.weightsByVariable)}|${JSON.stringify(cal)}`;}
 function cachedAggregateDay(f,date,options=null){const o=normalizeForecastOptions(options),c=viewCache(f),key=`${date}|${forecastOptionsSignature(o)}`;if(!c.days.has(key))c.days.set(key,aggregateDay(f,date,o));return c.days.get(key);}
 function cachedScenarios(f,limit=null){const anchor=roundedHourLocal(f.city.timezone),key=`${anchor}|${limit==null?'all':String(limit)}`,c=viewCache(f);if(!c.scenarios.has(key))c.scenarios.set(key,limit==null?buildScenarios(f):buildScenarios(f,limit));return c.scenarios.get(key);}
 function cachedBand(f,metric,horizon){const options=arguments[3]||null,o=normalizeForecastOptions(options),key=`${Math.floor(Date.now()/3600000)}|${roundedHourLocal(f.city.timezone)}|${metric}|${horizon}|${forecastOptionsSignature(o)}`,c=viewCache(f);if(!c.bands.has(key))c.bands.set(key,hourlyConfidenceBand(f,metric,horizon,new Date(),o));return c.bands.get(key);}
-function cachedHeatmap(f,hours){const options=arguments[2]||null,o=normalizeForecastOptions(options),c=viewCache(f),key=`${roundedHourLocal(f.city.timezone)}|${hours}|${forecastOptionsSignature(o)}`;if(!c.heat.has(key))c.heat.set(key,homeHeatmap(f,hours,o));return c.heat.get(key);}
 function cachedEvolution(f,snapshots){const c=viewCache(f);if(!lazyFeatures.evolution){void loadFeature('evolution').then(()=>{if(state.route.name==='city'&&state.forecasts[state.route.id]===f)rerenderCitySectionOrPage('evolution');});return c.evolutionReport||{days:[]};}if(c.evolutionSource!==snapshots){c.evolutionSource=snapshots;c.evolutionReport=lazyFeatures.evolution.buildEvolution(f,snapshots);}return c.evolutionReport||{days:[]};}
 function cachedBiases(f,biasSource,today){const c=viewCache(f);if(!lazyFeatures.bias){void loadFeature('bias').then(()=>{if((state.route.name==='city'||state.route.name==='bias')&&state.forecasts[state.route.id]===f)render();});return c.biasReport||{};}if(c.biasSource!==biasSource||c.biasToday!==today){c.biasSource=biasSource;c.biasToday=today;c.biasReport=lazyFeatures.bias.computeBiases(biasSource,today);}return c.biasReport||{};}
 
@@ -838,35 +837,6 @@ function renderCityCard(city){
   return `<article class="home-city-card" role="link" tabindex="0" data-city-open="${attr(city.id)}" style="--weather-accent:${info.accent}"><div class="home-city-accent"></div><div class="home-city-head"><div><h2>${marineTitleMarkup(city)}</h2><p>${esc(placeLine(city))}</p></div><button class="icon-btn home-city-menu-button" data-city-menu="${attr(city.id)}" aria-label="${esc(t('options'))}"${marineAvailable?` title="${attr(t('marineTitle'))}"`:''}>⋮${marineAvailable?'<span class="home-city-marine-available-dot" aria-hidden="true"></span>':''}</button></div><div class="home-weather-primary"><div class="home-weather-icon">${aggregateConditionMarkup(now.condition?now:day,'normal',true)}</div><div class="home-weather-value"><strong>${Number.isFinite(now.temperature)?`${fmt(now.temperature,1)}°`:'—'}</strong><span>${esc(info.label)}</span></div><div class="home-weather-coherence ${Number.isFinite(conf)?confidenceClass(conf):'neutral'}" title="${attr(homeAgreementText(conf,familyCount))}"><span>${esc(t('homeCoherenceLabel'))}</span><strong>${Number.isFinite(conf)?`${Math.round(conf)}%`:'—'}</strong><small>${esc(homeCoherenceText(conf,familyCount))}</small></div></div><div class="home-weather-facts"><div><span>${esc(t('tempMinMax'))}</span><strong>${Number.isFinite(minT)&&Number.isFinite(maxT)?`${fmt(minT)}° / ${fmt(maxT)}°`:'—'}</strong></div><div><span>${esc(t('precipitation'))}</span><strong>${Number.isFinite(precipProb)?`${Math.round(precipProb)} %`:'—'}</strong><small>${isWetPrecipitation(precipAmount)?`${fmt(precipAmount,1)} mm ${esc(t('homeIfRainShort'))}`:esc(t('homeDryOrLowRain'))}</small></div><div><span>${esc(t('cloudCoverage'))}</span><strong>${Number.isFinite(day.cloud)?`${Math.round(day.cloud)} %`:'—'}</strong><small>${Number.isFinite(day.cloudRange?.[0])&&Number.isFinite(day.cloudRange?.[1])?`${Math.round(day.cloudRange[0])}–${Math.round(day.cloudRange[1])} %`:esc(t('weightedMedianCentral'))}</small></div><div><span>${esc(t('wind'))}</span><strong>${Number.isFinite(wind)?`${fmt(wind)} km/h`:'—'}</strong><small>${Number.isFinite(day.gust)?`${esc(t('gusts'))} ${fmt(day.gust)} km/h`:esc(t('homeNoGustData'))}</small></div></div>${renderHomeMiniTimeline(points)}<div class="home-city-footer"><span>${modelCountLabel(modelCount)}</span><span class="cache-inline ${health.class}">${esc(health.label)} · ${esc(formatExactAge(f.fetchedAt))}${loading?' · ⟳':''}</span></div>${err?`<div class="banner error home-city-error">${esc(err)}</div>`:''}</article>`;
 }
 
-function renderHeatmap(heat){
-  const {t}=i18n(),temps=heat.map(x=>x.temp).filter(Number.isFinite),lo=temps.length?Math.min(...temps):0,hi=temps.length?Math.max(...temps):1,span=Math.max(.1,hi-lo);
-  return `<div class="heatmap-strip" aria-label="${esc(t('tempForecast12Aria'))}">${heat.map(x=>{const n=Number.isFinite(x.temp)?(x.temp-lo)/span:.5,hue=Math.round(210-(210*n)),bg=`hsl(${hue} 65% ${document.documentElement.dataset.theme==='dark'?30:80}%)`;return `<div class="heat-cell" style="background:${bg}" title="${attr(timeLabel(x.timestamp))} · ${Number.isFinite(x.temp)?fmt(x.temp,1)+'°C':'—'}${Number.isFinite(x.precipProbability)?' · '+t('rainProbabilityShort',{value:x.precipProbability}):''}"><span class="heat-temp">${Number.isFinite(x.temp)?Math.round(x.temp)+'°':''}</span>${x.precipProbability>=30?'<span class="rain-dot"></span>':''}</div>`;}).join('')}</div>`;
-}
-
-
-function niceStep(raw){
-  if(!Number.isFinite(raw)||raw<=0)return 1;
-  const power=Math.pow(10,Math.floor(Math.log10(raw))),fraction=raw/power;
-  const nice=fraction<=1?1:fraction<=2?2:fraction<=5?5:10;
-  return nice*power;
-}
-function chartScale(values,{includeZero=false,agreement=false,ticks=5,minSpan=.5,padding=.08}={}){
-  const nums=values.filter(Number.isFinite);if(!nums.length)return {min:0,max:1,ticks:[0,1]};
-  if(agreement)return {min:0,max:100,ticks:[0,25,50,75,100]};
-  let rawMin=Math.min(...nums),rawMax=Math.max(...nums);if(includeZero){rawMin=Math.min(0,rawMin);rawMax=Math.max(0,rawMax);}
-  if(rawMax-rawMin<minSpan){const mid=(rawMin+rawMax)/2;rawMin=mid-minSpan/2;rawMax=mid+minSpan/2;}
-  const padded=(rawMax-rawMin)*padding;rawMin-=padded;rawMax+=padded;
-  const step=niceStep((rawMax-rawMin)/Math.max(2,ticks-1));let min=Math.floor(rawMin/step)*step,max=Math.ceil(rawMax/step)*step;
-  if(includeZero){min=Math.min(0,min);max=Math.max(0,max);}const out=[];for(let v=min,guard=0;v<=max+step*.25&&guard<12;v+=step,guard++)out.push(Math.abs(v)<step/1000?0:v);
-  return {min,max,ticks:out};
-}
-function chartTickIndices(length,maxTicks=7){
-  if(length<=1)return [0];const step=Math.max(1,Math.ceil((length-1)/(maxTicks-1))),out=[];for(let i=0;i<length;i+=step)out.push(i);if(out[out.length-1]!==length-1)out.push(length-1);return out;
-}
-function chartMetricUnit(metric){return metric==='TEMPERATURE'?'°C':metric==='PRECIPITATION'?'mm':metric==='AGREEMENT'?'%':'km/h';}
-function chartMetricDigits(metric){return metric==='PRECIPITATION'?1:0;}
-function chartPointTitle(label,key,value,unit){return `${label} · ${key} · ${fmt(value,unit==='mm'?1:0)} ${unit}`;}
-function svgLinePath(points){let drawing=false;return (points||[]).map(p=>{if(!p){drawing=false;return '';}const cmd=drawing?'L':'M';drawing=true;return `${cmd} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`;}).filter(Boolean).join(' ');}
 
 function comparisonRenderContext(){const {t,locale}=i18n(),comparisonAggregateDay=(f,date)=>{const cityId=f?.city?.id,context=cityId?forecastEngineContext(cityId):{forecastEngine:state.settings.forecastEngine||'MULTI_CONSENSUS',weightsByVariable:{},calibrationByVariable:{}};return cachedAggregateDay(f,date,context);};return {t,locale,state,esc,attr,fmt,dateLabel,timeLabel,cachedAggregateDay:comparisonAggregateDay,visibleModelIds,selectedModelIds:state.compareModelIds,targetCompareOpen:state.route.name==='city'?state.comparePanelOpen[state.route.id]:undefined};}
 function renderCityComparisonLazy(route){return lazyFeatures.comparison?.renderCityComparison(route,comparisonRenderContext())||renderFeatureLoadingPage('comparison');}
@@ -939,9 +909,6 @@ function renderCityDetail(cityId){
 }
 
 
-function diagnosticStatusLabel(status){const {t}=i18n();return t({OK:'diagOk',RECOVERED:'diagRecovered',PARTIAL:'diagPartial',VARIABLE_MISSING:'diagVariableMissing',OUT_OF_DOMAIN_OR_UNAVAILABLE:'diagOutOfDomain',UNAVAILABLE:'diagUnavailable',DISABLED:'diagDisabled'}[status]||'diagUnavailable');}
-function diagnosticStatusClass(status){return status==='OK'?'high':status==='RECOVERED'?'medium':['PARTIAL','VARIABLE_MISSING'].includes(status)?'low':status==='DISABLED'?'muted':'low';}
-function diagnosticCoverageCell(v){const {t}=i18n();if(!v?.count)return `<span class="diag-empty">—</span>`;return `<strong>${v.count}</strong><small>${esc(v.lastTimestamp?`${t('until')} ${v.lastTimestamp.slice(5,16).replace('T',' ')}`:'—')}</small>`;}
 function healthStatusClass(status){return ['OK','RECOVERED'].includes(status)?'high':status==='DELAYED'?'medium':['MISSED_RUNS','DEGRADED'].includes(status)?'low':'muted';}
 function healthStatusLabel(status){const {t}=i18n();return t({OK:'healthOk',RECOVERED:'healthRecovered',DELAYED:'healthDelayed',MISSED_RUNS:'healthMissedRuns',DEGRADED:'healthDegraded',OUT_OF_DOMAIN:'healthOutOfDomain',METADATA_UNAVAILABLE:'healthMetadataUnavailable',DISABLED:'diagDisabled'}[status]||'healthUnknown');}
 function coverageCompact(v){const {t}=i18n();if(!v?.count)return '—';const last=v.lastTimestamp?`${t('until')} ${timeLabel(v.lastTimestamp)} ${dateLabel(v.lastTimestamp.slice(0,10),i18n().locale)}`:'';return `<strong>${v.count}</strong><small>${esc(last)}</small>`;}

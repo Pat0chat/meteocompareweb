@@ -17,7 +17,7 @@ assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
 const homeStart=app.indexOf('function renderHome()');
-const homeEnd=app.indexOf('function renderHeatmap(',homeStart);
+const homeEnd=app.indexOf('function comparisonRenderContext(',homeStart);
 const home=app.slice(homeStart,homeEnd);
 assert.ok(homeStart>=0&&homeEnd>homeStart);
 assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail|home-model-dot/);

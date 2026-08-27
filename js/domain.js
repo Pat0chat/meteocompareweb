@@ -484,11 +484,6 @@ export function activeTodayHourlyPoints(points,timezone,now=new Date(),slotDurat
   });
 }
 
-export function homeHeatmap(forecast,hours=12,options={}){
-  const timezone=forecast.city?.timezone||forecast.timezone||'UTC',anchor=roundedHourEpoch(timezone),result=[],series=Object.entries(forecast.seriesByModel||{}).map(([modelId,s])=>({modelId,s,axis:hourlyAxis(s,timezone)})),weights=options?.weightsByVariable||{};
-  for(let off=0;off<hours;off++){const epochMs=anchor+off*3600000,target=localHourFromEpoch(epochMs,timezone),rows=[];for(const {modelId,s,axis} of series){const i=axis.indexByEpoch.get(epochMs);if(i==null)continue;rows.push({modelId,temp:s.hourly.temperature2m[i],precipitation:s.hourly.precipitation[i],probability:s.hourly.precipitationProbability[i]});}const temp=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.temp})),engineConfig(options,'temperature',.5,3,{calibration:{}})),pc=forecastEnginePrecipitation(rows.map(x=>({modelId:x.modelId,amount:x.precipitation,probability:x.probability})),{...engineConfig(options,'precipitation',.5,4,{calibration:{}}),threshold:RAIN_THRESHOLD_MM,amountTight:.5,amountWide:4});result.push({timestamp:target,epochMs,temp:temp.central,precipProbability:pc.probabilityPercent});}return result;
-}
-
 const WET=new Set([CONDITION.DRIZZLE,CONDITION.RAIN,CONDITION.FREEZING_RAIN,CONDITION.SNOW,CONDITION.RAIN_SHOWERS,CONDITION.SNOW_SHOWERS,CONDITION.THUNDERSTORM]);
 export function buildScenarios(forecast,maxScenarios=3){
   const timezone=forecast.city?.timezone||forecast.timezone||'UTC',anchor=roundedHourEpoch(timezone),models=[];

@@ -13,7 +13,7 @@ assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'
 assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 
-const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function diagnosticStatusLabel('));
+const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function healthStatusClass('));
 const weatherIndex=detail.indexOf('detail-refresh-action\" data-refresh-city');
 const marineIndex=detail.indexOf('detail-refresh-action marine-hero-refresh');
 assert.ok(weatherIndex>=0 && marineIndex>weatherIndex,'marine refresh must sit below weather refresh');

@@ -8,7 +8,7 @@ const app=read('js/app.js'),css=read('styles.css');
 const summary=app.slice(app.indexOf('function renderTodaySummary('),app.indexOf('function scenarioLabel('));
 assert.match(summary,/hint:engineHintFor\('precipitation'\)/,'precipitation heading hint must only expose the effective forecast engine');
 assert.doesNotMatch(summary,/rainHint|rainCore/,'precipitation probability and amount must not be duplicated below the heading');
-const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function diagnosticStatusLabel('));
+const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function healthStatusClass('));
 assert.match(detail,/detail-hero-support.*detail-hero-support-meta.*favorite-route-city.*detail-hero-support-context.*renderSeoDetailTitleContext\(city\)/s,'hero support must separate metadata/favorite from the SEO context below');
 const heroTitle=detail.match(/<div class=\"detail-title\">([\s\S]*?)<\/div><\/div><div class=\"detail-hero-actions\"/)?.[1]||'';
 assert.doesNotMatch(heroTitle,/renderSeoDetailTitleContext|hero-meta|favorite-route-city/,'detail-title must stay focused on city identity only');

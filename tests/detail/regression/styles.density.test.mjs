@@ -7,7 +7,7 @@ const read=p=>fs.readFileSync(resolve(root,p),'utf8');
 const app=read('js/app.js'),css=read('styles.css');
 const summary=app.slice(app.indexOf('function summaryDispersionCard('),app.indexOf('function renderGlobalAgreementCard('));
 const modal=app.slice(app.indexOf('function renderForecastEngineComparisonModal('),app.indexOf('function renderModal('));
-const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function diagnosticStatusLabel('));
+const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function healthStatusClass('));
 assert.doesNotMatch(modal,/forecast-engine-reading/,'engine comparison must not repeat the reading banner');
 assert.doesNotMatch(summary,/summary-dispersion-facts[^`]*modelRange/s,'model range must not be repeated as a summary fact');
 assert.match(summary,/const metadata=probabilityMeta\|\|secondaryMeta\?/,'summary metadata must disappear entirely when there is no complementary fact');

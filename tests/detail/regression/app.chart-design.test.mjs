@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
 const comparison=fs.readFileSync(new URL('../../../js/features/comparison.js',import.meta.url),'utf8');
+const chartUtils=fs.readFileSync(new URL('../../../js/ui/chart-utils.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf8');
 const i18n=fs.readFileSync(new URL('../../../js/i18n.js',import.meta.url),'utf8');
 const localeFiles=Object.fromEntries(['fr','en','es','de','it'].map(lang=>[lang,fs.readFileSync(new URL(`../../../js/locales/${lang}.js`,import.meta.url),'utf8')]));
 const sw=fs.readFileSync(new URL('../../../sw.js',import.meta.url),'utf8');
 
-assert.match(app,/function chartScale\(/,'shared nice chart scaling exists');
-assert.match(app,/function chartTickIndices\(/,'shared x tick selection exists');
+assert.match(chartUtils,/export function chartScale\(/,'shared nice chart scaling exists');
+assert.match(chartUtils,/export function chartTickIndices\(/,'shared x tick selection exists');
 assert.match(app,/chart-plot-bg/,'plots use a dedicated plot surface');
 assert.match(comparison,/compare-grid vertical/,'comparison charts expose vertical guides');
 assert.match(comparison,/compare-point/,'comparison charts expose hoverable data points');
@@ -16,7 +17,7 @@ assert.match(comparison,/agreement-zone high/,'city agreement chart exposes conf
 assert.match(app,/bias-error-connector/,'bias chart renders forecast-observation gaps');
 assert.match(app,/chartLastGap/,'bias chart exposes latest error summary');
 assert.match(app,/chartRange/,'charts expose their displayed range');
-assert.match(css,/v15 — analytical chart redesign/,'chart redesign CSS is present');
+assert.match(css,/Analytical chart redesign/,'chart redesign CSS is present');
 assert.match(css,/\.chart-pro-head/,'professional chart header styling exists');
 assert.match(css,/\.chart-point:hover/,'chart points have hover feedback');
 assert.match(css,/\.compare-legend\.rich/,'comparison legends include richer values');

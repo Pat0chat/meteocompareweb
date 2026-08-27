@@ -35,16 +35,3 @@ export const NETWORK_TIMEOUTS_MS = Object.freeze({
   analyticsEvent: 8_000,
 });
 
-export const NETWORK_POLICY = Object.freeze({
-  // Open-Meteo forecast/data APIs stay direct: this avoids centralising high-volume
-  // public API traffic behind the MeteoCompare Worker and preserves provider-side
-  // client distribution/rate limiting.
-  openMeteoTransport: 'browser-direct',
-  // Small metadata and analytics flows are first-party to improve proxy/privacy
-  // compatibility and to keep third-party endpoints out of the browser CSP.
-  modelMetadataTransport: 'first-party-worker',
-  analyticsTransport: 'first-party-worker',
-  // Radar imagery and OSM tiles remain CDN-direct because they are bandwidth-heavy,
-  // user-triggered visual assets. Failures must degrade the radar only, not weather.
-  radarTransport: 'browser-direct-optional',
-});

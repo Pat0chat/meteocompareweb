@@ -76,11 +76,6 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 .condition-icon.is-inferred { padding:.12em; outline:1px dashed color-mix(in srgb,var(--primary) 68%,var(--border-strong)); outline-offset:2px; background:color-mix(in srgb,var(--primary) 7%,var(--surface)); }
 .metric { min-width: 0;   background: var(--surface-2); border: 1px solid color-mix(in srgb, var(--border) 75%, transparent); }
 
-.heatmap-strip { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin: 14px 0 2px; height: 40px; align-items: stretch; }
-.heat-cell {  position: relative; min-width: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.16); }
-.heat-cell .rain-dot { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--rain); }
-.heat-cell .heat-temp { position: absolute; inset: 5px 0 auto; text-align: center; font-size: .7rem; font-weight: 800; }
-
 .pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px;   font-weight: 760; background: var(--surface-2); border: 1px solid var(--border); }
 .confidence.high { color: var(--good); }
 .confidence.medium { color: var(--medium); }
@@ -665,7 +660,6 @@ html[data-theme="dark"] body {
 
 /* Dashboard without pseudo-indexes and terminal framing. */
 .metric { border-radius: 10px; }
-.heat-cell { border-radius: 5px; }
 .pill { border-radius: 999px; font-size: .7rem; }
 
 /* Charts remain technical because of their axes/data, without a graph-paper backdrop. */
@@ -781,7 +775,7 @@ html[data-theme="dark"] .forecast-table thead th:first-child {
 }
 
 /* ========================================================================== */
-/* Visual refinement v8 — modern data product, calmer hierarchy               */
+/* Modern data product — calmer hierarchy                                      */
 /* ========================================================================== */
 :root {
   --bg: #f5f7fa;
@@ -1061,7 +1055,7 @@ body, html[data-theme="dark"] body { background-image: none; }
 .btn-icon.spinning svg { animation: meteo-spin .8s linear infinite; }
 @keyframes meteo-spin { to { transform: rotate(360deg); } }
 
-/* v9 — action hierarchy, agreement envelope and model-header polish */
+/* Action hierarchy, agreement envelope and model-header polish */
 /* The min/max inter-model envelope itself carries confidence, not only the strip below it. */
 .chart-band-segment { stroke: none; pointer-events: auto; }
 .chart-band-segment.high { fill: var(--good);  }
@@ -1089,7 +1083,7 @@ body, html[data-theme="dark"] body { background-image: none; }
 .table-bias-chip.pending small { font-size: .7rem; color: currentColor; opacity: .78; }
 .forecast-table thead th { vertical-align: top; }
 
-/* v12 — bias history refresh policy */
+/* Bias history refresh policy */
 .settings-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .settings-section-head h2 { margin: 0 0 6px; }
 .settings-section-head p { margin: 0; max-width: 820px; color: var(--muted); font-size: .84rem; line-height: 1.55; }
@@ -1236,7 +1230,7 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
   .detail-workspace section[id] { scroll-margin-top: calc(var(--topbar-height) + 14px) !important; }
 }
 
-/* v15 — analytical chart redesign */
+/* Analytical chart redesign */
 :root {
   --chart-grid: color-mix(in srgb, var(--border) 66%, transparent);
   --chart-grid-strong: color-mix(in srgb, var(--border-strong) 78%, transparent);
@@ -1348,7 +1342,7 @@ html[data-theme="dark"] {
   .compare-legend.rich span { flex: 1 1 calc(50% - 8px); }
 }
 
-/* v16 — About, PWA install, support, and explicit comparison legends */
+/* About, PWA install, support, and explicit comparison legends */
 .topbar .android-nav { color: color-mix(in srgb, #34a853 68%, var(--muted)); text-decoration: none; }
 .topbar .android-nav:hover { color: #25883f; background: color-mix(in srgb, #34a853 9%, var(--surface-2)); }
 .topbar .support-nav { color: color-mix(in srgb, var(--primary) 78%, var(--muted)); }
@@ -1502,7 +1496,7 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
   .chart-hover-marker { stroke-width: 2.8; }
 }
 
-/* v18 — Evolution and local reliability: dense analytical layouts. */
+/* Evolution and local reliability: dense analytical layouts. */
 .evolution-panel { overflow: hidden; }
 .evolution-toolbar, .reliability-toolbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 2px 0 14px; }
 .evolution-toolbar > .small, .reliability-toolbar > .small { max-width: 52ch; text-align:right; }
@@ -1623,7 +1617,7 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 @media (max-width:900px){ .storage-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } .storage-technical-grid,.privacy-grid { grid-template-columns:1fr 1fr; } }
 @media (max-width:620px){ .storage-kpis,.storage-category-grid,.storage-technical-grid,.privacy-grid { grid-template-columns:1fr; } .privacy-danger { align-items:flex-start; flex-direction:column; } .storage-measured-note { text-align:left; } }
 
-/* v21 — performance audit + interactive hourly agreement inspection. */
+/* Performance and interactive hourly agreement inspection. */
 .agreement-band-hover .chart-hover-marker.mean { --series: var(--primary); }
 .agreement-band-hover .chart-hover-marker.range-min,
 .agreement-band-hover .chart-hover-marker.range-max { --series: color-mix(in srgb, var(--text) 62%, transparent); fill: var(--surface); }
@@ -2107,7 +2101,7 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 
 /* Small status/metadata text keeps a readable floor across all modules. */
 :where(
-  .heat-cell .heat-temp,.section-eyebrow,.timeline-ruler-slot span,.timeline-condition,.divergence-list span,
+  .section-eyebrow,.timeline-ruler-slot span,.timeline-condition,.divergence-list span,
   .heatmap-scale small,.condition-label,.tile-hint,
   .agreement-level-legend span,.agreement-strip-labels,.reliability-column-title>span,.summary-context-chips span,
   .table-bias-chip.pending small,.model-run,.model-data-warning,.compare-model-chip small,.target-compare-title span,

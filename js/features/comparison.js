@@ -1,27 +1,7 @@
 import { cityToday, roundedHourLocal, zonedLocalTimestampEpoch, zonedTimestampEpochs, dailyMetricIsComparable } from '../domain.js';
 import { getModel } from '../models.js';
+import { chartScale, chartTickIndices, chartMetricUnit, chartMetricDigits, svgLinePath } from '../ui/chart-utils.js';
 
-function niceStep(raw){
-  if(!Number.isFinite(raw)||raw<=0)return 1;
-  const power=Math.pow(10,Math.floor(Math.log10(raw))),fraction=raw/power;
-  const nice=fraction<=1?1:fraction<=2?2:fraction<=5?5:10;
-  return nice*power;
-}
-function chartScale(values,{includeZero=false,agreement=false,ticks=5,minSpan=.5,padding=.08}={}){
-  const nums=values.filter(Number.isFinite);if(!nums.length)return {min:0,max:1,ticks:[0,1]};
-  if(agreement)return {min:0,max:100,ticks:[0,25,50,75,100]};
-  let rawMin=Math.min(...nums),rawMax=Math.max(...nums);if(includeZero){rawMin=Math.min(0,rawMin);rawMax=Math.max(0,rawMax);}
-  if(rawMax-rawMin<minSpan){const mid=(rawMin+rawMax)/2;rawMin=mid-minSpan/2;rawMax=mid+minSpan/2;}
-  const padded=(rawMax-rawMin)*padding;rawMin-=padded;rawMax+=padded;
-  const step=niceStep((rawMax-rawMin)/Math.max(2,ticks-1));let min=Math.floor(rawMin/step)*step,max=Math.ceil(rawMax/step)*step;
-  if(includeZero){min=Math.min(0,min);max=Math.max(0,max);}const out=[];for(let v=min,guard=0;v<=max+step*.25&&guard<12;v+=step,guard++)out.push(Math.abs(v)<step/1000?0:v);
-  return {min,max,ticks:out};
-}
-function chartTickIndices(length,maxTicks=7){if(length<=1)return [0];const step=Math.max(1,Math.ceil((length-1)/(maxTicks-1))),out=[];for(let i=0;i<length;i+=step)out.push(i);if(out[out.length-1]!==length-1)out.push(length-1);return out;}
-function chartMetricUnit(metric){return metric==='TEMPERATURE'?'°C':metric==='PRECIPITATION'?'mm':metric==='AGREEMENT'?'%':'km/h';}
-function chartMetricDigits(metric){return metric==='PRECIPITATION'?1:0;}
-function svgLinePath(points){let drawing=false;return (points||[]).map(p=>{if(!p){drawing=false;return '';}const cmd=drawing?'L':'M';drawing=true;return `${cmd} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`;}).filter(Boolean).join(' ');}
-function medianValue(values){const v=values.filter(Number.isFinite).sort((a,b)=>a-b);if(!v.length)return null;const m=Math.floor(v.length/2);return v.length%2?v[m]:(v[m-1]+v[m])/2;}
 function metricForTab(tab){return tab==='PRECIPITATION'?'PRECIPITATION':tab==='WIND'?'WIND':'TEMPERATURE';}
 
 function cityComparisonMetricValue(f,date,metric,ctx){const a=ctx.cachedAggregateDay(f,date);return metric==='TEMPERATURE'?a.tempMax:metric==='PRECIPITATION'?a.precip:metric==='WIND'?a.wind:a.confidence?.convergencePercent??a.confidence?.overallPercent;}

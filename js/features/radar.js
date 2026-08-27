@@ -16,7 +16,6 @@ const ANALYSIS_SIZE=512;
 export const RADAR_ANALYSIS_ZOOM=7;
 const ANALYSIS_MIN_CELL_PIXELS=180;
 export const RADAR_PROJECTION_HORIZONS=Object.freeze([15,30,45,60]);
-const NOWCAST_HORIZONS=RADAR_PROJECTION_HORIZONS;
 export const RADAR_CELL_COLORS=Object.freeze(['#0ea5e9','#8b5cf6','#f97316','#10b981','#e11d48','#eab308','#14b8a6','#6366f1']);
 let metaCache=null;
 let metaCacheAt=0;
