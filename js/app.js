@@ -147,7 +147,7 @@ function init() {
     navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(err => console.warn('Service worker:', err));
   }
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(state.route.name==='about')render();else refreshInstallNav();});
-  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;void trackAnalyticsEvent('PWA Installed',state.route);toast(i18n().t('pwaInstallSuccess'));if(state.route.name==='about')render();else refreshInstallNav();});
+  window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;void trackAnalyticsEvent('PWA Installed',state.route);toast(i18n().t('pwaInstallSuccess'),{type:'success',title:i18n().t('installNav')});if(state.route.name==='about')render();else refreshInstallNav();});
   app.addEventListener('click', handleAppClick);
   app.addEventListener('input', handleAppInput);
   app.addEventListener('toggle', handleDetailsToggle, true);
@@ -163,8 +163,8 @@ function init() {
   }else{
     window.addEventListener('hashchange',()=>{state.route=parseRoute();applyRouteViewState(state.route);state.modal=null;cancelCitySearch();const saved=routeScrollPositions.get(routeKey(state.route));render({scroll:{type:'absolute',y:state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0)}});void trackPageView(state.route);onRouteSettled();});
   }
-  window.addEventListener('online',()=>{state.online=true;render();refreshDueCities();});
-  window.addEventListener('offline',()=>{state.online=false;render();});
+  window.addEventListener('online',()=>{state.online=true;render();toast(i18n().t('connectionRestored'),{id:'network-status',type:'success',title:i18n().t('connectionStatus')});refreshDueCities();});
+  window.addEventListener('offline',()=>{state.online=false;render();toast(i18n().t('connectionLost'),{id:'network-status',type:'warning',title:i18n().t('connectionStatus'),duration:6500});});
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
   render({scroll:{type:'absolute',y:0}});
   void trackPageView(state.route);
@@ -450,7 +450,22 @@ function modelRunInfo(f,modelId,tab='CONDITIONS'){
   return {known:runAge!=null,older,label:runAge!=null?`${t('runAge',{age:formatExactAge(meta.runTimestamp)})} · ${coverage}`:coverage,coverage,lastTimestamp};
 }
 function currentCityForecast(){return state.route.name==='city'?state.forecasts[state.route.id]:state.route.name==='bias'?state.forecasts[state.route.id]:null;}
-function toast(message){const root=document.querySelector('#toast-root');if(!root)return;const el=document.createElement('div');el.className='toast';el.textContent=message;root.appendChild(el);setTimeout(()=>el.remove(),3500);}
+const toastTimers=new Map();let toastSequence=0;
+function dismissToast(id){const root=document.querySelector?.('#toast-root');if(!root)return;const key=String(id||'');const el=[...(root.children||[])].find(node=>node?.dataset?.toastId===key);if(el){el.classList?.add?.('toast-out');setTimeout(()=>el.remove?.(),160);}const timer=toastTimers.get(key);if(timer){clearTimeout(timer);toastTimers.delete(key);}}
+function toast(message,options={}){
+  const root=document.querySelector?.('#toast-root');if(!root)return null;if(typeof options==='string')options={type:options};
+  const id=String(options.id||`toast-${++toastSequence}`),type=['success','warning','error','loading','info'].includes(options.type)?options.type:'info',loading=type==='loading'||options.loading===true,title=String(options.title||''),text=String(message??''),duration=loading?0:Math.max(0,Number(options.duration??(type==='error'?6500:type==='warning'?5200:4000)));
+  let el=[...(root.children||[])].find(node=>node?.dataset?.toastId===id);const created=!el;if(!el){el=document.createElement('div');if(el.dataset)el.dataset.toastId=id;root.appendChild?.(el);}const previous=toastTimers.get(id);if(previous)clearTimeout(previous);toastTimers.delete(id);
+  el.className=`toast toast-${type}${loading?' is-loading':''}${created?'':' toast-updated'}`;el.setAttribute?.('role',type==='error'?'alert':'status');el.setAttribute?.('aria-atomic','true');
+  if(typeof el.replaceChildren==='function'&&typeof document.createElement==='function'){
+    const icon=document.createElement('span');icon.className='toast-icon';icon.setAttribute?.('aria-hidden','true');
+    const copy=document.createElement('span');copy.className='toast-copy';if(title){const heading=document.createElement('strong');heading.className='toast-title';heading.textContent=title;copy.appendChild?.(heading);}const body=document.createElement('span');body.className='toast-message';body.textContent=text;copy.appendChild?.(body);
+    const close=document.createElement('button');close.className='toast-close';close.type='button';close.setAttribute?.('aria-label',i18n().t('close'));close.textContent='×';close.addEventListener?.('click',()=>dismissToast(id));
+    el.replaceChildren(icon,copy,close);
+  }else el.textContent=title?`${title} — ${text}`:text;
+  while((root.children?.length||0)>4){const first=root.children?.[0];if(first===el)break;const oldId=first?.dataset?.toastId;if(oldId&&toastTimers.get(oldId))clearTimeout(toastTimers.get(oldId));toastTimers.delete(oldId);first?.remove?.();}
+  if(duration>0){const timer=setTimeout(()=>{toastTimers.delete(id);dismissToast(id);},duration);toastTimers.set(id,timer);}return id;
+}
 
 function errorDescriptorMessage(item){
   const {t}=i18n();if(!item)return '';
@@ -864,12 +879,12 @@ async function refreshMarineData(cityId,force=false,activate=false,silent=false)
   try{
     const data=await marine.fetchMarineForCity(city),available=data.coastal===true;
     if(city.marineAvailable!==available||!Number.isFinite(Number(city.marineCapabilityCheckedAt))){city.marineAvailable=available;city.marineCapabilityCheckedAt=Date.now();persistFavoriteCities();}
-    if(!available){if(activate)toast(t('marineNotCoastal'));if(state.route.name==='home')render();return;}
+    if(!available){if(activate)toast(t('marineNotCoastal'),{type:'warning',title:t('marineTitle')});if(state.route.name==='home')render();return;}
     state.marine[cityId]=data;analysisStore.mark('marine',cityId);saveMarine(cityId,data);
-    if(activate&&!city.marineEnabled){city.marineEnabled=true;city.marineAvailable=true;persistFavoriteCities();toast(t('marineEnabled'));}
+    if(activate&&!city.marineEnabled){city.marineEnabled=true;city.marineAvailable=true;persistFavoriteCities();toast(t('marineEnabled'),{type:'success',title:t('marineTitle')});}
     if((state.route.name==='city'&&state.route.id===cityId)||state.route.name==='home')render();
   }
-  catch(err){if(!silent)toast(humanError(err));}
+  catch(err){if(!silent)toast(humanError(err),{type:'error'});}
   finally{state.marineLoading.delete(cityId);if(state.route.name==='city'&&state.route.id===cityId)rerenderCitySectionOrPage('marine');}
 }
 
@@ -890,12 +905,12 @@ function diagnosticCoverageCell(v){const {t}=i18n();if(!v?.count)return `<span c
 function healthStatusClass(status){return ['OK','RECOVERED'].includes(status)?'high':status==='DELAYED'?'medium':['MISSED_RUNS','DEGRADED'].includes(status)?'low':'muted';}
 function healthStatusLabel(status){const {t}=i18n();return t({OK:'healthOk',RECOVERED:'healthRecovered',DELAYED:'healthDelayed',MISSED_RUNS:'healthMissedRuns',DEGRADED:'healthDegraded',OUT_OF_DOMAIN:'healthOutOfDomain',METADATA_UNAVAILABLE:'healthMetadataUnavailable',DISABLED:'diagDisabled'}[status]||'healthUnknown');}
 function coverageCompact(v){const {t}=i18n();if(!v?.count)return '—';const last=v.lastTimestamp?`${t('until')} ${timeLabel(v.lastTimestamp)} ${dateLabel(v.lastTimestamp.slice(0,10),i18n().locale)}`:'';return `<strong>${v.count}</strong><small>${esc(last)}</small>`;}
-async function refreshModelHealthData(cityId,force=false){
+async function refreshModelHealthData(cityId,force=false,notify=false){
   const city=state.cities.find(c=>c.id===cityId),f=state.forecasts[cityId];if(!city||!f||state.modelHealthLoading.has(cityId)||!state.online)return;
-  const existing=state.modelHealth[cityId];if(!force&&existing&&Date.now()-existing.generatedAt<15*60_000)return;
+  const existing=state.modelHealth[cityId];if(!force&&existing&&Date.now()-existing.generatedAt<15*60_000)return;const toastId=notify?toast(i18n().t('healthRefreshStarted'),{id:`health-refresh-${cityId}`,type:'loading',title:i18n().t('modelHealthMonitor')}):null;
   state.modelHealthLoading.add(cityId);if(state.route.name==='city'&&state.route.id===cityId)rerenderCitySectionOrPage('diagnostics');
-  try{const health=await loadFeature('health'),metadata=await health.fetchModelRunMetadata(WEATHER_MODELS),history=ensureHealthLoaded(cityId),report=health.buildModelHealthReport(f,WEATHER_MODELS,state.settings.enabledModelIds,metadata,history,Date.now()),nextHistory=health.appendHealthSnapshot(history,report);state.modelHealth[cityId]=report;state.modelHealthHistory[cityId]=nextHistory;saveModelHealth(cityId,nextHistory);}
-  catch(err){console.warn('Model health:',err);toast(humanError(err));}
+  try{const health=await loadFeature('health'),metadata=await health.fetchModelRunMetadata(WEATHER_MODELS),history=ensureHealthLoaded(cityId),report=health.buildModelHealthReport(f,WEATHER_MODELS,state.settings.enabledModelIds,metadata,history,Date.now()),nextHistory=health.appendHealthSnapshot(history,report);state.modelHealth[cityId]=report;state.modelHealthHistory[cityId]=nextHistory;saveModelHealth(cityId,nextHistory);if(notify)toast(i18n().t('healthRefreshComplete'),{id:toastId||`health-refresh-${cityId}`,type:'success',title:i18n().t('modelHealthMonitor')});}
+  catch(err){console.warn('Model health:',err);toast(humanError(err),{id:toastId||`health-refresh-${cityId}`,type:'error',title:i18n().t('modelHealthMonitor')});}
   finally{state.modelHealthLoading.delete(cityId);if(state.route.name==='city'&&state.route.id===cityId)rerenderCitySectionOrPage('diagnostics');}
 }
 function renderDataDiagnosticsSection(city,f){
@@ -1134,7 +1149,7 @@ function renderTargetedModelComparison(f,tab,mode){
 
 function csvCell(v){const text=v==null?'':String(v);return /[";,\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;}
 function downloadText(filename,text,type){
-  try{const blob=new Blob([text],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(i18n().t('exportPrepared',{file:filename}));}catch(err){toast(i18n().t('exportImpossible',{error:humanError(err)}));}
+  try{const blob=new Blob([text],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(i18n().t('exportPrepared',{file:filename}),{type:'success',title:i18n().t('export')});}catch(err){toast(i18n().t('exportImpossible',{error:humanError(err)}),{type:'error',title:i18n().t('export')});}
 }
 function buildExportRows(cityId){
   const f=state.forecasts[cityId];if(!f)return [];
@@ -1152,7 +1167,7 @@ function buildExportRows(cityId){
   return rows;
 }
 function exportCityData(cityId,format){
-  const city=state.cities.find(c=>c.id===cityId),f=state.forecasts[cityId];if(!city||!f){toast(i18n().t('nothingToExport'));return;}void trackAnalyticsEvent('Data Exported',state.route,{format});const rows=buildExportRows(cityId),stamp=new Date().toISOString().slice(0,10),base=`meteocompare-${city.name.toLowerCase().replace(/[^a-z0-9]+/gi,'-')}-${stamp}`;
+  const city=state.cities.find(c=>c.id===cityId),f=state.forecasts[cityId];if(!city||!f){toast(i18n().t('nothingToExport'),{type:'warning',title:i18n().t('export')});return;}void trackAnalyticsEvent('Data Exported',state.route,{format});const rows=buildExportRows(cityId),stamp=new Date().toISOString().slice(0,10),base=`meteocompare-${city.name.toLowerCase().replace(/[^a-z0-9]+/gi,'-')}-${stamp}`;
   if(format==='json'){const payload={exportedAt:new Date().toISOString(),city,view:{mode:state.settings.detailViewMode,tab:state.settings.detailTab,metric:state.settings.confidenceMetric,horizon:state.settings.chartHorizon,compareModels:state.compareModelIds},forecast:f,agreement:{temperature:cachedBand(f,'TEMPERATURE',168),precipitation:cachedBand(f,'PRECIPITATION',168),wind:cachedBand(f,'WIND',168)},bias:state.bias[cityId],rows};downloadText(`${base}.json`,JSON.stringify(payload,null,2),'application/json;charset=utf-8');return;}
   const keys=[...new Set(rows.flatMap(r=>Object.keys(r)))],csv=[keys.map(csvCell).join(';'),...rows.map(r=>keys.map(k=>csvCell(r[k])).join(';'))].join('\n');downloadText(`${base}.csv`,csv,'text/csv;charset=utf-8');
 }
@@ -1292,8 +1307,8 @@ function renderBiasDetailPage(route){
 
 function renderBiasHistoryManagementRow(city){
   ensureBiasLoaded(city.id);
-  const {t}=i18n(),history=state.bias[city.id]||{},busy=state.biasRefresh.has(city.id),updated=history.updatedAt?relativeAge(new Date(history.updatedAt).toISOString(),i18n().locale):t('never'),plan=biasRefreshPlan(city.id),forecastCount=Array.isArray(history.forecasts)?history.forecasts.length:0,observationCount=Array.isArray(history.observations)?history.observations.length:0,status=forecastCount||observationCount?t('localHistoryCounts',{forecasts:forecastCount,observations:observationCount}):t('noLocalHistory'),complete=!plan.missingDays.length,planText=complete?t('historyComplete30'):t('missingDaysCalls',{days:plan.missingDays.length,calls:plan.requestCount})+` · ${modelCountLabel(plan.models.length)}`;
-  return `<div class="history-refresh-row"><div class="history-refresh-copy"><strong>${esc(city.name)}</strong><span>${esc(t('lastUpdate',{date:updated}))} · ${esc(status)}</span><span class="history-plan ${complete?'complete':''}">${esc(planText)}</span></div><button class="btn tonal history-refresh-action" data-bias-refresh-city="${attr(city.id)}" ${busy||complete?'disabled':''}>${esc(t(busy?'updating':complete?'upToDate':'complete'))}</button></div>`;
+  const {t}=i18n(),history=state.bias[city.id]||{},busy=state.biasRefresh.has(city.id),updated=history.updatedAt?relativeAge(new Date(history.updatedAt).toISOString(),i18n().locale):t('never'),plan=biasRefreshPlan(city.id),forecastCount=Array.isArray(history.forecasts)?history.forecasts.length:0,observationCount=Array.isArray(history.observations)?history.observations.length:0,status=forecastCount||observationCount?t('localHistoryCounts',{forecasts:forecastCount,observations:observationCount}):t('noLocalHistory'),complete=!plan.missingDays.length,attempted=biasRefreshReportMatchesPlan(history.lastRefreshReport,plan),fullDays=Math.max(0,plan.totalDays-plan.missingDays.length),planText=complete?t('historyComplete30'):attempted?t('historyPartialCoverage',{complete:fullDays,total:plan.totalDays,remaining:plan.missingDays.length}):t('historyPendingCoverage',{days:plan.missingDays.length,calls:plan.requestCount,models:modelCountLabel(plan.models.length)}),gapText=!complete&&attempted?biasRemainingGapText(plan):'',actionKey=busy?'updating':complete?'upToDate':attempted?'retryUnavailable':'complete';
+  return `<div class="history-refresh-row"><div class="history-refresh-copy"><strong>${esc(city.name)}</strong><span>${esc(t('lastUpdate',{date:updated}))} · ${esc(status)}</span><span class="history-plan ${complete?'complete':attempted?'partial':''}">${esc(planText)}</span>${attempted&&!complete?`<div class="history-refresh-result"><span class="history-refresh-result-icon" aria-hidden="true">i</span><div><strong>${esc(t('historyRequestSucceeded'))}</strong><span>${esc(t('historyArchiveGapExplanation'))}</span>${gapText?`<small>${esc(t('historyUnavailableDetails',{details:gapText}))}</small>`:''}</div></div>`:''}</div><button class="btn tonal history-refresh-action" data-bias-refresh-city="${attr(city.id)}" ${busy||complete?'disabled':''}>${esc(t(actionKey))}</button></div>`;
 }
 
 function formatBytes(bytes){
@@ -1306,15 +1321,15 @@ function localDataCategoryCard(icon,title,description,bytes,entries,itemsLabel='
   const {t}=i18n();return `<article class="storage-category-card"><div class="storage-category-icon" aria-hidden="true">${icon}</div><div class="storage-category-main"><div class="storage-category-head"><h3>${esc(title)}</h3><strong>${esc(formatBytes(bytes))}</strong></div><p>${esc(description)}</p><div class="storage-category-meta"><span>${esc(t('storageRecords',{count:entries||0}))}</span>${itemsLabel?`<span>${esc(itemsLabel)}</span>`:''}</div></div></article>`;
 }
 async function refreshLocalDataStats(scrollDirective=null){
-  if(state.localDataLoading)return;const directive=scrollDirective||captureScrollContext();state.localDataLoading=true;state.localDataError=null;if(state.route.name==='data')render({scroll:directive,immediate:true});
-  try{await pwaPostClearCleanup;state.localDataStats=await inspectLocalData(state.cities);}catch(err){state.localDataError=err?.message||String(err);}
+  const notify=scrollDirective!==null;if(state.localDataLoading)return;const directive=scrollDirective||captureScrollContext(),toastId=notify?toast(i18n().t('storageRecalculating'),{id:'local-data-refresh',type:'loading',title:i18n().t('localDataTitle')}):null;state.localDataLoading=true;state.localDataError=null;if(state.route.name==='data')render({scroll:directive,immediate:true});
+  try{await pwaPostClearCleanup;state.localDataStats=await inspectLocalData(state.cities);if(notify)toast(i18n().t('storageRecalculated'),{id:toastId||'local-data-refresh',type:'success',title:i18n().t('localDataTitle')});}catch(err){state.localDataError=err?.message||String(err);if(notify)toast(i18n().t('storageError',{error:state.localDataError}),{id:toastId||'local-data-refresh',type:'error',title:i18n().t('localDataTitle')});}
   finally{state.localDataLoading=false;if(state.route.name==='data')render({scroll:directive,immediate:true});}
 }
 
 async function runIntegrityCheck(repair=false,scrollDirective=null){
-  if(state.integrityLoading)return;const directive=scrollDirective||captureScrollContext();state.integrityLoading=true;if(state.route.name==='data')render({scroll:directive,immediate:true});
-  try{state.integrityReport=await verifyLocalDataIntegrity(state.cities,{repair});if(repair){clearStorageIssues();state.errorCenter.list('storage:').forEach(x=>state.errorCenter.resolve(x.scope));state.localDataStats=await inspectLocalData(state.cities);toast(i18n().t('integrityRepairComplete',{count:state.integrityReport.repairs.length}));}}
-  catch(err){state.integrityReport={healthy:false,issueCount:1,issues:[{code:'CHECK_FAILED',detail:{message:String(err?.message||err||'')}}],repairs:[]};}
+  if(state.integrityLoading)return;const directive=scrollDirective||captureScrollContext(),toastId=toast(i18n().t(repair?'integrityRepairRunning':'integrityCheckRunning'),{id:'integrity-check',type:'loading',title:i18n().t('dataIntegrity')});state.integrityLoading=true;if(state.route.name==='data')render({scroll:directive,immediate:true});
+  try{state.integrityReport=await verifyLocalDataIntegrity(state.cities,{repair});if(repair){clearStorageIssues();state.errorCenter.list('storage:').forEach(x=>state.errorCenter.resolve(x.scope));state.localDataStats=await inspectLocalData(state.cities);toast(i18n().t('integrityRepairComplete',{count:state.integrityReport.repairs.length}),{id:toastId||'integrity-check',type:'success',title:i18n().t('dataIntegrity')});}else toast(state.integrityReport.healthy?i18n().t('integrityHealthy'):i18n().t('integrityIssues',{count:state.integrityReport.issueCount}),{id:toastId||'integrity-check',type:state.integrityReport.healthy?'success':'warning',title:i18n().t('dataIntegrity')});}
+  catch(err){state.integrityReport={healthy:false,issueCount:1,issues:[{code:'CHECK_FAILED',detail:{message:String(err?.message||err||'')}}],repairs:[]};toast(i18n().t('integrityScanFailed'),{id:toastId||'integrity-check',type:'error',title:i18n().t('dataIntegrity')});}
   finally{state.integrityLoading=false;if(state.route.name==='data')render({scroll:directive,immediate:true});}
 }
 function integrityIssueLabel(issue){const {t}=i18n();const map={LEGACY_SCHEMA:'integrityLegacy',INVALID_RECORD:'integrityInvalid',ORPHAN_RECORD:'integrityOrphan',DUPLICATE_FORECAST:'integrityDuplicate',INDEXEDDB_UNAVAILABLE:'errorIndexedDbUnavailable',INDEXEDDB_BLOCKED:'errorIndexedDbBlocked',INDEXEDDB_WRITE_FAILED:'errorIndexedDbWrite',LOCAL_STORAGE_UNAVAILABLE:'errorLocalStorageUnavailable',STORAGE_QUOTA:'errorStorageQuotaBody',CORRUPT_LOCAL_RECORD:'errorIntegrityBody',CORRUPT_IDB_RECORD:'errorIntegrityBody',LOCAL_STORAGE_SCAN_FAILED:'integrityScanFailed',CHECK_FAILED:'integrityScanFailed'};return t(map[issue.code]||'integrityUnknown');}
@@ -1337,12 +1352,12 @@ function renderApiUsageSection(){
   return `<section class="section-card storage-section api-usage-section"><div class="section-head"><div><h2>${esc(t('apiUsageTitle'))}</h2><p>${esc(t('apiUsageIntro'))}</p></div></div><div class="storage-kpis compact">${cell(t('apiCallsMinute'),u.minute,u.limits.minute)}${cell(t('apiCallsHour'),u.hour,u.limits.hour)}${cell(t('apiCallsDay'),u.day,u.limits.day)}${cell(t('apiCallsMonth'),u.month,p.month)}</div><p class="small">${esc(t('apiProviderLimit',{day:p.day,hour:p.hour,minute:p.minute}))}</p><p class="small">${esc(t('apiBillingNote'))}</p><p class="small">${esc(t('apiGuardNote'))}</p></section>`;
 }
 async function exportLocalBackupFile(){
-  const backup=await createLocalBackup(state.cities,state.backupOptions),blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),a=document.createElement('a'),date=new Date().toISOString().slice(0,10);a.href=URL.createObjectURL(blob);a.download=`meteocompare-backup-v${APP_VERSION}-${date}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  try{const backup=await createLocalBackup(state.cities,state.backupOptions),blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),a=document.createElement('a'),date=new Date().toISOString().slice(0,10);a.href=URL.createObjectURL(blob);a.download=`meteocompare-backup-v${APP_VERSION}-${date}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast(i18n().t('backupExported'),{type:'success',title:i18n().t('backupTitle')});}catch(err){toast(i18n().t('exportImpossible',{error:humanError(err)}),{type:'error',title:i18n().t('backupTitle')});}
 }
 async function importLocalBackupFile(file){
-  const {t}=i18n();if(!file)return;if(file.size>50*1024*1024){toast(t('backupFileTooLarge'));return;}
-  try{const backup=JSON.parse(await file.text());if(!confirm(t('backupImportConfirm')))return;const result=await restoreLocalBackup(backup,{replace:true});toast(t('backupImported',{cities:result.cities}));setTimeout(()=>location.reload(),350);}
-  catch(err){toast(t(err?.code==='BACKUP_FUTURE_SCHEMA'?'backupFuture':'backupInvalid'));}
+  const {t}=i18n();if(!file)return;if(file.size>50*1024*1024){toast(t('backupFileTooLarge'),{type:'warning',title:t('backupTitle')});return;}
+  try{const backup=JSON.parse(await file.text());if(!confirm(t('backupImportConfirm')))return;const result=await restoreLocalBackup(backup,{replace:true});toast(t('backupImported',{cities:result.cities}),{type:'success',title:t('backupTitle')});setTimeout(()=>location.reload(),350);}
+  catch(err){toast(t(err?.code==='BACKUP_FUTURE_SCHEMA'?'backupFuture':'backupInvalid'),{type:'error',title:t('backupTitle')});}
 }
 
 function renderLocalDataPage(){
@@ -1595,7 +1610,7 @@ function handleAppClick(e){
   if(target.dataset.errorAction){handleErrorAction(target);return;}
   if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
   if(target.dataset.cityMenu){e.stopPropagation();lastFocusedBeforeModal=document.activeElement;state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
-  if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'city'});refreshCity(target.dataset.refreshCity,true);return;}
+  if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'city'});void refreshCityWithToast(target.dataset.refreshCity);return;}
   if(target.dataset.removeCity){removeCity(target.dataset.removeCity);return;}
   if(target.dataset.addCityId){addCityFromSearch(target.dataset.addCityId);return;}
   if(target.dataset.confidenceMetric){state.settings.confidenceMetric=target.dataset.confidenceMetric;persistSettings();syncCityViewUrl();void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'metric',value:target.dataset.confidenceMetric});rerenderCitySectionOrPage('agreement');return;}
@@ -1614,10 +1629,10 @@ function handleAppClick(e){
   if(target.dataset.modelSort){state.settings.modelSort=target.dataset.modelSort;persistSettings();render({scroll:interactionScrollContext,immediate:true});return;}
   if(target.dataset.modelToggle){toggleModel(target.dataset.modelToggle);return;}
   if(target.dataset.density){state.settings.density=target.dataset.density;persistSettings();updateSettingsChoiceButtons('data-density',target.dataset.density);stabilizeLocalScroll(interactionScrollContext);return;}
-  if(target.dataset.compareModel){const key=state.route.name==='city'?state.route.id:'global',panel=target.closest?.('[data-target-compare]');if(panel)state.comparePanelOpen[key]=panel.dataset.open==='true';const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'));return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();void trackAnalyticsEvent('Model Comparison Changed',state.route,{model_count:state.compareModelIds.length});rerenderTargetedComparisonPanel();return;}
+  if(target.dataset.compareModel){const key=state.route.name==='city'?state.route.id:'global',panel=target.closest?.('[data-target-compare]');if(panel)state.comparePanelOpen[key]=panel.dataset.open==='true';const id=target.dataset.compareModel,set=new Set(state.compareModelIds);if(set.has(id))set.delete(id);else{if(set.size>=4){toast(i18n().t('targetedComparisonMax4'),{type:'warning'});return;}set.add(id);}state.compareModelIds=[...set];syncCityViewUrl();void trackAnalyticsEvent('Model Comparison Changed',state.route,{model_count:state.compareModelIds.length});rerenderTargetedComparisonPanel();return;}
   if(target.dataset.exportFormat){exportCityData(state.route.id,target.dataset.exportFormat);return;}
   if(target.dataset.agreementTime){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id,focusTimestamp:target.dataset.agreementTime,focusEpoch:Number.isFinite(Number(target.dataset.agreementEpoch))?Number(target.dataset.agreementEpoch):null};render();return;}
-  if(target.dataset.cityCompareToggle&&state.modal?.type==='cityCompare'){const id=target.dataset.cityCompareToggle,set=new Set(state.modal.selectedIds||[]);if(set.has(id))set.delete(id);else{if(set.size>=3){toast(i18n().t('cityComparisonMax3'));return;}set.add(id);}state.modal.selectedIds=[...set];render();return;}
+  if(target.dataset.cityCompareToggle&&state.modal?.type==='cityCompare'){const id=target.dataset.cityCompareToggle,set=new Set(state.modal.selectedIds||[]);if(set.has(id))set.delete(id);else{if(set.size>=3){toast(i18n().t('cityComparisonMax3'),{type:'warning'});return;}set.add(id);}state.modal.selectedIds=[...set];render();return;}
   if(target.dataset.biasModel&&target.dataset.biasVariable){const cityId=target.dataset.biasCity||state.route.id;if(cityId)go(`#/city/${encodeURIComponent(cityId)}/bias/${encodeURIComponent(target.dataset.biasModel)}/${encodeURIComponent(target.dataset.biasVariable)}`);return;}
   if(target.dataset.biasRefreshCity){const city=state.cities.find(c=>c.id===target.dataset.biasRefreshCity),plan=biasRefreshPlan(target.dataset.biasRefreshCity);if(city&&!plan.missingDays.length){toast(i18n().t('historyAlreadyCurrent',{city:city.name}));return;}if(city&&confirm(i18n().t('historyRefreshConfirm',{city:city.name,days:plan.missingDays.length,models:modelCountLabel(plan.models.length),calls:archiveCallLabel(plan.requestCount)})))refreshBiasForCity(target.dataset.biasRefreshCity);return;}
   if(target.dataset.collapseSection){const sectionId=target.dataset.collapseSection,card=target.closest('.collapsible-card'),collapsed=card?.dataset.collapsed!=='true';setSectionCollapsed(sectionId,collapsed);if(card){card.dataset.collapsed=String(collapsed);target.setAttribute('aria-expanded',String(!collapsed));target.setAttribute('aria-label',collapsed?i18n().t('expandSection'):i18n().t('collapseSection'));target.title=collapsed?i18n().t('expandSection'):i18n().t('collapseSection');}return;}
@@ -1641,7 +1656,7 @@ function handleAction(e){
   const action=e.currentTarget.dataset.action;
   if(action==='back')history.length>1?history.back():go('#/');
   else if(action==='home')go('#/');
-  else if(action==='favorite-route-city'){const city=promoteRouteCity();if(city){void trackAnalyticsEvent('SEO City Favorite Added',state.route);toast(i18n().t('seoFavoriteAdded',{city:city.name}));render();void checkMarineCapability(city.id);}}
+  else if(action==='favorite-route-city'){const city=promoteRouteCity();if(city){void trackAnalyticsEvent('SEO City Favorite Added',state.route);toast(i18n().t('seoFavoriteAdded',{city:city.name}),{type:'success'});render();void checkMarineCapability(city.id);}}
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='toggle-target-compare'){const key=state.route.name==='city'?state.route.id:'global',panel=e.currentTarget.closest?.('[data-target-compare]'),next=panel?.dataset.open!=='true';state.comparePanelOpen[key]=next;if(panel){panel.dataset.open=String(next);const btn=panel.querySelector?.('[data-action="toggle-target-compare"]');if(btn)btn.setAttribute('aria-expanded',String(next));const body=panel.querySelector?.('.target-compare-body');if(body)body.hidden=!next;} }
@@ -1651,21 +1666,21 @@ function handleAction(e){
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}
   else if(action==='about')go('#/about');
   else if(action==='install-pwa'){closeInstallMenus();void trackAnalyticsEvent('Install Option Selected',state.route,{source:'pwa'});if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}void trackAnalyticsEvent('PWA Install Click',state.route);const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{if(choice?.outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();else refreshInstallNav();}).catch(()=>toast(pwaInstallGuidance().text));}
-  else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();void trackAnalyticsEvent('Share Link Copied',state.route);const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast(i18n().t('linkCopied'))).catch(()=>prompt(i18n().t('copyLinkPrompt'),url));else prompt(i18n().t('copyLinkPrompt'),url);}
+  else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();void trackAnalyticsEvent('Share Link Copied',state.route);const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>toast(i18n().t('linkCopied'),{type:'success'})).catch(()=>prompt(i18n().t('copyLinkPrompt'),url));else prompt(i18n().t('copyLinkPrompt'),url);}
   else if(action==='open-city-compare'){lastFocusedBeforeModal=document.activeElement;const favorites=favoriteCities(),initial=state.route.name==='compare'?(state.route.ids||[]):favorites.slice(0,Math.min(2,favorites.length)).map(c=>c.id);state.modal={type:'cityCompare',selectedIds:[...initial]};render();}
-  else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'));return;}void trackAnalyticsEvent('City Comparison Started',state.route,{city_count:ids.length});state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
-  else if(action==='refresh-all'){void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'all'});refreshAll(true);}
+  else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'),{type:'warning'});return;}void trackAnalyticsEvent('City Comparison Started',state.route,{city_count:ids.length});state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
+  else if(action==='refresh-all'){void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'all'});void refreshAll(true,true);}
   else if(action==='open-add-city'){void trackAnalyticsEvent('City Search Opened',state.route);lastFocusedBeforeModal=document.activeElement;cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
   else if(action==='close-modal'){closeModal();}
   else if(action==='modal-backdrop'&&e.target===e.currentTarget){closeModal();}
   else if(action==='why-confidence'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id};render();}
   else if(action==='open-engine-comparison'){if(state.route.name!=='city'||!state.route.id)return;lastFocusedBeforeModal=document.activeElement;state.modal={type:'forecastEngines',cityId:state.route.id,chartVariable:'tempMax'};render();}
-  else if(action==='open-radar'){if(!state.online){toast(i18n().t('radarOnlineRequired'));return;}if(state.route.name!=='city'||!state.route.id)return;void trackAnalyticsEvent('Rain Radar Opened',state.route);lastFocusedBeforeModal=document.activeElement;state.modal={type:'radar',cityId:state.route.id,radarMode:'observation',radarRange:'near',radarHorizon:30,radarFullscreen:false};render();}
+  else if(action==='open-radar'){if(!state.online){toast(i18n().t('radarOnlineRequired'),{type:'warning'});return;}if(state.route.name!=='city'||!state.route.id)return;void trackAnalyticsEvent('Rain Radar Opened',state.route);lastFocusedBeforeModal=document.activeElement;state.modal={type:'radar',cityId:state.route.id,radarMode:'observation',radarRange:'near',radarHorizon:30,radarFullscreen:false};render();}
   else if(action==='donate'){lastFocusedBeforeModal=document.activeElement;state.modal={type:'donate'};render();}
   else if(action==='activate-marine'){const id=e.currentTarget.dataset.marineCity;void trackAnalyticsEvent('Marine Activated',state.route);state.modal=null;render();if(id)void refreshMarineData(id,true,true);}
   else if(action==='refresh-marine'){const id=e.currentTarget.dataset.marineCity||state.route.id;state.modal=null;if(id)void refreshMarineData(id,true,false);}
   else if(action==='refresh-local-data'){state.localDataStats=null;state.localDataError=null;void refreshLocalDataStats(interactionScrollContext);}
-  else if(action==='refresh-model-health'){const id=state.route.id;if(id)void refreshModelHealthData(id,true);}
+  else if(action==='refresh-model-health'){const id=state.route.id;if(id)void refreshModelHealthData(id,true,true);}
   else if(action==='toggle-diagnostics'){const id=state.route.id;if(!id)return;if(state.diagnosticsOpen.has(id))state.diagnosticsOpen.delete(id);else state.diagnosticsOpen.add(id);rerenderCitySectionOrPage('diagnostics');}
   else if(action==='toggle-analytics'){const status=analyticsStatus();setAnalyticsOptOut(!status.optedOut);if(status.optedOut)void trackPageView(state.route);render({scroll:interactionScrollContext,immediate:true});}
   else if(action==='check-integrity'){void runIntegrityCheck(false,interactionScrollContext);}
@@ -1737,11 +1752,11 @@ function addCityFromSearch(id){
 }
 function removeCity(id){runtime.forgetCity(id);state.loading.delete(id);state.marineLoading.delete(id);state.biasRefresh.delete(id);state.cities=state.cities.filter(c=>c.id!==id);persistFavoriteCities();delete state.forecasts[id];delete state.errors[id];delete state.evolution[id];delete state.bias[id];delete state.normals[id];delete state.marine[id];delete state.modelHealth[id];delete state.modelHealthHistory[id];deleteCityData(id);state.modal=null;if((state.route.name==='city'||state.route.name==='bias')&&state.route.id===id)go('#/');else render();}
 function invalidateWeatherRefreshes(){cityRefreshTokens.clear();state.loading.clear();}
-function toggleModel(id){const set=new Set(state.settings.enabledModelIds);if(set.has(id)){if(set.size<=1){toast(i18n().t('atLeastOneModel'));return;}set.delete(id);}else set.add(id);state.settings.enabledModelIds=WEATHER_MODELS.filter(m=>set.has(m.id)).map(m=>m.id);invalidateWeatherRefreshes();persistSettings();const on=set.has(id),btn=document.querySelector?.(`[data-model-toggle="${String(id).replace(/"/g,'\\"')}"]`);if(btn){btn.classList.toggle('on',on);btn.setAttribute('aria-checked',String(on));}refreshSettingsHistoryRows();toast(i18n().t('modelSelectionUpdated'));if(state.online)void refreshAll(true);}
+function toggleModel(id){const set=new Set(state.settings.enabledModelIds);if(set.has(id)){if(set.size<=1){toast(i18n().t('atLeastOneModel'),{type:'warning'});return;}set.delete(id);}else set.add(id);state.settings.enabledModelIds=WEATHER_MODELS.filter(m=>set.has(m.id)).map(m=>m.id);invalidateWeatherRefreshes();persistSettings();const on=set.has(id),btn=document.querySelector?.(`[data-model-toggle="${String(id).replace(/"/g,'\\"')}"]`);if(btn){btn.classList.toggle('on',on);btn.setAttribute('aria-checked',String(on));}refreshSettingsHistoryRows();toast(i18n().t('modelSelectionUpdated'),{type:'success'});if(state.online)void refreshAll(true);}
 
 async function changeLanguage(nextLanguage,directive){
   try{await ensureLanguage(nextLanguage);state.settings.language=nextLanguage;i18nCacheKey=null;persistSettings();render({scroll:directive,immediate:true});}
-  catch(err){toast(humanError(err));}
+  catch(err){toast(humanError(err),{type:'error'});}
 }
 
 function refreshIntervalMinutes(){return REFRESH_INTERVALS.find(x=>x.id===state.settings.refreshInterval)?.minutes??60;}
@@ -1752,17 +1767,18 @@ async function refreshDueCities(){
   if(!due.length)return;dueRefreshRunning=true;const showActivity=routeShowsWeatherActivity();if(showActivity)render();
   try{for(const city of due)await refreshCity(city.id,false,false);}finally{dueRefreshRunning=false;if(showActivity)render();}
 }
-async function refreshAll(force=false){
-  const cities=[...favoriteCities()];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0;
+async function refreshAll(force=false,notify=false){
+  const cities=[...favoriteCities()];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0,toastId=null;if(notify)toastId=toast(i18n().t('weatherRefreshAllStarted',{count:cities.length}),{id:'weather-refresh-all',type:'loading',title:i18n().t('weatherRefreshTitle')});
   const tasks=Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force,false);}}),showActivity=routeShowsWeatherActivity();
   if(showActivity)render();
-  try{await Promise.all(tasks);}finally{if(showActivity)render();}
+  try{await Promise.all(tasks);if(notify){const failed=cities.filter(c=>Boolean(state.errors[c.id])).length;toast(failed?i18n().t('weatherRefreshPartial',{failed,total:cities.length}):i18n().t('weatherRefreshAllComplete',{count:cities.length}),{id:toastId||'weather-refresh-all',type:failed?'warning':'success',title:i18n().t('weatherRefreshTitle')});}}finally{if(showActivity)render();}
 }
+async function refreshCityWithToast(cityId){const city=state.cities.find(c=>c.id===cityId);if(!city)return;const id=`weather-refresh-${cityId}`;toast(i18n().t('weatherRefreshCityStarted',{city:city.name}),{id,type:'loading',title:i18n().t('weatherRefreshTitle')});await refreshCity(cityId,true);if(state.errors[cityId])toast(i18n().t('weatherRefreshCityFailed',{city:city.name,error:state.errors[cityId]}),{id,type:'error',title:i18n().t('weatherRefreshTitle')});else toast(i18n().t('weatherRefreshCityComplete',{city:city.name}),{id,type:'success',title:i18n().t('weatherRefreshTitle')});}
 async function refreshCity(cityId,force=false,renderUpdates=true){
   const city=state.cities.find(c=>c.id===cityId);if(!city||state.loading.has(cityId))return;if(!state.online){if(!state.forecasts[cityId]){const d=classifyError({code:'OFFLINE_NO_CACHE'},{hasCache:false});state.errorCenter.report(`city:${cityId}:network`,d);state.errors[cityId]=errorDescriptorMessage(d);}else{state.errorCenter.report(`city:${cityId}:network`,{...classifyError({code:'STALE_CACHE'},{hasCache:true}),scope:`city:${cityId}:network`});}if(renderUpdates)render();return;}if(!force&&state.forecasts[cityId]&&isForecastFresh(state.forecasts[cityId]))return;
   const token=cityRefreshTokens.begin(cityId);state.loading.add(cityId);delete state.errors[cityId];if(renderUpdates)render();
   try{const f=await fetchForecast(city,state.settings.enabledModelIds,7);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId))return;const resolvedTimezone=f?.city?.timezone||f?.timezone;if(resolvedTimezone&&city.timezone!==resolvedTimezone){city.timezone=resolvedTimezone;persistFavoriteCities();}state.forecasts[cityId]=f;await saveForecast(cityId,f);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId)){if(!cityRefreshTokens.get(cityId)||!state.cities.some(c=>c.id===cityId))deleteForecast(cityId);return;}state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);analysisStore.mark('evolution',cityId);delete state.errors[cityId];state.errorCenter.resolve(`city:${cityId}:network`);const degraded=Object.values(f.modelMeta||{}).filter(m=>m?.dataWarning==='PARTIAL_HOURLY_SERIES').length;if(degraded)state.errorCenter.report(`city:${cityId}:partial`,{code:'PARTIAL_MODELS',severity:'warning',titleKey:'errorPartialModelsTitle',messageKey:'errorPartialModelsBody',actions:['diagnostics','retry'],technical:String(degraded)});else state.errorCenter.resolve(`city:${cityId}:partial`);if(state.route.name==='city'&&state.route.id===cityId)scheduleIdle(()=>ensureNormals(cityId));if((state.modelHealthHistory[cityId]||[]).length)scheduleIdle(()=>refreshModelHealthData(cityId,true));}
-  catch(err){if(cityRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId)){const descriptor=classifyError(err,{hasCache:Boolean(state.forecasts[cityId])});state.errorCenter.report(`city:${cityId}:network`,descriptor);state.errors[cityId]=errorDescriptorMessage(descriptor);if(!state.forecasts[cityId])toast(state.errors[cityId]);}}
+  catch(err){if(cityRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId)){const descriptor=classifyError(err,{hasCache:Boolean(state.forecasts[cityId])});state.errorCenter.report(`city:${cityId}:network`,descriptor);state.errors[cityId]=errorDescriptorMessage(descriptor);if(!state.forecasts[cityId])toast(state.errors[cityId],{type:'error'});}}
   finally{if(cityRefreshTokens.get(cityId)===token){cityRefreshTokens.delete(cityId);state.loading.delete(cityId);if(renderUpdates)render();}}
 }
 function humanError(err){const {t}=i18n();if(err?.name==='AbortError')return t('weatherTimeout');if(err?.code==='NO_MODELS_ENABLED')return t('noModelsEnabled');if(err?.code==='NO_USABLE_MODELS')return t('noUsableModels');if(err?.code==='HTTP_ERROR')return t('openMeteoHttpError',{status:err.status||'?'});if(err?.code==='OPEN_METEO_ERROR')return t('openMeteoRejected');if(err?.code==='LOCAL_API_BUDGET_EXCEEDED')return t('apiBudgetExceeded');const m=String(err?.message||err||t('unknownError'));if(/Failed to fetch/i.test(m))return t('openMeteoUnreachable');if(m==='NO_MODELS_ENABLED')return t('noModelsEnabled');if(m==='NO_USABLE_MODELS')return t('noUsableModels');return m;}
@@ -1796,22 +1812,26 @@ function dateRangeList(start,end){const out=[];for(let d=start;d<=end;d=addDays(
 function contiguousDateRanges(dates){const sorted=[...new Set(dates)].sort();if(!sorted.length)return [];const ranges=[];let start=sorted[0],prev=sorted[0];for(const d of sorted.slice(1)){if(d===addDays(prev,1)){prev=d;continue;}ranges.push({start,end:prev});start=prev=d;}ranges.push({start,end:prev});return ranges;}
 function biasRefreshPlan(cityId,windowDays=30){
   ensureBiasLoaded(cityId);
-  const city=state.cities.find(c=>c.id===cityId);if(!city)return {models:[],missingDays:[],forecastRanges:[],observationRanges:[],requestCount:0};
+  const city=state.cities.find(c=>c.id===cityId);if(!city)return {models:[],dates:[],missingDays:[],modelGaps:[],observationMissingDays:[],forecastRanges:[],observationRanges:[],requestCount:0,totalDays:0};
   const enabledIds=new Set(state.settings.enabledModelIds||[]),availableIds=Object.keys(state.forecasts[cityId]?.seriesByModel||{}),targetIds=availableIds.length?availableIds.filter(id=>enabledIds.has(id)):state.settings.enabledModelIds,models=selectedModels(targetIds).filter(m=>m.supportsDay1Bias!==false),today=cityToday(city.timezone),end=addDays(today,-BIAS_REFERENCE_LAG_DAYS),start=addDays(end,-windowDays+1),dates=dateRangeList(start,end),source=state.bias[cityId]||{forecasts:[],observations:[]},variables=['TEMPERATURE','PRECIPITATION','WIND_SPEED'];
   const fset=new Set((source.forecasts||[]).map(x=>`${x.modelId}|${x.variable}|${x.targetDate}`)),referenceCurrent=source.reference===BIAS_REFERENCE_ID,oset=new Set((referenceCurrent?source.observations:[]).map(x=>`${x.variable}|${x.targetDate}`));
-  const missingForecastDates=dates.filter(date=>models.some(m=>variables.some(v=>!fset.has(`${m.id}|${v}|${date}`)))),missingObservationDates=dates.filter(date=>variables.some(v=>!oset.has(`${v}|${date}`))),missingDays=[...new Set([...missingForecastDates,...missingObservationDates])].sort(),forecastRanges=contiguousDateRanges(missingForecastDates),observationRanges=contiguousDateRanges(missingObservationDates);
-  return {models,start,end,missingDays,forecastRanges,observationRanges,requestCount:forecastRanges.length+observationRanges.length};
+  const modelGaps=models.map(model=>{const missingEntries=[];for(const date of dates)for(const variable of variables)if(!fset.has(`${model.id}|${variable}|${date}`))missingEntries.push({date,variable});const missingDays=[...new Set(missingEntries.map(x=>x.date))];return {modelId:model.id,name:model.name,missingDays,missingEntries:missingEntries.length,availableEntries:dates.length*variables.length-missingEntries.length,totalEntries:dates.length*variables.length};}),missingForecastDates=[...new Set(modelGaps.flatMap(x=>x.missingDays))].sort();
+  const observationMissingEntries=[];for(const date of dates)for(const variable of variables)if(!oset.has(`${variable}|${date}`))observationMissingEntries.push({date,variable});const missingObservationDates=[...new Set(observationMissingEntries.map(x=>x.date))].sort(),missingDays=[...new Set([...missingForecastDates,...missingObservationDates])].sort(),forecastRanges=contiguousDateRanges(missingForecastDates),observationRanges=contiguousDateRanges(missingObservationDates);
+  return {models,start,end,dates,totalDays:dates.length,missingDays,modelGaps,observationMissingDays:missingObservationDates,observationMissingEntries:observationMissingEntries.length,forecastRanges,observationRanges,requestCount:forecastRanges.length+observationRanges.length};
 }
+function biasRefreshReportMatchesPlan(report,plan){if(!report||report.start!==plan.start||report.end!==plan.end)return false;const a=[...(report.modelIds||[])].sort(),b=plan.models.map(m=>m.id).sort();return a.length===b.length&&a.every((id,i)=>id===b[i]);}
+function biasRemainingGapText(plan){const {t}=i18n(),parts=plan.modelGaps.filter(x=>x.missingDays.length).sort((a,b)=>b.missingDays.length-a.missingDays.length).slice(0,4).map(x=>`${x.name} · ${t('daysCount',{count:x.missingDays.length})}`);if(plan.observationMissingDays.length)parts.push(`ERA5 · ${t('daysCount',{count:plan.observationMissingDays.length})}`);return parts.join(' · ');}
 async function refreshBiasForCity(cityId){
   ensureBiasLoaded(cityId);
-  const city=state.cities.find(c=>c.id===cityId);if(!city||state.biasRefresh.has(cityId))return;if(!state.online){toast(i18n().t('historyOnlineRequired'));return;}const plan=biasRefreshPlan(cityId);if(!plan.missingDays.length){toast(i18n().t('historyAlreadyComplete',{city:city.name}));render();return;}const token=biasRefreshTokens.begin(cityId);state.biasRefresh.add(cityId);render();
+  const city=state.cities.find(c=>c.id===cityId);if(!city||state.biasRefresh.has(cityId))return;if(!state.online){toast(i18n().t('historyOnlineRequired'),{type:'warning',title:i18n().t('reliability')});return;}const plan=biasRefreshPlan(cityId);if(!plan.missingDays.length){toast(i18n().t('historyAlreadyComplete',{city:city.name}),{type:'success',title:i18n().t('reliability')});render();return;}const token=biasRefreshTokens.begin(cityId),toastId=`bias-refresh-${cityId}`;state.biasRefresh.add(cityId);toast(i18n().t('historyRefreshStarted',{city:city.name,days:plan.missingDays.length}),{id:toastId,type:'loading',title:i18n().t('historyRefreshToastTitle')});render();
   try{
-    const forecasts=[],observations=[],stillCurrent=()=>biasRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId);
+    const forecasts=[],observations=[],stillCurrent=()=>biasRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId);let completedCalls=0;
     const biasEngine=await loadFeature('bias');if(!stillCurrent())return;
-    for(const r of plan.forecastRanges){const prev=await fetchPreviousRuns(city,plan.models,r.start,r.end);if(!stillCurrent())return;forecasts.push(...biasEngine.normalizePreviousRuns(prev,city,plan.models,r.start,r.end));}
-    for(const r of plan.observationRanges){const archive=await fetchBiasArchive(city,r.start,r.end);if(!stillCurrent())return;observations.push(...biasEngine.normalizeBiasObservations(archive,r.start,r.end));}
+    for(const r of plan.forecastRanges){const prev=await fetchPreviousRuns(city,plan.models,r.start,r.end);if(!stillCurrent())return;forecasts.push(...biasEngine.normalizePreviousRuns(prev,city,plan.models,r.start,r.end));completedCalls++;toast(i18n().t('historyRefreshProgress',{current:completedCalls,total:plan.requestCount}),{id:toastId,type:'loading',title:i18n().t('historyRefreshToastTitle')});}
+    for(const r of plan.observationRanges){const archive=await fetchBiasArchive(city,r.start,r.end);if(!stillCurrent())return;observations.push(...biasEngine.normalizeBiasObservations(archive,r.start,r.end));completedCalls++;toast(i18n().t('historyRefreshProgress',{current:completedCalls,total:plan.requestCount}),{id:toastId,type:'loading',title:i18n().t('historyRefreshToastTitle')});}
     if(!stillCurrent())return;const today=cityToday(city.timezone),old=state.bias[cityId]||{forecasts:[],observations:[],updatedAt:null},mergedForecasts=dedupe([...(old.forecasts||[]),...forecasts],x=>`${x.modelId}|${x.variable}|${x.targetDate}`),trustedOldObs=old.reference===BIAS_REFERENCE_ID?(old.observations||[]):[],mergedObs=dedupe([...trustedOldObs,...observations],x=>`${x.variable}|${x.targetDate}`),cutoff=addDays(today,-45);
-    const nextBias={reference:BIAS_REFERENCE_ID,referenceLagDays:BIAS_REFERENCE_LAG_DAYS,forecasts:mergedForecasts.filter(x=>x.targetDate>=cutoff),observations:mergedObs.filter(x=>x.targetDate>=cutoff),updatedAt:Date.now()};state.bias[cityId]=nextBias;analysisStore.mark('bias',cityId);saveBias(cityId,nextBias);toast(i18n().t('historyCompleted',{city:city.name,days:plan.missingDays.length,calls:archiveCallLabel(plan.requestCount)}));
-  }catch(err){if(biasRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId))toast(i18n().t('historyBiasError',{city:city.name,error:humanError(err)}));}finally{if(biasRefreshTokens.get(cityId)===token){biasRefreshTokens.delete(cityId);state.biasRefresh.delete(cityId);render();}}
+    const nextBias={reference:BIAS_REFERENCE_ID,referenceLagDays:BIAS_REFERENCE_LAG_DAYS,forecasts:mergedForecasts.filter(x=>x.targetDate>=cutoff),observations:mergedObs.filter(x=>x.targetDate>=cutoff),updatedAt:Date.now()};state.bias[cityId]=nextBias;const after=biasRefreshPlan(cityId),remaining=new Set(after.missingDays),resolvedDays=plan.missingDays.filter(date=>!remaining.has(date)).length,fullDays=Math.max(0,after.totalDays-after.missingDays.length);nextBias.lastRefreshReport={completedAt:Date.now(),start:plan.start,end:plan.end,modelIds:plan.models.map(m=>m.id),requestedDays:plan.missingDays.length,resolvedDays,remainingDays:after.missingDays.length,requestCount:plan.requestCount,remainingModelIds:after.modelGaps.filter(x=>x.missingDays.length).map(x=>x.modelId),observationMissingDays:after.observationMissingDays.length};analysisStore.mark('bias',cityId);saveBias(cityId,nextBias);
+    if(after.missingDays.length){toast(i18n().t('historyRefreshPartialMessage',{city:city.name,complete:fullDays,total:after.totalDays,remaining:after.missingDays.length}),{id:toastId,type:'warning',title:i18n().t('historyRefreshPartialTitle'),duration:8000});}else{toast(i18n().t('historyRefreshSuccessMessage',{city:city.name,total:after.totalDays}),{id:toastId,type:'success',title:i18n().t('historyRefreshSuccessTitle')});}
+  }catch(err){if(biasRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId))toast(i18n().t('historyBiasError',{city:city.name,error:humanError(err)}),{id:toastId,type:'error',title:i18n().t('historyRefreshFailedTitle')});}finally{if(biasRefreshTokens.get(cityId)===token){biasRefreshTokens.delete(cityId);state.biasRefresh.delete(cityId);render();}}
 }
 function dedupe(list,key){const m=new Map();for(const x of list)m.set(key(x),x);return [...m.values()];}
