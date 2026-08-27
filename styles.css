@@ -4605,3 +4605,98 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 /* Radar projection manual recalculation */
 .radar-projection-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.radar-recalculate-button{min-height:38px;white-space:nowrap;padding-inline:11px}.radar-recalculate-icon{display:inline-grid;place-items:center;font-size:1rem;line-height:1}.radar-recalculate-button[aria-busy="true"] .radar-recalculate-icon{animation:meteo-spin .8s linear infinite}
 @media(max-width:720px){.radar-projection-actions{width:100%;display:grid;grid-template-columns:1fr}.radar-recalculate-button{width:100%}}
+
+/* Unified disclosure chevrons -------------------------------------------------
+   One MeteoCompare treatment for every expand/collapse affordance. The mark is
+   drawn in CSS so its geometry is identical across platforms and fonts. */
+.mc-disclosure-chevron {
+  box-sizing:border-box;
+  display:inline-grid !important;
+  place-items:center;
+  flex:0 0 28px;
+  width:28px !important;
+  height:28px !important;
+  min-width:28px;
+  min-height:28px;
+  padding:0;
+  border:0;
+  border-radius:var(--radius-pill);
+  background:var(--primary-soft) !important;
+  color:var(--primary-strong) !important;
+  font-size:0 !important;
+  line-height:1;
+  transform:rotate(0deg);
+  transition:transform .18s ease,background-color .14s ease,color .14s ease,box-shadow .14s ease;
+}
+.mc-disclosure-chevron::before {
+  content:"";
+  box-sizing:border-box;
+  width:7px;
+  height:7px;
+  margin-top:-3px;
+  border-right:1.7px solid currentColor;
+  border-bottom:1.7px solid currentColor;
+  transform:rotate(45deg);
+}
+:where(.city-list-summary,.storage-advanced>summary,.storage-details>summary,.privacy-details>summary,.method-details>summary,.target-compare-toggle):hover .mc-disclosure-chevron,
+.collapse-card-btn:hover .mc-disclosure-chevron {
+  background:color-mix(in srgb,var(--primary) 16%,var(--surface)) !important;
+  color:var(--primary) !important;
+}
+:where(.city-list-summary,.storage-advanced>summary,.storage-details>summary,.privacy-details>summary,.method-details>summary,.target-compare-toggle):focus-visible .mc-disclosure-chevron,
+.collapse-card-btn:focus-visible .mc-disclosure-chevron {
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 22%,transparent);
+}
+.city-list-disclosure[open] .mc-disclosure-chevron,
+.storage-advanced[open] .mc-disclosure-chevron,
+.storage-details[open] .mc-disclosure-chevron,
+.privacy-details[open] .mc-disclosure-chevron,
+.method-details[open] .mc-disclosure-chevron,
+.target-compare[data-open="true"] .mc-disclosure-chevron {
+  transform:rotate(180deg);
+}
+.collapsible-card:not([data-collapsed="true"]) .collapse-card-btn .mc-disclosure-chevron { transform:rotate(180deg); }
+.collapsible-card[data-collapsed="true"] .collapse-card-btn .mc-disclosure-chevron { transform:rotate(0deg); }
+
+/* Keep the action hit-area comfortable while the visible control matches the
+   28 px city-list reference. */
+.collapse-card-btn {
+  width:34px;
+  height:34px;
+  padding:3px;
+  border:0;
+  border-radius:var(--radius-pill);
+  background:transparent !important;
+  color:inherit;
+}
+.collapse-card-btn:hover { background:transparent !important; border-color:transparent !important; }
+.collapse-card-btn > .mc-disclosure-chevron { display:inline-grid; }
+.summary-card.collapsible-card .collapse-card-btn { background:transparent !important; }
+
+/* Native <details> controls also use the shared chevron instead of the browser
+   marker, so small disclosures do not fall back to a different triangle. */
+:where(.storage-details,.privacy-details,.method-details) > summary {
+  list-style:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+:where(.storage-details,.privacy-details,.method-details) > summary::marker { content:""; }
+:where(.storage-details,.privacy-details,.method-details) > summary::-webkit-details-marker { display:none; }
+:where(.storage-details,.privacy-details,.method-details) > summary .mc-disclosure-chevron {
+  flex-basis:24px;
+  width:24px !important;
+  height:24px !important;
+  min-width:24px;
+  min-height:24px;
+}
+:where(.storage-details,.privacy-details,.method-details) > summary .mc-disclosure-chevron::before {
+  width:6px;
+  height:6px;
+  border-width:1.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mc-disclosure-chevron { transition:none; }
+}
