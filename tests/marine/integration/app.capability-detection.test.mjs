@@ -19,7 +19,7 @@ assert.equal(deauvilleSeaGrid.available,true,'a Deauville-like coastal location 
 
 assert.match(marine,/CAPABILITY_MODELS=\['meteofrance_wave','ncep_gfswave025'\]/,'capability detection must use explicit reliable global wave models instead of best_match only');
 assert.match(marine,/hourly','wave_height'[\s\S]*forecast_hours','12'[\s\S]*models',model/,'capability detection must use a lightweight rolling wave-only request');
-assert.match(app,/function addCityFromSearch[\s\S]*render\(\);void checkMarineCapability\(target\.id\);refreshCity\(target\.id,true\)/,'adding a city must immediately launch marine capability detection');
+assert.match(app,/function addCityFromSearch[\s\S]*render\(\);void checkMarineCapability\(target\.id\)[\s\S]*finishAddedCityForecast\(target,toastId\)/,'adding a city must immediately launch marine capability detection while forecast loading is tracked by toast');
 assert.match(app,/favorite-route-city'[\s\S]*checkMarineCapability\(city\.id\)/,'promoting an SEO city to favorites must also resolve marine capability');
 assert.match(app,/scanHomeMarineCapabilities[\s\S]*filter\(city=>marineCapabilityNeedsCheck\(city\)\)[\s\S]*await checkMarineCapability\(city\.id\)/,'home background scan must revalidate unknown and stale negative marine capability with the same resolver');
 assert.doesNotMatch(app,/scanHomeMarineCapabilities[\s\S]*await refreshMarineData\(city\.id,false,false,true\)/,'home capability scan must not fetch the full seven-day marine payload');
