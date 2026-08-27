@@ -31,8 +31,8 @@ for(const condition of ['CLEAR','MAINLY_CLEAR','PARTLY_CLOUDY','OVERCAST','FOG',
 assert.match(icons.render('RAIN',{animated:true}),/wx-animated/);
 assert.doesNotMatch(icons.render('RAIN'),/wx-animated/);
 assert.match(icons.renderMetric('wind'),/wx-metric-wind/);
-assert.match(app,/conditionMarkup\(now\.condition\|\|day\.condition,'normal',[^\n]+,true\)/,'Home icon must request animation');
-assert.match(app,/conditionMarkup\(now\.condition\|\|agg\.condition,'normal',[^\n]+,true\)/,'Today Summary icon must request animation');
+assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:day,'normal',true\)/,'Home aggregate icon must request animation');
+assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:agg,'normal',true\)/,'Today Summary aggregate icon must request animation');
 assert.match(app,/weatherIcons\.render\(now\.condition\|\|agg\.condition,\{size:'large'\}\)/,'detail hero must use the shared vector icon system');
 assert.match(css,/\.wx-icon\s*\{/);
 assert.match(css,/\.wx-animated \.wx-rays/);

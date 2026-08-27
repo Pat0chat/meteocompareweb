@@ -805,6 +805,11 @@ html[data-theme="dark"] .forecast-table thead th:first-child {
   --radius: 11px;
 
   --topbar: rgba(255,255,255,.92);
+
+  /* Shared scrollbar palette. Solid colors keep Firefox/Chromium rendering reliable. */
+  --scrollbar-track: #eaf0f8;
+  --scrollbar-thumb: #2563eb;
+  --scrollbar-thumb-hover: #1d4ed8;
 }
 html[data-theme="dark"] {
   --bg: #0e131b;
@@ -825,7 +830,56 @@ html[data-theme="dark"] {
   --medium: #efba68;
   --low: #ff9090;
   --topbar: rgba(14,19,27,.92);
+  --scrollbar-track: #182437;
+  --scrollbar-thumb: #79a7ff;
+  --scrollbar-thumb-hover: #9abaff;
 }
+
+/* Global MeteoCompare scrollbars.
+   Do not wrap the WebKit selectors in `@supports selector(...)`: Firefox can
+   accept that selector syntactically and enter the block, which previously
+   reset its standard scrollbar styling back to the native thick grey UI. */
+html, body, * {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--scrollbar-thumb) transparent !important;
+}
+
+/* Chromium / Safari fallback and explicit sizing. Firefox ignores these
+   vendor pseudo-elements and keeps the standard rules above. */
+/* On WebKit/Blink, non-auto standard scrollbar properties can override the
+   vendor pseudo-elements. This property-based feature gate excludes Firefox
+   (which supports -moz-appearance) without relying on selector() parsing. */
+@supports (-webkit-appearance: none) and (not (-moz-appearance: none)) {
+  html, body, * {
+    scrollbar-width: auto !important;
+    scrollbar-color: auto !important;
+  }
+}
+
+html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html::-webkit-scrollbar-track, body::-webkit-scrollbar-track, *::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb, *::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background-color: var(--scrollbar-thumb);
+}
+html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+html::-webkit-scrollbar-corner, body::-webkit-scrollbar-corner, *::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@media (forced-colors: active) {
+  html, body, * { scrollbar-color: Highlight transparent !important; }
+}
+
 body, html[data-theme="dark"] body { background-image: none; }
 .page { padding-inline: 32px; }
 .topbar { box-shadow: 0 1px 0 rgba(15,23,42,.025); }
@@ -1036,7 +1090,7 @@ body, html[data-theme="dark"] body { background-image: none; }
 /* Targeted 2–4 model comparison. */
 .target-compare { margin:0 0 14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
 .target-compare-body { padding:0 12px 12px; border-top:1px solid var(--border); }
-.model-compare-picker { display:flex; gap:6px; overflow:auto; padding:10px 0 8px; scrollbar-width:thin; }
+.model-compare-picker { display:flex; gap:6px; overflow:auto; padding:10px 0 8px; }
 .compare-model-chip { flex:0 0 auto; display:grid; gap:1px; min-width:92px; padding:7px 9px; border:1px solid var(--border); border-radius:8px; background:var(--surface-2); color:var(--text); text-align:left; cursor:pointer; font:inherit; font-size:.7rem; font-weight:700; }
 .compare-model-chip small { color:var(--muted); font-size:.7rem; font-weight:600; }
 .compare-model-chip.active { border-color:color-mix(in srgb,var(--primary) 55%,var(--border)); background:var(--primary-soft); color:var(--primary-strong); }
@@ -1171,7 +1225,7 @@ html[data-theme="dark"] {
   stroke: var(--chart-point-ring); stroke-width: 2;
 }
 .chart-point { fill: var(--primary); opacity: .56; }
-.chart-point:hover { opacity: 1; r: 5.8; }
+.chart-point:hover { opacity: 1; r: 5.8px; }
 .chart-band-segment { transition: fill-opacity .14s ease; }
 .chart-band-segment:hover { fill-opacity: .34; }
 .chart-band-segment.high { fill-opacity: .16; }
@@ -1196,7 +1250,7 @@ html[data-theme="dark"] {
   stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 1px color-mix(in srgb,var(--series) 17%,transparent));
 }
 .compare-point { fill: var(--series); opacity: .54; }
-.compare-point:hover { opacity: 1; r: 5.6; }
+.compare-point:hover { opacity: 1; r: 5.6px; }
 .compare-y-label { font-variant-numeric: tabular-nums; }
 .compare-legend.rich {
   margin: 5px 4px 1px; padding-top: 9px; border-top: 1px solid var(--border); gap: 7px 14px;
@@ -1227,7 +1281,7 @@ html[data-theme="dark"] {
 .bias-error-connector:hover { opacity: .9; stroke-width: 2; }
 .bias-point.forecast { fill: var(--primary); opacity: .65; }
 .bias-point.observation { fill: var(--text); opacity: .62; }
-.bias-point:hover { opacity: 1; r: 5.8; }
+.bias-point:hover { opacity: 1; r: 5.8px; }
 .legend-line.bias-gap { height: 0; border-top: 2px dashed color-mix(in srgb,var(--muted) 60%,transparent); background: none; }
 .chart-over { color: #c2410c !important; }
 .chart-under { color: #2563eb !important; }
@@ -1896,10 +1950,10 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
   min-width: 0;
 }
 :where(h1,h2,h3,.brand-title,.city-name,.model-title) {
-  text-wrap: balance;
+  overflow-wrap: break-word;
 }
 :where(p,.small,.cell-sub,.model-meta,.kpi-note,.storage-category-meta,.marine-footer-note) {
-  text-wrap: pretty;
+  overflow-wrap: break-word;
 }
 :where(.section-head,.settings-section-head,.bias-panel-head,.about-section-head,.marine-surface-head) h2,
 :where(.section-head,.settings-section-head,.bias-panel-head,.about-section-head,.marine-surface-head) h3 {

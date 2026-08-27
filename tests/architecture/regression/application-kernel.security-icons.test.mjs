@@ -36,8 +36,8 @@ assert.match(css,/\.scenario-icon \.wx-icon \{ width:2\.15rem; height:2\.15rem; 
 assert.match(css,/\.timeline-condition \.condition-icon \.wx-icon \{ width:2\.15rem; height:2\.15rem; \}/);
 assert.match(css,/\.forecast-table td \.condition-icon \.wx-icon \{ width:1\.95rem; height:1\.95rem; \}/);
 assert.match(css,/\.home-mini-rain[\s\S]*margin-block:2px 3px/);
-assert.match(app,/conditionMarkup\(now\.condition\|\|day\.condition,'normal',[^\n]+,true\)/);
-assert.match(app,/conditionMarkup\(now\.condition\|\|agg\.condition,'normal',[^\n]+,true\)/);
+assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:day,'normal',true\)/);
+assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:agg,'normal',true\)/);
 
 // Architecture regression: patch release must retain the 1.12 composition and async safety contracts.
 assert.match(app,/new ApplicationKernel\(/);

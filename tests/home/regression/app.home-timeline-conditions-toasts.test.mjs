@@ -7,7 +7,7 @@ const app=read('js/app.js'),css=read('styles.css');
 const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
 
 assert.match(home,/home-mini-condition/,'Each compact hourly slot must expose a condition area');
-assert.match(home,/conditionMarkup\(condition,'tiny',Boolean\(point\.conditionInferred\)\)/,'Compact timeline must render the semantic weather icon for each point');
+assert.match(home,/aggregateConditionMarkup\(point,'tiny'\)/,'Compact timeline must render the aggregate condition with consensus provenance');
 assert.match(home,/conditionInfo\.label/,'Timeline tooltips must include the localized condition label');
 assert.match(css,/\.home-mini-condition\s*\{/);
 assert.match(css,/\.home-mini-condition \.condition-icon \.wx-icon\s*\{[^}]*width:1\.45rem/s);

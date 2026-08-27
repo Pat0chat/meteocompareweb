@@ -10,8 +10,10 @@ assert.match(consensus,/export function weatherConditionConsensus\(/,'hierarchic
 assert.match(consensus,/weatherPhenomenonGroup/,'condition consensus must resolve broad phenomenon groups before subtypes');
 assert.match(consensus,/weightedOrdinalCondition/,'ordered condition families must use an ordinal resolver rather than severity voting');
 
-const domainCalls=[...domain.matchAll(/weatherConditionConsensus\(/g)];
-assert.equal(domainCalls.length,4,'all four synthesized-condition paths must route through the hierarchical consensus: current, daily fallback, daily aggregate and timeline');
+assert.match(domain,/function resolveAggregateCondition\(/,'aggregate condition provenance must be resolved in one shared domain path');
+assert.match(domain,/const voteFor=list=>weatherConditionConsensus\(/,'aggregate native/inferred categorical inputs must still use the hierarchical consensus primitive');
+assert.match(domain,/if\(nativeVote\.value&&\(nativeVote\.familyCount>=2\|\|usable\.length===1\)\)/,'multi-family native weather codes must be preferred before any aggregate-variable fallback');
+assert.match(domain,/const derived=inferCondition\(precipitation,temperature,cloud\)/,'when native categorical coverage is insufficient the final condition must be derived once from central consensus variables');
 assert.doesNotMatch(domain,/weightedVote\(/,'domain condition synthesis must never fall back to the legacy flat categorical vote');
 
 assert.match(app,/now=currentConditions\(f,new Date\(\),engineContext\)[\s\S]*day=cachedAggregateDay\(f,today,engineContext\)/,'Home current/daily condition must come from the domain synthesis paths');
