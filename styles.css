@@ -3757,10 +3757,23 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 
 /* SEO city directory and pre-rendered route content */
 .seo-directory{margin-top:24px}
-.seo-directory-heading{margin-bottom:var(--space-4)}
+.city-list-disclosure > summary{list-style:none;cursor:pointer;user-select:none}
+.city-list-disclosure > summary::marker{content:""}
+.city-list-summary{align-items:center;gap:var(--space-4);border-radius:var(--radius-md);transition:background .16s ease,box-shadow .16s ease}
+.city-list-summary:hover{background:color-mix(in srgb,var(--primary) 4%,transparent)}
+.city-list-summary:focus-visible{outline:none;box-shadow:var(--focus)}
+.city-list-summary-meta{display:inline-flex;align-items:center;justify-content:flex-end;gap:9px;flex:0 0 auto;margin-left:auto;color:var(--muted);font-size:.76rem;font-weight:720}
+.city-list-count{display:inline-flex;align-items:center;min-height:28px;padding:4px 9px;border:1px solid var(--border);border-radius:var(--radius-pill);background:var(--surface-2);color:var(--text)}
+.city-list-toggle-label{color:var(--primary-strong)}
+.city-list-chevron{display:grid;place-items:center;width:28px;height:28px;border-radius:var(--radius-pill);background:var(--primary-soft);color:var(--primary-strong);font-size:1rem;line-height:1;transition:transform .18s ease}
+.city-list-disclosure[open] .city-list-chevron{transform:rotate(180deg)}
+.seo-directory-heading{margin-bottom:0;padding:8px 10px}
+.seo-directory[open] .seo-directory-heading{margin-bottom:var(--space-4)}
 .seo-directory-card{padding:var(--space-4)}
 .seo-directory-intro{max-width:72ch;margin:0 0 var(--space-4);color:var(--muted);font-size:var(--type-body-compact);line-height:1.55}
 .seo-nearby-section .section-head{margin-bottom:16px}
+.seo-nearby-section:not([open]) .section-head{margin-bottom:0}
+.city-list-disclosure:not([open]) .city-list-summary p{display:none}
 .seo-nearby-section .section-head p,.seo-prerender-copy .section-head p{max-width:72ch;margin-top:6px}
 .seo-link-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .seo-link-grid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -3776,6 +3789,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .seo-prerender-copy{margin-bottom:18px}
 .seo-prerender-copy>p{margin:0;max-width:82ch;color:var(--text-muted);line-height:1.65}
 @media(max-width:1050px){.seo-link-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.city-list-toggle-label{display:none}.city-list-summary{gap:var(--space-2)}.city-list-summary-meta{gap:6px}.seo-directory-heading{padding:7px 6px}}
 @media(max-width:760px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-directory{margin-top:18px}}
 @media(max-width:480px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:1fr}.seo-city-link{padding:12px 13px}}
 
