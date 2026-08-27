@@ -1,7 +1,8 @@
 import { fetchOpenMeteoJson } from '../api-budget.js';
 import { zonedTimestampEpochs } from '../domain.js';
+import { NETWORK_ENDPOINTS } from '../network-config.js';
 
-const MARINE_URL='https://marine-api.open-meteo.com/v1/marine';
+const MARINE_URL=NETWORK_ENDPOINTS.openMeteo.marine;
 export const MARINE_CACHE_TTL_MS=6*3600_000;
 export const COASTAL_MAX_DISTANCE_KM=50;
 const CAPABILITY_MODELS=['meteofrance_wave','ncep_gfswave025'];

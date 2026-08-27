@@ -23,10 +23,14 @@ const forecast={city:{timezone:'Europe/Paris'},fetchedAt:new Date(now).toISOStri
 for(const m of models){forecast.seriesByModel[m.id]={};forecast.modelMeta[m.id]={coverageByVariable:{temperature:{count:24,lastTimestamp:'2026-08-19T12:00'},precipitation:{count:24,lastTimestamp:'2026-08-19T12:00'},wind:{count:24,lastTimestamp:'2026-08-19T12:00'},conditions:{count:24,lastTimestamp:'2026-08-19T12:00'}}};}
 const metadata=Object.fromEntries(models.map(m=>[m.id,{modelId:m.id,referenceTime:reference,lastModifiedTime:reference,responseMs:42}]));
 const report=buildModelHealthReport(forecast,models,enabled,metadata,[],now);assert.equal(report.rows.length,2);assert.ok(['OK','RECOVERED'].includes(report.rows[0].healthStatus));assert.equal(report.rows[0].responseMs,42);assert.ok(report.rows[0].expectedRunAt);
+const fallbackForecast=structuredClone(forecast);fallbackForecast.modelMeta[models[0].id].runTimestamp=reference;
+const fallbackReport=buildModelHealthReport(fallbackForecast,models,enabled,{[models[0].id]:{modelId:models[0].id,error:'UPSTREAM_UNAVAILABLE'}},[],now);
+assert.equal(fallbackReport.rows[0].cadenceBase,'FORECAST','health must fall back to the run timestamp already loaded with the forecast');
+assert.notEqual(fallbackReport.rows[0].healthStatus,'METADATA_UNAVAILABLE','metadata proxy failure must not blank local health when forecast run metadata exists');
 let history=appendHealthSnapshot([],report,now-2*3600e3);const degraded=structuredClone(report);degraded.rows[0].healthStatus='DEGRADED';history=appendHealthSnapshot(history,degraded,now);assert.equal(countIncidentEpisodes(history,models[0].id,24*3600e3,now),1);
 const metadataOnly=structuredClone(report);metadataOnly.rows[0].healthStatus='METADATA_UNAVAILABLE';let metadataHistory=appendHealthSnapshot([],metadataOnly,now);assert.equal(countIncidentEpisodes(metadataHistory,models[0].id,24*3600e3,now),0);
 
 const app=fs.readFileSync('js/app.js','utf8'),sw=fs.readFileSync('sw.js','utf8'),html=fs.readFileSync('index.html','utf8'),storage=fs.readFileSync('js/storage.js','utf8');
 for(const token of ['localWeightedConsensus','refreshModelHealthData','marineTides','data-local-weighting'])assert.ok(app.includes(token),token);
-assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);assert.ok(html.includes('openmeteo-data-spatial.b-cdn.net'));assert.ok(storage.includes('meteocompare.web.health.'));
+assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);assert.ok(!html.includes('openmeteo-data-spatial.b-cdn.net'));assert.ok(storage.includes('meteocompare.web.health.'));
 console.log('tides-health-weighted: OK');

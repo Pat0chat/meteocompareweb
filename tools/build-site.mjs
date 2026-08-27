@@ -60,6 +60,13 @@ const rootHtml=injectApp(replaceMeta(template,{
   canonical:`${site}/`
 }),rootPrerender());
 await writeFile(join(out,'index.html'),rootHtml);
+const fallback404=replaceMeta(template,{
+  title:'MeteoCompare — vue météo partagée',
+  description:'Ouvrez une vue MeteoCompare partagée.',
+  canonical:`${site}/`,
+  robots:'noindex,follow'
+}).replace(/(<meta charset="utf-8" \/>)/i,'$1\n  <base href="../" />');
+await writeFile(join(out,'404.html'),fallback404);
 
 await mkdir(join(out,'meteo'),{recursive:true});
 for(const city of SEO_CITIES){

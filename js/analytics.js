@@ -1,7 +1,7 @@
 import { ANALYTICS_CONFIG } from './analytics-config.js';
 import { APP_VERSION } from './version.js';
 
-const OPT_OUT_KEY='meteocompare.web.analytics.optout.v1';
+const OPT_OUT_KEY=ANALYTICS_CONFIG.optOutStorageKey;
 const CAMPAIGN_KEYS=['utm_source','utm_medium','utm_campaign'];
 const LANGUAGES=new Set(['fr','en','es','de','it']);
 const EVENT_SCHEMAS=new Map([

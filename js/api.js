@@ -3,11 +3,9 @@ import { normalizeBatchedForecast, hourlySeriesHealth } from './data/forecast-no
 import { normalizeCity, normalizeForecastPayload } from './data/contracts.js';
 export { normalizeBatchedForecast, hourlySeriesHealth, sanitizeIncompleteFutureDaily } from './data/forecast-normalizer.js';
 import { fetchOpenMeteoJson } from './api-budget.js';
+import { NETWORK_ENDPOINTS } from './network-config.js';
 
-const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast';
-const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search';
-const ARCHIVE_URL = 'https://archive-api.open-meteo.com/v1/archive';
-const PREVIOUS_RUNS_URL = 'https://previous-runs-api.open-meteo.com/v1/forecast';
+const { forecast:FORECAST_URL, geocoding:GEOCODING_URL, archive:ARCHIVE_URL, previousRuns:PREVIOUS_RUNS_URL } = NETWORK_ENDPOINTS.openMeteo;
 
 const HOURLY_VARS = [
   'temperature_2m','precipitation','precipitation_probability','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',

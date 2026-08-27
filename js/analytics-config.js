@@ -1,3 +1,4 @@
+import { NETWORK_ENDPOINTS } from './network-config.js';
 // Privacy-first audience measurement for the public MeteoCompare web site.
 //
 // Plausible's official site-specific tracker is exposed through the MeteoCompare
@@ -10,8 +11,9 @@ export const ANALYTICS_CONFIG = Object.freeze({
   provider: 'plausible',
   domain: 'meteocompare.app',
   allowedHosts: ['meteocompare.app', 'www.meteocompare.app'],
-  scriptSrc: '/_mcx/p.js',
-  endpoint: '/_mcx/e',
-  upstreamScriptSrc: 'https://plausible.io/js/pa-m_Vcr9SLuhB7IFuIgpvGB.js',
-  upstreamEndpoint: 'https://plausible.io/api/event',
+  optOutStorageKey: 'meteocompare.web.analytics.optout.v1',
+  scriptSrc: NETWORK_ENDPOINTS.firstParty.analyticsScript,
+  endpoint: NETWORK_ENDPOINTS.firstParty.analyticsEvent,
+  upstreamScriptSrc: NETWORK_ENDPOINTS.analytics.upstreamScript,
+  upstreamEndpoint: NETWORK_ENDPOINTS.analytics.upstreamEvent,
 });

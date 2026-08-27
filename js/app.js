@@ -20,7 +20,8 @@ const persistedCities=loadCities();
 let routingCities=[...persistedCities];
 const initialRoute=parseRoute();
 const initialSeed=initialRoute?.citySeed||null;
-const initialCities=initialSeed&&!persistedCities.some(city=>matchSeoCity(city)?.slug===initialSeed.slug)
+const initialSeedAlreadyStored=initialSeed&&persistedCities.some(city=>String(city.id)===String(initialSeed.id)||(slugifyCityName(city.name)===slugifyCityName(initialSeed.name)&&Math.abs(Number(city.latitude)-Number(initialSeed.latitude))<0.001&&Math.abs(Number(city.longitude)-Number(initialSeed.longitude))<0.001));
+const initialCities=initialSeed&&!initialSeedAlreadyStored
   ? [...persistedCities,{...initialSeed,seoTransient:true}]
   : persistedCities;
 routingCities=[...initialCities];
@@ -137,15 +138,22 @@ function ensureMarineLoaded(cityId){return analysisStore.get('marine',cityId);}
 function ensureHealthLoaded(cityId){return analysisStore.get('health',cityId);}
 function ensureCityAnalysisLoaded(cityId){ensureEvolutionLoaded(cityId);ensureBiasLoaded(cityId);ensureNormalsLoaded(cityId);ensureHealthLoaded(cityId);const city=state.cities.find(c=>c.id===cityId);if(city?.marineEnabled)ensureMarineLoaded(cityId);}
 
+async function registerPwaServiceWorker(){
+  try{
+    const registrations=await navigator.serviceWorker.getRegistrations?.()||[],rootPath=new URL(APP_ROOT_URL).pathname.replace(/\/?$/,'/'),legacyPrefix=`${rootPath}meteo/`;
+    await Promise.all(registrations.filter(registration=>{try{return new URL(registration.scope).pathname.startsWith(legacyPrefix);}catch{return false;}}).map(registration=>registration.unregister()));
+  }catch(err){console.warn('Legacy service worker cleanup:',err);}
+  try{await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});}
+  catch(err){console.warn('Service worker:',err);}
+}
+
 init();
 
 function init() {
   applyTheme();
   const skipPwaRegistration=consumePwaClearReloadGuard();
   if(skipPwaRegistration)pwaPostClearCleanup=clearPwaRuntime();
-  if (!skipPwaRegistration && 'serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).catch(err => console.warn('Service worker:', err));
-  }
+  if (!skipPwaRegistration && 'serviceWorker' in navigator) void registerPwaServiceWorker();
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(state.route.name==='about')render();else refreshInstallNav();});
   window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;void trackAnalyticsEvent('PWA Installed',state.route);toast(i18n().t('pwaInstallSuccess'),{type:'success',title:i18n().t('installNav')});if(state.route.name==='about')render();else refreshInstallNav();});
   app.addEventListener('click', handleAppClick);
@@ -190,14 +198,21 @@ function routeView(query){
     compareModels:(query.get('models')||'').split(',').filter(Boolean).map(decodeURIComponent)
   };
 }
+function sharedCitySeed(query,slug,requestedId){
+  const name=(query.get('name')||'').trim(),latitude=Number(query.get('lat')),longitude=Number(query.get('lon'));
+  if(!name||!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180)return null;
+  const timezone=(query.get('tz')||'UTC').trim()||'UTC',country=(query.get('country')||'').trim(),admin1=(query.get('admin1')||'').trim();
+  return {id:requestedId||`shared:${slug}:${latitude.toFixed(4)}:${longitude.toFixed(4)}`,name,latitude,longitude,timezone,country,admin1,region:admin1,marineEnabled:false};
+}
 function cleanCityRoute(pathname,query){
   const match=String(pathname||'').match(/^\/meteo\/([^/]+)\/?$/i);if(!match)return null;
   const slug=slugifyCityName(decodeURIComponent(match[1]||'')),catalog=seoCityBySlug(slug),requestedId=query.get('id');
-  let city=requestedId?routingCities.find(row=>String(row.id)===requestedId):null;
-  if(!city&&catalog)city=routingCities.find(row=>matchSeoCity(row)?.slug===catalog.slug)||catalog;
+  let city=requestedId?routingCities.find(row=>String(row.id)===requestedId):null,seed=null;
+  if(!city&&catalog){city=routingCities.find(row=>matchSeoCity(row)?.slug===catalog.slug)||catalog;if(city===catalog)seed=catalog;}
   if(!city)city=routingCities.find(row=>slugifyCityName(row.name)===slug)||null;
+  if(!city){seed=sharedCitySeed(query,slug,requestedId);city=seed;}
   if(!city)return {name:'notfound',slug};
-  return {name:'city',id:city.id,slug:catalog?.slug||slug,view:routeView(query),citySeed:city===catalog?catalog:null};
+  return {name:'city',id:city.id,slug:catalog?.slug||slug,view:routeView(query),citySeed:seed};
 }
 function parseRoute(){
   const hash=String(location.hash||'');
@@ -1009,7 +1024,7 @@ function renderScenarios(scenarios){
 }
 
 function renderTimeline(f,engineContext=null){
-  const opts=normalizeForecastOptions(engineContext),{t}=i18n(),hourlyAll=buildTimelinePoints(f,'HOURLY',new Date(),opts),dailyAll=buildTimelinePoints(f,'DAILY',new Date(),opts);let mode=state.settings.timelineMode||'HOURLY';if(mode==='HOURLY'&&hourlyAll.length<2)mode='DAILY';if(mode==='DAILY'&&!dailyAll.length&&hourlyAll.length)mode='HOURLY';const analysis=mode==='HOURLY'?hourlyAll:dailyAll,points=selectRegularTimelinePoints(analysis,mode==='HOURLY'?8:7,3);if(!points.length)return '';
+  const opts=normalizeForecastOptions(engineContext),{t}=i18n(),hourlyAll=buildTimelinePoints(f,'HOURLY',new Date(),opts),dailyAll=buildTimelinePoints(f,'DAILY',new Date(),opts);let mode=state.settings.timelineMode||'HOURLY';if(mode==='HOURLY'&&hourlyAll.length<2)mode='DAILY';if(mode==='DAILY'&&!dailyAll.length&&hourlyAll.length)mode='HOURLY';const analysis=mode==='HOURLY'?hourlyAll:dailyAll,points=selectRegularTimelinePoints(analysis,mode==='HOURLY'?24:7,1);if(!points.length)return '';
   return `<section class="section timeline-section" id="timeline"><div class="section-card timeline-card"><div class="section-head"><div><h2>${esc(t('forecastTimeline'))}</h2><p>${esc(t(mode==='HOURLY'?'next24Regular':'nextDaysConsensus'))}</p></div><div class="segmented timeline-mode" aria-label="${esc(t('timelineModeAria'))}"><button class="seg-btn ${mode==='HOURLY'?'active':''}" data-timeline-mode="HOURLY" ${hourlyAll.length<2?'disabled':''}>24 h</button><button class="seg-btn ${mode==='DAILY'?'active':''}" data-timeline-mode="DAILY" ${!dailyAll.length?'disabled':''}>${esc(t('dayMode7'))}</button></div></div><div class="timeline-scroll" style="--timeline-cols:${points.length}"><div class="timeline-ruler" aria-hidden="true">${points.map((p,i)=>timelineEventMarker(p,points[i-1])).join('')}</div><div class="timeline-full" role="list" aria-label="${esc(t('forecastTimeline'))}">${points.map((p,i)=>renderTimelinePoint(p,mode,i===0,i===points.length-1)).join('')}</div></div><div class="timeline-legend"><span><i class="legend-swatch temp-gradient"></i> ${esc(t('thermalBand'))}</span><span>${weatherIcons.renderMetric('precipitation',{size:'tiny'})} ${esc(t('precipSignalLegend'))}</span><span>${weatherIcons.renderMetric('cloud',{size:'tiny'})} ${esc(t('cloudMedianLegend'))}</span><span>${weatherIcons.renderMetric('wind',{size:'tiny'})} ${esc(t('windMedianLegend'))}</span><span>⚠ ${esc(t('disagreementVariableLegend'))}</span></div></div></section>`;
 }
 
@@ -1020,7 +1035,7 @@ function renderConfidenceSection(f,cityId,engineContext=null){
 
 function renderTimelinePoint(p,mode,isFirst,isLast){
   const {t}=i18n(),empty=!p.modelCount,ci=localizedConditionInfo(p.condition),divergence=p.divergenceReasons||[],dateText=mode==='HOURLY'?(isFirst?t('now'):timeLabel(p.timestamp)):dateLabel(p.date,i18n().locale),context=mode==='HOURLY'?dateLabel(p.date,i18n().locale):'',tempMain=mode==='HOURLY'?p.temperatureC:p.tempMaxC,tempLow=mode==='DAILY'?p.tempMinC:p.temperatureMinAcrossModels,tempHigh=mode==='DAILY'?p.tempMaxC:p.temperatureMaxAcrossModels,topHeat=Number.isFinite(tempHigh)?heatColor('TEMPERATURE',tempHigh):Number.isFinite(tempMain)?heatColor('TEMPERATURE',tempMain):null,bottomHeat=Number.isFinite(tempLow)?heatColor('TEMPERATURE',tempLow):Number.isFinite(tempMain)?heatColor('TEMPERATURE',tempMain):null,tempSpan=Number.isFinite(tempLow)&&Number.isFinite(tempHigh)?Math.max(.01,tempHigh-tempLow):null,tempCenter=Number.isFinite(tempMain)&&Number.isFinite(tempSpan)&&tempSpan>.01?Math.max(8,Math.min(92,8+((tempMain-tempLow)/tempSpan)*84)):50,tempStyle=(topHeat||bottomHeat)?`style="--heat:${topHeat||bottomHeat};--heat-top:${topHeat||bottomHeat};--heat-bottom:${bottomHeat||topHeat};--temp-center:${tempCenter}%"`:`style="--temp-center:${tempCenter}%"`,source=p.precipitationSource==='PROBABILITY'?t('modelProbability'):p.precipitationSource==='MIXED'?t('mixedRainProbability'):p.precipitationSource==='MODEL_AGREEMENT'&&p.precipitationModelCount>=2?t('modelsProbability',{wet:p.wetModelCount,total:p.precipitationModelCount}):'',rainProb=Number.isFinite(p.precipitationPercent)?p.precipitationPercent:null,rainStrength=rainProb==null?0:Math.max(0,Math.min(100,rainProb)),rainDot=rainProb!=null?`<div class="timeline-precip-heat" title="${esc(source||t('limitedSignal'))}"><i style="--rain-size:${Math.round(5+rainStrength*.1)}px;--rain:var(--primary);--rain-opacity:${(0.28+rainStrength*.0065).toFixed(2)}"></i></div>`:'<div class="timeline-precip-heat empty"></div>',consensus=Number.isFinite(p.consensusPercent)?Math.max(0,Math.min(100,Math.round(p.consensusPercent))):null,consensusClass=consensus!=null?confidenceClass(consensus):'muted';
-  return `<article class="timeline-point ${empty?'empty':''} ${consensusClass}" role="listitem"><div class="timeline-point-head"><strong>${esc(dateText)}</strong><span>${esc(context)}</span></div><div class="timeline-condition">${p.condition?conditionMarkup(p.condition,'small',Boolean(p.conditionInferred)):'<span class="muted">—</span>'}<span>${p.condition?esc(ci.label):esc(t('dataUnavailable'))}</span></div><div class="timeline-temp-band" ${tempStyle}><div class="timeline-temp-value"><strong>${Number.isFinite(tempMain)?`${fmt(tempMain)}°`:'—'}</strong>${Number.isFinite(tempLow)&&Number.isFinite(tempHigh)&&Math.abs(tempHigh-tempLow)>=1?`<small>${fmt(tempLow)}–${fmt(tempHigh)}°</small>`:''}</div><div class="timeline-temp-track" aria-hidden="true"><i></i><b></b></div></div>${rainDot}<div class="timeline-metric timeline-rain-metric" title="${attr(source||t('limitedSignal'))}"><span class="timeline-metric-icon">${weatherIcons.renderMetric('precipitation',{size:'tiny'})}</span><strong>${rainProb!=null?`${Math.round(rainProb)}%`:'—'}</strong><small>${Number.isFinite(p.precipitationConditionalMm)?esc(t('rainIfWetAmountShort',{amount:fmt(p.precipitationConditionalMm,1)})):esc(t('rainAmountUnavailable'))}</small></div><div class="timeline-metric"><span class="timeline-metric-icon">${weatherIcons.renderMetric('cloud',{size:'tiny'})}</span><strong>${Number.isFinite(p.cloudCoverPercent)?`${p.cloudCoverPercent}%`:'—'}</strong><small>${Number.isFinite(p.cloudCoverMinAcrossModels)&&Number.isFinite(p.cloudCoverMaxAcrossModels)?`${p.cloudCoverMinAcrossModels}–${p.cloudCoverMaxAcrossModels}%`:esc(t('cloudCoverage'))}</small></div><div class="timeline-metric"><span class="timeline-metric-icon">${weatherIcons.renderMetric('wind',{size:'tiny'})}</span><strong>${Number.isFinite(p.windKmh)?`${fmt(p.windKmh)} km/h`:'—'}</strong><small>${Number.isFinite(p.windGustKmh)?`${esc(t('gustAbbr'))} ${fmt(p.windGustKmh)} km/h`:esc(t('gustsUnavailable'))}</small></div><div class="timeline-consensus"><div class="timeline-consensus-line"><span>${esc(t('modelConvergence'))}</span><strong>${consensus!=null?`${consensus}%`:'—'}</strong></div><div class="timeline-consensus-track" aria-hidden="true"><i style="--agreement:${consensus??0}%"></i></div><div class="timeline-consensus-meta">${consensus!=null?esc(modelCountLabel(p.modelCount)):esc(t('limitedComparison'))}</div>${divergence.length?`<div class="divergence-list" aria-label="${esc(t('disagreementVariableLegend'))}">${divergence.map(d=>`<span title="${esc(divergenceLabel(d))}">⚠ ${esc(divergenceShort(d))}</span>`).join('')}</div>`:`<div class="divergence-list stable"><span>✓ ${esc(t('coherent'))}</span></div>`}</div></article>`;
+  return `<article class="timeline-point ${empty?'empty':''} ${consensusClass}" role="listitem"><div class="timeline-point-head"><strong>${esc(dateText)}</strong><span>${esc(context)}</span></div><div class="timeline-condition">${p.condition?conditionMarkup(p.condition,'small',Boolean(p.conditionInferred)):'<span class="muted">—</span>'}<span${p.condition?` title="${attr(ci.label)}"`:''}>${p.condition?esc(ci.label):esc(t('dataUnavailable'))}</span></div><div class="timeline-temp-band" ${tempStyle}><div class="timeline-temp-value"><strong>${Number.isFinite(tempMain)?`${fmt(tempMain)}°`:'—'}</strong>${Number.isFinite(tempLow)&&Number.isFinite(tempHigh)&&Math.abs(tempHigh-tempLow)>=1?`<small>${fmt(tempLow)}–${fmt(tempHigh)}°</small>`:''}</div><div class="timeline-temp-track" aria-hidden="true"><i></i><b></b></div></div>${rainDot}<div class="timeline-metric timeline-rain-metric" title="${attr(source||t('limitedSignal'))}"><span class="timeline-metric-icon">${weatherIcons.renderMetric('precipitation',{size:'tiny'})}</span><strong>${rainProb!=null?`${Math.round(rainProb)}%`:'—'}</strong><small>${Number.isFinite(p.precipitationConditionalMm)?esc(t('rainIfWetAmountShort',{amount:fmt(p.precipitationConditionalMm,1)})):esc(t('rainAmountUnavailable'))}</small></div><div class="timeline-metric"><span class="timeline-metric-icon">${weatherIcons.renderMetric('cloud',{size:'tiny'})}</span><strong>${Number.isFinite(p.cloudCoverPercent)?`${p.cloudCoverPercent}%`:'—'}</strong><small>${Number.isFinite(p.cloudCoverMinAcrossModels)&&Number.isFinite(p.cloudCoverMaxAcrossModels)?`${p.cloudCoverMinAcrossModels}–${p.cloudCoverMaxAcrossModels}%`:esc(t('cloudCoverage'))}</small></div><div class="timeline-metric"><span class="timeline-metric-icon">${weatherIcons.renderMetric('wind',{size:'tiny'})}</span><strong>${Number.isFinite(p.windKmh)?`${fmt(p.windKmh)} km/h`:'—'}</strong><small>${Number.isFinite(p.windGustKmh)?`${esc(t('gustAbbr'))} ${fmt(p.windGustKmh)} km/h`:esc(t('gustsUnavailable'))}</small></div><div class="timeline-consensus"><div class="timeline-consensus-line"><span>${esc(t('modelConvergence'))}</span><strong>${consensus!=null?`${consensus}%`:'—'}</strong></div><div class="timeline-consensus-track" aria-hidden="true"><i style="--agreement:${consensus??0}%"></i></div><div class="timeline-consensus-meta">${consensus!=null?esc(modelCountLabel(p.modelCount)):esc(t('limitedComparison'))}</div>${divergence.length?`<div class="divergence-list" aria-label="${esc(t('disagreementVariableLegend'))}">${divergence.map(d=>`<span title="${esc(divergenceLabel(d))}">⚠ ${esc(divergenceShort(d))}</span>`).join('')}</div>`:`<div class="divergence-list stable"><span>✓ ${esc(t('coherent'))}</span></div>`}</div></article>`;
 }
 
 function timelineEventMarker(p,prev){
@@ -1405,7 +1420,7 @@ function renderModelRow(m){const {t}=i18n(),on=state.settings.enabledModelIds.in
 
 function nearestBandPercent(bands,timestamp,epochMs=null){if(!bands?.length)return null;if(Number.isFinite(epochMs)){const absolute=bands.filter(b=>Number.isFinite(b.epochMs));if(absolute.length){const best=absolute.reduce((a,b)=>Math.abs(b.epochMs-epochMs)<Math.abs(a.epochMs-epochMs)?b:a,absolute[0]);return best?.percent;}}const target=localTimestampValue(timestamp),best=bands.reduce((a,b)=>Math.abs(localTimestampValue(b.timestamp)-target)<Math.abs(localTimestampValue(a.timestamp)-target)?b:a,bands[0]);return best?.percent;}
 function disagreementAnalysis(cityId){
-  const f=state.forecasts[cityId];if(!f)return null;const profile=localConsensusWeights(cityId),weights=state.settings.localWeightedConsensus&&profile.ready?profile.maps:null,opts={weightsByVariable:weights||{}},points=selectRegularTimelinePoints(buildTimelinePoints(f,'HOURLY',new Date(),opts),8,3),bands={TEMPERATURE:cachedBand(f,'TEMPERATURE',24,weights),PRECIPITATION:cachedBand(f,'PRECIPITATION',24,weights),WIND:cachedBand(f,'WIND',24,weights)},variables=['TEMPERATURE','PRECIPITATION','WIND','CONDITION'];
+  const f=state.forecasts[cityId];if(!f)return null;const profile=localConsensusWeights(cityId),weights=state.settings.localWeightedConsensus&&profile.ready?profile.maps:null,opts={weightsByVariable:weights||{}},points=selectRegularTimelinePoints(buildTimelinePoints(f,'HOURLY',new Date(),opts),24,1),bands={TEMPERATURE:cachedBand(f,'TEMPERATURE',24,weights),PRECIPITATION:cachedBand(f,'PRECIPITATION',24,weights),WIND:cachedBand(f,'WIND',24,weights)},variables=['TEMPERATURE','PRECIPITATION','WIND','CONDITION'];
   const rows=points.map(p=>{const values={TEMPERATURE:nearestBandPercent(bands.TEMPERATURE,p.timestamp,p.epochMs),PRECIPITATION:nearestBandPercent(bands.PRECIPITATION,p.timestamp,p.epochMs),WIND:nearestBandPercent(bands.WIND,p.timestamp,p.epochMs),CONDITION:Number.isFinite(p.consensusPercent)?p.consensusPercent:null};for(const reason of p.divergenceReasons||[])if(reason==='CONDITION'&&Number.isFinite(values.CONDITION))values.CONDITION=Math.min(values.CONDITION,49);return {timestamp:p.timestamp,epochMs:p.epochMs,modelCount:p.modelCount,values,reasons:p.divergenceReasons||[]};});
   const summary=Object.fromEntries(variables.map(v=>{const vals=rows.map(r=>r.values[v]).filter(Number.isFinite);return [v,{average:vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null,weak:vals.filter(x=>x<80).length,low:vals.filter(x=>x<50).length}];}));return {rows,summary};
 }

@@ -7,7 +7,7 @@ import { buildEvolution } from '../../../js/features/evolution.js';
 import { WEATHER_MODELS, DEFAULT_MODEL_IDS } from '../../../js/models.js';
 
 const read=p=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),api=read('js/api.js'),apiBudget=read('js/api-budget.js'),css=read('styles.css'),sw=read('sw.js');
+const app=read('js/app.js'),api=read('js/api.js'),apiBudget=read('js/api-budget.js'),network=read('js/network.js'),css=read('styles.css'),sw=read('sw.js');
 
 // 1. Every web key and every inherited Android key exists in all five supported languages.
 const webAudit=webTranslationAudit();
@@ -154,7 +154,7 @@ assert.match(app,/normalsRefreshTokens\.get\(cityId\)===token/,'ERA5 normal writ
 assert.match(app,/if\(!cityRefreshTokens\.get\(cityId\)\|\|!state\.cities\.some\(c=>c\.id===cityId\)\)deleteForecast\(cityId\)/,'stale weather cleanup must only remove the forecast cache, never unrelated bias/normals/evolution data');
 assert.doesNotMatch(app,/await saveForecast\(cityId,f\);[^\n]*deleteCityData\(cityId\)/,'a superseded weather save must not purge unrelated per-city history');
 assert.match(app,/availableIds\.filter\(id=>enabledIds\.has\(id\)\)/,'bias refresh planning must use the currently enabled model cohort');
-assert.match(api+apiBudget,/err\.code='HTTP_ERROR'/,'HTTP failures must use structured error codes for localization');
+assert.match(api+apiBudget+network,/(?:err|error)\.code='HTTP_ERROR'/,'HTTP failures must use structured error codes for localization');
 assert.match(api+apiBudget,/err\.code='OPEN_METEO_ERROR'/,'provider-declared failures must use structured error codes for localization');
 assert.match(app,/function invalidateWeatherRefreshes\(\)\{cityRefreshTokens\.clear\(\);state\.loading\.clear\(\);\}/,'model configuration changes must invalidate in-flight weather loads');
 assert.match(app,/requestedModelIds[\s\S]*sameModels/,'forecast freshness must include the requested model cohort, not only age');

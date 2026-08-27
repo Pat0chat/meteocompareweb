@@ -430,8 +430,8 @@ tr.current .heatmap-data-cell[style*="--heat"] { background: color-mix(in srgb, 
 }
 .timeline-card { overflow: hidden; }
 .timeline-scroll { overflow-x: auto; overscroll-behavior-inline: contain; padding-bottom: 3px; }
-.timeline-ruler, .timeline-full { grid-template-columns: repeat(var(--timeline-cols, 8), minmax(122px,1fr)); }
-.timeline-ruler, .timeline-full { min-width: max(100%, calc(var(--timeline-cols, 8) * 122px)); }
+.timeline-ruler, .timeline-full { grid-template-columns: repeat(var(--timeline-cols, 8), minmax(148px,1fr)); }
+.timeline-ruler, .timeline-full { min-width: max(100%, calc(var(--timeline-cols, 8) * 148px)); }
 
 /* ========================================================================== */
 /* Technical desktop UI pass                                                  */
@@ -1854,7 +1854,6 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .storage-category-grid-simple .storage-category-card p{min-height:2.1em}
 .storage-advanced{padding:0;overflow:hidden}
 .storage-advanced>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 18px;cursor:pointer}
-.storage-advanced>summary::-webkit-details-marker{display:none}
 .storage-advanced>summary>div{display:grid;gap:3px}
 .storage-advanced>summary strong{font-size:.92rem}
 .storage-advanced>summary span{color:var(--muted);font-size:.7rem;line-height:1.4}
@@ -3080,6 +3079,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .timeline-condition > span:last-child,
 .timeline-metric small { color:var(--muted); }
 .timeline-condition { min-height:58px; }
+.timeline-condition > span:last-child { display:block; width:100%; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .timeline-temp-band {
   min-height:70px;
   margin:5px -3px 9px;

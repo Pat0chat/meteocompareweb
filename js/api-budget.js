@@ -1,3 +1,4 @@
+import { fetchJsonResource } from './network.js';
 const USAGE_KEY='meteocompare.web.api-usage.v1';
 const inFlight=new Map();
 const memoryCache=new Map();
@@ -42,9 +43,7 @@ export async function fetchOpenMeteoJson(url,{timeoutMs=30000,signal=null,catego
     const timer=setTimeout(()=>controller.abort(),timeoutMs);
     try{
       increment(category,url);
-      const res=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});
-      if(!res.ok){const err=new Error(`HTTP ${res.status}`);err.code='HTTP_ERROR';err.status=res.status;err.retryAfter=res.headers?.get?.('retry-after')||null;throw err;}
-      const json=await res.json();if(json?.error){const err=new Error(json.reason||'Open-Meteo error');err.code='OPEN_METEO_ERROR';err.reason=json.reason||'';throw err;}
+      const json=await fetchJsonResource(url,{signal:controller.signal,timeoutMs:0});if(json?.error){const err=new Error(json.reason||'Open-Meteo error');err.code='OPEN_METEO_ERROR';err.reason=json.reason||'';throw err;}
       if(cacheTtlMs>0)memoryCache.set(key,{at:Date.now(),value:json});return json;
     }finally{clearTimeout(timer);signal?.removeEventListener?.('abort',abort);}
   })();

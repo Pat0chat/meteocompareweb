@@ -109,7 +109,16 @@ export function matchSeoCity(city){
 }
 export function cityPublicPath(city){
   const matched=matchSeoCity(city),slug=matched?.slug||slugifyCityName(city?.name)||'ville';
-  const params=new URLSearchParams();if(!matched&&city?.id!=null)params.set('id',String(city.id));
+  const params=new URLSearchParams();
+  if(!matched){
+    if(city?.id!=null)params.set('id',String(city.id));
+    if(city?.name)params.set('name',String(city.name));
+    if(Number.isFinite(Number(city?.latitude)))params.set('lat',Number(city.latitude).toFixed(5));
+    if(Number.isFinite(Number(city?.longitude)))params.set('lon',Number(city.longitude).toFixed(5));
+    if(city?.timezone)params.set('tz',String(city.timezone));
+    if(city?.country)params.set('country',String(city.country));
+    if(city?.admin1||city?.region)params.set('admin1',String(city.admin1||city.region));
+  }
   return `/meteo/${encodeURIComponent(slug)}${params.size?`?${params.toString()}`:''}`;
 }
 export function nearbySeoCities(city,limit=6){

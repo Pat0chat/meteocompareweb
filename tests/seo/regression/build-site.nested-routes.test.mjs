@@ -15,6 +15,7 @@ assert.match(read('sw.js'),/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSI
 assert.match(read('cache-version.js'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 
 const index=read('index.html');
+assert.doesNotMatch(index,/<base\s/i,'source shell must stay repository-relative for GitHub Pages');
 assert.match(index,/rel="icon" href="assets\/icon\.png"/);
 assert.match(index,/rel="apple-touch-icon" href="assets\/icon\.png"/);
 assert.match(index,/rel="manifest" href="manifest\.webmanifest"/);
@@ -23,6 +24,8 @@ assert.match(index,/type="module" src="js\/app\.js"/);
 
 const app=read('js/app.js');
 assert.match(app,/const APP_ROOT_URL=new URL\('\.\.\/',import\.meta\.url\)/,'runtime assets must resolve from the application module location');
+assert.match(app,/navigator\.serviceWorker\.register\('\.\/sw\.js',\{updateViaCache:'none'\}\)/,'PWA registration must stay relative to the deployment root');
+assert.match(app,/legacyPrefix=`\$\{rootPath\}meteo\/`/,'legacy nested service-worker registrations must be removed relative to the app root');
 assert.match(app,/class="logo" src="\$\{attr\(appAssetUrl\('assets\/icon\.png'\)\)\}"/,'topbar logo must use the route-independent asset resolver');
 assert.doesNotMatch(app,/class="logo" src="assets\/icon\.png"/,'topbar logo must not depend on the current document route depth');
 
@@ -31,6 +34,8 @@ const toulouse=read('dist/meteo/toulouse.html');
 assert.match(toulouse,/<base href="\/" \/>/);
 assert.match(toulouse,/rel="icon" href="assets\/icon\.png"/);
 assert.match(toulouse,/type="module" src="js\/app\.js"/);
+const fallback404=read('dist/404.html');
+assert.match(fallback404,/<base href="\.\.\/" \/>/,'GitHub Pages 404 fallback must resolve /meteo/:slug assets from the repository root');
 assert.ok(fs.existsSync(resolve(root,'dist/assets/icon.png')),'release build must contain the topbar icon');
 
 console.log('SEO nested-route assets: OK');

@@ -1,7 +1,9 @@
 import { forecastEnginePrecipitation, DEFAULT_FORECAST_ENGINE } from '../forecast-engines.js';
 import { isWetPrecipitation } from '../consensus.js';
-const RADAR_META_URL='https://api.rainviewer.com/public/weather-maps.json';
-const OSM_TILE_URL='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+import { fetchBlobResource, fetchJsonResource } from '../network.js';
+import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from '../network-config.js';
+const RADAR_META_URL=NETWORK_ENDPOINTS.radar.metadata;
+const OSM_TILE_URL=NETWORK_ENDPOINTS.radar.osmTileTemplate;
 const RADAR_META_TTL_MS=5*60_000;
 const RADAR_COLOR_SCHEME=2;
 const RADAR_OPTIONS='0_1';
@@ -231,9 +233,7 @@ export function radarNowcastEta(mask,motion,{width=ANALYSIS_SIZE,height=ANALYSIS
 
 async function fetchMetadata(fetchImpl=fetch,{forceRefresh=false}={}){
   if(!forceRefresh&&metaCache&&Date.now()-metaCacheAt<RADAR_META_TTL_MS)return metaCache;
-  const response=await fetchImpl(RADAR_META_URL,{credentials:'omit',cache:forceRefresh?'no-store':'default',referrerPolicy:'no-referrer'});
-  if(!response.ok)throw new Error(`RADAR_HTTP_${response.status}`);
-  const payload=await response.json(),host=String(payload?.host||'');
+  const payload=await fetchJsonResource(RADAR_META_URL,{fetchImpl,timeoutMs:NETWORK_TIMEOUTS_MS.radarMetadata,cache:forceRefresh?'no-store':'default'}),host=String(payload?.host||'');
   if(!/^https:\/\/[a-z0-9.-]+\.rainviewer\.com$/i.test(host))throw new Error('RADAR_INVALID_HOST');
   const past=(payload?.radar?.past||[]).filter(frame=>Number.isFinite(frame?.time)&&/^\/v2\/radar\/\d+/.test(String(frame?.path||''))).slice(-13);
   if(!past.length)throw new Error('RADAR_NO_FRAMES');
@@ -273,8 +273,7 @@ function renderForecast(container,forecast,{t,locale,forecastOptions=null}){
 }
 
 async function imageMask(url,signal){
-  const response=await fetch(url,{credentials:'omit',cache:'force-cache',referrerPolicy:'no-referrer',signal});if(!response.ok)throw new Error(`RADAR_IMAGE_HTTP_${response.status}`);
-  const blob=await response.blob();let bitmap=null,image=null,objectUrl='';
+  const blob=await fetchBlobResource(url,{signal,timeoutMs:NETWORK_TIMEOUTS_MS.radarImage,cache:'force-cache'});let bitmap=null,image=null,objectUrl='';
   try{
     if(typeof createImageBitmap==='function')bitmap=await createImageBitmap(blob);
     else{objectUrl=URL.createObjectURL(blob);image=await new Promise((resolve,reject)=>{const node=new Image();node.onload=()=>resolve(node);node.onerror=reject;node.src=objectUrl;});}

@@ -17,7 +17,14 @@ assert.equal(matchSeoCity({id:'custom',name:'Paris',latitude:0,longitude:0}),nul
 
 assert.equal(cityPublicPath(paris),'/meteo/paris');
 const custom={id:'custom:123',name:'Saint Test',latitude:1,longitude:2,timezone:'UTC'};
-assert.equal(cityPublicPath(custom),'/meteo/saint-test?id=custom%3A123');
+const customPath=cityPublicPath(custom);
+assert.match(customPath,/^\/meteo\/saint-test\?/);
+const customQuery=new URLSearchParams(customPath.split('?')[1]);
+assert.equal(customQuery.get('id'),'custom:123');
+assert.equal(customQuery.get('name'),'Saint Test');
+assert.equal(customQuery.get('lat'),'1.00000');
+assert.equal(customQuery.get('lon'),'2.00000');
+assert.equal(customQuery.get('tz'),'UTC');
 const nearby=nearbySeoCities(paris,6);
 assert.equal(nearby.length,6);
 assert.equal(new Set(nearby.map(city=>city.id)).size,6);
