@@ -844,6 +844,57 @@ html, body, * {
   scrollbar-color: var(--scrollbar-thumb) transparent !important;
 }
 
+/* Horizontal data strips need a larger hit target than the global vertical
+   scrollbars. Firefox only exposes auto/thin/none, so horizontal-only regions
+   use the platform's normal thickness while retaining the MeteoCompare palette.
+   Extra breathing room keeps the native gutter inside the rounded component. */
+@supports (-moz-appearance: none) {
+  :where(
+    .detail-nav,
+    .segmented,
+    .timeline,
+    .timeline-card,
+    .timeline-scroll,
+    .chart-wrap,
+    .heatmap-legend,
+    .model-compare-picker,
+    .agreement-chart-wrap,
+    .marine-chart-block,
+    .marine-days,
+    .marine-chart-integrated,
+    .marine-tide-chart-zone,
+    .home-hero-actions,
+    .forecast-engine-divergence-track,
+    .about-visual-radar-frames
+  ) {
+    scrollbar-width: auto !important;
+    scrollbar-color: var(--scrollbar-thumb) transparent !important;
+    border-end-start-radius: var(--radius-sm, 9px);
+    border-end-end-radius: var(--radius-sm, 9px);
+    background-clip: padding-box;
+  }
+
+  :where(
+    .detail-nav,
+    .segmented,
+    .timeline,
+    .timeline-scroll,
+    .chart-wrap,
+    .heatmap-legend,
+    .model-compare-picker,
+    .agreement-chart-wrap,
+    .marine-chart-block,
+    .marine-days,
+    .marine-chart-integrated,
+    .marine-tide-chart-zone,
+    .home-hero-actions,
+    .forecast-engine-divergence-track,
+    .about-visual-radar-frames
+  ) {
+    padding-block-end: max(6px, var(--space-2, 6px));
+  }
+}
+
 /* Chromium / Safari fallback and explicit sizing. Firefox ignores these
    vendor pseudo-elements and keeps the standard rules above. */
 /* On WebKit/Blink, non-auto standard scrollbar properties can override the
@@ -858,15 +909,16 @@ html, body, * {
 
 html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
+  height: 10px;
 }
 html::-webkit-scrollbar-track, body::-webkit-scrollbar-track, *::-webkit-scrollbar-track {
   background: transparent;
 }
 html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb, *::-webkit-scrollbar-thumb {
   min-height: 28px;
-  border: 0;
+  border: 2px solid transparent;
   border-radius: 999px;
+  background-clip: padding-box;
   background-color: var(--scrollbar-thumb);
 }
 html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover, *::-webkit-scrollbar-thumb:hover {
