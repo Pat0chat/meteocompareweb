@@ -498,8 +498,14 @@ export function buildScenarios(forecast,maxScenarios=3){
   // Scenario ranking uses the same lineage balancing as the central forecast: several
   // sibling configurations share one family vote instead of multiplying influence.
   const scenarioBalance=familyBalancedWeights(models.map(x=>x.modelId)),totalVoteWeight=Object.values(scenarioBalance.weights).reduce((a,b)=>a+b,0)||1;
-  const toScenario=(arr,key)=>{const [kind,timing]=key.split('|'),voteWeight=arr.reduce((sum,x)=>sum+(scenarioBalance.weights[x.modelId]||0),0),familyCount=new Set(arr.map(x=>consensusGroupFor(x.modelId))).size;return {kind,timing,modelCount:arr.length,totalModelCount:models.length,familyCount,totalFamilyCount:scenarioBalance.familyCount,voteWeight,voteSharePercent:Math.round(voteWeight*100/totalVoteWeight),tempMin:minFinite(arr.map(x=>x.tempMin)),tempMax:maxFinite(arr.map(x=>x.tempMax)),precipMin:minFinite(arr.map(x=>x.precipTotal)),precipMax:maxFinite(arr.map(x=>x.precipTotal)),cloudMin:minFinite(arr.map(x=>x.cloudMedian)),cloudMax:maxFinite(arr.map(x=>x.cloudMedian)),gustMin:minFinite(arr.map(x=>x.gustMax)),gustMax:maxFinite(arr.map(x=>x.gustMax))};};
-  let out=[...groups].map(([k,a])=>toScenario(a,k)).sort((a,b)=>b.voteWeight-a.voteWeight||(importance[b.kind]-importance[a.kind]));if(out.length<=maxScenarios)return out;if(maxScenarios===1)return [{...toScenario(models,'OTHER|NONE'),kind:'OTHER',timing:'NONE'}];const kept=out.slice(0,maxScenarios-1);const keepKeys=new Set(kept.map(x=>x.kind+'|'+x.timing));const rem=models.filter(x=>!keepKeys.has(x.kind+'|'+x.timing));return [...kept,{...toScenario(rem,'OTHER|NONE'),kind:'OTHER',timing:'NONE'}];
+  const toScenario=(arr,key)=>{const [kind,timing]=key.split('|'),voteWeight=arr.reduce((sum,x)=>sum+(scenarioBalance.weights[x.modelId]||0),0),familyCount=new Set(arr.map(x=>consensusGroupFor(x.modelId))).size;return {kind,timing,modelIds:arr.map(x=>x.modelId),modelCount:arr.length,totalModelCount:models.length,familyCount,totalFamilyCount:scenarioBalance.familyCount,voteWeight,voteSharePercent:Math.round(voteWeight*100/totalVoteWeight),tempMin:minFinite(arr.map(x=>x.tempMin)),tempMax:maxFinite(arr.map(x=>x.tempMax)),precipMin:minFinite(arr.map(x=>x.precipTotal)),precipMax:maxFinite(arr.map(x=>x.precipTotal)),cloudMin:minFinite(arr.map(x=>x.cloudMedian)),cloudMax:maxFinite(arr.map(x=>x.cloudMedian)),gustMin:minFinite(arr.map(x=>x.gustMax)),gustMax:maxFinite(arr.map(x=>x.gustMax))};};
+  const out=[...groups].map(([k,a])=>toScenario(a,k)).sort((a,b)=>b.voteWeight-a.voteWeight||(importance[b.kind]-importance[a.kind]));
+  const limit=Number.isFinite(maxScenarios)?Math.max(0,Math.trunc(maxScenarios)):out.length;
+  // Keep only meteorologically coherent groups. Never merge unrelated leftovers into
+  // a synthetic OTHER scenario: min/max ranges across different weather patterns are
+  // not a meaningful scenario and can make the remainder appear wetter/warmer than a
+  // named group even though no single model group predicts that combined range.
+  return out.slice(0,limit);
 }
 
 export function aggregateNormals(raw,startDate,endDate){
