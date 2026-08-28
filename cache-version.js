@@ -1,2 +1,2 @@
 /* Single source of truth for the PWA shell cache generation. */
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v128-ecmwf-ifs-integrity-audit';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v129-topbar-configuration';

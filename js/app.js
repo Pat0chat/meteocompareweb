@@ -440,6 +440,7 @@ function uiIcon(kind,size=17){
   const paths={
     home:'<path d="M3.5 10.8 12 3.8l8.5 7"/><path d="M5.5 9.7V20h13V9.7"/><path d="M9.5 20v-6h5v6"/>',
     settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.55V21h-4v-.08A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1-1.55V3h4v.08a1.7 1.7 0 0 0 1.03 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.24.62.84 1.02 1.5 1.02H21v4h-.1c-.66 0-1.26.4-1.5.98Z"/>',
+    tune:'<path d="M4 7h10"/><path d="M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2"/><path d="M10 17h10"/><circle cx="8" cy="17" r="2"/><path d="M4 12h5"/><path d="M13 12h7"/><circle cx="11" cy="12" r="2"/>',
     back:'<path d="m15 18-6-6 6-6"/>',
     refresh:'<path d="M20 6v5h-5"/><path d="M4 18v-5h5"/><path d="M6.1 8.2A7 7 0 0 1 17.7 6L20 11"/><path d="M17.9 15.8A7 7 0 0 1 6.3 18L4 13"/>',
     plus:'<path d="M12 5v14M5 12h14"/>',
@@ -631,6 +632,15 @@ function refreshInstallNav(){
 function closeInstallMenus(except=null){
   for(const menu of app?.querySelectorAll?.('.nav-install-menu.is-open')||[]){if(menu===except)continue;menu.classList.remove('is-open');menu.querySelector?.('[data-action="toggle-install-menu"]')?.setAttribute('aria-expanded','false');}
 }
+function closeConfigMenus(except=null){
+  for(const menu of app?.querySelectorAll?.('.nav-config-menu.is-open')||[]){if(menu===except)continue;menu.classList.remove('is-open');menu.querySelector?.('[data-action="toggle-config-menu"]')?.setAttribute('aria-expanded','false');}
+}
+function renderConfigNav(isData,isSettings){
+  const {t}=i18n(),active=isData||isSettings;
+  const localDataOption=`<button class="config-option ${isData?'active':''}" type="button" role="menuitem" data-action="local-data" ${isData?'aria-current="page"':''}><span class="config-option-icon">${uiIcon('database',18)}</span><span class="config-option-copy"><strong>${esc(t('localDataNav'))}</strong><small>${esc(t('localDataIntro'))}</small></span></button>`;
+  const settingsOption=`<button class="config-option ${isSettings?'active':''}" type="button" role="menuitem" data-action="settings" ${isSettings?'aria-current="page"':''}><span class="config-option-icon">${uiIcon('settings',18)}</span><span class="config-option-copy"><strong>${esc(t('settings'))}</strong><small>${esc(t('settingsIntro'))}</small></span></button>`;
+  return `<div class="nav-config-menu"><button class="nav-btn config-nav ${active?'active':''}" data-action="toggle-config-menu" aria-haspopup="menu" aria-expanded="false" ${active?'aria-current="page"':''} aria-label="${esc(t('configuration'))}" title="${esc(t('configuration'))}"><span class="nav-icon">${uiIcon('tune')}</span><span>${esc(t('configuration'))}</span></button><div class="nav-config-popover" role="menu" aria-label="${esc(t('configuration'))}"><div class="nav-config-popover-head"><strong>${esc(t('configuration'))}</strong></div><div class="config-option-list">${localDataOption}${settingsOption}</div></div></div>`;
+}
 
 function renderTopbar(){
   const {t}=i18n();
@@ -638,10 +648,10 @@ function renderTopbar(){
   const favorites=favoriteCities();
   const cityLinks=favorites.length?favorites.map(city=>{const forecast=state.forecasts[city.id],cityHealth=forecast?forecastHealth(forecast):null;return `<button class="quick-city-link" role="menuitem" data-action="quick-city" data-city-id="${attr(city.id)}"><span class="quick-city-status ${cityHealth?.class||'unknown'}" aria-hidden="true"></span><span class="quick-city-copy"><strong>${esc(city.name)}</strong><small>${esc(placeLine(city))}</small></span><span class="quick-city-arrow" aria-hidden="true">→</span></button>`;}).join(''):`<div class="quick-city-empty">${esc(t('emptyTitle'))}</div>`;
   const citiesNav=`<div class="nav-cities-menu"><button class="nav-btn ${isHome?'active':''}" data-action="home" ${isHome?'aria-current="page"':''} aria-haspopup="menu"><span class="nav-icon">${uiIcon('home')}</span><span>${esc(t('cities'))}</span></button><div class="nav-cities-popover" role="menu" aria-label="${esc(t('cities'))}"><div class="nav-cities-popover-head"><strong>${esc(t('cities'))}</strong><span>${favorites.length}</span></div><div class="nav-cities-list">${cityLinks}</div><button class="quick-city-add" data-action="open-add-city"><span>${uiIcon('plus',15)}</span>${esc(t('addCity'))}</button></div></div>`;
-  const installNav=renderInstallNav();
+  const configNav=renderConfigNav(isData,isSettings),installNav=renderInstallNav();
   return `<header class="topbar"><div class="topbar-inner">
     <div class="brand" role="link" tabindex="0" data-action="home" aria-label="MeteoCompare — ${esc(t('cities'))}"><img class="logo" src="${attr(appAssetUrl('assets/icon.png'))}" alt=""><div><div class="brand-title-row"><div class="brand-title">MeteoCompare</div><span class="brand-version" title="${esc(t('versionInfoLabel',{version:APP_VERSION,schema:DATA_SCHEMA_VERSION}))}">v${esc(APP_VERSION)}</span></div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
-    <nav class="topbar-nav" aria-label="${esc(t('navMain'))}">${citiesNav}<button class="nav-btn ${isData?'active':''}" data-action="local-data" ${isData?'aria-current="page"':''}><span class="nav-icon">${uiIcon('database')}</span><span>${esc(t('localDataNav'))}</span></button><button class="nav-btn ${isSettings?'active':''}" data-action="settings" ${isSettings?'aria-current="page"':''}><span class="nav-icon">${uiIcon('settings')}</span><span>${esc(t('settings'))}</span></button><button class="nav-btn ${isAbout?'active':''}" data-action="about" ${isAbout?'aria-current="page"':''}><span class="nav-icon">${uiIcon('info')}</span><span>${esc(t('about'))}</span></button>${installNav}<button class="nav-btn support-nav" data-action="donate"><span class="nav-icon">${uiIcon('heart')}</span><span>${esc(t('supportShort'))}</span></button><a class="nav-btn bluesky-nav" href="https://bsky.app/profile/meteocompare.bsky.social" target="_blank" rel="noopener noreferrer" aria-label="Bluesky · @meteocompare.bsky.social" title="Bluesky · @meteocompare.bsky.social">${blueskyIcon(18)}</a></nav>
+    <nav class="topbar-nav" aria-label="${esc(t('navMain'))}">${citiesNav}${configNav}<button class="nav-btn ${isAbout?'active':''}" data-action="about" ${isAbout?'aria-current="page"':''}><span class="nav-icon">${uiIcon('info')}</span><span>${esc(t('about'))}</span></button>${installNav}<button class="nav-btn support-nav" data-action="donate"><span class="nav-icon">${uiIcon('heart')}</span><span>${esc(t('supportShort'))}</span></button><a class="nav-btn bluesky-nav" href="https://bsky.app/profile/meteocompare.bsky.social" target="_blank" rel="noopener noreferrer" aria-label="Bluesky · @meteocompare.bsky.social" title="Bluesky · @meteocompare.bsky.social">${blueskyIcon(18)}</a></nav>
     <div class="topbar-spacer"></div><div class="topbar-system-status ${health?.class|| (state.online?'online':'offline')}" title="${esc(statusTitle)}"><span class="system-led" aria-hidden="true"></span><span>${esc(statusLabel)}</span></div>
   </div></header>`;
 }
@@ -1572,6 +1582,7 @@ function handleChartPointerOut(e){
 }
 
 function handleGlobalKeydown(e){
+  if(e.key==='Escape'&&app?.querySelector?.('.nav-config-menu.is-open')){e.preventDefault();const configMenu=app.querySelector('.nav-config-menu.is-open'),trigger=configMenu?.querySelector?.('[data-action="toggle-config-menu"]');closeConfigMenus();trigger?.focus?.();return;}
   if(e.key==='Escape'&&app?.querySelector?.('.nav-install-menu.is-open')){e.preventDefault();const installMenu=app.querySelector('.nav-install-menu.is-open'),trigger=installMenu?.querySelector?.('[data-action="toggle-install-menu"]');closeInstallMenus();trigger?.focus?.();return;}
   if(e.key==='Escape'&&state.modal){e.preventDefault();closeModal();return;}
   if((e.key==='Enter'||e.key===' ')&&e.target?.matches?.('.brand[role="link"]')){e.preventDefault();go('#/');return;}
@@ -1627,6 +1638,7 @@ function openSeoCityLink(link){
 }
 function handleAppClick(e){
   if(!e.target.closest?.('.nav-install-menu'))closeInstallMenus();
+  if(!e.target.closest?.('.nav-config-menu'))closeConfigMenus();
   const seoLink=e.target.closest?.('a[data-seo-city-link]');
   if(seoLink&&app.contains(seoLink)&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();if(openSeoCityLink(seoLink))return;}
   const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section],[data-compare-model],[data-export-format],[data-agreement-time],[data-density],[data-city-compare-toggle],[data-evolution-variable],[data-reliability-variable],[data-local-weighting],[data-forecast-engine],[data-engine-chart-variable],[data-collapse-section],[data-error-action]');
@@ -1686,7 +1698,8 @@ function handleAction(e){
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='toggle-target-compare'){const key=state.route.name==='city'?state.route.id:'global',panel=e.currentTarget.closest?.('[data-target-compare]'),next=panel?.dataset.open!=='true';state.comparePanelOpen[key]=next;if(panel){panel.dataset.open=String(next);const btn=panel.querySelector?.('[data-action="toggle-target-compare"]');if(btn)btn.setAttribute('aria-expanded',String(next));const body=panel.querySelector?.('.target-compare-body');if(body)body.hidden=!next;} }
-  else if(action==='toggle-install-menu'){const menu=e.currentTarget.closest?.('.nav-install-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeInstallMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
+  else if(action==='toggle-config-menu'){const menu=e.currentTarget.closest?.('.nav-config-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeInstallMenus();closeConfigMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
+  else if(action==='toggle-install-menu'){const menu=e.currentTarget.closest?.('.nav-install-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeConfigMenus();closeInstallMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
   else if(action==='install-play-store'){closeInstallMenus();void trackAnalyticsEvent('Install Option Selected',state.route,{source:'play_store'});}
   else if(action==='settings')go('#/settings');
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}
