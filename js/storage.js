@@ -376,6 +376,10 @@ export async function createLocalBackup(cities=[], options={}) {
 }
 function validBackup(value){return Boolean(value&&value.type==='meteocompare-backup'&&Number(value.formatVersion)>=1&&Number(value.formatVersion)<=BACKUP_FORMAT_VERSION&&value.data&&typeof value.data==='object'&&Array.isArray(value.data.cities)&&value.data.settings&&typeof value.data.settings==='object');}
 function cleanImportedSettings(settings){return normalizeSettings(settings);}
+function migrateBackupPayload(kind,payload,sourceSchemaVersion){
+  const sourceVersion=Number(sourceSchemaVersion)||1;
+  return sourceVersion<4?migrateEcmwfIfs025Payload(kind,payload):payload;
+}
 export async function restoreLocalBackup(value,{replace=true}={}){
   if(!validBackup(value)){const err=new Error('INVALID_BACKUP');err.code='INVALID_BACKUP';throw err;}
   if(Number(value.dataSchemaVersion)>DATA_SCHEMA_VERSION){const err=new Error('BACKUP_FUTURE_SCHEMA');err.code='BACKUP_FUTURE_SCHEMA';throw err;}
@@ -386,8 +390,9 @@ export async function restoreLocalBackup(value,{replace=true}={}){
   if(currentAnalyticsOptOut||backupAnalyticsOptOut)try{localStorage.setItem(ANALYTICS_OPTOUT_KEY,'1');}catch{}
   const cities=normalizeCities(value.data.cities);
   const settings=cleanImportedSettings(value.data.settings);saveSettings(settings);saveCities(cities);
-  const ids=new Set(cities.map(c=>String(c.id))),writeMap=async(map,writer)=>{for(const [id,payload] of Object.entries(map||{}))if(ids.has(String(id))&&payload!=null)await writer(String(id),payload);};
-  await writeMap(value.data.forecasts,saveForecast);await writeMap(value.data.normals,(id,v)=>saveNormals(id,v));await writeMap(value.data.bias,(id,v)=>saveBias(id,v));await writeMap(value.data.evolution,(id,v)=>saveEvolution(id,v));await writeMap(value.data.marine,(id,v)=>saveMarine(id,v));await writeMap(value.data.health,(id,v)=>saveModelHealth(id,v));
+  const sourceSchemaVersion=Number(value.dataSchemaVersion)||1,ids=new Set(cities.map(c=>String(c.id)));
+  const writeMap=async(map,kind,writer)=>{for(const [id,payload] of Object.entries(map||{})){if(!ids.has(String(id))||payload==null)continue;const migrated=migrateBackupPayload(kind,payload,sourceSchemaVersion);await writer(String(id),migrated);}};
+  await writeMap(value.data.forecasts,'forecast',saveForecast);await writeMap(value.data.normals,'normals',(id,v)=>saveNormals(id,v));await writeMap(value.data.bias,'bias',(id,v)=>saveBias(id,v));await writeMap(value.data.evolution,'evolution',(id,v)=>saveEvolution(id,v));await writeMap(value.data.marine,'marine',(id,v)=>saveMarine(id,v));await writeMap(value.data.health,'health',(id,v)=>saveModelHealth(id,v));
   return {cities:cities.length,settings:true,forecasts:Object.keys(value.data.forecasts||{}).length,normals:Object.keys(value.data.normals||{}).length,bias:Object.keys(value.data.bias||{}).length,evolution:Object.keys(value.data.evolution||{}).length,marine:Object.keys(value.data.marine||{}).length,health:Object.keys(value.data.health||{}).length};
 }
 
