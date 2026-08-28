@@ -13,7 +13,7 @@ export const NETWORK_ENDPOINTS = Object.freeze({
     archive: 'https://archive-api.open-meteo.com/v1/archive',
     previousRuns: 'https://previous-runs-api.open-meteo.com/v1/forecast',
     marine: 'https://marine-api.open-meteo.com/v1/marine',
-    modelMetadataUpstream: 'https://openmeteo-data-spatial.b-cdn.net',
+    modelMetadataUpstream: 'https://map-tiles.open-meteo.com/data_spatial',
   }),
   radar: Object.freeze({
     metadata: 'https://api.rainviewer.com/public/weather-maps.json',

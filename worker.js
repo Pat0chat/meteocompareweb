@@ -34,7 +34,13 @@ function cachedJsonHeaders(upstream){
   return headers;
 }
 
-async function proxyModelMetadata(request,ctx){
+function modelMetadataFallbackResponse(error,upstreamStatus=null){
+  const headers=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','x-meteocompare-model-metadata':'forecast-run-fallback'});
+  if(Number.isFinite(upstreamStatus))headers.set('x-upstream-status',String(upstreamStatus));
+  return new Response(JSON.stringify({unavailable:true,error,forecastFallback:true}),{status:200,headers});
+}
+
+export async function proxyModelMetadata(request,ctx){
   if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method Not Allowed',{status:405,headers:{Allow:'GET, HEAD'}});
   const url=new URL(request.url),key=(url.searchParams.get('key')||'').trim();
   if(!MODEL_METADATA_KEY.test(key))return new Response('Invalid model key',{status:400,headers:{'cache-control':'no-store'}});
@@ -44,8 +50,8 @@ async function proxyModelMetadata(request,ctx){
 
   let upstream;
   try{upstream=await fetchUpstream(`${MODEL_METADATA_UPSTREAM}/${encodeURIComponent(key)}/latest.json`,{method:'GET',headers:{Accept:'application/json'},redirect:'follow'});}
-  catch(error){return upstreamFailure(error,'Model metadata');}
-  if(!upstream.ok)return new Response('Model metadata unavailable',{status:upstream.status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
+  catch(error){const timedOut=error?.name==='AbortError'||error?.code==='NETWORK_TIMEOUT';return modelMetadataFallbackResponse(timedOut?'UPSTREAM_TIMEOUT':'UPSTREAM_UNAVAILABLE');}
+  if(!upstream.ok)return modelMetadataFallbackResponse(`UPSTREAM_HTTP_${upstream.status}`,upstream.status);
 
   const response=new Response(upstream.body,{status:upstream.status,headers:cachedJsonHeaders(upstream)});
   ctx.waitUntil(caches.default.put(cacheKey,response.clone()));

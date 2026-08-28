@@ -17,7 +17,7 @@ async function fetchOne(model,{timeoutMs=10000}={}){
   try{
     const json=await fetchJsonResource(`${METADATA_PROXY_PATH}?key=${encodeURIComponent(metadataKey)}`,{timeoutMs,cache:'no-store'});
     const responseMs=Math.round((globalThis.performance?.now?.()??Date.now())-started);
-    if(json?.unavailable)return {modelId:model.id,error:String(json.error||'METADATA_UNAVAILABLE'),responseMs,previewFallback:Boolean(json.previewFallback)};
+    if(json?.unavailable)return {modelId:model.id,error:String(json.error||'METADATA_UNAVAILABLE'),responseMs,forecastFallback:Boolean(json.forecastFallback||json.previewFallback)};
     return {modelId:model.id,responseMs,completed:json?.completed!==false,referenceTime:json?.reference_time||null,lastModifiedTime:json?.last_modified_time||null,validTimes:Array.isArray(json?.valid_times)?json.valid_times:[],variables:Array.isArray(json?.variables)?json.variables:[]};
   }catch(err){
     const error=err?.code==='HTTP_ERROR'?`HTTP_${err.status}`:err?.name==='AbortError'?'TIMEOUT':'FETCH_FAILED';
@@ -43,7 +43,7 @@ function healthStatus(diag,meta,model,nowMs){
 export function buildModelHealthReport(forecast,models,enabledIds,metadata={},history=[],nowMs=Date.now()){
   const diag=buildCityDiagnostics(forecast,models,enabledIds),rows=diag.rows.map(d=>{
     const model=models.find(m=>m.id===d.modelId),meta=metadata?.[d.modelId]||null,status=healthStatus(d,meta,model,nowMs),base=cadenceBase(meta,d),interval=Number(model?.updateMinutes)||60,expectedRunAt=base?new Date(base.ms+interval*60_000).toISOString():null,delayMinutes=base?Math.max(0,Math.round((nowMs-(base.ms+interval*60_000))/60_000)):null;
-    return {...d,healthStatus:status,metadataAvailable:Boolean(meta&&!meta.error&&!meta.skipped),metadataError:meta?.skipped?null:(meta?.error||null),referenceTime:meta?.referenceTime||d.runTimestamp||null,lastModifiedTime:meta?.lastModifiedTime||null,cadenceBase:base?.source||null,expectedRunAt,delayMinutes,responseMs:Number.isFinite(meta?.responseMs)?meta.responseMs:null,missingVariables:missingVariables(d),incident24h:0,incident7d:0};
+    return {...d,healthStatus:status,metadataAvailable:Boolean(meta&&!meta.error&&!meta.skipped),metadataError:meta?.skipped?null:(meta?.error||null),metadataFallback:Boolean(meta?.forecastFallback),referenceTime:meta?.referenceTime||d.runTimestamp||null,lastModifiedTime:meta?.lastModifiedTime||null,cadenceBase:base?.source||null,expectedRunAt,delayMinutes,responseMs:Number.isFinite(meta?.responseMs)?meta.responseMs:null,missingVariables:missingVariables(d),incident24h:0,incident7d:0};
   });
   for(const row of rows){row.incident24h=countIncidentEpisodes(history,row.modelId,24*3600_000,nowMs);row.incident7d=countIncidentEpisodes(history,row.modelId,7*24*3600_000,nowMs);}
   const active=rows.filter(r=>r.active),summary={healthy:active.filter(r=>['OK','RECOVERED'].includes(r.healthStatus)).length,delayed:active.filter(r=>r.healthStatus==='DELAYED').length,incidents:active.filter(r=>['MISSED_RUNS','DEGRADED'].includes(r.healthStatus)).length,unavailable:active.filter(r=>['OUT_OF_DOMAIN','METADATA_UNAVAILABLE'].includes(r.healthStatus)).length,total:active.length};

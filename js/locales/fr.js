@@ -1404,6 +1404,7 @@ export const catalog = Object.freeze({
   "healthExpectedAt":"Run suivant attendu vers {time}",
   "healthDelayMinutes":"Retard : {count} min",
   "healthOnSchedule":"Dans la fenêtre attendue",
+  "healthForecastRunFallback":"Métadonnées externes indisponibles · run de prévision utilisé",
   "healthHealthyCount":"{count} sains",
   "healthDelayedCount":"{count} en retard",
   "healthIncidentCount":"{count} incidents",

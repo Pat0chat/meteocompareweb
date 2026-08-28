@@ -35,7 +35,7 @@ async function resolveRequest(pathname){
 
 let metadataUpstreamUnavailableUntil=0;
 function previewMetadataFallback(res,error='UPSTREAM_UNAVAILABLE'){
-  const body=JSON.stringify({unavailable:true,error,previewFallback:true});
+  const body=JSON.stringify({unavailable:true,error,forecastFallback:true,previewFallback:true});
   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-meteocompare-preview-fallback':'forecast-run'});res.end(body);
 }
 async function proxyModelMetadata(url,res){
@@ -45,11 +45,12 @@ async function proxyModelMetadata(url,res){
   try{
     const upstream=await fetchNetworkResponse(`${modelMetadataUpstream}/${encodeURIComponent(key)}/latest.json`,{timeoutMs:Math.min(NETWORK_TIMEOUTS_MS.workerUpstream,4000),headers:{Accept:'application/json'}});
     const body=Buffer.from(await upstream.arrayBuffer());
-    res.writeHead(upstream.status,{'content-type':upstream.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store'});res.end(body);
+    res.writeHead(200,{'content-type':upstream.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store'});res.end(body);
   }catch(error){
     metadataUpstreamUnavailableUntil=Date.now()+30_000;
     console.warn(`Preview model metadata unavailable for ${key}; using forecast-run fallback:`,error?.message||error);
-    previewMetadataFallback(res,error?.code==='NETWORK_TIMEOUT'?'UPSTREAM_TIMEOUT':'UPSTREAM_UNAVAILABLE');
+    const reason=error?.code==='NETWORK_TIMEOUT'?'UPSTREAM_TIMEOUT':error?.code==='HTTP_ERROR'?`UPSTREAM_HTTP_${error.status}`:'UPSTREAM_UNAVAILABLE';
+    previewMetadataFallback(res,reason);
   }
 }
 
