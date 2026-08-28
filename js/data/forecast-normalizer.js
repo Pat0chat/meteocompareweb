@@ -169,7 +169,7 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
     sanitizeIncompleteFutureDaily(series);
     seriesByModel[model.id]=series;
     const coverage=seriesCoverage(series),health=hourlySeriesHealth(series,model,requestedHours||hourlyTime.length);
-    modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage, hourlyHealth:health, nativeStepMinutes:model.nativeStepMinutes||60, updateMinutes:model.updateMinutes||null };
+    modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage, hourlyHealth:health, sourceApiKey:model.apiKey, resolutionKm:model.resolutionKm||null, nativeStepMinutes:model.nativeStepMinutes||60, updateMinutes:model.updateMinutes||null };
   }
   if (!Object.keys(seriesByModel).length) { const error=new Error('NO_USABLE_MODELS'); error.code='NO_USABLE_MODELS'; throw error; }
   const fetchedAt=new Date().toISOString();

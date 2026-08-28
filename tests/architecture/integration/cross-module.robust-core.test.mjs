@@ -49,9 +49,10 @@ assert.match(app,/data-scroll-section="diagnostics"/,'city page must expose diag
 assert.match(app,/data-action="toggle-diagnostics"/,'diagnostics must be expandable without leaving the city');
 
 // 4 — local records have a schema, explicit migrations and selective integrity repair.
-assert.match(storageSource,/export const DATA_SCHEMA_VERSION = 3/);
+assert.match(storageSource,/export const DATA_SCHEMA_VERSION = CURRENT_DATA_SCHEMA_VERSION/);
 assert.match(storageSource,/function migrateV1ToV2/);
 assert.match(storageSource,/function migrateV2ToV3/);
+assert.match(storageSource,/function migrateV3ToV4/);
 assert.match(storageSource,/export async function verifyLocalDataIntegrity/);
 assert.match(app,/data-action="check-integrity"/);
 assert.match(app,/data-action="repair-integrity"/);
@@ -73,10 +74,11 @@ localStorage.setItem('meteocompare.web.bias.paris',JSON.stringify({forecasts:[],
 localStorage.setItem('meteocompare.web.bias.orphan',JSON.stringify({forecasts:[],observations:[],updatedAt:null}));
 localStorage.setItem('meteocompare.web.evolution.paris',JSON.stringify('not-an-array'));
 const storage=await import(`../../../js/storage.js?robust=${Date.now()}`);
+assert.equal(storage.DATA_SCHEMA_VERSION,4);
 assert.equal(storage.loadSettings().theme,'DARK');
 assert.equal(storage.loadCities()[0].id,'paris');
 const settingsEnvelope=JSON.parse(localStorage.getItem('meteocompare.web.settings.v1'));
-assert.equal(settingsEnvelope.schemaVersion,3,'legacy settings must be migrated on read');
+assert.equal(settingsEnvelope.schemaVersion,4,'legacy settings must be migrated on read');
 assert.equal(settingsEnvelope.marker,'meteocompare.local-record');
 let report=await storage.verifyLocalDataIntegrity([city]);
 assert.ok(report.issueCount>=2,'integrity check must detect invalid/orphan records');

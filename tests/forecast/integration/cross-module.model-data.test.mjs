@@ -27,6 +27,10 @@ assert.equal(getModel('METEOSWISS_ICON_CH2').horizonHours,120);
 assert.equal(getModel('HRRR_CONUS').horizonHours,18);
 assert.equal(getModel('HRRR_CONUS').recoveryRequestHours,48);
 assert.equal(getModel('HRRR_CONUS').supportsDay1Bias,false);
+assert.equal(getModel('ECMWF').apiKey,'ecmwf_ifs');
+assert.equal(getModel('ECMWF').openDataKey,'ecmwf_ifs');
+assert.equal(getModel('ECMWF').resolutionKm,9);
+assert.equal(getModel('ECMWF').nativeStepMinutes,60);
 assert.equal(getModel('ECMWF_AIFS').nativeStepMinutes,360);
 assert.equal(getModel('CMA_GRAPES').nativeStepMinutes,180);
 

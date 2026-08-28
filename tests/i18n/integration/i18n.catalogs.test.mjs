@@ -21,7 +21,7 @@ for(const lang of ['en','es','de','it']){
 // 1b. The web model catalogue keeps the audited provider metadata and may extend beyond the historical Android catalogue with useful web-only regional models.
 const expectedModels=[
   ['AROME_FRANCE_HD','meteofrance_arome_france_hd',1.5,2,48],['AROME_FRANCE','meteofrance_arome_france',2.5,2,48],['ARPEGE_EUROPE','meteofrance_arpege_europe',11,4,96],['ARPEGE_WORLD','meteofrance_arpege_world',25,4,96],
-  ['ICON_EU','icon_eu',7,5,120],['ICON_GLOBAL','icon_global',11,8,180],['GFS','ncep_gfs_seamless',13,16,384],['ECMWF','ecmwf_ifs025',25,15,360],['UKMO_GLOBAL','ukmo_global_deterministic_10km',10,7,168],
+  ['ICON_EU','icon_eu',7,5,120],['ICON_GLOBAL','icon_global',11,8,180],['GFS','ncep_gfs_seamless',13,16,384],['ECMWF','ecmwf_ifs',9,15,360],['UKMO_GLOBAL','ukmo_global_deterministic_10km',10,7,168],
   ['ECMWF_AIFS','ecmwf_aifs025_single',28,15,360],['GEM_GLOBAL','cmc_gem_gdps',15,10,240],['ICON_D2','icon_d2',2,2,48],['HRRR_CONUS','ncep_hrrr_conus',3,2,18],['METNO_NORDIC','metno_nordic',1,3,60],
   ['KNMI_HARMONIE_EU','knmi_harmonie_arome_europe',5.5,3,60],['DMI_HARMONIE_EU','dmi_harmonie_arome_europe',2,3,60],['METEOSWISS_ICON_CH2','meteoswiss_icon_ch2',2,5,120],['BOM_ACCESS','bom_access_global',15,10,240],['CMA_GRAPES','cma_grapes_global',15,10,240]
 ];

@@ -10,7 +10,7 @@ export const WEATHER_MODELS = [
   { id:'ICON_EU', openDataKey:'dwd_icon_eu', apiKey:'icon_eu', aliases:[], name:'ICON-EU', resolutionKm:7, maxForecastDays:5, horizonHours:120, recoveryRequestHours:120, nativeStepMinutes:60, updateMinutes:180, supportsDay1Bias:true, coverage:'EUROPE', family:'DWD' },
   { id:'ICON_GLOBAL', openDataKey:'dwd_icon', apiKey:'icon_global', aliases:['icon_seamless'], name:'ICON', resolutionKm:11, maxForecastDays:8, horizonHours:180, recoveryRequestHours:180, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'DWD' },
   { id:'GFS', openDataKey:'ncep_gfs013', apiKey:'ncep_gfs_seamless', aliases:['gfs_seamless'], name:'GFS', resolutionKm:13, maxForecastDays:16, horizonHours:384, recoveryRequestHours:384, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'NOAA' },
-  { id:'ECMWF', openDataKey:'ecmwf_ifs025', apiKey:'ecmwf_ifs025', aliases:[], name:'ECMWF', resolutionKm:25, maxForecastDays:15, horizonHours:360, recoveryRequestHours:360, nativeStepMinutes:180, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'ECMWF' },
+  { id:'ECMWF', openDataKey:'ecmwf_ifs', metadataKey:'ecmwf_ifs', apiKey:'ecmwf_ifs', aliases:[], name:'ECMWF IFS', resolutionKm:9, maxForecastDays:15, horizonHours:360, recoveryRequestHours:360, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'ECMWF' },
   { id:'UKMO_GLOBAL', openDataKey:'ukmo_global_deterministic_10km', apiKey:'ukmo_global_deterministic_10km', aliases:[], name:'UKMO', resolutionKm:10, maxForecastDays:7, horizonHours:168, recoveryRequestHours:168, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'UK Met Office' },
   { id:'ECMWF_AIFS', openDataKey:'ecmwf_aifs025_single', apiKey:'ecmwf_aifs025_single', aliases:[], name:'AIFS', resolutionKm:28, maxForecastDays:15, horizonHours:360, recoveryRequestHours:360, nativeStepMinutes:360, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'ECMWF' },
   { id:'GEM_GLOBAL', openDataKey:'cmc_gem_gdps', metadataKey:null, apiKey:'cmc_gem_gdps', aliases:['gem_global'], name:'GEM', resolutionKm:15, maxForecastDays:10, horizonHours:240, recoveryRequestHours:240, nativeStepMinutes:180, updateMinutes:720, supportsDay1Bias:true, coverage:'GLOBAL', family:'ECCC' },
@@ -24,6 +24,7 @@ export const WEATHER_MODELS = [
   { id:'CMA_GRAPES', openDataKey:'cma_grapes_global', apiKey:'cma_grapes_global', aliases:[], name:'CMA', resolutionKm:15, maxForecastDays:10, horizonHours:240, recoveryRequestHours:240, nativeStepMinutes:180, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'CMA' },
 ];
 
+export const ECMWF_IFS025_LEGACY_ID = 'ECMWF_IFS025_LEGACY';
 export const DEFAULT_MODEL_IDS = ['AROME_FRANCE_HD','ARPEGE_EUROPE','ICON_EU','GFS','ECMWF','UKMO_GLOBAL','ECMWF_AIFS'];
 export const REFRESH_INTERVALS = [
   { id:'MINUTES_15', minutes:15, label:'15 min' },

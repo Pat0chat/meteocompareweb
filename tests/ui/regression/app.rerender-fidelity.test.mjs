@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { makeI18n } from '../../../js/i18n.js';
+import { DATA_SCHEMA_VERSION } from '../../../js/version.js';
 
 class MemoryStorage { constructor(){this.map=new Map()} getItem(k){return this.map.has(k)?this.map.get(k):null} setItem(k,v){this.map.set(String(k),String(v))} removeItem(k){this.map.delete(k)} key(i){return [...this.map.keys()][i]??null} get length(){return this.map.size} }
 const storage=new MemoryStorage();
+const currentRecord=(kind,payload,cityId=null)=>({marker:'meteocompare.local-record',schemaVersion:DATA_SCHEMA_VERSION,kind,cityId,storedAt:Date.now(),payload});
 globalThis.localStorage=new Proxy(storage,{ownKeys:t=>[...t.map.keys()],getOwnPropertyDescriptor:()=>({enumerable:true,configurable:true}),get:(t,p)=>p in t?(t[p].bind?.(t)??t[p]):undefined});
 
 const city={id:'test',name:'Paris',country:'France',admin1:'Île-de-France',latitude:48.85,longitude:2.35,timezone:'Europe/Paris'};
@@ -20,8 +22,8 @@ mids.forEach((mid,k)=>{
   seriesByModel[mid]={hourly:{timestamps:hours,temperature2m:temp,precipitation:precip,precipitationProbability:probs,cloudCover:hours.map((_,i)=>30+k*15+(i%3)*5),windSpeed10m:wind,windGusts10m:wind.map(v=>v+12),windDirection10m:hours.map((_,i)=>(180+i*7+k*10)%360),weatherCode:hours.map((_,i)=>(i>=6&&i<=10&&k>=2)?61:(k===3?3:2))},daily:{dates:days,tempMax:days.map((_,i)=>24+i+k*1.4),tempMin:days.map((_,i)=>14+i*.3+k*.5),precipitationSum:days.map((_,i)=>i===2?(k<2?0:9+k):.1*k),precipitationProbabilityMax:days.map((_,i)=>i===2?(k<2?15:90):20+k*5),windSpeedMax:days.map((_,i)=>20+i*2+k*7),windGustsMax:days.map((_,i)=>32+i*3+k*7),windDirection10mDominant:days.map((_,i)=>(200+i*10+k*12)%360),weatherCode:days.map((_,i)=>i===2&&k>=2?61:2),sunrise:days.map(d=>d+'T06:35'),sunset:days.map(d=>d+'T20:58')}};
 });
 const forecast={city,seriesByModel,fetchedAt:new Date().toISOString()};
-localStorage.setItem('meteocompare.web.cities.v1',JSON.stringify([city]));
-localStorage.setItem('meteocompare.web.forecast.test',JSON.stringify(forecast));
+localStorage.setItem('meteocompare.web.cities.v1',JSON.stringify(currentRecord('cities',[city])));
+localStorage.setItem('meteocompare.web.forecast.test',JSON.stringify(currentRecord('forecast',forecast,'test')));
 const biasDates=Array.from({length:20},(_,i)=>{const p=localParts(new Date(now.getTime()-(20-i)*24*3600e3));return `${p.year}-${p.month}-${p.day}`;});
 const observations=[];const forecastsBias=[];
 biasDates.forEach((date,i)=>{
@@ -33,8 +35,8 @@ biasDates.forEach((date,i)=>{
     forecastsBias.push({modelId:mid,variable:'WIND_SPEED',targetDate:date,value:observedWind+[1.5,3,5,7][k]});
   });
 });
-localStorage.setItem('meteocompare.web.bias.test',JSON.stringify({reference:'ERA5',referenceLagDays:6,forecasts:forecastsBias,observations,updatedAt:Date.now()}));
-localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify({theme:'LIGHT',language:'FRENCH',enabledModelIds:mids,refreshInterval:'MANUAL',detailViewMode:'HOURLY',detailTab:'TEMPERATURE',confidenceMetric:'TEMPERATURE',chartHorizon:24,timelineMode:'HOURLY'}));
+localStorage.setItem('meteocompare.web.bias.test',JSON.stringify(currentRecord('bias',{reference:'ERA5',referenceLagDays:6,forecasts:forecastsBias,observations,updatedAt:Date.now()},'test')));
+localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify(currentRecord('settings',{theme:'LIGHT',language:'FRENCH',enabledModelIds:mids,refreshInterval:'MANUAL',detailViewMode:'HOURLY',detailTab:'TEMPERATURE',confidenceMetric:'TEMPERATURE',chartHorizon:24,timelineMode:'HOURLY'})));
 
 const listeners={};
 let routeLandmarkFocuses=0;const routeLandmark={hasAttribute(){return false},getAttribute(){return null},setAttribute(){},removeAttribute(){},focus(options){assert.equal(options?.preventScroll,true,'route landmark focus must never scroll the page');routeLandmarkFocuses++;}};
