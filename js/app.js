@@ -7,6 +7,8 @@ import { analyticsStatus, trackPageView, trackAnalyticsEvent, setAnalyticsOptOut
 import { ErrorCenter, classifyError, storageIssueDescriptor, ERROR_ACTIONS } from './errors.js';
 import { APP_VERSION } from './version.js';
 import { apiUsageSnapshot } from './api-budget.js';
+import { fetchJsonResource } from './network.js';
+import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from './network-config.js';
 import { ApplicationKernel } from './core/application-kernel.js';
 import { weatherIcons } from './ui/weather-icons.js';
 import { chartScale, chartTickIndices, chartMetricUnit, chartMetricDigits, svgLinePath } from './ui/chart-utils.js';
@@ -114,6 +116,9 @@ let i18nCache = null;
 let deferredInstallPrompt = null;
 const vigilanceByCity=new Map();
 const vigilanceLoading=new Set();
+const SYSTEM_MONITOR_TTL_MS=60_000;
+const systemMonitorWorker={state:'idle',checkedAt:0,latencyMs:null,data:null,error:null};
+let systemMonitorProbe=null;
 let pwaInstalled = Boolean(window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true);
 const PWA_CLEAR_RELOAD_GUARD = 'meteocompare.skip-pwa-registration-after-clear.v1';
 let pwaPostClearCleanup=Promise.resolve();
@@ -167,6 +172,8 @@ function init() {
   app.addEventListener('pointermove', handleChartPointerMove, {passive:true});
   app.addEventListener('pointerdown', handleChartPointerMove, {passive:true});
   app.addEventListener('pointerout', handleChartPointerOut, {passive:true});
+  app.addEventListener('pointerover', handleSystemMonitorIntent, {passive:true});
+  app.addEventListener('focusin', handleSystemMonitorIntent);
   document.addEventListener?.('keydown', handleGlobalKeydown);
   document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible')refreshDueCities();});
   if(supportsHistoryRouting){
@@ -176,8 +183,9 @@ function init() {
   }else{
     window.addEventListener('hashchange',()=>{state.route=parseRoute();applyRouteViewState(state.route);state.modal=null;cancelCitySearch();const saved=routeScrollPositions.get(routeKey(state.route));render({scroll:{type:'absolute',y:state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0)}});void trackPageView(state.route);onRouteSettled();});
   }
-  window.addEventListener('online',()=>{state.online=true;render();toast(i18n().t('connectionRestored'),{id:'network-status',type:'success',title:i18n().t('connectionStatus')});refreshDueCities();});
-  window.addEventListener('offline',()=>{state.online=false;render();toast(i18n().t('connectionLost'),{id:'network-status',type:'warning',title:i18n().t('connectionStatus'),duration:6500});});
+  window.addEventListener('online',()=>{state.online=true;render();void probeSystemHealth(true);toast(i18n().t('connectionRestored'),{id:'network-status',type:'success',title:i18n().t('connectionStatus')});refreshDueCities();});
+  window.addEventListener('offline',()=>{state.online=false;Object.assign(systemMonitorWorker,{state:'idle',checkedAt:Date.now(),latencyMs:null,data:null,error:null});render();toast(i18n().t('connectionLost'),{id:'network-status',type:'warning',title:i18n().t('connectionStatus'),duration:6500});});
+  window.addEventListener('meteocompare:analytics-runtime',()=>refreshSystemMonitorDom());
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
   render({scroll:{type:'absolute',y:0}});
   void trackPageView(state.route);
@@ -456,7 +464,11 @@ function uiIcon(kind,size=17){
     database:'<ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6"/><path d="M4.5 11.5v6c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3v-6"/>',
     expand:'<path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/>',
     collapse:'<path d="M8 8H3V3M16 8h5V3M8 16H3v5M16 16h5v5"/>',
-    alert:'<path d="M10.3 3.6 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>'
+    alert:'<path d="M10.3 3.6 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    network:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18"/><path d="M12 3a15 15 0 0 0 0 18"/>',
+    server:'<rect x="4" y="4" width="16" height="6" rx="2"/><rect x="4" y="14" width="16" height="6" rx="2"/><path d="M8 7h.01M8 17h.01"/>',
+    chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+    shield:'<path d="M12 3 5 6v5c0 4.6 2.9 8 7 10 4.1-2 7-5.4 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/>'
   };
   return `<svg ${common}>${paths[kind]||paths.home}</svg>`;
 }
@@ -475,6 +487,81 @@ function forecastHealth(f){
   if(stale)return {class:'stale',label:t('cacheOld'),detail:f?.fetchedAt?t('loadedAgoSingular',{age:formatExactAge(f.fetchedAt)}):t('unknownDate')};
   return {class:'live',label:t('onlineData'),detail:f?.fetchedAt?t('loadedAgo',{age:formatExactAge(f.fetchedAt)}):t('recentData')};
 }
+
+function monitorItemStateLabel(stateName){
+  const {t}=i18n();return t({ok:'monitorStateOk',warning:'monitorStateWarning',error:'monitorStateError',checking:'monitorStateChecking',idle:'monitorStateIdle'}[stateName]||'monitorStateIdle');
+}
+function monitorForecastItem(){
+  const {t}=i18n(),routeCity=(state.route.name==='city'||state.route.name==='bias')?state.cities.find(c=>c.id===state.route.id):null,cities=routeCity?[routeCity]:favoriteCities();
+  if(!cities.length)return {key:'forecast',icon:'layers',title:t('monitorForecasts'),state:'idle',detail:t('monitorForecastNoCity')};
+  let fresh=0,stale=0,loaded=0,loading=0,errors=0,total=cities.length,models=0;
+  for(const city of cities){const f=state.forecasts[city.id];if(state.loading.has(city.id))loading++;if(state.errors[city.id])errors++;if(!f)continue;loaded++;const health=forecastHealth(f);if(health.class==='live')fresh++;else stale++;if(routeCity&&city.id===routeCity.id)models=Object.keys(f.seriesByModel||{}).length;}
+  let itemState='idle';if(!state.online)itemState=loaded?'warning':'error';else if(errors&&loaded===0)itemState='error';else if(errors||stale)itemState='warning';else if(loading||loaded<total)itemState='checking';else if(loaded)itemState='ok';
+  const details=[t('monitorForecastSummary',{fresh,total})];if(loading)details.push(t('monitorForecastLoading',{count:loading}));if(errors)details.push(t('monitorForecastErrors',{count:errors}));if(stale)details.push(t('monitorForecastStale',{count:stale}));if(models)details.push(t('monitorForecastModels',{count:models}));
+  return {key:'forecast',icon:'layers',title:t('monitorForecasts'),state:itemState,detail:details.join(' · ')};
+}
+function monitorVigilanceItem(){
+  const {t}=i18n(),routeCity=state.route.name==='city'?state.cities.find(c=>c.id===state.route.id):null,cities=(routeCity?[routeCity]:favoriteCities()).filter(isVigilanceSupportedCity);
+  if(!cities.length)return {key:'vigilance',icon:'alert',title:t('monitorVigilance'),state:'idle',detail:t('monitorNotApplicable')};
+  const data=cities.map(c=>vigilanceByCity.get(c.id)).filter(Boolean),loading=cities.filter(c=>vigilanceLoading.has(c.id)).length,unavailable=data.filter(x=>x?.unavailable).length,notConfigured=data.filter(x=>x?.configured===false).length,usable=data.filter(x=>x?.supported&&!x?.unavailable),workerSaysUnconfigured=systemMonitorWorker.state==='ok'&&systemMonitorWorker.data?.capabilities?.vigilanceConfigured===false;
+  let itemState='idle';if(!state.online)itemState=data.length?'warning':'idle';else if(unavailable&&unavailable===data.length)itemState='error';else if(unavailable||notConfigured||workerSaysUnconfigured)itemState='warning';else if(loading||data.length<cities.length)itemState='checking';else if(usable.length)itemState='ok';
+  const details=[t('monitorVigilanceSummary',{known:data.length,total:cities.length})];if(notConfigured||workerSaysUnconfigured)details.push(t('monitorVigilanceNotConfigured'));else if(unavailable)details.push(t('monitorVigilanceUnavailable',{count:unavailable}));else if(usable.length){const max=Math.max(1,...usable.map(vigilanceMaxLevel));if(max>=2)details.push(`${t('vigilanceOfficialTitle')} ${vigilanceLevelLabel(max)}`);}
+  return {key:'vigilance',icon:'alert',title:t('monitorVigilance'),state:itemState,detail:details.join(' · ')};
+}
+function monitorMetadataItem(){
+  const {t}=i18n(),cityId=(state.route.name==='city'||state.route.name==='bias')?state.route.id:null,report=cityId?state.modelHealth[cityId]:null,loading=cityId?state.modelHealthLoading.has(cityId):false;
+  if(loading)return {key:'metadata',icon:'database',title:t('monitorModelMetadata'),state:'checking',detail:t('monitorMetadataChecking')};
+  if(report){const summary=report.summary||{},stateName=(summary.incidents||0)>0?'warning':(summary.unavailable||0)>0?'warning':'ok';return {key:'metadata',icon:'database',title:t('monitorModelMetadata'),state:stateName,detail:t('monitorMetadataSummary',{healthy:summary.healthy||0,total:summary.total||0,age:formatExactAge(new Date(report.generatedAt).toISOString())})};}
+  if(systemMonitorWorker.state==='error')return {key:'metadata',icon:'database',title:t('monitorModelMetadata'),state:'idle',detail:t('monitorMetadataWorkerUnknown')};
+  if(systemMonitorWorker.data?.capabilities?.modelMetadataProxy)return {key:'metadata',icon:'database',title:t('monitorModelMetadata'),state:'idle',detail:t('monitorMetadataReady')};
+  return {key:'metadata',icon:'database',title:t('monitorModelMetadata'),state:'idle',detail:t('monitorNotChecked')};
+}
+function monitorAnalyticsItem(){
+  const {t}=i18n(),status=analyticsStatus(),runtime=globalThis.__METEOCOMPARE_ANALYTICS_RUNTIME__||{};
+  if(!status.configured)return {key:'analytics',icon:'chart',title:t('monitorAnalytics'),state:'idle',detail:t('analyticsNotConfigured')};
+  if(!status.hostAllowed)return {key:'analytics',icon:'chart',title:t('monitorAnalytics'),state:'idle',detail:t('monitorAnalyticsHostDisabled')};
+  if(status.privacySignal)return {key:'analytics',icon:'chart',title:t('monitorAnalytics'),state:'idle',detail:t('analyticsPrivacySignal')};
+  if(status.optedOut)return {key:'analytics',icon:'chart',title:t('monitorAnalytics'),state:'idle',detail:t('analyticsDisabled')};
+  if(runtime.state==='error')return {key:'analytics',icon:'chart',title:t('monitorAnalytics'),state:'warning',detail:t('monitorAnalyticsError')};
+  if(runtime.state==='loaded')return {key:'analytics',icon:'chart',title:t('monitorAnalytics'),state:'ok',detail:t('monitorAnalyticsActive')};
+  return {key:'analytics',icon:'chart',title:t('monitorAnalytics'),state:'checking',detail:t('monitorAnalyticsLoading')};
+}
+function monitorPwaItem(){
+  const {t}=i18n();if(!('serviceWorker' in navigator))return {key:'pwa',icon:'shield',title:t('monitorPwa'),state:'idle',detail:t('monitorPwaUnsupported')};
+  if(navigator.serviceWorker.controller)return {key:'pwa',icon:'shield',title:t('monitorPwa'),state:'ok',detail:t('monitorPwaControlled')};
+  return {key:'pwa',icon:'shield',title:t('monitorPwa'),state:'idle',detail:t(pwaInstalled?'monitorPwaInstalled':'monitorPwaReady')};
+}
+function monitorWorkerItem(){
+  const {t}=i18n(),entry=systemMonitorWorker;
+  if(!state.online)return {key:'worker',icon:'server',title:t('monitorWorker'),state:'idle',detail:t('monitorWorkerOffline')};
+  if(entry.state==='checking')return {key:'worker',icon:'server',title:t('monitorWorker'),state:'checking',detail:t('monitorWorkerChecking')};
+  if(entry.state==='error')return {key:'worker',icon:'server',title:t('monitorWorker'),state:'error',detail:t('monitorWorkerUnavailable')};
+  if(entry.state==='ok'){const detail=[t('monitorWorkerOk')];if(Number.isFinite(entry.latencyMs))detail.push(t('monitorWorkerLatency',{ms:entry.latencyMs}));if(entry.data?.version)detail.push(`v${entry.data.version}`);return {key:'worker',icon:'server',title:t('monitorWorker'),state:'ok',detail:detail.join(' · ')};}
+  return {key:'worker',icon:'server',title:t('monitorWorker'),state:'idle',detail:t('monitorNotChecked')};
+}
+function systemMonitorSnapshot(){
+  const {t}=i18n(),connection={key:'connection',icon:'network',title:t('monitorConnection'),state:state.online?'ok':'error',detail:t(state.online?'monitorOnline':'monitorOffline')},items=[connection,monitorForecastItem(),monitorWorkerItem(),monitorVigilanceItem(),monitorMetadataItem(),monitorAnalyticsItem(),monitorPwaItem()];
+  const errors=items.filter(x=>x.state==='error').length,warnings=items.filter(x=>x.state==='warning').length,checking=items.filter(x=>x.state==='checking').length;
+  const summary=!state.online?{state:'error',label:t('systemMonitorOffline')}:(errors||warnings)?{state:errors?'error':'warning',label:t('systemMonitorDegraded',{count:errors+warnings})}:checking?{state:'checking',label:t('systemMonitorChecking')}:{state:'ok',label:t('systemMonitorOperational')};
+  return {items,summary};
+}
+function renderSystemMonitor(open=false){
+  const {t}=i18n(),snapshot=systemMonitorSnapshot(),last=systemMonitorWorker.checkedAt?formatExactAge(new Date(systemMonitorWorker.checkedAt).toISOString()):null;
+  const rows=snapshot.items.map(item=>`<div class="system-monitor-item ${item.state}"><span class="system-monitor-icon" aria-hidden="true">${uiIcon(item.icon,17)}</span><span class="system-monitor-copy"><strong>${esc(item.title)}</strong><small>${esc(item.detail)}</small></span><span class="system-monitor-state ${item.state}"><i aria-hidden="true"></i>${esc(monitorItemStateLabel(item.state))}</span></div>`).join('');
+  return `<div class="topbar-system-monitor${open?' is-open':''}"><button class="topbar-system-status ${snapshot.summary.state}" type="button" data-action="toggle-system-monitor" aria-haspopup="dialog" aria-expanded="${open?'true':'false'}" aria-label="${esc(t('systemMonitoring'))}"><span class="system-led" aria-hidden="true"></span><span class="system-status-label">${esc(snapshot.summary.label)}</span><span class="system-status-chevron" aria-hidden="true"></span></button><div class="system-monitor-popover" role="dialog" aria-label="${esc(t('systemMonitoring'))}"><div class="system-monitor-head"><div><strong>${esc(t('systemMonitoring'))}</strong><small>${esc(last?t('monitorLastCheck',{age:last}):t('monitorNotChecked'))}</small></div><button class="system-monitor-refresh" type="button" data-action="refresh-system-monitor" title="${esc(t('monitorRefresh'))}" aria-label="${esc(t('monitorRefresh'))}">${uiIcon('refresh',16)}</button></div><div class="system-monitor-list">${rows}</div><div class="system-monitor-foot">${esc(t('monitorNoSyntheticProbes'))}</div></div></div>`;
+}
+function refreshSystemMonitorDom(){
+  const current=app?.querySelector?.('.topbar-system-monitor');if(!current)return;const wasOpen=current.classList?.contains?.('is-open')||current.matches?.(':hover')||current.contains?.(document.activeElement),activeAction=current.contains?.(document.activeElement)?document.activeElement?.dataset?.action:null;current.outerHTML=renderSystemMonitor(Boolean(wasOpen));if(activeAction)app?.querySelector?.(`.topbar-system-monitor [data-action="${activeAction}"]`)?.focus?.();
+}
+async function probeSystemHealth(force=false){
+  if(!state.online){Object.assign(systemMonitorWorker,{state:'idle',error:null});refreshSystemMonitorDom();return null;}
+  if(systemMonitorProbe)return systemMonitorProbe;if(!force&&systemMonitorWorker.checkedAt&&Date.now()-systemMonitorWorker.checkedAt<SYSTEM_MONITOR_TTL_MS)return systemMonitorWorker.data;
+  systemMonitorWorker.state='checking';refreshSystemMonitorDom();const started=globalThis.performance?.now?.()??Date.now();
+  systemMonitorProbe=(async()=>{try{const data=await fetchJsonResource(NETWORK_ENDPOINTS.firstParty.health,{timeoutMs:NETWORK_TIMEOUTS_MS.systemHealth,cache:'no-store'});Object.assign(systemMonitorWorker,{state:data?.ok===true?'ok':'error',checkedAt:Date.now(),latencyMs:Math.max(0,Math.round((globalThis.performance?.now?.()??Date.now())-started)),data,error:null});return data;}catch(error){Object.assign(systemMonitorWorker,{state:'error',checkedAt:Date.now(),latencyMs:null,data:null,error:error?.code||error?.message||'NETWORK_ERROR'});return null;}finally{systemMonitorProbe=null;refreshSystemMonitorDom();}})();return systemMonitorProbe;
+}
+function closeSystemMonitor(){const menu=app?.querySelector?.('.topbar-system-monitor.is-open');if(!menu)return;menu.classList.remove('is-open');menu.querySelector?.('[data-action="toggle-system-monitor"]')?.setAttribute('aria-expanded','false');}
+function handleSystemMonitorIntent(event){if(event.target?.closest?.('.topbar-system-monitor'))void probeSystemHealth(false);}
+
 function modelCoverageKey(tab){return tab==='TEMPERATURE'?'temperature':tab==='PRECIPITATION'?'precipitation':tab==='WIND'?'wind':'conditions';}
 function modelRunInfo(f,modelId,tab='CONDITIONS'){
   const {t}=i18n(),meta=f?.modelMeta?.[modelId]||{},run=meta.runTimestamp?Date.parse(meta.runTimestamp):NaN;
@@ -648,7 +735,7 @@ function renderConfigNav(isData,isSettings){
 
 function renderTopbar(){
   const {t}=i18n();
-  const isHome=state.route.name==='home',isCity=state.route.name==='city',isData=state.route.name==='data',isSettings=state.route.name==='settings',isAbout=state.route.name==='about',activeForecast=currentCityForecast(),health=activeForecast?forecastHealth(activeForecast):null,statusLabel=health?.label||(state.online?t('connectionActive'):t('offlineShort')),statusTitle=health?`${health.label} · ${health.detail}`:(state.online?t('connectionActive'):t('offlineLocalData'));
+  const isHome=state.route.name==='home',isCity=state.route.name==='city',isData=state.route.name==='data',isSettings=state.route.name==='settings',isAbout=state.route.name==='about';
   const favorites=favoriteCities();
   const cityLinks=favorites.length?favorites.map(city=>{const forecast=state.forecasts[city.id],cityHealth=forecast?forecastHealth(forecast):null;return `<button class="quick-city-link" role="menuitem" data-action="quick-city" data-city-id="${attr(city.id)}"><span class="quick-city-status ${cityHealth?.class||'unknown'}" aria-hidden="true"></span><span class="quick-city-copy"><strong>${esc(city.name)}</strong><small>${esc(placeLine(city))}</small></span><span class="quick-city-arrow" aria-hidden="true">→</span></button>`;}).join(''):`<div class="quick-city-empty">${esc(t('emptyTitle'))}</div>`;
   const citiesNav=`<div class="nav-cities-menu"><button class="nav-btn ${isHome?'active':''}" data-action="home" ${isHome?'aria-current="page"':''} aria-haspopup="menu"><span class="nav-icon">${uiIcon('home')}</span><span>${esc(t('cities'))}</span></button><div class="nav-cities-popover" role="menu" aria-label="${esc(t('cities'))}"><div class="nav-cities-popover-head"><strong>${esc(t('cities'))}</strong><span>${favorites.length}</span></div><div class="nav-cities-list">${cityLinks}</div><button class="quick-city-add" data-action="open-add-city"><span>${uiIcon('plus',15)}</span>${esc(t('addCity'))}</button></div></div>`;
@@ -656,7 +743,7 @@ function renderTopbar(){
   return `<header class="topbar"><div class="topbar-inner">
     <div class="brand" role="link" tabindex="0" data-action="home" aria-label="MeteoCompare — ${esc(t('cities'))}"><img class="logo" src="${attr(appAssetUrl('assets/icon.png'))}" alt=""><div><div class="brand-title-row"><div class="brand-title">MeteoCompare</div><span class="brand-version" title="${esc(t('versionInfoLabel',{version:APP_VERSION,schema:DATA_SCHEMA_VERSION}))}">v${esc(APP_VERSION)}</span></div><div class="brand-subtitle">${esc(t('subtitle'))}</div></div></div>
     <nav class="topbar-nav" aria-label="${esc(t('navMain'))}">${citiesNav}${configNav}<button class="nav-btn ${isAbout?'active':''}" data-action="about" ${isAbout?'aria-current="page"':''}><span class="nav-icon">${uiIcon('info')}</span><span>${esc(t('about'))}</span></button>${installNav}<button class="nav-btn support-nav" data-action="donate"><span class="nav-icon">${uiIcon('heart')}</span><span>${esc(t('supportShort'))}</span></button><a class="nav-btn bluesky-nav" href="https://bsky.app/profile/meteocompare.bsky.social" target="_blank" rel="noopener noreferrer" aria-label="Bluesky · @meteocompare.bsky.social" title="Bluesky · @meteocompare.bsky.social">${blueskyIcon(18)}</a></nav>
-    <div class="topbar-spacer"></div><div class="topbar-system-status ${health?.class|| (state.online?'online':'offline')}" title="${esc(statusTitle)}"><span class="system-led" aria-hidden="true"></span><span>${esc(statusLabel)}</span></div>
+    <div class="topbar-spacer"></div>${renderSystemMonitor()}
   </div></header>`;
 }
 
@@ -1649,6 +1736,7 @@ function handleChartPointerOut(e){
 }
 
 function handleGlobalKeydown(e){
+  if(e.key==='Escape'&&app?.querySelector?.('.topbar-system-monitor.is-open')){e.preventDefault();const monitor=app.querySelector('.topbar-system-monitor.is-open'),trigger=monitor?.querySelector?.('[data-action="toggle-system-monitor"]');closeSystemMonitor();trigger?.focus?.();return;}
   if(e.key==='Escape'&&app?.querySelector?.('.nav-config-menu.is-open')){e.preventDefault();const configMenu=app.querySelector('.nav-config-menu.is-open'),trigger=configMenu?.querySelector?.('[data-action="toggle-config-menu"]');closeConfigMenus();trigger?.focus?.();return;}
   if(e.key==='Escape'&&app?.querySelector?.('.nav-install-menu.is-open')){e.preventDefault();const installMenu=app.querySelector('.nav-install-menu.is-open'),trigger=installMenu?.querySelector?.('[data-action="toggle-install-menu"]');closeInstallMenus();trigger?.focus?.();return;}
   if(e.key==='Escape'&&state.modal){e.preventDefault();closeModal();return;}
@@ -1765,8 +1853,10 @@ function handleAction(e){
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='toggle-target-compare'){const key=state.route.name==='city'?state.route.id:'global',panel=e.currentTarget.closest?.('[data-target-compare]'),next=panel?.dataset.open!=='true';state.comparePanelOpen[key]=next;if(panel){panel.dataset.open=String(next);const btn=panel.querySelector?.('[data-action="toggle-target-compare"]');if(btn)btn.setAttribute('aria-expanded',String(next));const body=panel.querySelector?.('.target-compare-body');if(body)body.hidden=!next;} }
-  else if(action==='toggle-config-menu'){const menu=e.currentTarget.closest?.('.nav-config-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeInstallMenus();closeConfigMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
-  else if(action==='toggle-install-menu'){const menu=e.currentTarget.closest?.('.nav-install-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeConfigMenus();closeInstallMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
+  else if(action==='toggle-config-menu'){const menu=e.currentTarget.closest?.('.nav-config-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeSystemMonitor();closeInstallMenus();closeConfigMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
+  else if(action==='toggle-install-menu'){const menu=e.currentTarget.closest?.('.nav-install-menu');if(!menu)return;const opening=!menu.classList.contains('is-open');closeSystemMonitor();closeConfigMenus();closeInstallMenus(menu);menu.classList.toggle('is-open',opening);e.currentTarget.setAttribute('aria-expanded',String(opening));}
+  else if(action==='toggle-system-monitor'){const menu=e.currentTarget.closest?.('.topbar-system-monitor');if(!menu)return;const opening=!menu.classList.contains('is-open');closeConfigMenus();closeInstallMenus();if(opening){menu.classList.add('is-open');e.currentTarget.setAttribute('aria-expanded','true');void probeSystemHealth(false);}else closeSystemMonitor();}
+  else if(action==='refresh-system-monitor'){void probeSystemHealth(true);}
   else if(action==='install-play-store'){closeInstallMenus();void trackAnalyticsEvent('Install Option Selected',state.route,{source:'play_store'});}
   else if(action==='settings')go('#/settings');
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}

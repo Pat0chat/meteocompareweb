@@ -1,5 +1,6 @@
 import { ANALYTICS_CONFIG } from './js/analytics-config.js';
 import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from './js/network-config.js';
+import { APP_VERSION } from './js/version.js';
 
 const SCRIPT_PATH = ANALYTICS_CONFIG.scriptSrc;
 const EVENT_PATH = ANALYTICS_CONFIG.endpoint;
@@ -7,6 +8,7 @@ const MODEL_METADATA_PATH = NETWORK_ENDPOINTS.firstParty.modelMetadata;
 const MODEL_METADATA_UPSTREAM = NETWORK_ENDPOINTS.openMeteo.modelMetadataUpstream;
 const MODEL_METADATA_KEY = /^[a-z0-9_]{1,80}$/i;
 const VIGILANCE_PATH = NETWORK_ENDPOINTS.firstParty.vigilance;
+const HEALTH_PATH = NETWORK_ENDPOINTS.firstParty.health;
 const METEOFRANCE_VIGILANCE_URL = NETWORK_ENDPOINTS.meteoFrance.vigilanceCarte;
 const VIGILANCE_DEPARTMENT = /^(?:0[1-9]|[1-8]\d|9[0-5]|2A|2B|97[1-6])$/i;
 const VIGILANCE_CACHE_TTL_SECONDS = 300;
@@ -113,6 +115,25 @@ export async function proxyVigilance(request,env,ctx){
   return headOrBody(request,response);
 }
 
+
+export function proxySystemHealth(request,env){
+  if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method Not Allowed',{status:405,headers:{Allow:'GET, HEAD'}});
+  const response=jsonResponse({
+    ok:true,
+    service:'meteocompare-worker',
+    version:APP_VERSION,
+    checkedAt:new Date().toISOString(),
+    capabilities:{
+      forecastProxy:false,
+      modelMetadataProxy:true,
+      vigilanceProxy:true,
+      vigilanceConfigured:Boolean(meteoFranceApiKey(env)),
+      analyticsProxy:Boolean(ANALYTICS_CONFIG.enabled),
+    },
+  },200,{'cache-control':'no-store','x-meteocompare-health':'ok'});
+  return headOrBody(request,response);
+}
+
 function cleanProxyHeaders(request){
   const headers=new Headers(request.headers);
   for(const name of ['cookie','host','content-length','cf-connecting-ip','cf-ray','cf-visitor'])headers.delete(name);
@@ -168,6 +189,7 @@ export default {
     if(pathname===EVENT_PATH)return proxyPlausibleEvent(request);
     if(pathname===MODEL_METADATA_PATH)return proxyModelMetadata(request,ctx);
     if(pathname===VIGILANCE_PATH)return proxyVigilance(request,env,ctx);
+    if(pathname===HEALTH_PATH)return proxySystemHealth(request,env);
     if(pathname.startsWith('/_mcx/'))return new Response('Not Found',{status:404,headers:{'cache-control':'no-store'}});
     return serveApplicationAsset(request,env);
   },

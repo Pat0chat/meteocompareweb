@@ -7,6 +7,7 @@ export const NETWORK_ENDPOINTS = Object.freeze({
     vigilance: '/_mcx/vigilance',
     analyticsScript: '/_mcx/p.js',
     analyticsEvent: '/_mcx/e',
+    health: '/_mcx/health',
   }),
   openMeteo: Object.freeze({
     forecast: 'https://api.open-meteo.com/v1/forecast',
@@ -38,5 +39,6 @@ export const NETWORK_TIMEOUTS_MS = Object.freeze({
   radarImage: 15_000,
   workerUpstream: 12_000,
   analyticsEvent: 8_000,
+  systemHealth: 5_000,
 });
 

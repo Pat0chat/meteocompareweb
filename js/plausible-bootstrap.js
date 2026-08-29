@@ -40,9 +40,22 @@ globalThis.plausible.init({
   },
 });
 
+const runtimeStatus = globalThis.__METEOCOMPARE_ANALYTICS_RUNTIME__ = {
+  state: allowedHost && !privacySignal && !optedOut ? 'loading' : 'disabled',
+  checkedAt: Date.now(),
+};
+function publishRuntimeStatus(state){
+  runtimeStatus.state=state;runtimeStatus.checkedAt=Date.now();
+  try{globalThis.dispatchEvent?.(new CustomEvent('meteocompare:analytics-runtime',{detail:{...runtimeStatus}}));}catch{}
+}
+
 if (allowedHost && !privacySignal && !optedOut) {
   const script = document.createElement('script');
   script.async = true;
   script.src = ANALYTICS_CONFIG.scriptSrc;
+  script.addEventListener('load',()=>publishRuntimeStatus('loaded'),{once:true});
+  script.addEventListener('error',()=>publishRuntimeStatus('error'),{once:true});
   document.head.appendChild(script);
+} else {
+  publishRuntimeStatus('disabled');
 }
