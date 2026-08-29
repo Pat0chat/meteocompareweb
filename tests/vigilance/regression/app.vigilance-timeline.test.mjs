@@ -20,6 +20,10 @@ assert.match(app,/ticks\.splice\(1,1\).*ticks\.splice\(-2,1\)/s,'Vigilance timel
 assert.match(app,/item\.phenomena\.map\(x=>vigilancePhenomenonLabel\(x\.id\)\)/,'A Home vigilance item must aggregate every active phenomenon for its city');
 assert.doesNotMatch(app,/sort\(\(a,b\)=>b\.max-a\.max[^;]+\.slice\(/,'Home vigilance must not silently truncate alerted cities');
 assert.match(css,/grid-template-columns:repeat\(auto-fill,minmax\(230px,300px\)\)/,'Home vigilance cards must use bounded columns so several fit on one row');
+assert.match(app,/home-vigilance-phenomenon[\s\S]{0,220}vigilancePhenomenonIcon\(x\.id\)/,'Each Home vigilance phenomenon must display its matching weather icon');
+assert.match(app,/home-vigilance-alert-mark[\s\S]{0,120}uiIcon\('alert',18\)/,'Home vigilance must carry a strong alert marker beyond the level pill');
+assert.match(css,/\.home-vigilance::before[^{]*\{[^}]*background:var\(--home-vigilance-accent\)/,'Home vigilance must expose the warning level with a full-width accent, not only a pill');
+assert.match(css,/box-shadow:inset 3px 0 0 var\(--item-vigilance-accent\)/,'Each alerted city card must visibly carry its vigilance level');
 
 assert.match(sw,/\.\/js\/features\/vigilance\.js/);
 assert.match(ignore,/\.dev\.vars/);
