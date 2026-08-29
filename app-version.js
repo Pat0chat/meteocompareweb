@@ -1,2 +1,2 @@
-// Single source of truth for the application release version.
-globalThis.METEOCOMPARE_APP_VERSION = '1.17.3';
+// MeteoCompare Web application version. Keep release tags aligned with this value.
+globalThis.METEOCOMPARE_APP_VERSION = '1.17.4';

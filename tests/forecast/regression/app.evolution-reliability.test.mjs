@@ -13,7 +13,8 @@ assert.match(app,/class="evolution-table-head"/,'forecast evolution must use one
 assert.match(app,/data-evolution-variable=/,'forecast evolution must allow switching variable without multiplying cards');
 assert.match(app,/class="evolution-track"/,'forecast evolution must render revision trajectories');
 assert.match(app,/const plotTop=pad\.t,plotBottom=height-pad\.b,clampPlotY=/,'evolution threshold geometry must be clamped to the local plot area');
-assert.match(app,/rawBandBottom>=plotTop&&rawBandBottom<=plotBottom/,'out-of-range threshold lines must not be rendered outside the plot');
+assert.match(app,/thresholdBottomVisible=rawBandBottom>=plotTop&&rawBandBottom<=plotBottom/,'threshold visibility must follow the clipped plot domain');
+assert.match(app,/const thresholdBottomLabel=thresholdBottomVisible\?/,'out-of-range lower threshold labels must be hidden with their boundary');
 assert.match(css,/\.evolution-track \{[^}]*overflow:hidden/,'evolution SVGs must clip plot decorations to their own chart');
 assert.doesNotMatch(css,/\.evolution-track \{[^}]*overflow:visible/,'evolution SVGs must not leak threshold bands into adjacent rows');
 assert.doesNotMatch(app,/class="evolution-grid"/,'legacy evolution card grid must be removed');
