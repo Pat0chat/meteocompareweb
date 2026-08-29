@@ -1,28 +1,10 @@
 import { ANALYTICS_CONFIG } from './analytics-config.js';
 import { APP_VERSION } from './version.js';
+import { sanitizeAnalyticsEventProps, sanitizeAnalyticsPageProps, analyticsEventInteractive, isAllowedAnalyticsEvent } from './analytics-schema.js';
 
 const OPT_OUT_KEY=ANALYTICS_CONFIG.optOutStorageKey;
 const CAMPAIGN_KEYS=['utm_source','utm_medium','utm_campaign'];
 const LANGUAGES=new Set(['fr','en','es','de','it']);
-const EVENT_SCHEMAS=new Map([
-  ['PWA Install Click',{}],
-  ['PWA Installed',{}],
-  ['Install Option Selected',{source:new Set(['play_store','pwa'])}],
-  ['City Search Opened',{}],
-  ['City Added',{}],
-  ['SEO City Favorite Added',{}],
-  ['Forecast Refreshed',{scope:new Set(['city','all'])}],
-  ['Forecast View Changed',{control:new Set(['metric','horizon','mode','tab','timeline','evolution','reliability']),value:'token'}],
-  ['Model Comparison Changed',{model_count:'count4'}],
-  ['City Comparison Started',{city_count:'count3'}],
-  ['Marine Activated',{}],
-  ['Data Exported',{format:new Set(['json','csv'])}],
-  ['Share Link Copied',{}],
-  ['Local Weighting Changed',{enabled:'boolean'}],
-  ['Forecast Engine Changed',{engine:new Set(['multi_consensus','calibration','scenarios','adaptive'])}],
-  ['Rain Radar Opened',{}],
-  ['Rain Radar Range Changed',{range:new Set(['near','regional','wide'])}],
-]);
 
 export function analyticsRoutePath(route){
   switch(route?.name){
@@ -129,61 +111,51 @@ function boundedCount(value,max){const n=Math.round(Number(value));return Number
 function tokenValue(value){const text=String(value??'').trim().toLowerCase();return /^[a-z0-9_-]{1,40}$/.test(text)?text:null;}
 
 export function analyticsPageProps(route,env=globalThis){
-  const props={page_group:analyticsRoutePath(route),app_version:APP_VERSION,language:safeLanguage(env),display_mode:displayMode(env),navigation:pageNavigationMode(route,env)};
+  const raw={page_group:analyticsRoutePath(route),app_version:APP_VERSION,language:safeLanguage(env),display_mode:displayMode(env),navigation:pageNavigationMode(route,env)};
+  const theme=String(env.document?.documentElement?.dataset?.theme||'').toLowerCase();if(theme==='light'||theme==='dark')raw.effective_theme=theme;
+  const density=String(env.document?.documentElement?.dataset?.density||'').toLowerCase();if(density==='compact'||density==='comfortable')raw.density=density;
   if(route?.name==='city'){
     const view=route.view||{};
-    const tab=enumValue(view.tab,new Set(['CONDITIONS','TEMPERATURE','PRECIPITATION','WIND']));if(tab)props.detail_tab=tab;
-    const mode=enumValue(view.mode,new Set(['DAILY','HOURLY']));if(mode)props.detail_mode=mode;
-    const metric=enumValue(view.metric,new Set(['TEMPERATURE','PRECIPITATION','WIND']));if(metric)props.agreement_metric=metric;
-    if([24,72,168].includes(Number(view.horizon)))props.horizon_hours=String(Number(view.horizon));
-    const timeline=enumValue(view.timeline,new Set(['HOURLY','DAILY']));if(timeline)props.timeline=timeline;
-    props.compared_models=boundedCount(view.compareModels?.length||0,4);
+    const tab=enumValue(view.tab,new Set(['CONDITIONS','TEMPERATURE','PRECIPITATION','WIND']));if(tab)raw.detail_tab=tab;
+    const mode=enumValue(view.mode,new Set(['DAILY','HOURLY']));if(mode)raw.detail_mode=mode;
+    const metric=enumValue(view.metric,new Set(['TEMPERATURE','PRECIPITATION','WIND']));if(metric)raw.agreement_metric=metric;
+    if([24,72,168].includes(Number(view.horizon)))raw.horizon_hours=String(Number(view.horizon));
+    const timeline=enumValue(view.timeline,new Set(['HOURLY','DAILY']));if(timeline)raw.timeline=timeline;
+    raw.compared_models=boundedCount(view.compareModels?.length||0,4);
   }else if(route?.name==='bias'){
-    const variable=tokenValue(route.variable);if(variable)props.variable=variable;
-    const model=tokenValue(route.modelId);if(model)props.model=model;
-  }else if(route?.name==='compare')props.compared_cities=boundedCount(route.ids?.length||0,3);
-  return props;
+    const variable=tokenValue(route.variable);if(variable)raw.variable=variable;
+    const model=tokenValue(route.modelId);if(model)raw.model=model;
+  }else if(route?.name==='compare')raw.compared_cities=boundedCount(route.ids?.length||0,3);
+  return sanitizeAnalyticsPageProps(raw);
 }
 
-function eventProps(name,props={}){
-  const schema=EVENT_SCHEMAS.get(name);if(!schema)return null;
-  const output={};
-  for(const [key,rule] of Object.entries(schema)){
-    const value=props?.[key];let safe=null;
-    if(rule instanceof Set)safe=rule.has(String(value))?String(value):null;
-    else if(rule==='token')safe=tokenValue(value);
-    else if(rule==='count4')safe=boundedCount(value,4);
-    else if(rule==='count3')safe=boundedCount(value,3);
-    else if(rule==='boolean')safe=value===true||value==='true'||value==='on'?'true':value===false||value==='false'||value==='off'?'false':null;
-    if(safe!=null)output[key]=safe;
-  }
-  return output;
-}
+function analyticsEventContext(route,env=globalThis){return {app_version:APP_VERSION,language:safeLanguage(env),display_mode:displayMode(env),navigation:pageNavigationMode(route,env)};}
 
 export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,plausibleImpl=null}={}){
-  const tracker=plausibleImpl||env.plausible;
+  const tracker=()=>plausibleImpl||env.plausible;
   const status=()=>{
     const configured=Boolean(config?.enabled&&config?.domain&&config?.scriptSrc);
     const signal=privacySignal(env),optedOut=storageOptOut(env);
     const hostAllowed=configuredHostAllowed(config,env);
-    const active=configured&&hostAllowed&&!signal&&!optedOut&&productionProtocol(env)&&typeof tracker==='function';
+    const active=configured&&hostAllowed&&!signal&&!optedOut&&productionProtocol(env)&&typeof tracker()==='function';
     return {active,configured,hostAllowed,optedOut,privacySignal:signal,provider:config?.provider||'plausible'};
   };
   const send=(name,route,props={})=>{
     const current=status();
     if(!current.active)return Promise.resolve(false);
-    if(name!=='pageview'&&!EVENT_SCHEMAS.has(name))return Promise.resolve(false);
+    if(!isAllowedAnalyticsEvent(name))return Promise.resolve(false);
     const options={url:sanitizedAnalyticsUrl(name==='pageview'?route:route||{name:'other'},env.location)};
     if(name==='pageview')options.props=analyticsPageProps(route,env);
     else{
-      const safeProps=eventProps(name,props);if(safeProps&&Object.keys(safeProps).length)options.props=safeProps;
-      options.interactive=true;
+      const safeProps=sanitizeAnalyticsEventProps(name,{...analyticsEventContext(route,env),...props});if(safeProps&&Object.keys(safeProps).length)options.props=safeProps;
+      options.interactive=analyticsEventInteractive(name);
     }
     try{
       // The site-specific Plausible script may still be loading. Its official
       // bootstrap exposes a queueing plausible() function, so this call is safe
       // before the remote script has finished downloading.
-      tracker(name,options);
+      options.callback=result=>{try{env.__METEOCOMPARE_ANALYTICS_CONTROL__?.reportDelivery?.(result);}catch{}};
+      tracker()(name,options);
       return Promise.resolve(true);
     }catch{return Promise.resolve(false);}
   };
@@ -193,6 +165,7 @@ export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,pl
     event:(name,route,props)=>send(name,route,props),
     setOptOut(disabled){
       try{if(disabled)env.localStorage?.setItem(OPT_OUT_KEY,'1');else env.localStorage?.removeItem(OPT_OUT_KEY);}catch{}
+      try{env.__METEOCOMPARE_ANALYTICS_CONTROL__?.reconcile?.();}catch{}
       return status();
     },
   };

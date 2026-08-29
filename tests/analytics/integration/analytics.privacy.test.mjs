@@ -36,7 +36,7 @@ const calls=[];
 const storage=new Map();
 const env={
   location:{origin:'https://meteocompare.app',hostname:'meteocompare.app',pathname:'/meteo/toulouse',search:'?utm_source=google&utm_medium=organic&utm_campaign=seo-city&tab=WIND&id=private-id',hash:'',protocol:'https:'},
-  document:{referrer:'https://www.google.com/search?q=toulouse+meteo&secret=1',documentElement:{lang:'fr-FR'}},
+  document:{referrer:'https://www.google.com/search?q=toulouse+meteo&secret=1',documentElement:{lang:'fr-FR',dataset:{theme:'dark',density:'compact'}}},
   navigator:{doNotTrack:'0',globalPrivacyControl:false,standalone:false},
   matchMedia:()=>({matches:false}),
   localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},
@@ -52,7 +52,7 @@ assert.equal(client.status().hostAllowed,true);
 const route={name:'city',id:'private-city-id',slug:'toulouse',view:{tab:'WIND',mode:'HOURLY',metric:'TEMPERATURE',horizon:72,timeline:'HOURLY',compareModels:['a','b']}};
 const props=analyticsPageProps(route,env);
 assert.deepEqual(props,{
-  page_group:'/city',app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'seo',
+  page_group:'/city',app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'seo',effective_theme:'dark',density:'compact',
   detail_tab:'wind',detail_mode:'hourly',agreement_metric:'temperature',horizon_hours:'72',timeline:'hourly',compared_models:'2'
 });
 
@@ -66,6 +66,10 @@ await client.event('Data Exported',route,{format:'csv',filename:'MUST-NOT-LEAK.c
 await client.event('PWA Install Click',{name:'about'});
 await client.event('PWA Installed',{name:'city',id:'private-city-id'});
 assert.equal(calls.length,9);
+assert.equal(calls[8].options.interactive,false,'PWA Installed must not alter bounce semantics');
+await client.event('Rain Radar Mode Changed',route,{mode:'projection',city_id:'MUST-NOT-LEAK'});
+assert.equal(calls.length,10,'radar mode events must no longer be silently rejected');
+assert.equal(calls[9].options.props.mode,'projection');
 
 for(const call of calls){
   const serialized=JSON.stringify(call);
@@ -85,30 +89,31 @@ assert.equal(pageCall.options.props.compared_models,'2');
 assert.equal('interactive' in pageCall.options,false);
 
 const viewCall=calls[3];
-assert.deepEqual(viewCall.options.props,{control:'tab',value:'wind'});
+assert.deepEqual(viewCall.options.props,{app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'seo',control:'tab',value:'wind'});
 assert.equal(viewCall.options.interactive,true);
 const modelCall=calls[4];
-assert.deepEqual(modelCall.options.props,{model_count:'3'});
+assert.deepEqual(modelCall.options.props,{app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'seo',model_count:'3'});
 const compareCall=calls[5];
-assert.deepEqual(compareCall.options.props,{city_count:'3'});
+assert.deepEqual(compareCall.options.props,{app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'direct',city_count:'3'});
 const exportCall=calls[6];
-assert.deepEqual(exportCall.options.props,{format:'csv'});
+assert.deepEqual(exportCall.options.props,{app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'seo',format:'csv'});
 
 const beforeUnknown=calls.length;
 await client.event('Arbitrary Private Event',{name:'home'},{secret:'x'});
 assert.equal(calls.length,beforeUnknown,'unknown events must be rejected');
 
+let reconcileCalls=0;env.__METEOCOMPARE_ANALYTICS_CONTROL__={reconcile(){reconcileCalls++;},reportDelivery(){}};
 client.setOptOut(true); assert.equal(client.status().active,false); await client.pageview({name:'home'}); assert.equal(calls.length,beforeUnknown);
-client.setOptOut(false); assert.equal(client.status().active,true);
+client.setOptOut(false); assert.equal(client.status().active,true);assert.equal(reconcileCalls,2,'analytics opt-out changes must reconcile the Plausible script lifecycle');
 env.navigator.globalPrivacyControl=true; assert.equal(client.status().active,false); await client.pageview({name:'home'}); assert.equal(calls.length,beforeUnknown);
 env.navigator.globalPrivacyControl=false; env.navigator.doNotTrack='1'; assert.equal(client.status().active,false);
 env.navigator.doNotTrack='0'; env.location.hostname='preview.pages.dev'; assert.equal(client.status().hostAllowed,false); assert.equal(client.status().active,false);
 
 const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
-for(const event of ['PWA Install Click','PWA Installed','City Search Opened','City Added','SEO City Favorite Added','Forecast Refreshed','Forecast View Changed','Model Comparison Changed','City Comparison Started','Marine Activated','Data Exported','Share Link Copied','Local Weighting Changed','Rain Radar Opened','Rain Radar Range Changed']){
+for(const event of ['PWA Install Click','PWA Installed','PWA Install Prompt Result','City Search Opened','City Added','SEO City Favorite Added','City Removed','Forecast Refreshed','Forecast View Changed','Model Comparison Changed','Model Selection Changed','City Comparison Started','Marine Activated','Model Health Refreshed','Vigilance Refreshed','Forecast Engine Comparison Opened','Confidence Explanation Opened','Diagnostics Opened','Data Exported','Local Backup Exported','Local Backup Imported','Share Link Copied','Share Link Fallback Opened','Local Weighting Changed','Forecast Engine Changed','Rain Radar Opened','Rain Radar Range Changed','Rain Radar Mode Changed','Rain Radar Horizon Changed','Rain Radar Fullscreen Changed','Rain Radar Projection Recalculated','System Monitor Opened','System Monitor Refreshed','Support Opened','External Link Opened']){
   assert.ok(app.includes(`trackAnalyticsEvent('${event}'`),`app should track ${event}`);
 }
-assert.match(app,/trackPageView\(state\.route\)/);
+assert.match(app,/trackCurrentPageView\(state\.route\)/);
 assert.match(app,/data-action="toggle-analytics"/);
 const html=fs.readFileSync(new URL('../../../index.html',import.meta.url),'utf8');
 const plausibleBootstrap=fs.readFileSync(new URL('../../../js/plausible-bootstrap.js',import.meta.url),'utf8');

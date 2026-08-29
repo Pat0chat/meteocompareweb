@@ -1,117 +1,214 @@
 # Plausible Analytics — MeteoCompare Web
 
-MeteoCompare utilise le tracker officiel Plausible propre à `meteocompare.app` (`pa-m_Vcr9SLuhB7IFuIgpvGB.js`) derrière un proxy first-party Cloudflare intégré au Worker MeteoCompare. Les pageviews automatiques et les mesures automatiques optionnelles sont désactivés afin de conserver le contrôle de l’anonymisation et d’éviter tout doublon. Les événements passent par la fonction officielle `plausible()` avec des URLs et propriétés filtrées par MeteoCompare.
+MeteoCompare utilise le tracker officiel Plausible associé à `meteocompare.app`, derrière le Worker first-party MeteoCompare. L'intégration est volontairement **manuelle et à faible cardinalité** : pageviews automatiques, outbound links automatiques, téléchargements automatiques et formulaires automatiques sont désactivés. Seuls les pageviews et événements définis dans le schéma partagé `js/analytics-schema.js` peuvent être envoyés.
 
-## Production
+## Architecture
 
-La configuration active est dans `js/analytics-config.js` :
+Flux navigateur :
 
-- site Plausible : `meteocompare.app` ;
-- hôtes autorisés : `meteocompare.app`, `www.meteocompare.app` ;
+```text
+MeteoCompare Web
+  ├─ GET  /_mcx/p.js  → Worker → script Plausible
+  └─ POST /_mcx/e     → Worker → https://plausible.io/api/event
+```
+
+Configuration : `js/analytics-config.js`.
+
+- domaine Plausible : `meteocompare.app` ;
+- hôtes navigateur autorisés : `meteocompare.app`, `www.meteocompare.app` ;
 - script navigateur : `/_mcx/p.js` ;
-- endpoint navigateur : `/_mcx/e` ;
-- upstream Worker : script site-specific Plausible + `https://plausible.io/api/event`.
+- endpoint événement navigateur : `/_mcx/e` ;
+- localhost, preview et forks : aucune mesure tant que leur hôte n'est pas autorisé.
 
-Le navigateur ne contacte donc plus directement `plausible.io` : les deux requêtes passent par `meteocompare.app` et sont relayées côté Cloudflare Worker. Le script n’est créé que sur les hôtes de production autorisés et il n’est même pas chargé si GPC, DNT ou l’opt-out local sont actifs. Cela réduit les blocages de scripts analytics tiers tout en conservant le tracker officiel. Le Worker retire les cookies avant le relais. Les previews, localhost et autres forks ne sont pas comptés tant que leur hôte n’est pas explicitement ajouté. `npm run preview` retire en plus la balise `/_mcx/p.js`, car le serveur Node local ne lance pas le Worker Cloudflare.
+Le navigateur ne contacte pas directement `plausible.io`. Le Worker valide à nouveau le payload avant de le relayer. Cette double validation protège à la fois contre une régression du client et contre l'envoi direct d'événements arbitraires sur `/_mcx/e`.
 
-## Pages
+Le proxy événement transmet explicitement le `User-Agent` du navigateur et l'adresse client fournie par Cloudflare comme `X-Forwarded-For`. Ces métadonnées sont nécessaires au traitement Plausible côté serveur ; le Worker ignore un `X-Forwarded-For` fourni arbitrairement par le client lorsqu'un `CF-Connecting-IP` fiable est disponible.
 
-Les URL sont volontairement regroupées avant envoi :
+## Cycle de vie du tracker
 
-- `/` → `/`
-- `/meteo/<ville>` → `/city`
-- route interne d’une ville → `/city`
-- biais → `/bias`
-- comparaison de villes → `/compare`
-- données locales → `/data`
-- paramètres → `/settings`
-- à propos → `/about`
-- route inconnue SEO → `/404`
+Le script Plausible n'est chargé que si :
 
-Le slug, l’identifiant de ville et les paramètres de vue applicatifs ne sont jamais placés dans l’URL Plausible. Seuls `utm_source`, `utm_medium` et `utm_campaign`, lorsqu’ils existent sur l’URL d’entrée, sont conservés pour l’attribution de campagne.
+- l'hôte est autorisé ;
+- aucun signal GPC/DNT n'est actif ;
+- l'utilisateur n'a pas désactivé la mesure dans **Données locales → Confidentialité**.
 
-## Propriétés de pageview
+Le contrôleur `__METEOCOMPARE_ANALYTICS_CONTROL__` permet désormais de :
 
-Propriétés générales :
+- charger le tracker après réactivation de la mesure sans recharger toute l'application ;
+- retenter un chargement de script en erreur ;
+- mémoriser le résultat du dernier envoi pour le centre de monitoring de la topbar.
 
-- `page_group`
-- `app_version`
-- `language`
-- `display_mode` : `browser` ou `standalone`
-- `navigation` : `seo`, `spa` ou `direct`
+## Pageviews
 
-Pour une page ville, seulement des choix d’interface à faible cardinalité :
+Les routes sont regroupées avant envoi :
 
-- `detail_tab`
-- `detail_mode`
-- `agreement_metric`
-- `horizon_hours`
-- `timeline`
-- `compared_models` (nombre, jamais les villes)
+- `/` ;
+- `/city` pour toutes les villes, y compris `/meteo/<ville>` ;
+- `/bias` ;
+- `/compare` ;
+- `/data` ;
+- `/settings` ;
+- `/about` ;
+- `/pwa` ;
+- `/404` ;
+- `/other` comme garde-fou.
 
-Pour le biais :
+Le slug/ID d'une ville et les paramètres privés de la route ne sont jamais inclus dans l'URL Plausible. Seuls `utm_source`, `utm_medium` et `utm_campaign` sont conservés lorsqu'ils existent.
 
-- `variable`
-- `model`
+### Propriétés communes des pageviews
 
-Pour la comparaison de villes :
+- `page_group` ;
+- `app_version` ;
+- `language` ;
+- `display_mode` : `browser|standalone` ;
+- `navigation` : `seo|spa|direct` ;
+- `effective_theme` : `light|dark` ;
+- `density` : `comfortable|compact`.
 
-- `compared_cities` (nombre uniquement)
+Page ville :
+
+- `detail_tab` ;
+- `detail_mode` ;
+- `agreement_metric` ;
+- `horizon_hours` ;
+- `timeline` ;
+- `compared_models` : nombre uniquement.
+
+La pageview d'une ville est construite depuis l'état UI effectif de l'application, même lorsque les valeurs par défaut ne figurent pas explicitement dans l'URL partagée.
+
+Page biais : `variable`, `model`.
+
+Comparaison de villes : `compared_cities`, nombre uniquement.
 
 ## Événements personnalisés
 
+Tous les événements personnalisés reçoivent automatiquement les propriétés communes suivantes : `app_version`, `language`, `display_mode`, `navigation`.
+
+### Villes et navigation météo
+
 - `City Search Opened`
-- `City Added`
+- `City Added` (`source=search`)
 - `SEO City Favorite Added`
+- `City Removed`
 - `Forecast Refreshed` (`scope=city|all`)
 - `Forecast View Changed` (`control`, `value`)
-- `Model Comparison Changed` (`model_count`)
 - `City Comparison Started` (`city_count`)
+
+### Modèles, consensus et diagnostic
+
+- `Model Comparison Changed` (`model_count`)
+- `Model Selection Changed` (`model_count`, `family_count`)
+- `Forecast Engine Changed` (`engine`)
+- `Forecast Engine Comparison Opened`
+- `Confidence Explanation Opened`
+- `Diagnostics Opened`
+- `Model Health Refreshed`
+- `Vigilance Refreshed`
+- `Local Weighting Changed` (`enabled`)
+
+### Marine et radar
+
 - `Marine Activated`
 - `Rain Radar Opened`
-- `Rain Radar Range Changed` (`range`: `near`, `regional` ou `wide`)
-- `Data Exported` (`format=json|csv`)
-- `Share Link Copied`
-- `Local Weighting Changed` (`enabled=true|false`)
-- `Install Option Selected` (`source`: `play_store` ou `pwa`)
-- `PWA Install Click`
-- `PWA Installed`
+- `Rain Radar Range Changed` (`range`)
+- `Rain Radar Mode Changed` (`mode`)
+- `Rain Radar Horizon Changed` (`horizon`)
+- `Rain Radar Fullscreen Changed` (`fullscreen`)
+- `Rain Radar Projection Recalculated` (`success`)
 
-Chaque événement et chaque propriété est filtré par une liste blanche dans `js/analytics.js`. Ajouter arbitrairement une propriété à un appel dans `app.js` ne suffit donc pas à l’envoyer.
+Les quatre derniers événements radar étaient auparavant appelés par l'interface mais absents de l'ancienne liste blanche ; ils sont maintenant effectivement acceptés et relayés.
+
+### Données locales et partage
+
+- `Data Exported` (`format=json|csv`) — envoyé uniquement après préparation réussie du téléchargement ;
+- `Local Backup Exported`
+- `Local Backup Imported`
+- `Share Link Copied` (`method=clipboard`)
+- `Share Link Fallback Opened` (`reason`)
+
+### Installation, monitoring et support
+
+- `Install Option Selected` (`source=play_store|pwa`)
+- `PWA Install Click`
+- `PWA Install Prompt Result` (`outcome=accepted|dismissed`)
+- `PWA Installed` — événement non interactif car déclenché par le navigateur ;
+- `System Monitor Opened`
+- `System Monitor Refreshed`
+- `Support Opened`
+- `External Link Opened` avec uniquement une destination enumérée : `bluesky`, `meteofrance_vigilance`, `liberapay`, `kofi`.
+
+## Validation et protection du endpoint `/_mcx/e`
+
+La liste blanche est définie une seule fois dans `js/analytics-schema.js` et utilisée par le client **et** par `worker.js`.
+
+Le Worker refuse notamment :
+
+- un nom d'événement inconnu ;
+- un domaine Plausible différent de `meteocompare.app` ;
+- une URL hors route agrégée autorisée ;
+- une propriété non déclarée ;
+- un payload trop volumineux ;
+- un contenu JSON invalide.
+
+Le Worker supprime aussi toute donnée de revenu ou champ arbitraire non utilisé par MeteoCompare. Le header `x-meteocompare-analytics-reject` permet de diagnostiquer localement la raison d'un rejet sans exposer de donnée privée.
+
+Le header upstream `x-plausible-dropped`, lorsqu'il existe, est conservé dans la réponse du proxy pour faciliter le diagnostic réseau.
 
 ## Acquisition
 
-Le tracker Plausible fournit normalement `document.referrer`. MeteoCompare applique toutefois un `transformRequest` qui le réduit à l’origine externe avant envoi, par exemple :
+Le referrer externe est réduit à son **origine** :
 
-`https://www.google.com/search?...` → `https://www.google.com/`
+```text
+https://www.google.com/search?q=meteo+paris → https://www.google.com/
+```
 
-Les chemins, query strings et fragments du site référent sont supprimés. Les referrers internes sont remplacés par `null` et ne sont donc pas transmis comme source.
+Les referrers internes sont supprimés. Les chemins, requêtes et fragments du site référent ne sont pas relayés par MeteoCompare.
 
 ## Données explicitement exclues
 
-- nom, slug ou identifiant de ville ;
+- nom, slug ou ID de ville ;
 - latitude/longitude ;
-- texte saisi dans la recherche de ville ;
-- favoris ;
-- valeurs météo et séries de prévision ;
-- biais chiffrés et historiques locaux ;
-- contenu des exports ;
+- texte de recherche ;
+- liste des favoris ;
+- valeurs météo, codes météo et séries de prévision ;
+- couleur/niveau de Vigilance ;
+- valeurs d'accord, scénarios et biais chiffrés ;
+- contenu ou nom de fichier d'un export ;
 - identifiant persistant créé par MeteoCompare.
 
-Les événements sont remis au tracker officiel via `plausible()`, puis relayés par le proxy first-party Cloudflare. L’URL est fournie explicitement par MeteoCompare après anonymisation et le `transformRequest` réduit le referrer externe à son origine avant l’appel réseau Plausible.
+MeteoCompare n'active volontairement **aucun suivi automatique de scroll, visibilité de section, temps passé ou impression de composant**. Cela limite le bruit, la cardinalité et le volume d'événements.
+
+## Monitoring
+
+La ligne Plausible du centre de monitoring distingue :
+
+- non configuré ;
+- hôte non suivi ;
+- GPC/DNT ;
+- opt-out local ;
+- chargement du script ;
+- erreur de chargement du script ;
+- erreur du dernier envoi ;
+- script chargé et âge du dernier envoi accepté.
+
+Le monitoring ne génère pas de ping Plausible artificiel.
 
 ## Tableau de bord Plausible recommandé
 
-Après les premiers événements, ajouter les événements personnalisés comme objectifs et enregistrer les propriétés utiles dans **Site settings → Properties**. Les analyses particulièrement utiles sont :
+Les analyses les plus utiles sont :
 
-1. trafic SEO : `/city` filtré par `navigation=seo` ;
-2. conversion SEO : `/city` → `SEO City Favorite Added` ;
-3. ajout de ville : `City Search Opened` → `City Added` ;
-4. comparaison : `/city` → `City Comparison Started` → `/compare` ;
-5. installation : `Install Option Selected`, puis pour la PWA `PWA Install Click` → `PWA Installed` ;
-6. adoption fonctionnelle : `Marine Activated`, `Rain Radar Opened`, `Rain Radar Range Changed`, `Data Exported`, `Model Comparison Changed` ;
-7. acquisition : Sources + Campaigns grâce au referrer minimisé et aux UTM.
+1. **Acquisition SEO** : `/city` + `navigation=seo`, puis `SEO City Favorite Added` ;
+2. **Activation** : `City Search Opened` → `City Added` ;
+3. **Engagement prévision** : `Forecast View Changed`, `Confidence Explanation Opened`, `Forecast Engine Comparison Opened`, `Diagnostics Opened` ;
+4. **Modèles** : `Model Comparison Changed`, `Model Selection Changed`, `Forecast Engine Changed` ;
+5. **Radar** : ouverture → mode → horizon → recalcul ;
+6. **Vigilance / santé** : `Vigilance Refreshed`, `Model Health Refreshed` ;
+7. **Installation** : `Install Option Selected` → `PWA Install Click` → `PWA Install Prompt Result` → `PWA Installed` ;
+8. **Portabilité** : exports et sauvegardes locales ;
+9. **Support** : `Support Opened` puis destination externe agrégée.
+
+Éviter de créer des événements supplémentaires pour chaque petit clic : les événements personnalisés augmentent le volume de mesure et doivent rester liés à une question produit utile.
 
 ## Confidentialité
 
-GPC et DNT désactivent automatiquement l’envoi. L’utilisateur peut aussi désactiver la mesure dans **Données locales → Confidentialité**. Voir `PRIVACY.md` pour la politique complète et les réserves liées au cadre CNIL.
+GPC et DNT désactivent automatiquement la mesure. L'utilisateur peut aussi la désactiver dans **Données locales → Confidentialité**. Voir `PRIVACY.md` pour la politique complète.

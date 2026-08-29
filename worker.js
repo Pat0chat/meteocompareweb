@@ -1,6 +1,7 @@
 import { ANALYTICS_CONFIG } from './js/analytics-config.js';
 import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from './js/network-config.js';
 import { APP_VERSION } from './js/version.js';
+import { sanitizePlausibleProxyPayload } from './js/analytics-schema.js';
 
 const SCRIPT_PATH = ANALYTICS_CONFIG.scriptSrc;
 const EVENT_PATH = ANALYTICS_CONFIG.endpoint;
@@ -136,7 +137,15 @@ export function proxySystemHealth(request,env){
 
 function cleanProxyHeaders(request){
   const headers=new Headers(request.headers);
-  for(const name of ['cookie','host','content-length','cf-connecting-ip','cf-ray','cf-visitor'])headers.delete(name);
+  for(const name of ['cookie','host','content-length','cf-connecting-ip','cf-ray','cf-visitor','authorization'])headers.delete(name);
+  return headers;
+}
+function plausibleEventHeaders(request){
+  const headers=new Headers();
+  const userAgent=request.headers.get('user-agent');if(userAgent)headers.set('user-agent',userAgent);
+  const clientIp=request.headers.get('cf-connecting-ip')||request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();if(clientIp)headers.set('x-forwarded-for',clientIp);
+  headers.set('content-type','application/json');
+  headers.set('accept','application/json');
   return headers;
 }
 
@@ -167,18 +176,24 @@ async function serveApplicationAsset(request,env){
   return new Response(body,{status:response.status,statusText:response.statusText,headers});
 }
 
-async function proxyPlausibleEvent(request){
+export async function proxyPlausibleEvent(request){
   if(request.method!=='POST')return new Response('Method Not Allowed',{status:405,headers:{Allow:'POST'}});
   const declared=Number(request.headers.get('content-length'));
   if(Number.isFinite(declared)&&declared>ANALYTICS_MAX_BODY_BYTES)return new Response('Payload Too Large',{status:413,headers:{'cache-control':'no-store'}});
-  const body=await request.arrayBuffer();
-  if(body.byteLength>ANALYTICS_MAX_BODY_BYTES)return new Response('Payload Too Large',{status:413,headers:{'cache-control':'no-store'}});
+  const contentType=String(request.headers.get('content-type')||'').toLowerCase();
+  if(contentType&&!contentType.includes('application/json')&&!contentType.includes('text/plain'))return new Response('Unsupported Media Type',{status:415,headers:{'cache-control':'no-store'}});
+  const raw=await request.text();
+  if(new TextEncoder().encode(raw).byteLength>ANALYTICS_MAX_BODY_BYTES)return new Response('Payload Too Large',{status:413,headers:{'cache-control':'no-store'}});
+  let parsed;try{parsed=JSON.parse(raw);}catch{return new Response('Invalid analytics payload',{status:400,headers:{'cache-control':'no-store'}});}
+  const sanitized=sanitizePlausibleProxyPayload(parsed,{domain:ANALYTICS_CONFIG.domain,allowedHosts:ANALYTICS_CONFIG.allowedHosts});
+  if(!sanitized.ok)return new Response('Analytics event rejected',{status:400,headers:{'cache-control':'no-store','x-meteocompare-analytics-reject':sanitized.error}});
 
   let upstream;
-  try{upstream=await fetchUpstream(ANALYTICS_CONFIG.upstreamEndpoint,{method:'POST',headers:cleanProxyHeaders(request),body,redirect:'manual'},NETWORK_TIMEOUTS_MS.analyticsEvent);}
+  try{upstream=await fetchUpstream(ANALYTICS_CONFIG.upstreamEndpoint,{method:'POST',headers:plausibleEventHeaders(request),body:JSON.stringify(sanitized.payload),redirect:'manual'},NETWORK_TIMEOUTS_MS.analyticsEvent);}
   catch(error){return upstreamFailure(error,'Analytics');}
-  const headers=new Headers({'cache-control':'no-store','x-content-type-options':'nosniff'});
-  const contentType=upstream.headers.get('content-type');if(contentType)headers.set('content-type',contentType);
+  const headers=new Headers({'cache-control':'no-store','x-content-type-options':'nosniff','x-meteocompare-analytics-proxy':'forwarded'});
+  const upstreamContentType=upstream.headers.get('content-type');if(upstreamContentType)headers.set('content-type',upstreamContentType);
+  const dropped=upstream.headers.get('x-plausible-dropped');if(dropped)headers.set('x-plausible-dropped',dropped);
   return new Response(upstream.body,{status:upstream.status,statusText:upstream.statusText,headers});
 }
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read=p=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),'utf8');
-const app=read('js/app.js'),css=read('styles.css'),analytics=read('js/analytics.js');
+const app=read('js/app.js'),css=read('styles.css'),analyticsSchema=read('js/analytics-schema.js');
 
 const nav=app.match(/<nav class="topbar-nav"[\s\S]*?<\/nav>/)?.[0]||'';
 assert.ok(nav,'topbar navigation must exist');
@@ -21,5 +21,5 @@ assert.match(app,/installAvailable:android\|\|pwaDirect\|\|pwaManual/,'availabil
 assert.match(css,/\.nav-install-menu:hover \.nav-install-popover/,'desktop hover opens the install menu');
 assert.match(css,/\.nav-install-menu\.is-open \.nav-install-popover/,'touch/click can keep the install menu open');
 assert.match(css,/\.install-opportunity-dot[\s\S]*var\(--semantic-danger\)/,'availability dot uses the semantic red status color');
-assert.match(analytics,/\['Install Option Selected',\{source:new Set\(\['play_store','pwa'\]\)\}\]/,'install source selection is tracked without device or location data');
+assert.match(analyticsSchema,/'Install Option Selected':event\(\{source:enumRule\(\['play_store','pwa'\]\)\}\)/,'install source selection is tracked without device or location data');
 console.log('MeteoCompare Web unified installation navigation regression: OK');
