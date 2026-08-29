@@ -30,7 +30,7 @@ export async function searchCities(query, language='fr', signal=null) {
   u.searchParams.set('format','json');
   const data = await fetchJson(u,30000,signal,'geocoding',5*60_000);
   return (data.results || []).map(r => normalizeCity({
-    id:String(r.id), name:r.name, admin1:r.admin1 || '', country:r.country || '', latitude:r.latitude, longitude:r.longitude,
+    id:String(r.id), name:r.name, admin1:r.admin1 || '', admin2:r.admin2 || '', country:r.country || '', countryCode:r.country_code || '', postcodes:Array.isArray(r.postcodes)?r.postcodes:[], latitude:r.latitude, longitude:r.longitude,
     timezone:r.timezone || null,
   })).filter(Boolean);
 }

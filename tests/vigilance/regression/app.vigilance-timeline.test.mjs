@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read=rel=>fs.readFileSync(new URL(`../../../${rel}`,import.meta.url),'utf8');
+const app=read('js/app.js'),css=read('styles.css'),sw=read('sw.js'),ignore=read('.gitignore'),worker=read('worker.js'),network=read('js/network-config.js'),preview=read('tools/preview-site.mjs');
+assert.match(app,/renderVigilanceSection\(city\)/);
+assert.match(app,/data-scroll-section="vigilance"/);
+assert.match(app,/vigilanceTimeline\(data,city\)/);
+assert.match(app,/vigilance-segment-approximate/);
+assert.match(app,/vigilanceOfficialIndependent/);
+assert.match(css,/--vigilance-yellow/);
+assert.match(css,/--vigilance-orange/);
+assert.match(css,/--vigilance-red/);
+assert.match(css,/\.vigilance-timeline-scroll/);
+assert.match(css,/\.vigilance-segment-approximate/);
+
+assert.match(app,/favoriteCities\(\)\.filter\(isVigilanceSupportedCity\)/,'Home vigilance scan/render must only consider supported French cities');
+assert.match(app,/if\(isVigilanceSupportedCity\(target\)\)void refreshVigilanceData\(target\.id,true,false\)/,'Adding a supported city must immediately trigger a fresh vigilance check');
+assert.match(app,/edgeLabelGap=2\.25\*3600_000/,'Time-only Vigilance axis must keep a modest anti-collision margin around its first and final labels');
+assert.match(app,/ticks\.splice\(1,1\).*ticks\.splice\(-2,1\)/s,'Vigilance timeline must remove adjacent edge ticks when labels would collide');
+assert.match(app,/item\.phenomena\.map\(x=>vigilancePhenomenonLabel\(x\.id\)\)/,'A Home vigilance item must aggregate every active phenomenon for its city');
+assert.doesNotMatch(app,/sort\(\(a,b\)=>b\.max-a\.max[^;]+\.slice\(/,'Home vigilance must not silently truncate alerted cities');
+assert.match(css,/grid-template-columns:repeat\(auto-fill,minmax\(230px,300px\)\)/,'Home vigilance cards must use bounded columns so several fit on one row');
+
+assert.match(sw,/\.\/js\/features\/vigilance\.js/);
+assert.match(ignore,/\.dev\.vars/);
+assert.match(worker,/METEOFRANCE_API_KEY/);
+assert.match(worker,/headers:\{Accept:'\*\/\*',apikey:apiKey\}/,'Worker must mirror the working Météo-France portal curl contract');
+assert.match(preview,/headers:\{Accept:'\*\/\*',apikey:apiKey\}/,'Local preview must use the same API Key header contract as production');
+assert.doesNotMatch(worker,/Authorization:`Bearer \${apiKey}`/,'Worker must not send an API Key as an OAuth Bearer token');
+assert.doesNotMatch(preview,/Authorization:`Bearer \${apiKey}`/,'Preview must not send an API Key as an OAuth Bearer token');
+assert.doesNotMatch(worker,/METEOFRANCE_APPLICATION_ID|portail-api\.meteofrance\.fr\/token/);
+assert.doesNotMatch(network,/portail-api\.meteofrance\.fr\/token/);
+assert.doesNotMatch(preview,/METEOFRANCE_APPLICATION_ID|portail-api\.meteofrance\.fr\/token/);
+
+assert.match(app,/function vigilanceFullDate\(timestamp,city\)/,'Vigilance timeline must format the full date once per term band');
+assert.match(app,/vigilance-term-bands[\s\S]*vigilanceFullDate\(period\.beginTime,city\)/,'Term bands must carry the full J/J+1 date');
+assert.doesNotMatch(app,/vigilance-axis[\s\S]{0,450}<small>/,'Vigilance axis must not repeat dates below every hour tick');
+assert.match(css,/\.vigilance-term-bands b/,'Term bands must style the J/J+1 label separately');
+assert.match(css,/\.vigilance-term-bands small/,'Term bands must style the full date separately');
+console.log('Official Vigilance detail timeline and secret hygiene regression: OK');

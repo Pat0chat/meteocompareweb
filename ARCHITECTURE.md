@@ -11,6 +11,7 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 - `js/data/forecast-normalizer.js` aligne les axes horaires/journaliers, filtre les valeurs impossibles, conserve les métadonnées de run, qualifie la couverture et marque les journées civiles partielles.
 - `js/data/contracts.js` est la frontière de confiance pour les réglages, villes et prévisions. Les IDs de modèles inconnus, coordonnées invalides, séries désalignées ou caches incohérents sont rejetés ou assainis avant le domaine.
 - `js/storage.js` applique les contrats aux lectures, migrations, imports et caches. Les réparations d'intégrité privilégient l'assainissement d'un record récupérable avant sa suppression.
+  Les changements de source incompatibles gardant un même ID UI doivent incrémenter le schéma de données et isoler les historiques de l'ancienne source sous un ID legacy ; la migration ECMWF IFS 25 km → HRES 9 km constitue le cas de référence.
 - `js/domain.js` ne traite que des données normalisées et orchestre agrégations, chronologies et scénarios ; 
 - `js/consensus.js` centralise les consensus numériques, précipitations et conditions météo hiérarchiques.
 
@@ -50,3 +51,9 @@ Les primitives de rendu graphique génériques (`chartScale`, sélection de tick
 `js/forecast-engines.js` is the single post-processing module used by `js/domain.js`. It receives normalized model values plus optional local skill/calibration profiles and returns a common result contract (`central`, `interval`, `effectiveEngine`, `fallback`, calibration coverage and scenario metadata). UI code never reimplements an engine formula. `js/data/contracts.js` owns persistence/normalization of the selected engine. The Details view builds one `forecastEngineContext()` and passes it through daily/hourly aggregation and radar short-term forecast rendering.
 
 Raw model-agreement metrics deliberately stay outside this boundary: `dayConfidence()` and disagreement diagnostics continue to describe source-model convergence rather than the output of a chosen post-processor.
+
+## Frontière Vigilance officielle
+
+`js/features/vigilance.js` est la frontière navigateur de la Vigilance Météo-France. Cette donnée de sécurité est volontairement indépendante du moteur de prévision et de `consensus.js` : elle ne modifie aucun poids de modèle, aucune condition consensus ni aucun scénario 12 h.
+
+Le flux est : `ville normalisée → résolution département → /_mcx/vigilance → Worker → API Bulletin Vigilance Météo-France`. Le Worker conserve uniquement l'API Key comme secret `METEOFRANCE_API_KEY`, l'envoie en Bearer à Météo-France et extrait seulement les périodes J/J+1 utiles. `app.js` ne reçoit donc qu'un contrat assaini destiné à l'affichage Home/Details.

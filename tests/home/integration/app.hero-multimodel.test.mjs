@@ -15,7 +15,7 @@ assert.match(home,/homeModernLead/);
 assert.doesNotMatch(home,/homeModernTitle|<h1>/,'Home hero must not render the redundant H1/title');
 assert.match(home,/home-hero-actions/);
 assert.ok(home.indexOf('${renderForecastExpertiseDisclaimer()}')>home.indexOf('class="home-hero"'),'the expertise disclaimer must be rendered inside the Home hero');
-assert.ok(home.indexOf('${renderForecastExpertiseDisclaimer()}')<home.indexOf('</section>${hasCities?'),'the Home disclaimer must remain inside the hero boundary');
+assert.ok(home.indexOf('${renderForecastExpertiseDisclaimer()}')<home.indexOf('</section>${renderHomeVigilance()}'),'the Home disclaimer must remain inside the hero boundary');
 assert.doesNotMatch(home,/<\/section>\$\{renderForecastExpertiseDisclaimer\(\)\}/,'Home must not render a detached disclaimer below the hero');
 
 for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']){

@@ -6,6 +6,10 @@ const EVENT_PATH = ANALYTICS_CONFIG.endpoint;
 const MODEL_METADATA_PATH = NETWORK_ENDPOINTS.firstParty.modelMetadata;
 const MODEL_METADATA_UPSTREAM = NETWORK_ENDPOINTS.openMeteo.modelMetadataUpstream;
 const MODEL_METADATA_KEY = /^[a-z0-9_]{1,80}$/i;
+const VIGILANCE_PATH = NETWORK_ENDPOINTS.firstParty.vigilance;
+const METEOFRANCE_VIGILANCE_URL = NETWORK_ENDPOINTS.meteoFrance.vigilanceCarte;
+const VIGILANCE_DEPARTMENT = /^(?:0[1-9]|[1-8]\d|9[0-5]|2A|2B|97[1-6])$/i;
+const VIGILANCE_CACHE_TTL_SECONDS = 300;
 const ANALYTICS_MAX_BODY_BYTES = 64 * 1024;
 
 function upstreamFailure(error,label){
@@ -55,6 +59,57 @@ export async function proxyModelMetadata(request,ctx){
 
   const response=new Response(upstream.body,{status:upstream.status,headers:cachedJsonHeaders(upstream)});
   ctx.waitUntil(caches.default.put(cacheKey,response.clone()));
+  return headOrBody(request,response);
+}
+
+
+function jsonResponse(payload,status=200,headers={}){
+  return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','x-content-type-options':'nosniff',...headers}});
+}
+function normalizeMeteoFranceCredential(value){return String(value||'').trim().replace(/^(?:Bearer\s+|apikey\s*:\s*)/i,'').replace(/^([\"'])(.*)\1$/,'$2').trim();}
+function meteoFranceApiKey(env){return normalizeMeteoFranceCredential(env?.METEOFRANCE_API_KEY);}
+function vigilanceUnavailable(error,{configured=true,status=200}={}){
+  const payload={source:'Météo-France',configured,unavailable:true,error:error?.code||error||'METEOFRANCE_UNAVAILABLE',periods:[]};
+  if(Number.isFinite(error?.status))payload.upstreamStatus=error.status;
+  if(error?.diagnostic)payload.diagnostic=error.diagnostic;
+  if(configured)payload.authMode='api_key_header';
+  return jsonResponse(payload,status,{'cache-control':'no-store','x-meteocompare-vigilance':'unavailable'});
+}
+function meteoFranceUpstreamError(status){
+  const error=new Error(`METEOFRANCE_VIGILANCE_HTTP_${status}`);
+  error.status=status;
+  if(status===401){error.code='METEOFRANCE_AUTH_FAILED';error.diagnostic='INVALID_CREDENTIAL';}
+  else if(status===403){error.code='METEOFRANCE_AUTH_FAILED';error.diagnostic='FORBIDDEN';}
+  else error.code='METEOFRANCE_VIGILANCE_UPSTREAM';
+  return error;
+}
+async function fetchMeteoFranceVigilance(env){
+  const apiKey=meteoFranceApiKey(env);
+  if(!apiKey){const error=new Error('METEOFRANCE_NOT_CONFIGURED');error.code='METEOFRANCE_NOT_CONFIGURED';throw error;}
+  return fetchUpstream(METEOFRANCE_VIGILANCE_URL,{method:'GET',headers:{Accept:'*/*',apikey:apiKey},redirect:'follow'},NETWORK_TIMEOUTS_MS.workerUpstream);
+}
+async function getVigilanceCarte(request,env,ctx){
+  const requestUrl=new URL(request.url),cacheKey=new Request(`${requestUrl.origin}/_mcx/.cache/vigilance-carte-v2`,{method:'GET'}),cached=await caches.default.match(cacheKey);
+  if(cached)return cached.json();
+  const upstream=await fetchMeteoFranceVigilance(env);
+  if(!upstream.ok)throw meteoFranceUpstreamError(upstream.status);
+  const data=await upstream.json(),cacheResponse=jsonResponse(data,200,{'cache-control':`public, max-age=${VIGILANCE_CACHE_TTL_SECONDS}`});ctx?.waitUntil?.(caches.default.put(cacheKey,cacheResponse.clone()));return data;
+}
+function extractVigilancePeriod(period,department,includeCoast){
+  const domains=Array.isArray(period?.timelaps?.domain_ids)?period.timelaps.domain_ids:[],selected=domains.filter(domain=>{const id=String(domain?.domain_id||'').toUpperCase();return id===department||(includeCoast&&id!==department&&id.startsWith(department));});
+  const byPhenomenon=new Map();let maxColorId=1,departmentMaxColorId=1,coastMaxColorId=1;
+  for(const domain of selected){const domainId=String(domain?.domain_id||'').toUpperCase(),scope=domainId===department?'department':'coast',domainMax=Number(domain?.max_color_id)||1;maxColorId=Math.max(maxColorId,domainMax);if(scope==='department')departmentMaxColorId=Math.max(departmentMaxColorId,domainMax);else coastMaxColorId=Math.max(coastMaxColorId,domainMax);
+    for(const item of Array.isArray(domain?.phenomenon_items)?domain.phenomenon_items:[]){const id=String(item?.phenomenon_id||''),current=byPhenomenon.get(id)||{id,maxColorId:1,intervals:[]},itemMax=Number(item?.phenomenon_max_color_id)||1,intervals=Array.isArray(item?.timelaps_items)?item.timelaps_items:[];current.maxColorId=Math.max(current.maxColorId,itemMax);for(const interval of intervals){current.intervals.push({beginTime:interval?.begin_time||null,endTime:interval?.end_time||null,colorId:Number(interval?.color_id)||1,scope,timingApproximate:false});}if(!intervals.length&&itemMax>=2&&period?.begin_validity_time&&period?.end_validity_time)current.intervals.push({beginTime:period.begin_validity_time,endTime:period.end_validity_time,colorId:itemMax,scope,timingApproximate:true});byPhenomenon.set(id,current);}
+  }
+  return {term:String(period?.echeance||''),beginTime:period?.begin_validity_time||null,endTime:period?.end_validity_time||null,maxColorId,departmentMaxColorId,coastMaxColorId,phenomena:[...byPhenomenon.values()]};
+}
+export async function proxyVigilance(request,env,ctx){
+  if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method Not Allowed',{status:405,headers:{Allow:'GET, HEAD'}});
+  const url=new URL(request.url),department=String(url.searchParams.get('department')||'').trim().toUpperCase(),includeCoast=url.searchParams.get('coast')==='1';
+  if(!VIGILANCE_DEPARTMENT.test(department))return jsonResponse({error:'INVALID_DEPARTMENT'},400,{'cache-control':'no-store'});
+  let raw;try{raw=await getVigilanceCarte(request,env,ctx);}catch(error){const configured=error?.code!=='METEOFRANCE_NOT_CONFIGURED';const response=vigilanceUnavailable(error,{configured});return headOrBody(request,response);}
+  const product=raw?.product||raw,periods=(Array.isArray(product?.periods)?product.periods:[]).map(period=>extractVigilancePeriod(period,department,includeCoast));
+  const response=jsonResponse({source:'Météo-France',configured:true,unavailable:false,department,includeCoast,updateTime:product?.update_time||null,productDatetime:product?.meta?.product_datetime||raw?.meta?.product_datetime||null,generationTimestamp:product?.meta?.generation_timestamp||raw?.meta?.generation_timestamp||null,periods},200,{'cache-control':'public, max-age=120','x-meteocompare-vigilance':'official'});
   return headOrBody(request,response);
 }
 
@@ -112,6 +167,7 @@ export default {
     if(pathname===SCRIPT_PATH)return proxyPlausibleScript(request,ctx);
     if(pathname===EVENT_PATH)return proxyPlausibleEvent(request);
     if(pathname===MODEL_METADATA_PATH)return proxyModelMetadata(request,ctx);
+    if(pathname===VIGILANCE_PATH)return proxyVigilance(request,env,ctx);
     if(pathname.startsWith('/_mcx/'))return new Response('Not Found',{status:404,headers:{'cache-control':'no-store'}});
     return serveApplicationAsset(request,env);
   },

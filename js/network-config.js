@@ -4,6 +4,7 @@
 export const NETWORK_ENDPOINTS = Object.freeze({
   firstParty: Object.freeze({
     modelMetadata: '/_mcx/model-metadata',
+    vigilance: '/_mcx/vigilance',
     analyticsScript: '/_mcx/p.js',
     analyticsEvent: '/_mcx/e',
   }),
@@ -14,6 +15,9 @@ export const NETWORK_ENDPOINTS = Object.freeze({
     previousRuns: 'https://previous-runs-api.open-meteo.com/v1/forecast',
     marine: 'https://marine-api.open-meteo.com/v1/marine',
     modelMetadataUpstream: 'https://map-tiles.open-meteo.com/data_spatial',
+  }),
+  meteoFrance: Object.freeze({
+    vigilanceCarte: 'https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours',
   }),
   radar: Object.freeze({
     metadata: 'https://api.rainviewer.com/public/weather-maps.json',
@@ -29,6 +33,7 @@ export const NETWORK_TIMEOUTS_MS = Object.freeze({
   defaultJson: 30_000,
   openMeteoArchive: 45_000,
   modelMetadata: 10_000,
+  vigilance: 12_000,
   radarMetadata: 12_000,
   radarImage: 15_000,
   workerUpstream: 12_000,

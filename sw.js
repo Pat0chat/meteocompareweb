@@ -11,7 +11,7 @@ const SHELL = [
   './assets/icon.png', './assets/icon-512.png',
   './js/version.js', './js/network-config.js', './js/network.js', './js/seo-cities.mjs', './js/models.js', './js/consensus.js', './js/forecast-engines.js', './js/storage.js', './js/data/contracts.js', './js/data/forecast-normalizer.js', './js/api-budget.js', './js/api.js', './js/domain.js', './js/i18n.js', './js/errors.js', './js/analytics-config.js', './js/plausible-bootstrap.js', './js/analytics.js', './js/core/app-state.js', './js/core/cache-registry.js', './js/core/feature-registry.js', './js/core/local-analysis-store.js', './js/core/application-kernel.js', './js/ui/weather-icons.js', './js/ui/chart-utils.js', './js/app.js',
   './js/locales/fr.js', './js/locales/en.js', './js/locales/es.js', './js/locales/de.js', './js/locales/it.js',
-  './js/features/bias.js', './js/features/evolution.js', './js/features/diagnostics.js', './js/features/comparison.js', './js/features/marine.js', './js/features/model-health.js', './js/features/radar.js'
+  './js/features/bias.js', './js/features/evolution.js', './js/features/diagnostics.js', './js/features/comparison.js', './js/features/marine.js', './js/features/model-health.js', './js/features/radar.js', './js/features/vigilance.js'
 ];
 
 self.addEventListener('install', event => {
