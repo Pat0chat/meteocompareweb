@@ -28,7 +28,9 @@ assert.match(css,/\.forecast-engine-chart-divergence-bg\.high[\s\S]*var\(--low\)
 assert.match(app,/temperature:\{label:t\('temperature'\),unit:' °C',threshold:\.5[\s\S]*?icon:/,'temperature evolution must expose its ±0.5 °C stability threshold');
 assert.match(app,/precipitation:\{label:t\('precipitation'\),unit:' mm',threshold:1[\s\S]*?icon:/,'precipitation evolution must expose its ±1 mm stability threshold');
 assert.match(app,/wind:\{label:t\('wind'\),unit:' km\/h',threshold:3[\s\S]*?icon:/,'wind evolution must expose its ±3 km/h stability threshold');
-assert.match(app,/evolution-threshold-band[\s\S]*evolution-threshold-line[\s\S]*evolution-track-y-axis/,'evolution mini charts must render threshold band, threshold axes and a y axis');
+assert.match(app,/evolution-threshold-band/,'evolution mini charts must render a threshold band');
+assert.match(app,/evolution-threshold-line/,'evolution mini charts must render visible threshold boundaries');
+assert.match(app,/evolution-track-y-axis/,'evolution mini charts must render a y axis');
 assert.match(css,/\.evolution-threshold-band/,'evolution stability band must be styled');
 assert.match(css,/\.evolution-threshold-line/,'evolution stability threshold lines must be styled');
 assert.match(css,/\.evolution-track-axis/,'evolution y-axis labels must be styled');

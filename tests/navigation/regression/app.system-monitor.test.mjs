@@ -15,7 +15,10 @@ assert.match(app,/fetchJsonResource\(NETWORK_ENDPOINTS\.firstParty\.health/,'wor
 assert.match(app,/handleSystemMonitorIntent/,'hover/focus must refresh stale monitoring data');
 assert.match(app,/data-action="refresh-system-monitor"/,'monitor must expose an explicit refresh control');
 assert.match(css,/\.topbar-system-monitor:hover \.system-monitor-popover/,'monitor must open on hover like topbar menus');
-assert.match(css,/\.topbar-system-monitor:focus-within \.system-monitor-popover/,'monitor must be keyboard accessible');
+assert.doesNotMatch(css,/\.topbar-system-monitor:focus-within \.system-monitor-popover/,'focus alone must not lock the monitor open');
+assert.match(app,/action==='toggle-system-monitor'/,'keyboard activation must use the explicit monitor toggle');
+assert.match(app,/if\(!e\.target\.closest\?\.\('\.topbar-system-monitor'\)\)closeSystemMonitor\(\)/,'clicking outside the monitor must close an explicit opening');
+assert.doesNotMatch(app,/classList\?\.contains\?\.\('is-open'\)\|\|current\.matches\?\.\(':hover'\)/,'a transient hover must never be persisted as is-open during a refresh');
 assert.match(css,/\.system-monitor-item/,'monitor rows must have a dedicated compact design');
 assert.match(bootstrap,/__METEOCOMPARE_ANALYTICS_RUNTIME__/,'Plausible bootstrap must expose load/error runtime state without leaking data');
 assert.match(app,/services tiers[^']*ne sont pas sondés|monitorNoSyntheticProbes/,'monitor must explain that third parties are not synthetically probed');
