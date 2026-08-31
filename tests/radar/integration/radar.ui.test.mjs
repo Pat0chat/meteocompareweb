@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { RADAR_RANGE_CONFIG, radarForecastHours, radarForecastTrend, radarImageUrl, estimateRadarTranslation, estimateRadarMotion, radarNowcastEta } from '../../../js/features/radar.js';
+import { RADAR_RANGE_CONFIG, radarForecastHours, radarForecastTrend, radarImageUrl, normalizeRadarFrames, estimateRadarTranslation, estimateRadarMotion, radarNowcastEta } from '../../../js/features/radar.js';
 
 
 assert.deepEqual(RADAR_RANGE_CONFIG.near,{mapZoom:9,radarZoom:7,radarScale:4});
@@ -22,6 +22,8 @@ assert.equal(radarForecastTrend([{probabilityPercent:70},{probabilityPercent:65}
 assert.equal(radarForecastTrend([{probabilityPercent:10},{probabilityPercent:20},{probabilityPercent:25}]),'quiet');
 const url=radarImageUrl({host:'https://tilecache.rainviewer.com'},{path:'/v2/radar/123'}, {latitude:48.8566,longitude:2.3522},7);
 assert.equal(url,'https://tilecache.rainviewer.com/v2/radar/123/512/7/48.85660/2.35220/2/0_1.png');
+const normalizedFrames=normalizeRadarFrames([{time:1200,path:'/v2/radar/abc123def456'},{time:600,path:'/v2/radar/600'},{time:1200,path:'/v2/radar/duplicate'},{time:1800,path:'/v2/radar/not/allowed'},{time:null,path:'/v2/radar/nope'}]);
+assert.deepEqual(normalizedFrames,[{time:600,path:'/v2/radar/600'},{time:1200,path:'/v2/radar/duplicate'}],'RainViewer frame normalization must accept opaque alphanumeric frame IDs, deduplicate timestamps and reject unsafe paths');
 
 
 const mask=(width,height,left,top,w=4,h=5)=>{const data=new Uint8Array(width*height);for(let y=top;y<top+h;y++)for(let x=left;x<left+w;x++)data[y*width+x]=1;return data;};

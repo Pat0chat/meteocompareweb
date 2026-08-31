@@ -1622,6 +1622,8 @@ export const catalog = Object.freeze({
   "radarProbableZone":"Inviluppo probabile",
   "radarForecastZone":"Contorno proiettato",
   "radarTrajectory":"Movimento osservato → proiezione",
+  "radarObservedTrajectory":"Traiettoria osservata",
+  "radarProjectedTrajectory":"Traiettoria proiettata",
   "radarProjectionHorizons":"Orizzonti di proiezione",
   "radarProjectionTitle":"Proiezione per ogni zona di pioggia",
   "radarProjectionLead":"Scegli una scadenza. La mappa mostra solo il contorno proiettato a quella scadenza, il suo inviluppo probabile e la traiettoria dall’ultima osservazione.",

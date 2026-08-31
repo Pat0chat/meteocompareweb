@@ -38,4 +38,28 @@ assert.deepEqual(recentRadarFrameIndices(5,7),[0,1,2,3,4]);
   assert.ok(p60.dx>p30.dx*1.8,'+60 min must continue the observed direction rather than collapse back onto the cell');
 }
 
-console.log('Radar recent-frame per-cell advection and direction projection: OK');
+
+// One bad centroid/shape association must not create a projected jump.
+{
+  const xs=[10,14,18,30,26,30,34];
+  const samples=xs.map((x,i)=>({time:i*600,mask:paint([[x,30,18,10],[x+4,26,6,4]])}));
+  const [cell]=estimateRainCellMotions(samples,{width,height,minPixels:20,maxCells:4});
+  assert.ok(cell,'the cell must survive one locally inconsistent observation');
+  assert.ok(Math.abs(cell.motion.vx-.4)<.08,'robust advection must keep the dominant eastward speed instead of averaging in a bad jump');
+  assert.ok((cell.motion.advection?.rejected?.length||0)>=1,'inconsistent frame-to-frame vectors must be explicitly rejected');
+  assert.ok(cell.observedTrack?.length>=2,'the displayed observed trajectory must be reconstructed from reliable footprint translations');
+  assert.ok(projectRainCell(cell,60).dx<30,'a single bad frame must not generate an excessive +60 minute projection');
+}
+
+// A large observation gap is insufficient to assert that two footprints are the same rain cell.
+{
+  const sparse=[
+    {time:0,mask:paint([[10,30,18,10]])},
+    {time:600,mask:paint([[14,30,18,10]])},
+    {time:2400,mask:paint([[26,30,18,10]])},
+  ];
+  const tracked=estimateRainCellMotions(sparse,{width,height,minPixels:20,maxCells:4,maxTrackGapMinutes:25});
+  assert.equal(tracked.length,0,'tracking must prefer unavailable/uncertain over bridging a 30-minute data hole');
+}
+
+console.log('Radar recent-frame per-cell advection, outlier rejection and direction projection: OK');

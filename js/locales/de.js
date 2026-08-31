@@ -1622,6 +1622,8 @@ export const catalog = Object.freeze({
   "radarProbableZone":"Wahrscheinliche Hülle",
   "radarForecastZone":"Projizierte Kontur",
   "radarTrajectory":"Beobachtete Bewegung → Projektion",
+  "radarObservedTrajectory":"Beobachtete Trajektorie",
+  "radarProjectedTrajectory":"Projizierte Trajektorie",
   "radarProjectionHorizons":"Projektionshorizonte",
   "radarProjectionTitle":"Projektion je Regengebiet",
   "radarProjectionLead":"Wählen Sie einen Zeithorizont. Die Karte zeigt nur die projizierte Kontur für diesen Zeitpunkt, die wahrscheinliche Hülle und die Trajektorie seit der letzten Beobachtung.",

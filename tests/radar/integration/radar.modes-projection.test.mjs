@@ -17,7 +17,8 @@ assert.match(app,/data-radar-recalculate/,'projection UI must expose a manual re
 assert.match(app,/Rain Radar Projection Recalculated/,'manual recalculation should remain observable through privacy-safe analytics');
 assert.match(app,/radarProbableZone/);
 assert.match(app,/radarForecastZone/);
-assert.match(app,/radarTrajectory/);
+assert.match(app,/radarObservedTrajectory/);
+assert.match(app,/radarProjectedTrajectory/);
 
 assert.match(radar,/RADAR_PROJECTION_HORIZONS=Object\.freeze\(\[15,30,45,60\]\)/);
 assert.match(radar,/initialHorizon=30/,'projection must have a stable default horizon');
@@ -51,12 +52,13 @@ assert.match(css,/\.radar-projection-actions\{/,'projection actions must accommo
 assert.match(css,/\.radar-recalculate-button\[aria-busy=\"true\"] \.radar-recalculate-icon\{animation:meteo-spin/,'recalculation button must expose a visible busy state');
 assert.match(css,/\.radar-zone-key\.probable i\{[^}]*border:1\.5px dashed var\(--primary\)/s,'probable-area legend must match the dashed uncertainty envelope');
 assert.match(css,/\.radar-zone-key\.forecast i\{[^}]*border:2px solid var\(--primary\)/s,'forecast legend must match the solid projected outline');
-assert.match(css,/\.radar-zone-key\.trajectory i\{[^}]*border-top:2px solid var\(--primary\)/s,'trajectory legend must match line/arrow rendering');
+assert.match(css,/\.radar-zone-key\.observed i\{[^}]*border-top:2px dashed var\(--primary\)/s,'observed-trajectory legend must match the dashed observed track');
+assert.match(css,/\.radar-zone-key\.projected i\{[^}]*border-top:2px solid var\(--primary\)/s,'projected-trajectory legend must match the solid arrow rendering');
 assert.match(css,/\.radar-modal-content\[data-radar-mode="projection"\] \[data-radar-observation-controls\]\{display:none\}/,'historical playback must not compete with projection controls');
 
 for(const lang of ['fr','en','es','de','it']){
   const locale=read(`js/locales/${lang}.js`);
-  for(const key of ['radarModeObservation','radarModeProjection','radarProbableZone','radarForecastZone','radarTrajectory','radarProjectionTitle','radarProjectionLead','radarProjectionHorizons','radarProjectionRecalculate','radarProjectionRecalculating']) assert.match(locale,new RegExp(`"${key}"`),`${lang}.${key} missing`);
+  for(const key of ['radarModeObservation','radarModeProjection','radarProbableZone','radarForecastZone','radarObservedTrajectory','radarProjectedTrajectory','radarProjectionTitle','radarProjectionLead','radarProjectionHorizons','radarProjectionRecalculate','radarProjectionRecalculating']) assert.match(locale,new RegExp(`"${key}"`),`${lang}.${key} missing`);
 }
 
 console.log('Single-horizon radar observation/projection visual contract: OK');

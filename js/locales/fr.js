@@ -1622,6 +1622,8 @@ export const catalog = Object.freeze({
   "radarProbableZone":"Enveloppe probable",
   "radarForecastZone":"Contour projeté",
   "radarTrajectory":"Mouvement observé → projection",
+  "radarObservedTrajectory":"Trajectoire observée",
+  "radarProjectedTrajectory":"Trajectoire projetée",
   "radarProjectionHorizons":"Échéances de projection",
   "radarProjectionTitle":"Projection par zone de pluie",
   "radarProjectionLead":"Choisissez une échéance. La carte affiche uniquement le contour projeté à cette échéance, son enveloppe probable et la trajectoire depuis la dernière observation.",

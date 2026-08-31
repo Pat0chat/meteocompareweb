@@ -43,10 +43,22 @@ function maskCount(mask){let count=0;for(const value of mask)if(value)count++;re
 function rgbToHue(r,g,b){const rn=r/255,gn=g/255,bn=b/255,max=Math.max(rn,gn,bn),min=Math.min(rn,gn,bn),delta=max-min;if(delta<=1e-6)return null;let hue;if(max===rn)hue=((gn-bn)/delta)%6;else if(max===gn)hue=(bn-rn)/delta+2;else hue=(rn-gn)/delta+4;const degrees=hue*60;return degrees<0?degrees+360:degrees;}
 export function isRainRadarPixel(r,g,b,a,{alphaMin=36,chromaMin=26,saturationMin=.24,valueMin=.20}={}){if(a<alphaMin)return false;const max=Math.max(r,g,b),min=Math.min(r,g,b),chroma=max-min,value=max/255;if(value<valueMin||chroma<chromaMin)return false;const saturation=max?chroma/max:0;if(saturation<saturationMin)return false;const hue=rgbToHue(r,g,b);if(hue===null)return false;return (hue>=175&&hue<=260)||(hue>=85&&hue<175)||(hue>=0&&hue<=70)||(hue>=260&&hue<=330);}
 
+export function refineRainMask(mask,width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,{minNeighbors=2}={}){
+  if(!mask||mask.length!==width*height)return new Uint8Array(0);
+  const result=new Uint8Array(mask),threshold=Math.max(0,Math.min(8,Math.floor(minNeighbors)));
+  if(!threshold)return result;
+  for(let y=0;y<height;y++)for(let x=0;x<width;x++){
+    const index=y*width+x;if(!mask[index])continue;let neighbors=0;
+    for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){if(!ox&&!oy)continue;const nx=x+ox,ny=y+oy;if(nx<0||ny<0||nx>=width||ny>=height)continue;if(mask[ny*width+nx])neighbors++;}
+    if(neighbors<threshold)result[index]=0;
+  }
+  return result;
+}
+
 
 export function extractRainCells(mask,width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,{minPixels=ANALYSIS_MIN_CELL_PIXELS,maxCells=16}={}){
   if(!mask||mask.length!==width*height)return [];
-  const visited=new Uint8Array(mask.length),cells=[],neighbors=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+  const visited=new Uint8Array(mask.length),cells=[],neighbors=[[0,-1],[-1,0],[1,0],[0,1]];
   for(let start=0;start<mask.length;start++){
     if(!mask[start]||visited[start])continue;
     const queue=[start],pixels=[];visited[start]=1;let q=0,sx=0,sy=0,minX=width,minY=height,maxX=0,maxY=0;
@@ -62,10 +74,12 @@ export function extractRainCells(mask,width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,{
   return cells.sort((a,b)=>b.count-a.count).slice(0,maxCells);
 }
 
-function cellMatchScore(reference,candidate,width,height){
+function cellMatchScore(reference,candidate,width,height,{dtMinutes=10}={}){
   if(!reference||!candidate)return -Infinity;
-  const distance=Math.hypot(reference.centroid.x-candidate.centroid.x,reference.centroid.y-candidate.centroid.y),diagonal=Math.hypot(width,height),areaRatio=Math.min(reference.count,candidate.count)/Math.max(reference.count,candidate.count),distanceScore=1-clamp(distance/(diagonal*.28),0,1),widthRatio=Math.min(reference.bbox.width,candidate.bbox.width)/Math.max(reference.bbox.width,candidate.bbox.width),heightRatio=Math.min(reference.bbox.height,candidate.bbox.height)/Math.max(reference.bbox.height,candidate.bbox.height),shapeScore=(widthRatio+heightRatio)/2;
-  return distanceScore*.58+areaRatio*.24+shapeScore*.18;
+  const distance=Math.hypot(reference.centroid.x-candidate.centroid.x,reference.centroid.y-candidate.centroid.y),areaRatio=Math.min(reference.count,candidate.count)/Math.max(reference.count,candidate.count),referenceRadius=.5*Math.hypot(reference.bbox.width,reference.bbox.height),candidateRadius=.5*Math.hypot(candidate.bbox.width,candidate.bbox.height),maxDistance=Math.max(8,(referenceRadius+candidateRadius)*.72+Math.max(1,dtMinutes)*1.8);
+  if(distance>maxDistance||areaRatio<.16)return -Infinity;
+  const distanceScore=1-clamp(distance/maxDistance,0,1),widthRatio=Math.min(reference.bbox.width,candidate.bbox.width)/Math.max(reference.bbox.width,candidate.bbox.width),heightRatio=Math.min(reference.bbox.height,candidate.bbox.height)/Math.max(reference.bbox.height,candidate.bbox.height),shapeScore=(widthRatio+heightRatio)/2;
+  return distanceScore*.52+areaRatio*.30+shapeScore*.18;
 }
 
 function regressionVelocity(points,key){
@@ -77,39 +91,58 @@ export function estimateRainCellTranslation(previousCell,nextCell,{searchRadius=
   if(!previousCell?.pixels?.length||!nextCell?.pixels?.length||previousCell.width!==nextCell.width||previousCell.height!==nextCell.height)return null;
   const width=previousCell.width,height=previousCell.height,nextMask=new Uint8Array(width*height);for(const index of nextCell.pixels)if(index>=0&&index<nextMask.length)nextMask[index]=1;
   const expectedDx=Math.round(nextCell.centroid.x-previousCell.centroid.x),expectedDy=Math.round(nextCell.centroid.y-previousCell.centroid.y),radius=Math.max(2,Math.min(10,Math.round(searchRadius))),stride=Math.max(1,Math.floor(previousCell.pixels.length/5000));let best=null;
-  for(let dy=expectedDy-radius;dy<=expectedDy+radius;dy++)for(let dx=expectedDx-radius;dx<=expectedDx+radius;dx++){let intersection=0,sampled=0;for(let pos=0;pos<previousCell.pixels.length;pos+=stride){const index=previousCell.pixels[pos],x=index%width,y=Math.floor(index/width),nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=width||ny>=height)continue;sampled++;if(nextMask[ny*width+nx])intersection++;}if(!sampled)continue;const overlap=intersection/sampled,centroidPenalty=Math.hypot(dx-expectedDx,dy-expectedDy)/(radius*2+1),score=overlap-centroidPenalty*.035;if(!best||score>best.score)best={dx,dy,score,overlap,expectedDx,expectedDy};}
-  return best&&best.overlap>=.12?best:null;
+  for(let dy=expectedDy-radius;dy<=expectedDy+radius;dy++)for(let dx=expectedDx-radius;dx<=expectedDx+radius;dx++){let intersection=0,sampled=0;for(let pos=0;pos<previousCell.pixels.length;pos+=stride){const index=previousCell.pixels[pos],x=index%width,y=Math.floor(index/width),nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=width||ny>=height)continue;sampled++;if(nextMask[ny*width+nx])intersection++;}if(!sampled)continue;const overlap=intersection/sampled,centroidPenalty=Math.hypot(dx-expectedDx,dy-expectedDy)/(radius*2+1),score=overlap-centroidPenalty*.05;if(!best||score>best.score)best={dx,dy,score,overlap,expectedDx,expectedDy};}
+  return best&&best.overlap>=.14?best:null;
 }
 
-function weightedMotion(vectors){if(!vectors.length)return null;const weights=vectors.map((row,index)=>Math.max(.05,row.score||row.overlap||.2)*(.55+.45*(index+1)/vectors.length)),total=weights.reduce((sum,value)=>sum+value,0);return {vx:vectors.reduce((sum,row,index)=>sum+row.vx*weights[index],0)/total,vy:vectors.reduce((sum,row,index)=>sum+row.vy*weights[index],0)/total,confidence:clamp(mean(vectors.map(row=>row.score||row.overlap))||0,0,1),vectors};}
+function weightedMotion(vectors,{maxSpeedPxPerMinute=3.2}={}){
+  const eligible=(vectors||[]).filter(row=>Number.isFinite(row?.vx)&&Number.isFinite(row?.vy)&&Math.hypot(row.vx,row.vy)<=maxSpeedPxPerMinute);
+  if(!eligible.length)return null;
+  const medianVx=median(eligible.map(row=>row.vx))||0,medianVy=median(eligible.map(row=>row.vy))||0,residuals=eligible.map(row=>Math.hypot(row.vx-medianVx,row.vy-medianVy)),medianResidual=median(residuals)||0,mad=median(residuals.map(value=>Math.abs(value-medianResidual)))||0,limit=Math.max(.08,medianResidual+Math.max(.08,mad*3));
+  const inliers=eligible.length>=3?eligible.filter((row,index)=>residuals[index]<=limit):eligible;
+  if(!inliers.length)return null;
+  const weights=inliers.map((row,index)=>Math.max(.05,row.score||row.overlap||.2)*(.58+.42*(index+1)/inliers.length)*clamp(20/Math.max(5,row.dtMinutes||10),.45,1)),total=weights.reduce((sum,value)=>sum+value,0),vx=inliers.reduce((sum,row,index)=>sum+row.vx*weights[index],0)/total,vy=inliers.reduce((sum,row,index)=>sum+row.vy*weights[index],0)/total,speed=Math.hypot(vx,vy),variation=mean(inliers.map(row=>Math.hypot(row.vx-vx,row.vy-vy)))||0,consistency=clamp(1-variation/(speed*1.5+.08),0,1),overlapConfidence=mean(inliers.map(row=>row.score||row.overlap))||0,inlierShare=inliers.length/Math.max(1,vectors.length),confidence=clamp(overlapConfidence*.68+consistency*.22+inlierShare*.10,0,1);
+  return {vx,vy,confidence,vectors:inliers,rejected:vectors.filter(row=>!inliers.includes(row))};
+}
 
-export function estimateRainCellMotions(samples,{width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,minPixels=ANALYSIS_MIN_CELL_PIXELS,maxCells=8}={}){
-  const rows=(samples||[]).filter(row=>row?.mask?.length===width*height&&Number.isFinite(row.time)).slice(-7).map(row=>({...row,cells:extractRainCells(row.mask,width,height,{minPixels,maxCells:maxCells*2})}));
+function observedTrackFromAdvection(history,vectors){
+  if(history.length<2||!vectors?.length)return [];
+  const byPair=new Map(vectors.map(row=>[`${row.fromTime}:${row.toTime}`,row])),latest=history.at(-1),points=[{time:latest.time,x:latest.cell.centroid.x,y:latest.cell.centroid.y}];let x=latest.cell.centroid.x,y=latest.cell.centroid.y;
+  for(let index=history.length-1;index>0;index--){const previous=history[index-1],next=history[index],vector=byPair.get(`${previous.time}:${next.time}`);if(!vector)break;x-=vector.dx;y-=vector.dy;points.unshift({time:previous.time,x,y});}
+  return points.length>=2?points:[];
+}
+
+export function estimateRainCellMotions(samples,{width=ANALYSIS_SIZE,height=ANALYSIS_SIZE,minPixels=ANALYSIS_MIN_CELL_PIXELS,maxCells=8,maxTrackGapMinutes=25,maxSpeedPxPerMinute=3.2}={}){
+  const rows=(samples||[]).filter(row=>row?.mask?.length===width*height&&Number.isFinite(row.time)).slice(-9).map(row=>({...row,cells:extractRainCells(row.mask,width,height,{minPixels,maxCells:maxCells*2})}));
   if(rows.length<2)return [];
-  const latest=rows.at(-1),states=latest.cells.slice(0,maxCells).map(cell=>({cell,reference:cell,history:[{cell,time:latest.time}],used:[]}));
+  const latest=rows.at(-1),states=latest.cells.slice(0,maxCells).map(cell=>({cell,reference:cell,referenceTime:latest.time,history:[{cell,time:latest.time}],used:[]}));
   for(let rowIndex=rows.length-2;rowIndex>=0;rowIndex--){
     const candidates=rows[rowIndex].cells,proposals=[];
-    for(let stateIndex=0;stateIndex<states.length;stateIndex++)for(let candidateIndex=0;candidateIndex<candidates.length;candidateIndex++){const score=cellMatchScore(states[stateIndex].reference,candidates[candidateIndex],width,height);if(score>=.38)proposals.push({stateIndex,candidateIndex,score});}
+    for(let stateIndex=0;stateIndex<states.length;stateIndex++){
+      const state=states[stateIndex],dtMinutes=(state.referenceTime-rows[rowIndex].time)/60;if(dtMinutes<=0||dtMinutes>maxTrackGapMinutes)continue;
+      for(let candidateIndex=0;candidateIndex<candidates.length;candidateIndex++){const score=cellMatchScore(state.reference,candidates[candidateIndex],width,height,{dtMinutes});if(score>=.42)proposals.push({stateIndex,candidateIndex,score});}
+    }
     proposals.sort((a,b)=>b.score-a.score);const claimedStates=new Set(),claimedCandidates=new Set();
-    for(const proposal of proposals){if(claimedStates.has(proposal.stateIndex)||claimedCandidates.has(proposal.candidateIndex))continue;const state=states[proposal.stateIndex],candidate=candidates[proposal.candidateIndex];claimedStates.add(proposal.stateIndex);claimedCandidates.add(proposal.candidateIndex);state.reference=candidate;state.used.push(proposal.score);state.history.push({cell:candidate,time:rows[rowIndex].time});}
+    for(const proposal of proposals){if(claimedStates.has(proposal.stateIndex)||claimedCandidates.has(proposal.candidateIndex))continue;const state=states[proposal.stateIndex],candidate=candidates[proposal.candidateIndex];claimedStates.add(proposal.stateIndex);claimedCandidates.add(proposal.candidateIndex);state.reference=candidate;state.referenceTime=rows[rowIndex].time;state.used.push(proposal.score);state.history.push({cell:candidate,time:rows[rowIndex].time});}
   }
   const result=[];
   for(const state of states){const cell=state.cell,history=state.history.sort((a,b)=>a.time-b.time),track=history.map(row=>trackPoint(row.cell,row.time));if(track.length<2)continue;
     const centroidVx=regressionVelocity(track,'x'),centroidVy=regressionVelocity(track,'y'),spanMinutes=(track.at(-1).time-track[0].time)/60;if(spanMinutes<=0)continue;
-    const advectionVectors=[];for(let index=1;index<history.length;index++){const previous=history[index-1],next=history[index],dtMinutes=(next.time-previous.time)/60;if(dtMinutes<=0)continue;const translation=estimateRainCellTranslation(previous.cell,next.cell,{searchRadius:6});if(!translation)continue;advectionVectors.push({vx:translation.dx/dtMinutes,vy:translation.dy/dtMinutes,score:translation.overlap,dtMinutes,dx:translation.dx,dy:translation.dy});}
-    const advection=weightedMotion(advectionVectors),matchConfidence=mean(state.used)||.45,historyConfidence=clamp((track.length-1)/4,0,1);let vx=centroidVx,vy=centroidVy,motionMethod='centroid';
-    if(advection&&advection.confidence>=.18){const advectionWeight=clamp(.48+advection.confidence*.42,0.52,.90);vx=centroidVx*(1-advectionWeight)+advection.vx*advectionWeight;vy=centroidVy*(1-advectionWeight)+advection.vy*advectionWeight;motionMethod='cell-advection';}
-    const residuals=track.map(point=>{const dt=(point.time-track.at(-1).time)/60;return Math.hypot(point.x-(cell.centroid.x+vx*dt),point.y-(cell.centroid.y+vy*dt));}),speed=Math.hypot(vx,vy),residual=mean(residuals)||0,residualConfidence=clamp(1-residual/(2.5+speed*8),0,1),advectionConfidence=advection?.confidence||0,confidence=clamp(matchConfidence*.30+historyConfidence*.22+residualConfidence*.18+advectionConfidence*.30,0,1);
+    const advectionVectors=[];for(let index=1;index<history.length;index++){const previous=history[index-1],next=history[index],dtMinutes=(next.time-previous.time)/60;if(dtMinutes<=0||dtMinutes>maxTrackGapMinutes)continue;const translation=estimateRainCellTranslation(previous.cell,next.cell,{searchRadius:Math.min(10,Math.max(6,Math.ceil(dtMinutes/3)))});if(!translation)continue;const vx=translation.dx/dtMinutes,vy=translation.dy/dtMinutes;if(Math.hypot(vx,vy)>maxSpeedPxPerMinute)continue;advectionVectors.push({vx,vy,score:translation.overlap,dtMinutes,dx:translation.dx,dy:translation.dy,fromTime:previous.time,toTime:next.time});}
+    const advection=weightedMotion(advectionVectors,{maxSpeedPxPerMinute}),matchConfidence=mean(state.used)||.45,historyConfidence=clamp((track.length-1)/4,0,1);let vx=centroidVx,vy=centroidVy,motionMethod='centroid';
+    if(advection&&advection.confidence>=.18){const advectionWeight=clamp(.66+advection.confidence*.28,.70,.94);vx=centroidVx*(1-advectionWeight)+advection.vx*advectionWeight;vy=centroidVy*(1-advectionWeight)+advection.vy*advectionWeight;motionMethod='cell-advection';}
+    const speed=Math.hypot(vx,vy);if(speed>maxSpeedPxPerMinute){const scale=maxSpeedPxPerMinute/speed;vx*=scale;vy*=scale;}
+    const observedTrack=observedTrackFromAdvection(history,advection?.vectors||[]),fitTrack=observedTrack.length>=2?observedTrack:track,residuals=fitTrack.map(point=>{const dt=(point.time-fitTrack.at(-1).time)/60;return Math.hypot(point.x-(cell.centroid.x+vx*dt),point.y-(cell.centroid.y+vy*dt));}),finalSpeed=Math.hypot(vx,vy),residual=mean(residuals)||0,residualConfidence=clamp(1-residual/(2.2+finalSpeed*7),0,1),advectionConfidence=advection?.confidence||0,confidence=clamp(matchConfidence*.28+historyConfidence*.20+residualConfidence*.20+advectionConfidence*.32,0,1);
     const logWidthRate=regressionVelocity(track,'logWidth'),logHeightRate=regressionVelocity(track,'logHeight'),logAreaRate=regressionVelocity(track,'logCount'),evolutionVariation=mean(track.slice(1).map((point,index)=>Math.abs((point.logCount-track[index].logCount)/Math.max(1,(point.time-track[index].time)/60)-logAreaRate)))||0,evolutionConfidence=clamp(historyConfidence*(1-evolutionVariation/(Math.abs(logAreaRate)+.035)),.2,1);
-    result.push({...cell,motion:{vx,vy,confidence,history:track.length,spanMinutes,method:motionMethod,centroid:{vx:centroidVx,vy:centroidVy},advection:advection?{vx:advection.vx,vy:advection.vy,confidence:advection.confidence,vectors:advection.vectors}:null,evolution:{logWidthRate,logHeightRate,logAreaRate,confidence:evolutionConfidence}},track});
+    result.push({...cell,motion:{vx,vy,confidence,history:track.length,spanMinutes,method:motionMethod,centroid:{vx:centroidVx,vy:centroidVy},advection:advection?{vx:advection.vx,vy:advection.vy,confidence:advection.confidence,vectors:advection.vectors,rejected:advection.rejected}:null,evolution:{logWidthRate,logHeightRate,logAreaRate,confidence:evolutionConfidence}},track,observedTrack});
   }
   return result;
 }
 
 export function projectRainCell(cell,horizonMinutes){
   if(!cell?.motion||!Number.isFinite(horizonMinutes))return null;
-  const {vx,vy,confidence,evolution={}}=cell.motion,resolutionScale=(cell.width||ANALYSIS_SIZE)/320,evolutionConfidence=clamp(Number(evolution.confidence)||0,0,1),evolutionWeight=clamp(confidence*.6+evolutionConfidence*.4,0,1),cap=Math.min(1,Math.max(0,horizonMinutes)/60),rawScaleX=Math.exp(clamp((Number(evolution.logWidthRate)||0)*horizonMinutes*evolutionWeight,-.5,.55)),rawScaleY=Math.exp(clamp((Number(evolution.logHeightRate)||0)*horizonMinutes*evolutionWeight,-.5,.55)),rawAreaFactor=Math.exp(clamp((Number(evolution.logAreaRate)||0)*horizonMinutes*evolutionWeight,-1.15,.8)),targetAreaFactor=clamp(rawAreaFactor,.32,2.1),shapeArea=Math.max(.01,rawScaleX*rawScaleY),areaCorrection=Math.sqrt(targetAreaFactor/shapeArea),scaleX=clamp(rawScaleX*areaCorrection,.58,1.55),scaleY=clamp(rawScaleY*areaCorrection,.58,1.55),areaFactor=clamp(scaleX*scaleY,.34,2.2),survivalProbability=clamp(areaFactor<1?.35+.65*areaFactor:1,0,1),dissipating=areaFactor<.72&&Number(evolution.logAreaRate)<-.004,developing=areaFactor>1.22&&Number(evolution.logAreaRate)>.003,uncertaintyPx=resolutionScale*(1.25+(horizonMinutes/15)*(1.15+(1-confidence)*2.15)+cap*Math.abs(scaleX-scaleY)*2.2);
-  return {horizon:horizonMinutes,dx:vx*horizonMinutes,dy:vy*horizonMinutes,x:cell.centroid.x+vx*horizonMinutes,y:cell.centroid.y+vy*horizonMinutes,uncertaintyPx,confidence,scaleX,scaleY,areaFactor,survivalProbability,dissipating,developing};
+  const {vx,vy,confidence,evolution={}}=cell.motion,resolutionScale=(cell.width||ANALYSIS_SIZE)/320,evolutionConfidence=clamp(Number(evolution.confidence)||0,0,1),evolutionWeight=clamp(confidence*.6+evolutionConfidence*.4,0,1),cap=Math.min(1,Math.max(0,horizonMinutes)/60),rawScaleX=Math.exp(clamp((Number(evolution.logWidthRate)||0)*horizonMinutes*evolutionWeight,-.5,.55)),rawScaleY=Math.exp(clamp((Number(evolution.logHeightRate)||0)*horizonMinutes*evolutionWeight,-.5,.55)),rawAreaFactor=Math.exp(clamp((Number(evolution.logAreaRate)||0)*horizonMinutes*evolutionWeight,-1.15,.8)),targetAreaFactor=clamp(rawAreaFactor,.32,2.1),shapeArea=Math.max(.01,rawScaleX*rawScaleY),areaCorrection=Math.sqrt(targetAreaFactor/shapeArea),scaleX=clamp(rawScaleX*areaCorrection,.58,1.55),scaleY=clamp(rawScaleY*areaCorrection,.58,1.55),areaFactor=clamp(scaleX*scaleY,.34,2.2),survivalProbability=clamp(areaFactor<1?.35+.65*areaFactor:1,0,1),dissipating=areaFactor<.72&&Number(evolution.logAreaRate)<-.004,developing=areaFactor>1.22&&Number(evolution.logAreaRate)>.003,projectionDamping=clamp(1-(1-confidence)*.18*cap,.82,1),dx=vx*horizonMinutes*projectionDamping,dy=vy*horizonMinutes*projectionDamping,uncertaintyPx=resolutionScale*(1.25+(horizonMinutes/15)*(1.15+(1-confidence)*2.15)+cap*Math.abs(scaleX-scaleY)*2.2+Math.hypot(vx,vy)*horizonMinutes*(1-projectionDamping)*.16);
+  return {horizon:horizonMinutes,dx,dy,x:cell.centroid.x+dx,y:cell.centroid.y+dy,uncertaintyPx,confidence,scaleX,scaleY,areaFactor,survivalProbability,dissipating,developing,projectionDamping};
 }
 
 function pointSegmentDistance(px,py,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,lengthSq=dx*dx+dy*dy;if(!lengthSq)return Math.hypot(px-ax,py-ay);const t=clamp(((px-ax)*dx+(py-ay)*dy)/lengthSq,0,1),x=ax+t*dx,y=ay+t*dy;return Math.hypot(px-x,py-y);}
@@ -230,11 +263,21 @@ export function radarNowcastEta(mask,motion,{width=ANALYSIS_SIZE,height=ANALYSIS
   return {kind:'quiet',minute:maxMinutes,current,points};
 }
 
+export function normalizeRadarFrames(frames,{limit=13}={}){
+  const byTime=new Map();
+  for(const frame of frames||[]){
+    const time=Number(frame?.time),path=String(frame?.path||'');
+    if(!Number.isFinite(time)||time<=0||!/^\/v2\/radar\/[A-Za-z0-9_-]+$/.test(path))continue;
+    byTime.set(time,{time,path});
+  }
+  return [...byTime.values()].sort((a,b)=>a.time-b.time).slice(-Math.max(1,Math.floor(limit)||13));
+}
+
 async function fetchMetadata(fetchImpl=fetch,{forceRefresh=false}={}){
   if(!forceRefresh&&metaCache&&Date.now()-metaCacheAt<RADAR_META_TTL_MS)return metaCache;
   const payload=await fetchJsonResource(RADAR_META_URL,{fetchImpl,timeoutMs:NETWORK_TIMEOUTS_MS.radarMetadata,cache:forceRefresh?'no-store':'default'}),host=String(payload?.host||'');
   if(!/^https:\/\/[a-z0-9.-]+\.rainviewer\.com$/i.test(host))throw new Error('RADAR_INVALID_HOST');
-  const past=(payload?.radar?.past||[]).filter(frame=>Number.isFinite(frame?.time)&&/^\/v2\/radar\/\d+/.test(String(frame?.path||''))).slice(-13);
+  const past=normalizeRadarFrames(payload?.radar?.past,{limit:13});
   if(!past.length)throw new Error('RADAR_NO_FRAMES');
   metaCache={host,past,generated:payload.generated||null};metaCacheAt=Date.now();return metaCache;
 }
@@ -279,7 +322,7 @@ async function imageMask(url,signal){
     const canvas=document.createElement('canvas');canvas.width=ANALYSIS_SIZE;canvas.height=ANALYSIS_SIZE;const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.clearRect(0,0,ANALYSIS_SIZE,ANALYSIS_SIZE);ctx.drawImage(bitmap||image,0,0,ANALYSIS_SIZE,ANALYSIS_SIZE);
     const pixels=ctx.getImageData(0,0,ANALYSIS_SIZE,ANALYSIS_SIZE).data,mask=new Uint8Array(ANALYSIS_SIZE*ANALYSIS_SIZE);
     for(let index=0,pixel=0;index<mask.length;index++,pixel+=4){const r=pixels[pixel],g=pixels[pixel+1],b=pixels[pixel+2],alpha=pixels[pixel+3];if(isRainRadarPixel(r,g,b,alpha))mask[index]=1;}
-    return mask;
+    return refineRainMask(mask,ANALYSIS_SIZE,ANALYSIS_SIZE,{minNeighbors:2});
   }finally{bitmap?.close?.();if(objectUrl)URL.revokeObjectURL(objectUrl);}
 }
 
@@ -321,7 +364,7 @@ function drawArrow(ctx,from,to,color,alpha=1){
 }
 function drawLeadText(ctx,text,x,y,color,width,height,alpha=1){if(x<-20||y<-20||x>width+20||y>height+20)return;ctx.save();ctx.globalAlpha=alpha;ctx.font='800 10px system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3.5;ctx.strokeStyle='rgba(15,23,42,.86)';ctx.strokeText(text,x,y);ctx.fillStyle=color;ctx.fillText(text,x,y);ctx.restore();}
 function drawObservedMotion(ctx,cell,geometry,color,alpha=1){
-  const track=(cell?.track||[]).slice(-4);if(track.length<2)return false;const {sourceLeft,sourceTop,sourceScale}=geometry,points=track.map(point=>({x:sourceLeft+point.x*sourceScale,y:sourceTop+point.y*sourceScale})),from=points[0],to=points.at(-1);if(Math.hypot(to.x-from.x,to.y-from.y)<4)return false;ctx.save();ctx.globalAlpha=alpha;ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(15,23,42,.66)';ctx.lineWidth=3.8;ctx.beginPath();ctx.moveTo(from.x,from.y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(from.x,from.y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.stroke();ctx.setLineDash([]);for(let i=0;i<points.length-1;i++){ctx.globalAlpha=alpha*(.45+.12*i);ctx.fillStyle=color;ctx.beginPath();ctx.arc(points[i].x,points[i].y,2.2,0,Math.PI*2);ctx.fill();}ctx.restore();return true;
+  const sourceTrack=cell?.motion?.advection?cell?.observedTrack:cell?.track,track=(sourceTrack||[]).slice(-5);if(track.length<2)return false;const {sourceLeft,sourceTop,sourceScale}=geometry,points=track.map(point=>({x:sourceLeft+point.x*sourceScale,y:sourceTop+point.y*sourceScale})),from=points[0],to=points.at(-1);if(Math.hypot(to.x-from.x,to.y-from.y)<4)return false;ctx.save();ctx.globalAlpha=alpha;ctx.lineCap='round';ctx.lineJoin='round';ctx.setLineDash([4,4]);ctx.strokeStyle='rgba(15,23,42,.66)';ctx.lineWidth=3.8;ctx.beginPath();ctx.moveTo(from.x,from.y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.stroke();ctx.strokeStyle=color;ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(from.x,from.y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.stroke();ctx.setLineDash([]);for(let i=0;i<points.length;i++){ctx.globalAlpha=alpha*(.42+.10*i);ctx.fillStyle=color;ctx.beginPath();ctx.arc(points[i].x,points[i].y,2.2,0,Math.PI*2);ctx.fill();}ctx.restore();return true;
 }
 function drawProjectionTrajectory(ctx,cell,geometry,horizon,color,alpha=1){
   const {sourceLeft,sourceTop,sourceScale}=geometry,steps=[0,.33,.66,1],points=steps.map(fraction=>{const projection=fraction?projectRainCell(cell,horizon*fraction):null;return projection?{x:sourceLeft+projection.x*sourceScale,y:sourceTop+projection.y*sourceScale}:{x:sourceLeft+cell.centroid.x*sourceScale,y:sourceTop+cell.centroid.y*sourceScale};});

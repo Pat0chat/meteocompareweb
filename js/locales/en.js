@@ -1622,6 +1622,8 @@ export const catalog = Object.freeze({
   "radarProbableZone":"Probable envelope",
   "radarForecastZone":"Projected outline",
   "radarTrajectory":"Observed motion → projection",
+  "radarObservedTrajectory":"Observed trajectory",
+  "radarProjectedTrajectory":"Projected trajectory",
   "radarProjectionHorizons":"Projection horizons",
   "radarProjectionTitle":"Projection for each rain area",
   "radarProjectionLead":"Choose a lead time. The map shows only the projected outline at that time, its probable envelope and the trajectory from the latest observation.",
