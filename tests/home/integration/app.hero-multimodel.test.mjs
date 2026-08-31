@@ -33,7 +33,7 @@ assert.match(css,/\.home-hero-main\s*\{[^}]*grid-template-columns:minmax\(0,1\.6
 assert.match(css,/\.home-hero \.forecast-expertise-disclaimer\s*\{[^}]*align-self:center[^}]*margin:0[^}]*padding:10px 11px/s,'the disclaimer must remain on the right while being vertically centered');
 assert.doesNotMatch(css,/\.home-hero h1/,'Home-specific H1 styling must disappear with the redundant title');
 assert.match(css,/@media \(max-width: 980px\)[\s\S]*?\.home-hero-main \{ grid-template-columns:1fr;/,'compact hero must collapse cleanly on smaller screens');
-assert.match(buildHome,/<span class="home-hero-kicker">Prévision multi-modèles<\/span><p>MeteoCompare rassemble plusieurs prévisions/,'SEO prerender must use the same title-free Home hero structure');
+assert.match(buildHome,/<h1 class="home-hero-kicker">Prévision multi-modèles<\/h1><p>MeteoCompare rassemble plusieurs prévisions/,'SEO prerender must expose the Home hero as the document H1');
 assert.doesNotMatch(buildHome,/<h1>/,'SEO prerender must not restore the removed hero H1');
 assert.match(buildHome,/forecast-expertise-disclaimer[\s\S]*?ne remplacera jamais l’expertise humaine/,'SEO prerender must preserve the embedded expertise disclaimer');
 assert.doesNotMatch(buildHome,/home-hero-pill-row|home-hero-search-panel/,'SEO prerender must preserve the same compact hero structure');

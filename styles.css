@@ -2481,7 +2481,7 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .home-hero::after { content:""; position:absolute; inset:0 0 auto; height:2px; background:linear-gradient(90deg,var(--primary),color-mix(in srgb,var(--rain) 68%,var(--primary)),transparent 82%); opacity:.68; }
 .home-hero-main { min-width:0; display:grid; grid-template-columns:minmax(0,1.65fr) minmax(260px,.75fr); gap:var(--space-5); align-items:center; }
 .home-hero-copy { min-width:0; position:relative; z-index:1; }
-.home-hero-kicker,.home-section-kicker { display:block; margin-bottom:6px; color:var(--primary); font-size:.74rem; line-height:1.2; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.home-hero-kicker,.home-section-kicker { display:block; margin:0 0 6px; color:var(--primary); font-size:.74rem; line-height:1.2; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
 .home-hero-copy>p { max-width:720px; margin:4px 0 0; color:var(--muted); font-size:.84rem; line-height:1.48; }
 .home-hero-forecast-meta { margin-top:12px; display:flex; align-items:center; gap:8px; min-width:0; color:var(--muted); font-size:.74rem; line-height:1.35; }
 .home-hero-context-item { min-width:0; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }

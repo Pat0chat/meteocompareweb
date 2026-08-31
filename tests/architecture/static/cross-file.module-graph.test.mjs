@@ -11,6 +11,8 @@ const legacyCatalog=path.join(root,'js/android_strings.js');
 assert.ok(!fs.existsSync(legacyCatalog),'legacy monolithic translation catalog must not remain in runtime JS; delete js/android_strings.js');
 const jsFiles=walk(path.join(root,'js')).filter(file=>file.endsWith('.js'));
 const rel=file=>path.relative(root,file).replaceAll(path.sep,'/');
+const browserJsFiles=jsFiles.filter(file=>!rel(file).startsWith('js/server/'));
+const serverJsFiles=jsFiles.filter(file=>rel(file).startsWith('js/server/'));
 const graph=new Map();
 const importRe=/(?:from\s+|import\s*\(\s*)['"]([^'"]+)['"]/g;
 for(const file of jsFiles){
@@ -31,7 +33,8 @@ const sw=read('sw.js'),shellBlock=sw.match(/const SHELL = \[([\s\S]*?)\];/)?.[1]
 const shell=[...shellBlock.matchAll(/['"](\.\/[^'"]+)['"]/g)].map(m=>m[1]);
 assert.ok(shell.length>20,'PWA shell must enumerate runtime assets');
 for(const item of shell){if(item==='./')continue;assert.ok(fs.existsSync(path.join(root,item.slice(2))),`service-worker shell asset missing: ${item}`);}
-for(const file of jsFiles){const item='./'+rel(file);assert.ok(shell.includes(item),`runtime JS omitted from offline shell: ${item}`);}
+for(const file of browserJsFiles){const item='./'+rel(file);assert.ok(shell.includes(item),`browser runtime JS omitted from offline shell: ${item}`);}
+for(const file of serverJsFiles){const item='./'+rel(file);assert.ok(!shell.includes(item),`server-only JS must not be exposed in the offline shell: ${item}`);}
 
 const html=read('index.html'),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 assert.equal(scripts.length,2,'only the Plausible bootstrap + MeteoCompare app scripts are expected');
@@ -54,4 +57,4 @@ const stripped=css.replace(/\/\*[\s\S]*?\*\//g,'').replace(/"(?:\\.|[^"\\])*"|'(
 for(const file of jsFiles){const source=fs.readFileSync(file,'utf8');assert.doesNotMatch(source,/\b(?:TODO|FIXME|HACK|debugger)\b|console\.(?:log|debug)\s*\(/,`${rel(file)} contains a debug/debt marker`);}
 
 assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'application version must come from the centralized semantic version');
-console.log(`MeteoCompare Web ${APP_VERSION} source audit: OK (${jsFiles.length} runtime JS modules, ${shell.length} shell assets)`);
+console.log(`MeteoCompare Web ${APP_VERSION} source audit: OK (${browserJsFiles.length} browser JS modules, ${serverJsFiles.length} server JS modules, ${shell.length} shell assets)`);

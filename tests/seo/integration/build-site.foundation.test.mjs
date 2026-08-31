@@ -24,6 +24,7 @@ assert.equal(nearbySeoCities(SEO_CITIES.find(city=>city.slug==='toulouse'),6).le
 
 assert.match(index,/name="robots" content="index,follow,max-image-preview:large"/);
 assert.match(index,/rel="canonical" href="https:\/\/meteocompare\.app\/"/);
+assert.match(app,/<h1 class="home-hero-kicker">\$\{esc\(t\('homeModernKicker'\)\)\}<\/h1>/,'runtime Home must expose a semantic H1');
 assert.match(app,/cleanCityRoute\(pathname,query\)/,'runtime must parse clean city paths');
 assert.match(app,/\^\\\/meteo\\\/\(\[\^\/\]\+\)/,'clean /meteo/{slug} route must remain explicit');
 assert.match(app,/legacyCity=requested\.match/,'legacy hash city links must remain compatible');
@@ -47,6 +48,9 @@ execFileSync(process.execPath,['tools/build-site.mjs'],{cwd:root,stdio:'pipe'});
 const cityDir=resolve(root,'dist/meteo');
 const cityPages=fs.readdirSync(cityDir).filter(name=>name.endsWith('.html'));
 assert.equal(cityPages.length,SEO_CITIES.length,'build must emit one HTML file per indexed city');
+const home=read('dist/index.html');
+assert.match(home,/<h1 class="home-hero-kicker">Prévision multi-modèles<\/h1>/,'pre-rendered Home must expose a semantic H1');
+assert.ok(!fs.existsSync(resolve(root,'dist/js/server')),'server-only modules must not be published as browser assets');
 
 const toulouse=read('dist/meteo/toulouse.html');
 assert.match(toulouse,/<base href="\/" \/>/,'nested city pages must resolve runtime assets from the site root');
