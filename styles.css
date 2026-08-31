@@ -3792,6 +3792,8 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 .install-option:hover,.install-option:focus-visible { background:var(--surface-2); box-shadow:none; }
 .install-option-icon { width:32px; height:32px; display:grid; place-items:center; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); color:var(--primary); }
+.install-option-icon.is-brand { background:color-mix(in srgb,var(--surface) 88%,var(--surface-2)); color:inherit; }
+.store-brand-icon { display:block; max-width:26px; max-height:26px; overflow:visible; }
 .install-option-copy { min-width:0; display:grid; gap:2px; }
 .install-option-copy strong { font-size:.8rem; line-height:1.2; }
 .install-option-copy small { color:var(--muted); font-size:.7rem; line-height:1.35; }
