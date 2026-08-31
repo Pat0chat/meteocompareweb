@@ -99,9 +99,27 @@ export function sanitizeAnalyticsEventProps(name,props={}){
 export function analyticsEventInteractive(name){return ANALYTICS_EVENT_DEFINITIONS[name]?.interactive!==false;}
 export function isAllowedAnalyticsEvent(name){return name==='pageview'||Object.hasOwn(ANALYTICS_EVENT_DEFINITIONS,name);}
 
+function canonicalAnalyticsPath(url){
+  const pathname=url.pathname.replace(/\/{2,}/g,'/'),hash=String(url.hash||'');
+  if((pathname==='/'||pathname==='/index.html')&&hash.startsWith('#/')){
+    const first=hash.slice(2).split(/[/?]/,1)[0].toLowerCase();
+    if(!first)return '/';
+    if(first==='city')return '/city';
+    if(first==='compare')return '/compare';
+    if(first==='settings')return '/settings';
+    if(first==='data')return '/data';
+    if(first==='about')return '/about';
+  }
+  if(ROUTE_PATHS.has(pathname))return pathname;
+  if(pathname==='/index.html')return '/';
+  if(/^\/meteo\/[^/]+\/?$/i.test(pathname))return '/city';
+  return null;
+}
 function sanitizeCampaignUrl(raw,allowedHosts){
   let url;try{url=new URL(String(raw||''));}catch{return null;}
-  if(url.protocol!=='https:'||!allowedHosts.includes(url.hostname.toLowerCase())||!ROUTE_PATHS.has(url.pathname))return null;
+  if(url.protocol!=='https:'||!allowedHosts.includes(url.hostname.toLowerCase()))return null;
+  const canonicalPath=canonicalAnalyticsPath(url);if(!canonicalPath)return null;
+  url.pathname=canonicalPath;
   const query=new URLSearchParams();
   for(const key of ['utm_source','utm_medium','utm_campaign']){
     const value=url.searchParams.get(key);if(value==null)continue;
@@ -119,9 +137,11 @@ function sanitizePayloadReferrer(raw,allowedHosts){
 export function sanitizePlausibleProxyPayload(payload,{domain,allowedHosts=[]}={}){
   if(!payload||typeof payload!=='object'||Array.isArray(payload))return {ok:false,error:'INVALID_PAYLOAD'};
   const name=String(payload.n||'');if(!isAllowedAnalyticsEvent(name))return {ok:false,error:'EVENT_NOT_ALLOWED'};
-  if(String(payload.d||'')!==String(domain||''))return {ok:false,error:'DOMAIN_NOT_ALLOWED'};
   const hosts=[...new Set((allowedHosts||[]).map(x=>String(x).toLowerCase()).filter(Boolean))];
   const url=sanitizeCampaignUrl(payload.u,hosts);if(!url)return {ok:false,error:'URL_NOT_ALLOWED'};
+  // Site-specific Plausible trackers may omit or vary `d` across browser/PWA
+  // contexts. The Worker already owns the canonical site domain, so never trust
+  // or require the client value: validate the first-party URL, then impose it.
   const props=name==='pageview'?sanitizeAnalyticsPageProps(payload.p||{}):sanitizeAnalyticsEventProps(name,payload.p||{});
   if(props==null)return {ok:false,error:'EVENT_NOT_ALLOWED'};
   const output={n:name,u:url,d:String(domain)};

@@ -58,9 +58,33 @@ try{
   assert.equal(unknown.headers.get('x-meteocompare-analytics-reject'),'EVENT_NOT_ALLOWED');
   assert.equal(forwarded.length,0,'rejected analytics must not reach Plausible');
 
-  const wrongDomain=await proxyPlausibleEvent(new Request('https://meteocompare.app/_mcx/e',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({n:'pageview',u:'https://meteocompare.app/',d:'evil.example'})}));
-  assert.equal(wrongDomain.status,400);
-  assert.equal(wrongDomain.headers.get('x-meteocompare-analytics-reject'),'DOMAIN_NOT_ALLOWED');
+  forwarded.length=0;
+  const pwaPayload=await proxyPlausibleEvent(new Request('https://meteocompare.app/_mcx/e',{method:'POST',headers:{'content-type':'application/json','user-agent':'Chrome-PWA-Test'},body:JSON.stringify({
+    n:'pageview',u:'https://meteocompare.app/#/',d:'',p:{app_version:APP_VERSION,language:'fr',display_mode:'standalone',navigation:'spa'}
+  })}));
+  assert.equal(pwaPayload.status,202,'standalone/PWA payloads must remain compatible with the first-party proxy');
+  assert.equal(forwarded.length,1);
+  const pwaSent=JSON.parse(forwarded[0].options.body);
+  assert.equal(pwaSent.d,'meteocompare.app','the Worker must impose the canonical Plausible domain');
+  assert.equal(pwaSent.u,'https://meteocompare.app/','PWA hashes must not leak into Plausible URLs');
+  assert.equal(pwaSent.p.display_mode,'standalone');
+
+  forwarded.length=0;
+  const legacyPwaUrl=await proxyPlausibleEvent(new Request('https://meteocompare.app/_mcx/e',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+    n:'pageview',u:'https://meteocompare.app/index.html#/settings',p:{app_version:APP_VERSION,language:'fr',display_mode:'standalone',navigation:'spa'}
+  })}));
+  assert.equal(legacyPwaUrl.status,202,'legacy installed start URLs must be canonicalized instead of rejected');
+  assert.equal(JSON.parse(forwarded[0].options.body).u,'https://meteocompare.app/settings');
+
+  forwarded.length=0;
+  const spoofedDomain=await proxyPlausibleEvent(new Request('https://meteocompare.app/_mcx/e',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({n:'pageview',u:'https://meteocompare.app/',d:'evil.example'})}));
+  assert.equal(spoofedDomain.status,202,'client domain fields are ignored after first-party URL validation');
+  assert.equal(JSON.parse(forwarded[0].options.body).d,'meteocompare.app');
+
+  forwarded.length=0;
+  const wrongUrl=await proxyPlausibleEvent(new Request('https://meteocompare.app/_mcx/e',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({n:'pageview',u:'https://evil.example/',d:'meteocompare.app'})}));
+  assert.equal(wrongUrl.status,400);
+  assert.equal(wrongUrl.headers.get('x-meteocompare-analytics-reject'),'URL_NOT_ALLOWED');
 } finally {
   globalThis.fetch=originalFetch;
 }

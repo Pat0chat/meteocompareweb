@@ -1,8 +1,12 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-
+const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
 const css=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf8');
-assert.match(css,/@media\(max-width:560px\)\{[\s\S]*?\.global-agreement-head\{display:flex;flex-direction:column;align-items:flex-start;/,'mobile model convergence header must stack vertically');
-assert.match(css,/\.global-agreement-card \.weighted-consensus\{display:flex;flex-direction:column;align-items:flex-start;/,'historical reliability must stack below convergence on mobile');
-assert.match(css,/\.global-agreement-card \.global-agreement-value\{[^}]*text-align:left;/,'mobile convergence value must not be squeezed into a right-hand column');
-console.log('Mobile global convergence card: OK');
+assert.match(css,/@media \(max-width: 760px\) \{[\s\S]*?\.global-agreement \{ display:flex; flex-direction:column; align-items:stretch;/,'the mobile convergence card itself must stack its sibling blocks vertically');
+assert.doesNotMatch(css,/@media \(max-width: 760px\) \{[\s\S]*?\.global-agreement \{ display:grid;/,'the mobile convergence card must never use a sibling grid');
+assert.match(app,/global-agreement-head\"><div class=\"global-agreement-heading-row\">[\s\S]*global-agreement-value/,'convergence header must group label and score in one simple row');
+assert.match(css,/\.global-agreement-heading-row \{[\s\S]*?display:flex;[\s\S]*?justify-content:space-between;/,'convergence heading must use a simple flex row instead of a fragile grid');
+assert.doesNotMatch(css,/@media\(max-width:560px\)\{[\s\S]*?\.global-agreement-head\{[\s\S]*?display:grid;/,'mobile convergence header must not revert to a grid');
+assert.match(css,/@media\(max-width:560px\)\{[\s\S]*?\.global-agreement-card \.weighted-consensus\{\s*display:flex;\s*flex-direction:column;/,'historical reliability must stack cleanly on mobile');
+assert.match(css,/\.global-agreement-card \.agreement-link\{\s*width:100%;/,'mobile convergence explanation action must be full width');
+console.log('mobile global convergence regression test passed');
