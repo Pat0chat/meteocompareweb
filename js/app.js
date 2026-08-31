@@ -779,7 +779,11 @@ function decorateCollapsibleCard(card,head,sectionId,t){
   card.classList.add('collapsible-card');
   const collapsed=sectionCollapsed(sectionId);card.dataset.collapsed=String(collapsed);
   let btn=head.querySelector?.('[data-collapse-section]');
-  if(!btn){btn=document.createElement('button');btn.type='button';btn.className='collapse-card-btn';btn.dataset.collapseSection=sectionId;head.append(btn);}
+  if(!btn){
+    btn=document.createElement('button');btn.type='button';btn.className='collapse-card-btn';btn.dataset.collapseSection=sectionId;
+    const actionGroup=sectionId==='details'?head.querySelector?.('.detailed-export-actions'):null;
+    (actionGroup||head).append(btn);
+  }
   btn.setAttribute('aria-expanded',String(!collapsed));btn.setAttribute('aria-label',collapsed?t('expandSection'):t('collapseSection'));btn.title=collapsed?t('expandSection'):t('collapseSection');btn.innerHTML='<span class="mc-disclosure-chevron" aria-hidden="true"></span>';
 }
 function enhanceCollapsibleCards(root=document){

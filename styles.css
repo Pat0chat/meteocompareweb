@@ -424,7 +424,7 @@ html[data-theme="dark"] body {
 .global-agreement.high .global-agreement-value { color: var(--good); }
 .global-agreement.medium .global-agreement-value { color: var(--medium); }
 .global-agreement.low .global-agreement-value { color: var(--low); }
-.global-agreement-meta { color: var(--muted); font-size: .7rem; margin-top: 4px; }
+.global-agreement-meta { color: var(--muted); font-size: .7rem; }
 .agreement-link { width: 100%;   margin-top: 10px;  font-size: .74rem; }
 .today-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 0; margin: 0; border-top: 1px solid var(--border); }
 
@@ -2628,7 +2628,7 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 .detail-back-icon { width:24px; height:24px; display:grid; place-items:center; border-radius:50%; background:var(--surface); }
 
 /* Outer detailed-forecast folding is independent from the inner controlled comparison panel. */
-.detailed-card[data-collapsed="true"] .section-actions { display:none !important; }
+.detailed-card[data-collapsed="true"] .detailed-export-actions .btn { display:none !important; }
 .timeline-card[data-collapsed="true"] .timeline-mode { display:none !important; }
 
 @media (max-width:720px) {
@@ -3570,7 +3570,6 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
   white-space:nowrap;
 }
 .global-agreement-card .global-agreement-meta {
-  margin-top:4px;
   line-height:1.35;
 }
 .global-agreement-card .weighted-consensus {
@@ -4843,9 +4842,21 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 
 /* Detailed comparison polish, true mobile About layout and compact convergence */
+.detailed-section-head{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:start;
+  width:100%;
+}
 .detailed-section-head .detailed-export-actions{
   margin-left:auto;
   justify-content:flex-end;
+  justify-self:end;
+  flex-wrap:nowrap;
+  width:auto;
+}
+.detailed-section-head .detailed-export-actions .collapse-card-btn{
+  margin-left:0;
 }
 .forecast-table .forecast-date-now{
   display:inline-flex;
@@ -4930,10 +4941,14 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 }
 
 @media(max-width:760px){
+  .detailed-section-head{
+    grid-template-columns:minmax(0,1fr);
+  }
   .detailed-section-head .detailed-export-actions{
-    width:100%;
+    width:auto;
     margin-left:0;
     justify-content:flex-end;
+    justify-self:end;
   }
   .detailed-section-head .detailed-export-actions .btn{
     flex:0 1 auto;

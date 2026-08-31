@@ -17,7 +17,7 @@ assert.match(app,/renderTargetedModelComparison\(f,tab,mode\)/,'Detailed forecas
 assert.match(app,/\[data-target-compare\]/,'Targeted model comparison must keep its dedicated disclosure state');
 assert.match(app,/toggle-target-compare/,'Comparison disclosure must use an explicit controlled accordion');
 assert.match(app,/state\.comparePanelOpen\[key\]=next/,'Comparison disclosure state must be tracked independently');
-assert.match(css,/\.detailed-card\[data-collapsed=\"true\"\] \.section-actions/,'Detailed card actions should hide with the folded card');
+assert.match(css,/\.detailed-card\[data-collapsed=\"true\"\] \.detailed-export-actions \.btn/,'Detailed export buttons should hide with the folded card while keeping the collapse control available');
 assert.match(css,/\.timeline-card\[data-collapsed=\"true\"\] \.timeline-mode/,'Timeline 24h/7d controls must hide when folded');
 
 // Model health has one disclosure mechanism only: its explicit diagnostic action.
