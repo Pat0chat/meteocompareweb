@@ -12,6 +12,7 @@ import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from './network-config.js';
 import { ApplicationKernel } from './core/application-kernel.js';
 import { weatherIcons } from './ui/weather-icons.js';
 import { chartScale, chartTickIndices, chartMetricUnit, chartMetricDigits, svgLinePath } from './ui/chart-utils.js';
+import { escapeHtml as esc, escapeAttribute as attr } from './ui/html.js';
 import { SEO_CITIES, seoCityBySlug, matchSeoCity, cityPublicPath, nearbySeoCities, slugifyCityName } from './seo-cities.mjs';
 import { FORECAST_ENGINES } from './forecast-engines.js';
 import { isWetPrecipitation } from './consensus.js';
@@ -410,8 +411,6 @@ function syncStickyOffsets(){
     stickyResizeObserver.observe(topbar);
   }
 }
-function esc(v=''){ return String(v).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
-function attr(v=''){ return esc(v).replace(/`/g,'&#96;'); }
 function fmt(v,d=0){
   if(!Number.isFinite(v))return '—';
   const locale=i18n().locale,key=`${locale}|${d}`;
@@ -590,7 +589,6 @@ function modelRunInfo(f,modelId,tab='CONDITIONS'){
   // variable-specific data coverage instead.
   return {known:runAge!=null,older,label:runAge!=null?`${t('runAge',{age:formatExactAge(meta.runTimestamp)})} · ${coverage}`:coverage,coverage,lastTimestamp};
 }
-function currentCityForecast(){return state.route.name==='city'?state.forecasts[state.route.id]:state.route.name==='bias'?state.forecasts[state.route.id]:null;}
 const toastTimers=new Map();let toastSequence=0;
 function dismissToast(id){const root=document.querySelector?.('#toast-root');if(!root)return;const key=String(id||'');const el=[...(root.children||[])].find(node=>node?.dataset?.toastId===key);if(el){el.classList?.add?.('toast-out');setTimeout(()=>el.remove?.(),160);}const timer=toastTimers.get(key);if(timer){clearTimeout(timer);toastTimers.delete(key);}}
 function toast(message,options={}){

@@ -1,6 +1,4 @@
-# MeteoCompare Web — architecture 1.13
-
-La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîne de données stricte. La priorité est la stabilité : les vues ne doivent jamais avoir à deviner si un payload externe ou persisté est sain.
+# MeteoCompare Web — architecture
 
 ## Chaîne de données
 
@@ -27,9 +25,15 @@ La 1.13 conserve la fondation orientée objet de la 1.12 et formalise une chaîn
 
 `js/app.js` reste le point d'entrée et la couche de composition des vues. Une nouvelle responsabilité transverse doit être ajoutée au kernel ou à un module dédié, pas sous forme d'un nouvel état global implicite.
 
-Les primitives de rendu graphique génériques (`chartScale`, sélection de ticks, unités/décimales et construction de chemins SVG) vivent dans `js/ui/chart-utils.js`. Les vues et features doivent les réutiliser plutôt que recopier ces algorithmes.
+Les primitives de rendu graphique génériques (`chartScale`, sélection de ticks, unités/décimales et construction de chemins SVG) vivent dans `js/ui/chart-utils.js`. `js/ui/html.js` centralise l’échappement HTML/attributs. Les vues et features doivent réutiliser ces utilitaires plutôt que recopier ces algorithmes.
 
 ## Présentation météo
+
+## Mesure d'audience web
+
+`js/analytics-schema.js` est la source unique du contrat Plausible : routes agrégées, événements autorisés, propriétés de faible cardinalité et caractère interactif. `js/analytics.js` construit les pageviews/événements à partir de ce contrat ; `js/plausible-bootstrap.js` gère le chargement, l'opt-out/réactivation et le dernier état de livraison ; `worker.js` réapplique le même contrat avant de relayer `/_mcx/e`. Une nouvelle mesure doit donc être déclarée dans ce schéma partagé plutôt que directement dans une vue.
+
+Le proxy analytics transmet explicitement le User-Agent et l'IP client fournie par Cloudflare à Plausible, sans accepter un `X-Forwarded-For` client non fiable. Aucune valeur météo, ville, coordonnée ou recherche n'entre dans le contrat.
 
 `js/ui/weather-icons.js` contient le système vectoriel météo. Le domaine (`models.js`, `domain.js`) expose uniquement des conditions et métadonnées métier. Les icônes sont statiques par défaut ; l'animation est explicitement demandée par la Home et Today Summary et respecte `prefers-reduced-motion`.
 
@@ -56,4 +60,13 @@ Raw model-agreement metrics deliberately stay outside this boundary: `dayConfide
 
 `js/features/vigilance.js` est la frontière navigateur de la Vigilance Météo-France. Cette donnée de sécurité est volontairement indépendante du moteur de prévision et de `consensus.js` : elle ne modifie aucun poids de modèle, aucune condition consensus ni aucun scénario 12 h.
 
-Le flux est : `ville normalisée → résolution département → /_mcx/vigilance → Worker → API Bulletin Vigilance Météo-France`. Le Worker conserve uniquement l'API Key comme secret `METEOFRANCE_API_KEY`, l'envoie en Bearer à Météo-France et extrait seulement les périodes J/J+1 utiles. `app.js` ne reçoit donc qu'un contrat assaini destiné à l'affichage Home/Details.
+Le flux est : `ville normalisée → résolution département → /_mcx/vigilance → Worker → API Bulletin Vigilance Météo-France`. Le Worker conserve uniquement l'API Key comme secret `METEOFRANCE_API_KEY`, l'envoie dans l'en-tête `apikey: <API_KEY>` à Météo-France et extrait seulement les périodes J/J+1 utiles. `js/server/vigilance-shared.js` porte la normalisation de la clé, les erreurs amont, l'extraction des périodes et le contrat de réponse commun au Worker et au preview local. `app.js` ne reçoit donc qu'un contrat assaini destiné à l'affichage Home/Details.
+
+
+## Topbar service monitoring
+
+The Web topbar exposes a passive system monitoring center. `/_mcx/health` checks only the first-party Worker and configuration flags; upstream providers are not synthetically probed. Forecast, Vigilance, model-metadata and Plausible rows reflect the latest real application requests.
+
+## Utilitaires de shell HTML
+
+`js/server/html-shell.js` centralise l’injection sûre de `<base>` utilisée par le build SEO, le serveur de preview et le Worker pour les routes imbriquées. Une modification de la résolution des assets ne doit pas recopier de regex dans plusieurs runtimes.

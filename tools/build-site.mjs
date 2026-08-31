@@ -3,6 +3,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SEO_CITIES, cityPublicPath, nearbySeoCities } from '../js/seo-cities.mjs';
 import { readProjectVersion } from './project-version.mjs';
+import { escapeHtml as html } from '../js/ui/html.js';
+import { injectBaseHref } from '../js/server/html-shell.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const out=join(root,'dist');
@@ -11,9 +13,6 @@ const today=new Date().toISOString().slice(0,10);
 const verification=String(process.env.GOOGLE_SITE_VERIFICATION||'').trim();
 const appVersion=await readProjectVersion(root);
 
-function html(value=''){
-  return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-}
 function xml(value=''){
   return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[char]));
 }
@@ -23,7 +22,7 @@ function replaceMeta(document,{title,description,canonical,robots='index,follow,
     .replace(/<meta name="description" content="[^"]*" \/>/i,`<meta name="description" content="${html(description)}" />`)
     .replace(/<meta name="robots" content="[^"]*" \/>/i,`<meta name="robots" content="${html(robots)}" />`)
     .replace(/<link rel="canonical" href="[^"]*" \/>/i,`<link rel="canonical" href="${html(canonical)}" />`);
-  if(base&&!/<base\s/i.test(page))page=page.replace(/(<meta charset="utf-8" \/>)/i,'$1\n  <base href="/" />');
+  if(base)page=injectBaseHref(page,'/');
   if(verification&&!/name="google-site-verification"/i.test(page))page=page.replace(/(<meta name="robots"[^>]*>)/i,`$1\n  <meta name="google-site-verification" content="${html(verification)}" />`);
   return page;
 }
@@ -65,8 +64,9 @@ const fallback404=replaceMeta(template,{
   description:'Ouvrez une vue MeteoCompare partagée.',
   canonical:`${site}/`,
   robots:'noindex,follow'
-}).replace(/(<meta charset="utf-8" \/>)/i,'$1\n  <base href="../" />');
-await writeFile(join(out,'404.html'),fallback404);
+});
+const fallback404WithBase=injectBaseHref(fallback404,'../');
+await writeFile(join(out,'404.html'),fallback404WithBase);
 
 await mkdir(join(out,'meteo'),{recursive:true});
 for(const city of SEO_CITIES){

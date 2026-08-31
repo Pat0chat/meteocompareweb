@@ -191,6 +191,7 @@ Ils couvrent notamment :
 - `js/storage.js` : réglages/favoris + cache IndexedDB ;
 - `js/i18n.js` : interface multilingue ;
 - `js/analytics-config.js` : configuration de la mesure d’audience Plausible et restriction aux domaines de production ;
+- `js/analytics-schema.js` : contrat partagé des routes, événements et propriétés Plausible autorisés côté navigateur/Worker ;
 - `js/analytics.js` : pageviews expurgées, acquisition UTM/referrer minimisée et événements fonctionnels Plausible ;
 - `js/app.js` : composition des vues, routeur et interactions, branchés sur le kernel ;
 - `js/seo-cities.mjs` : catalogue contrôlé des villes indexables et helpers des URLs publiques ;
@@ -237,3 +238,7 @@ The city Details view can now use one of four forecast engines: **Multi-consensu
 - La Home utilise le même moteur que les pages Détails pour les conditions actuelles, agrégats journaliers et mini-timelines.
 - La page À propos documente les quatre moteurs et l’étape de sélection dans la construction de la prévision.
 - Le bloc redondant « À retenir » a été retiré de Détails pour réduire le bruit visuel.
+
+## Vigilance Météo-France
+
+La Home et la page détails peuvent afficher la Vigilance officielle Météo-France (jaune/orange/rouge) sans l'intégrer au consensus météo. L'accès API passe exclusivement par le Worker Cloudflare et nécessite le secret `METEOFRANCE_API_KEY`. La procédure de souscription, de stockage du secret et de preview local est détaillée dans `VIGILANCE_METEOFRANCE.md`.

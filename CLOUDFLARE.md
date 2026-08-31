@@ -1,6 +1,6 @@
-# Configuration Cloudflare — MeteoCompare v1.16.0
+# Configuration Cloudflare — MeteoCompare
 
-Le projet est préparé pour Cloudflare Workers Builds avec assets statiques, pré-rendu SEO et proxy first-party Plausible.
+Le projet est préparé pour Cloudflare Workers Builds avec assets statiques, pré-rendu SEO et proxies first-party pour Plausible, les métadonnées de santé des modèles et la Vigilance officielle Météo-France. La politique réseau complète et les flux volontairement laissés directs sont documentés dans `NETWORK.md`.
 
 ## Configuration recommandée — Settings > Build
 
@@ -42,7 +42,7 @@ Le build génère `dist/`. Le fichier `wrangler.jsonc` déclare déjà :
 
 ## Proxy Plausible first-party
 
-`worker.js` relaie uniquement deux chemins réservés : `/_mcx/p.js` vers le script Plausible site-specific et `/_mcx/e` vers l’Events API. Le navigateur reste sur `meteocompare.app`; la CSP n’autorise plus de connexion directe vers `plausible.io`. Les autres requêtes sont servies par le binding `ASSETS`.
+`worker.js` relaie `/_mcx/p.js` vers le script Plausible site-specific, `/_mcx/e` vers l’Events API et `/_mcx/model-metadata?key=…` vers les fichiers `latest.json` de métadonnées Open-Meteo utilisés par la santé des modèles. Les destinations et timeouts sont centralisés dans `js/network-config.js` ; les appels amont du Worker sont bornés ; pour la santé des modèles, une indisponibilité amont est convertie en fallback JSON 200 vers le timestamp du run de prévision afin de ne pas exposer les statuts tiers au navigateur. Le navigateur reste sur `meteocompare.app`; la requête de santé ne dépend donc plus d’un accès direct du poste client au service de métadonnées `map-tiles.open-meteo.com`. Les autres requêtes sont servies par le binding `ASSETS`. Le Service Worker navigateur contourne explicitement `/_mcx/*` afin que ces réponses dynamiques ne soient jamais figées dans le cache du shell PWA.
 
 Ce mécanisme suit le modèle de proxy Cloudflare recommandé par Plausible. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `index.html` et les tests associés.
 
@@ -84,3 +84,24 @@ Contrôler au minimum :
 - `https://meteocompare.app/robots.txt`
 
 La source HTML de `/meteo/toulouse` doit contenir directement un title, une description, un canonical et un H1 propres à Toulouse avant exécution de JavaScript.
+
+## Vigilance Météo-France — secret Worker
+
+La Vigilance officielle utilise `/_mcx/vigilance` côté navigateur et l'API Bulletin Vigilance uniquement côté Worker. **Aucun identifiant Météo-France ne doit être ajouté dans `wrangler.jsonc` ou dans le JavaScript.**
+
+Configurer le secret :
+
+```bash
+npx wrangler secret put METEOFRANCE_API_KEY
+```
+
+Coller uniquement le token **API Key** généré depuis le portail Météo-France. Ne pas ajouter de préfixe. Si `Bearer ` ou `apikey:` est collé par erreur, le Worker le normalise, puis déployer avec `npx wrangler deploy`. Pour le preview local, utiliser `.dev.vars` comme décrit dans `VIGILANCE_METEOFRANCE.md`.
+
+Le Worker envoie cette clé uniquement côté serveur dans l'en-tête `apikey: <API_KEY>` (avec `Accept: */*`, comme le curl généré par l'explorateur DPVigilance) et met le produit national `cartevigilance/encours` en cache 5 minutes. Le navigateur et l'application Android ne reçoivent jamais la clé.
+
+Lors d'une migration depuis 1.16.38, ajouter d'abord `METEOFRANCE_API_KEY`, déployer et tester le endpoint. L'ancien secret peut ensuite être supprimé avec `npx wrangler secret delete METEOFRANCE_APPLICATION_ID`.
+
+
+### Monitoring endpoint
+
+`GET /_mcx/health` is handled directly by `worker.js`. It is intentionally cheap and uncached, reports whether the Vigilance secret is configured, and never exposes its value or calls Météo-France/Open-Meteo/Plausible.

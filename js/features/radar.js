@@ -2,6 +2,7 @@ import { forecastEnginePrecipitation, DEFAULT_FORECAST_ENGINE } from '../forecas
 import { isWetPrecipitation } from '../consensus.js';
 import { fetchBlobResource, fetchJsonResource } from '../network.js';
 import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from '../network-config.js';
+import { escapeHtml as esc } from '../ui/html.js';
 const RADAR_META_URL=NETWORK_ENDPOINTS.radar.metadata;
 const OSM_TILE_URL=NETWORK_ENDPOINTS.radar.osmTileTemplate;
 const RADAR_META_TTL_MS=5*60_000;
@@ -21,7 +22,6 @@ let metaCache=null;
 let metaCacheAt=0;
 let controller=null;
 
-function esc(value=''){return String(value).replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));}
 function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
 function clampLat(value){return clamp(Number(value),-85.05112878,85.05112878);}
 function wrapTileX(x,z){const n=2**z;return ((x%n)+n)%n;}

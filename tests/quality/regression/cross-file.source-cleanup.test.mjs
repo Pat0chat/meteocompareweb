@@ -39,11 +39,23 @@ for(const token of ['deleteMarine','cityNowLocal','nearestIndex','dailyMatrix','
 
 const chartUtils=read('js/ui/chart-utils.js');
 const comparison=read('js/features/comparison.js');
+const htmlUtils=read('js/ui/html.js');
+const radar=read('js/features/radar.js');
+const worker=read('worker.js');
+const preview=read('tools/preview-site.mjs');
 assert.match(app,/from '\.\/ui\/chart-utils\.js'/,'app chart primitives must come from the shared chart utility module');
 assert.match(comparison,/from '\.\.\/ui\/chart-utils\.js'/,'comparison chart primitives must come from the shared chart utility module');
 for(const symbol of ['chartScale','chartTickIndices','chartMetricUnit','chartMetricDigits','svgLinePath']) assert.match(chartUtils,new RegExp(`export function ${symbol}\\b`),`shared chart utility missing ${symbol}`);
 assert.doesNotMatch(app,/function (?:niceStep|chartScale|chartTickIndices|chartMetricUnit|chartMetricDigits|svgLinePath)\b/,'app must not duplicate shared chart primitives');
 assert.doesNotMatch(comparison,/function (?:niceStep|chartScale|chartTickIndices|chartMetricUnit|chartMetricDigits|svgLinePath)\b/,'comparison must not duplicate shared chart primitives');
+assert.match(app,/escapeHtml as esc, escapeAttribute as attr/,'app HTML escaping must use the shared UI utility');
+assert.match(radar,/escapeHtml as esc/,'radar HTML escaping must use the shared UI utility');
+assert.match(htmlUtils,/export function escapeHtml/);
+assert.doesNotMatch(app,/function esc\b|function attr\b/,'app must not duplicate HTML escaping');
+assert.doesNotMatch(radar,/function esc\b/,'radar must not duplicate HTML escaping');
+assert.match(worker,/server\/vigilance-shared\.js/,'Worker Vigilance normalization must use the shared server contract');
+assert.match(preview,/server\/vigilance-shared\.js/,'preview Vigilance normalization must use the shared server contract');
+for(const selector of ['summary-tile','about-reading','about-engine-card','reliability-column','android-nav','install-status','forecast-engine-overview-action','forecast-engine-overview-symbol']) assert.doesNotMatch(css,new RegExp(`\\.${selector}\\b`),`dead CSS selector remains: ${selector}`);
 
 // Runtime source contains no debug leftovers and every relative module import resolves.
 const runtimeFiles=[];

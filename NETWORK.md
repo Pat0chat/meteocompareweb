@@ -22,13 +22,13 @@ L'objectif n'est volontairement **pas** de proxifier tout le trafic. Les gros fl
 | Runs précédents | `js/api.js` → `js/api-budget.js` | `previous-runs-api.open-meteo.com/v1/forecast` | direct | 45 s | récupération best-effort des séries historiques tronquées |
 | Marine | `js/features/marine.js` → `js/api-budget.js` | `marine-api.open-meteo.com/v1/marine` | direct | 15–30 s ; détection cache/capacité selon appel | budget commun, validation de grille côtière, fallback modèle de vagues |
 | Santé des modèles | `js/features/model-health.js` | `/_mcx/model-metadata` | first-party | navigateur 10 s ; Worker edge 5 min | clé validée, timeout Worker, 502/504, CDN tiers invisible du navigateur |
-| Métadonnées santé amont | `worker.js` | `openmeteo-data-spatial.b-cdn.net/<key>/latest.json` | Worker → tiers | 12 s ; cache edge 5 min | GET/HEAD seulement, clé bornée, réponse JSON durcie |
+| Métadonnées santé amont | `worker.js` | `map-tiles.open-meteo.com/data_spatial/<key>/latest.json` | Worker → tiers | 12 s ; cache edge 5 min | GET/HEAD seulement, clé bornée, réponse JSON durcie |
 | Métadonnées radar | `js/features/radar.js` → `js/network.js` | `api.rainviewer.com/public/weather-maps.json` | direct, optionnel | 12 s ; mémoire 5 min | host RainViewer retourné validé avant usage |
 | Images radar d'analyse | `js/features/radar.js` → `js/network.js` | `*.rainviewer.com/...png` | direct, optionnel | 15 s ; cache navigateur `force-cache` | abort à la fermeture, HTTP/timeout commun, échec limité au radar |
 | Image radar affichée | `<img>` dynamique | `*.rainviewer.com/...png` | direct, optionnel | cache HTTP navigateur | échec visuel non bloquant pour la météo principale |
 | Fond cartographique | `<img>` tuiles | `tile.openstreetmap.org/{z}/{x}/{y}.png` | direct, optionnel | cache HTTP navigateur | contenu purement visuel ; ne bloque pas les données météo |
 | Script Plausible | `js/plausible-bootstrap.js` | `/_mcx/p.js` → `plausible.io` | first-party | Worker 12 s ; edge 5 min | uniquement hôtes prod autorisés, DNT/GPC/opt-out avant chargement |
-| Événements Plausible | tracker → `/_mcx/e` | `plausible.io/api/event` | first-party | Worker 8 s ; `no-store` | POST seulement, corps max 64 KiB, cookies/entêtes Cloudflare sensibles non relayés |
+| Événements Plausible | tracker → `/_mcx/e` | `plausible.io/api/event` | first-party | Worker 8 s ; `no-store` | POST seulement, corps max 64 KiB, schéma événement/propriétés validé côté Worker, URL/referrer réassainis, User-Agent + IP Cloudflare relayés explicitement |
 | Assets applicatifs | navigateur / Service Worker | `meteocompare.app` | first-party | stratégie PWA selon type | navigation/code network-first ; assets immuables cache-first |
 
 ## Règles uniformisées
@@ -75,13 +75,13 @@ La CSP navigateur reflète la politique de transport :
 - `connect-src 'self'` pour les proxies first-party ;
 - accès direct autorisé uniquement aux API Open-Meteo et à RainViewer ;
 - `img-src` autorise uniquement les images locales/data, OpenStreetMap et RainViewer ;
-- Plausible et `openmeteo-data-spatial.b-cdn.net` ne sont pas autorisés directement, puisqu'ils passent par le Worker.
+- Plausible et `map-tiles.open-meteo.com` ne sont pas autorisés directement, puisqu'ils passent par le Worker.
 
 Un test de régression vérifie désormais l'alignement entre configuration réseau, CSP et Service Worker.
 
 ## Confidentialité
 
-L'audit a identifié une incohérence dans l'opt-out analytics : `plausible-bootstrap.js` lisait `ANALYTICS_CONFIG.optOutStorageKey`, mais cette propriété n'était pas définie. Le client analytics bloquait les événements, mais le bootstrap pouvait malgré tout télécharger le script. La clé est maintenant définie dans `js/analytics-config.js` et partagée par le bootstrap et `js/analytics.js`.
+La politique analytics repose sur une liste blanche partagée `js/analytics-schema.js`, appliquée à la fois dans le navigateur et dans `worker.js`. L'opt-out, GPC et DNT empêchent le chargement du script ; une réactivation locale relance désormais réellement le cycle de chargement. Le proxy ne fait pas confiance au `X-Forwarded-For` fourni par le client lorsque Cloudflare fournit `CF-Connecting-IP`.
 
 ## Choix de non-proxy
 
@@ -102,5 +102,23 @@ Les tests couvrent désormais notamment :
 - centralisation des destinations réseau ;
 - cohérence CSP ;
 - bypass `/_mcx/*` du Service Worker ;
-- configuration de l'opt-out analytics ;
+- configuration et réactivation de l'opt-out analytics ;
+- schéma partagé client/Worker, rejet des événements/propriétés arbitraires ;
+- propagation contrôlée User-Agent/IP vers Plausible ;
 - Worker first-party, timeout amont et limite de payload analytics.
+
+## Vigilance Météo-France
+
+La Vigilance suit une politique first-party stricte :
+
+| Flux | Appel navigateur | Destination réelle | Transport | Timeout / cache | Gestion |
+| --- | --- | --- | --- | --- | --- |
+| Vigilance départementale | `js/features/vigilance.js` | `/_mcx/vigilance?department=…` | first-party | navigateur 12 s ; mémoire 5 min | résolution ville → département, J/J+1, aucune credential navigateur |
+| Carte Vigilance nationale | `worker.js` | `public-api.meteofrance.fr/.../cartevigilance/encours` | Worker → tiers | 12 s ; edge 5 min | secret `METEOFRANCE_API_KEY` envoyé dans l'en-tête `apikey: <API_KEY>`, extraction département/littoral, JSON assaini |
+
+Météo-France reste absent de la CSP `connect-src` du navigateur puisque tous ses appels passent par `/_mcx/vigilance`. Le Service Worker contourne `/_mcx/*`, de sorte que la carte officielle ne peut pas être figée dans le cache PWA.
+
+
+## First-party health endpoint
+
+`GET /_mcx/health` is a no-cache, first-party-only health endpoint used by the topbar monitoring center. It returns Worker/version/capability flags and never returns secrets or performs upstream network calls.

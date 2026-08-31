@@ -17,7 +17,8 @@ assert.match(app,/renderGlobalAgreementCard\(f,agg,city\.id,consensusProfile\)\}
 assert.doesNotMatch(app,/forecast-engine-hero-action/);
 assert.doesNotMatch(app,/function renderInsights\(/);
 assert.match(css,/\.about-visual-engine-grid/);
-assert.match(css,/\.forecast-engine-overview-action/);
+assert.doesNotMatch(css,/\.forecast-engine-overview-action/,'legacy forecast-engine overview action CSS must stay removed');
+assert.doesNotMatch(css,/\.forecast-engine-overview-symbol/,'legacy forecast-engine overview symbol CSS must stay removed');
 for(const locale of ['fr','en','es','de','it']){
   const text=read(`js/locales/${locale}.js`);
   for(const key of ['aboutVisualStepEnginesTitle','aboutVisualStepEnginesBody','aboutVisualEnginesKicker','aboutVisualEngineMultiShort','aboutVisualEngineCalibrationShort','aboutVisualEngineScenariosShort','aboutVisualEngineAdaptiveShort','forecastEngineActiveLabel']) assert.ok(text.includes(`"${key}"`),`${locale} missing ${key}`);

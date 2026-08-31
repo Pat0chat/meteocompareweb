@@ -61,9 +61,9 @@ Les pages sont regroupées avant envoi afin d’éviter de transmettre la ville 
 - `/about` ;
 - `/404` pour une route SEO inconnue.
 
-Des propriétés à faible cardinalité peuvent être jointes aux pageviews : version de MeteoCompare, langue de l’interface, mode navigateur/PWA, type de navigation (`seo`, `spa` ou `direct`), onglet/mode/métrique/horizon de la vue ville, nombre de modèles comparés, ainsi que la variable et le modèle consultés sur la page de biais. Pour une comparaison de villes, seul le **nombre** de villes est envoyé.
+Des propriétés à faible cardinalité peuvent être jointes aux pageviews : version de MeteoCompare, langue de l’interface, mode navigateur/PWA, type de navigation (`seo`, `spa` ou `direct`), thème effectif, densité d’interface, onglet/mode/métrique/horizon de la vue ville, nombre de modèles comparés, ainsi que la variable et le modèle consultés sur la page de biais. Pour une comparaison de villes, seul le **nombre** de villes est envoyé.
 
-Les événements fonctionnels suivants peuvent également être envoyés : ouverture de la recherche de ville, ajout d’une ville, ajout en favori depuis une page SEO, rafraîchissement manuel, changement de vue, changement du nombre de modèles comparés, démarrage d’une comparaison de villes, activation marine, export, copie d’un lien, activation/désactivation de la pondération locale, clic d’installation PWA et installation PWA détectée.
+Des événements fonctionnels explicitement listés peuvent également être envoyés : recherche/ajout/suppression de ville, rafraîchissement manuel, changements de vues, comparaisons et sélection de modèles, moteur de prévision, explications de confiance et diagnostics, santé des modèles et Vigilance, fonctions marine/radar, exports et sauvegardes locales, partage, monitoring, ouverture du support et parcours d’installation PWA. Les liens sortants ne sont pas suivis automatiquement : seuls quelques boutons explicitement balisés transmettent une destination générique (`bluesky`, `meteofrance_vigilance`, `liberapay` ou `kofi`), jamais l’URL complète cliquée.
 
 Pour l’attribution d’acquisition :
 
@@ -79,12 +79,13 @@ Pour l’attribution d’acquisition :
 - favoris ;
 - valeurs météo ou séries de prévision ;
 - valeurs d’accord, scénarios, biais chiffrés ou historiques locaux ;
-- contenu des exports ;
+- contenu et nom de fichier des exports ;
+- niveau/couleur de Vigilance ;
 - identifiant persistant analytics créé par MeteoCompare.
 
-Les propriétés et événements acceptés sont filtrés par une liste blanche dans le code afin qu’un identifiant ou une chaîne arbitraire ne puisse pas être ajouté accidentellement. MeteoCompare fournit au tracker Plausible une URL déjà anonymisée et un `transformRequest` réduit le referrer externe à son origine ; un referrer interne est supprimé.
+Les propriétés et événements acceptés sont filtrés par une liste blanche partagée entre le navigateur et le Worker Cloudflare afin qu’un identifiant, une chaîne arbitraire ou un événement forgé ne puisse pas être relayé par `/_mcx/e`. MeteoCompare fournit au tracker Plausible une URL déjà anonymisée et un `transformRequest` réduit le referrer externe à son origine ; un referrer interne est supprimé. Aucun suivi automatique du scroll, de la visibilité des sections, des impressions ou du temps passé n’est activé.
 
-Les événements analytics sont relayés par le Worker Cloudflare de MeteoCompare vers Plausible. Plausible reçoit néanmoins les métadonnées réseau nécessaires au traitement de la requête relayée. Sa documentation indique que l’IP et le User-Agent servent au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
+Les événements analytics sont relayés par le Worker Cloudflare de MeteoCompare vers Plausible. Pour préserver le fonctionnement prévu du service derrière ce proxy, le Worker transmet explicitement le User-Agent du navigateur et l’adresse client fournie par Cloudflare comme `X-Forwarded-For`, plutôt que de faire confiance à un header arbitraire fourni par le client. Plausible reçoit donc les métadonnées réseau nécessaires au traitement de la requête relayée. Sa documentation indique que l’IP et le User-Agent servent notamment au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
 
 ## 4. Cookies, identifiants et signaux de confidentialité
 
@@ -136,6 +137,6 @@ La vue **Radar pluie** de la page Détails est entièrement optionnelle et ne d�
 - **RainViewer** pour récupérer les images radar des deux dernières heures. Les coordonnées de la localité affichée sont incluses dans la requête d'image afin de centrer le radar. RainViewer reçoit donc ces coordonnées ainsi que les métadonnées réseau habituelles d'une requête HTTPS.
 - **OpenStreetMap** pour afficher le fond cartographique. Les requêtes concernent uniquement les tuiles nécessaires à la zone visible et respectent le cache HTTP du navigateur.
 
-Ces données ne sont pas ajoutées aux événements Plausible. Plausible reçoit uniquement l'ouverture de la fonctionnalité et, le cas échéant, la classe de portée choisie (`near`, `regional` ou `wide`) ; aucun nom de ville ni aucune coordonnée n'est transmis à Plausible.
+Ces données ne sont pas ajoutées aux événements Plausible. Plausible reçoit uniquement des interactions fonctionnelles à faible cardinalité : ouverture du radar, classe de portée (`near`, `regional` ou `wide`), mode observation/projection, horizon sélectionné, passage plein écran et succès/échec technique d’un recalcul local. Aucun nom de ville, coordonnée ou contenu radar n’est transmis à Plausible.
 
 Le radar public RainViewer fournit des observations passées. MeteoCompare peut calculer **localement dans le navigateur** une extrapolation courte durée à partir du déplacement observé sur plusieurs images radar. Ce calcul ne transmet aucune donnée supplémentaire : il estime un mouvement dominant, affiche des zones probabilistes jusqu'à +60 minutes et augmente volontairement l'incertitude avec l'horizon. Il s'agit d'un nowcast d'extrapolation, pas d'une nouvelle donnée future fournie par RainViewer. La synthèse multi-modèles reste affichée séparément pour compléter cette lecture.
