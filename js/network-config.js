@@ -5,7 +5,6 @@ export const NETWORK_ENDPOINTS = Object.freeze({
   firstParty: Object.freeze({
     modelMetadata: '/_mcx/model-metadata',
     vigilance: '/_mcx/vigilance',
-    analyticsScript: '/_mcx/p.js',
     analyticsEvent: '/_mcx/e',
     health: '/_mcx/health',
   }),
@@ -23,10 +22,6 @@ export const NETWORK_ENDPOINTS = Object.freeze({
   radar: Object.freeze({
     metadata: 'https://api.rainviewer.com/public/weather-maps.json',
     osmTileTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  }),
-  analytics: Object.freeze({
-    upstreamScript: 'https://plausible.io/js/pa-m_Vcr9SLuhB7IFuIgpvGB.js',
-    upstreamEvent: 'https://plausible.io/api/event',
   }),
 });
 

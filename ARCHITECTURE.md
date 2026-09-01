@@ -31,7 +31,7 @@ Les primitives de rendu graphique génériques (`chartScale`, sélection de tick
 
 ## Mesure d'audience web
 
-`js/analytics-schema.js` est la source unique du contrat Plausible : routes agrégées, événements autorisés, propriétés de faible cardinalité et caractère interactif. `js/analytics.js` construit les pageviews/événements à partir de ce contrat ; `js/plausible-bootstrap.js` gère le chargement, l'opt-out/réactivation et le dernier état de livraison ; `worker.js` réapplique le même contrat avant de relayer `/_mcx/e`. Une nouvelle mesure doit donc être déclarée dans ce schéma partagé plutôt que directement dans une vue.
+`js/analytics-schema.js` est la source unique du contrat Plausible : routes agrégées, événements autorisés, propriétés de faible cardinalité et caractère interactif. `js/analytics.js` construit les pageviews/événements à partir de ce contrat ; `js/mcx-events.js` fournit un transport navigateur minimal vers le seul endpoint first-party `/_mcx/e`, gère l'opt-out/réactivation et le dernier état de livraison ; `worker.js` réapplique le même contrat avant de relayer côté serveur vers Plausible. Aucun script Plausible tiers n'est chargé dans le navigateur. Une nouvelle mesure doit donc être déclarée dans ce schéma partagé plutôt que directement dans une vue.
 
 Le proxy analytics transmet explicitement le User-Agent et l'IP client fournie par Cloudflare à Plausible, sans accepter un `X-Forwarded-For` client non fiable. Aucune valeur météo, ville, coordonnée ou recherche n'entre dans le contrat.
 

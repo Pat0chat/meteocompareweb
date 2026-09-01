@@ -34,7 +34,7 @@ Politique Open-Meteo : https://open-meteo.com/en/terms#privacy
 
 ## 3. Mesure d’audience minimale de la version web
 
-Lorsqu’elle est activée par l’éditeur du site, MeteoCompare utilise le tracker officiel Plausible Analytics associé à `meteocompare.app`, servi au navigateur via un proxy first-party Cloudflare sous le domaine MeteoCompare. Les pageviews automatiques ainsi que le suivi automatique des liens sortants, téléchargements et formulaires sont désactivés : seuls les pageviews et événements explicitement autorisés par MeteoCompare sont envoyés.
+Lorsqu’elle est activée par l’éditeur du site, MeteoCompare utilise Plausible Analytics associé à `meteocompare.app` via un transport first-party minimal propre à MeteoCompare. Aucun script Plausible n’est chargé dans le navigateur : seuls les pageviews et événements explicitement autorisés sont envoyés à `/_mcx/e`, puis validés et relayés côté serveur par le Worker Cloudflare.
 
 ### Finalité
 
@@ -83,7 +83,7 @@ Pour l’attribution d’acquisition :
 - niveau/couleur de Vigilance ;
 - identifiant persistant analytics créé par MeteoCompare.
 
-Les propriétés et événements acceptés sont filtrés par une liste blanche partagée entre le navigateur et le Worker Cloudflare afin qu’un identifiant, une chaîne arbitraire ou un événement forgé ne puisse pas être relayé par `/_mcx/e`. MeteoCompare fournit au tracker Plausible une URL déjà anonymisée et un `transformRequest` réduit le referrer externe à son origine ; un referrer interne est supprimé. Aucun suivi automatique du scroll, de la visibilité des sections, des impressions ou du temps passé n’est activé.
+Les propriétés et événements acceptés sont filtrés par une liste blanche partagée entre le navigateur et le Worker Cloudflare afin qu’un identifiant, une chaîne arbitraire ou un événement forgé ne puisse pas être relayé par `/_mcx/e`. MeteoCompare construit une URL déjà anonymisée et réduit lui-même le referrer externe à son origine ; un referrer interne est supprimé avant l’envoi first-party. Aucun suivi automatique du scroll, de la visibilité des sections, des impressions ou du temps passé n’est activé.
 
 Les événements analytics sont relayés par le Worker Cloudflare de MeteoCompare vers Plausible. Pour préserver le fonctionnement prévu du service derrière ce proxy, le Worker transmet explicitement le User-Agent du navigateur et l’adresse client fournie par Cloudflare comme `X-Forwarded-For`, plutôt que de faire confiance à un header arbitraire fourni par le client. Plausible reçoit donc les métadonnées réseau nécessaires au traitement de la requête relayée. Sa documentation indique que l’IP et le User-Agent servent notamment au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
 

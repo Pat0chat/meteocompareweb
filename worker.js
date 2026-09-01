@@ -4,8 +4,8 @@ import { APP_VERSION } from './js/version.js';
 import { sanitizePlausibleProxyPayload } from './js/analytics-schema.js';
 import { injectBaseHref } from './js/server/html-shell.js';
 import { VIGILANCE_DEPARTMENT_PATTERN, normalizeMeteoFranceApiKey, meteoFranceUpstreamError, vigilanceUnavailablePayload, vigilanceDepartmentPayload } from './js/server/vigilance-shared.js';
+import { PLAUSIBLE_UPSTREAM_EVENT } from './js/server/analytics-upstream.js';
 
-const SCRIPT_PATH = ANALYTICS_CONFIG.scriptSrc;
 const EVENT_PATH = ANALYTICS_CONFIG.endpoint;
 const MODEL_METADATA_PATH = NETWORK_ENDPOINTS.firstParty.modelMetadata;
 const MODEL_METADATA_UPSTREAM = NETWORK_ENDPOINTS.openMeteo.modelMetadataUpstream;
@@ -114,11 +114,6 @@ export function proxySystemHealth(request,env){
   return headOrBody(request,response);
 }
 
-function cleanProxyHeaders(request){
-  const headers=new Headers(request.headers);
-  for(const name of ['cookie','host','content-length','cf-connecting-ip','cf-ray','cf-visitor','authorization'])headers.delete(name);
-  return headers;
-}
 function plausibleEventHeaders(request){
   const headers=new Headers();
   const userAgent=request.headers.get('user-agent');if(userAgent)headers.set('user-agent',userAgent);
@@ -126,23 +121,6 @@ function plausibleEventHeaders(request){
   headers.set('content-type','application/json');
   headers.set('accept','application/json');
   return headers;
-}
-
-async function proxyPlausibleScript(request,ctx){
-  if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method Not Allowed',{status:405,headers:{Allow:'GET, HEAD'}});
-  const cacheKey=new Request(request.url,{method:'GET'}),cached=await caches.default.match(cacheKey);
-  if(cached)return headOrBody(request,cached);
-
-  let upstream;
-  try{upstream=await fetchUpstream(ANALYTICS_CONFIG.upstreamScriptSrc,{method:'GET',headers:cleanProxyHeaders(request),redirect:'follow'});}
-  catch(error){return upstreamFailure(error,'Analytics script');}
-  if(!upstream.ok)return new Response('Analytics script unavailable',{status:502,headers:{'cache-control':'no-store'}});
-
-  const headers=new Headers({'content-type':'application/javascript; charset=utf-8','cache-control':'public, max-age=300','x-content-type-options':'nosniff'});
-  const etag=upstream.headers.get('etag');if(etag)headers.set('etag',etag);
-  const response=new Response(upstream.body,{status:upstream.status,headers});
-  ctx.waitUntil(caches.default.put(cacheKey,response.clone()));
-  return headOrBody(request,response);
 }
 
 async function serveApplicationAsset(request,env){
@@ -167,7 +145,7 @@ export async function proxyPlausibleEvent(request){
   if(!sanitized.ok)return new Response('Analytics event rejected',{status:400,headers:{'cache-control':'no-store','x-meteocompare-analytics-reject':sanitized.error}});
 
   let upstream;
-  try{upstream=await fetchUpstream(ANALYTICS_CONFIG.upstreamEndpoint,{method:'POST',headers:plausibleEventHeaders(request),body:JSON.stringify(sanitized.payload),redirect:'manual'},NETWORK_TIMEOUTS_MS.analyticsEvent);}
+  try{upstream=await fetchUpstream(PLAUSIBLE_UPSTREAM_EVENT,{method:'POST',headers:plausibleEventHeaders(request),body:JSON.stringify(sanitized.payload),redirect:'manual'},NETWORK_TIMEOUTS_MS.analyticsEvent);}
   catch(error){return upstreamFailure(error,'Analytics');}
   const headers=new Headers({'cache-control':'no-store','x-content-type-options':'nosniff','x-meteocompare-analytics-proxy':'forwarded'});
   const upstreamContentType=upstream.headers.get('content-type');if(upstreamContentType)headers.set('content-type',upstreamContentType);
@@ -178,7 +156,6 @@ export async function proxyPlausibleEvent(request){
 export default {
   async fetch(request,env,ctx){
     const pathname=new URL(request.url).pathname;
-    if(pathname===SCRIPT_PATH)return proxyPlausibleScript(request,ctx);
     if(pathname===EVENT_PATH)return proxyPlausibleEvent(request);
     if(pathname===MODEL_METADATA_PATH)return proxyModelMetadata(request,ctx);
     if(pathname===VIGILANCE_PATH)return proxyVigilance(request,env,ctx);

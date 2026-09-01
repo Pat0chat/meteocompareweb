@@ -19,7 +19,7 @@ for (const [index, locale] of localeFiles.entries()) {
 }
 
 const html = read('index.html');
-assert.match(html, /<script type="module" src="js\/plausible-bootstrap\.js"><\/script>/);
+assert.match(html, /<script type="module" src="js\/mcx-events\.js"><\/script>/);
 assert.match(html, /<script type="module" src="js\/app\.js"><\/script>/);
 assert.doesNotMatch(html, /<script(?:\s[^>]*)?>\s*(?!<\/script>)[\s\S]*?<\/script>/i, 'index.html must not reintroduce inline JavaScript');
 

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const read=rel=>fs.readFileSync(new URL(`../../../${rel}`,import.meta.url),'utf8');
-const app=read('js/app.js'),css=read('styles.css'),network=read('js/network-config.js'),bootstrap=read('js/plausible-bootstrap.js');
+const app=read('js/app.js'),css=read('styles.css'),network=read('js/network-config.js'),bootstrap=read('js/mcx-events.js');
 
 assert.match(network,/health:\s*'\/_mcx\/health'/,'system monitor must use one first-party health endpoint');
 assert.match(app,/function renderSystemMonitor\(/,'topbar status must render a monitoring popover');
@@ -20,6 +20,6 @@ assert.match(app,/action==='toggle-system-monitor'/,'keyboard activation must us
 assert.match(app,/if\(!e\.target\.closest\?\.\('\.topbar-system-monitor'\)\)closeSystemMonitor\(\)/,'clicking outside the monitor must close an explicit opening');
 assert.doesNotMatch(app,/classList\?\.contains\?\.\('is-open'\)\|\|current\.matches\?\.\(':hover'\)/,'a transient hover must never be persisted as is-open during a refresh');
 assert.match(css,/\.system-monitor-item/,'monitor rows must have a dedicated compact design');
-assert.match(bootstrap,/__METEOCOMPARE_ANALYTICS_RUNTIME__/,'Plausible bootstrap must expose load/error runtime state without leaking data');
+assert.match(bootstrap,/__METEOCOMPARE_ANALYTICS_RUNTIME__/,'first-party metrics transport must expose load/error runtime state without leaking data');
 assert.match(app,/services tiers[^']*ne sont pas sondés|monitorNoSyntheticProbes/,'monitor must explain that third parties are not synthetically probed');
 console.log('Topbar system monitoring center: OK');

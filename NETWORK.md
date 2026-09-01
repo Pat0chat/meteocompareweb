@@ -27,7 +27,6 @@ L'objectif n'est volontairement **pas** de proxifier tout le trafic. Les gros fl
 | Images radar d'analyse | `js/features/radar.js` → `js/network.js` | `*.rainviewer.com/...png` | direct, optionnel | 15 s ; cache navigateur `force-cache` | abort à la fermeture, HTTP/timeout commun, échec limité au radar |
 | Image radar affichée | `<img>` dynamique | `*.rainviewer.com/...png` | direct, optionnel | cache HTTP navigateur | échec visuel non bloquant pour la météo principale |
 | Fond cartographique | `<img>` tuiles | `tile.openstreetmap.org/{z}/{x}/{y}.png` | direct, optionnel | cache HTTP navigateur | contenu purement visuel ; ne bloque pas les données météo |
-| Script Plausible | `js/plausible-bootstrap.js` | `/_mcx/p.js` → `plausible.io` | first-party | Worker 12 s ; edge 5 min | uniquement hôtes prod autorisés, DNT/GPC/opt-out avant chargement |
 | Événements Plausible | tracker → `/_mcx/e` | `plausible.io/api/event` | first-party | Worker 8 s ; `no-store` | POST seulement, corps max 64 KiB, schéma événement/propriétés validé côté Worker, URL/referrer réassainis, User-Agent + IP Cloudflare relayés explicitement |
 | Assets applicatifs | navigateur / Service Worker | `meteocompare.app` | first-party | stratégie PWA selon type | navigation/code network-first ; assets immuables cache-first |
 
@@ -81,7 +80,7 @@ Un test de régression vérifie désormais l'alignement entre configuration rés
 
 ## Confidentialité
 
-La politique analytics repose sur une liste blanche partagée `js/analytics-schema.js`, appliquée à la fois dans le navigateur et dans `worker.js`. L'opt-out, GPC et DNT empêchent le chargement du script ; une réactivation locale relance désormais réellement le cycle de chargement. Le proxy ne fait pas confiance au `X-Forwarded-For` fourni par le client lorsque Cloudflare fournit `CF-Connecting-IP`.
+La politique analytics repose sur une liste blanche partagée `js/analytics-schema.js`, appliquée à la fois dans le navigateur et dans `worker.js`. L'opt-out, GPC et DNT empêchent tout envoi. Le navigateur ne charge aucun script Plausible et POSTe uniquement vers `/_mcx/e`; le Worker relaie ensuite côté serveur. Le proxy ne fait pas confiance au `X-Forwarded-For` fourni par le client lorsque Cloudflare fournit `CF-Connecting-IP`.
 
 ## Choix de non-proxy
 

@@ -4,7 +4,7 @@ function nestedRouteBase(pathname){
 }
 
 export function preparePreviewHtml(html,{pathname='/'}={}){
-  // Analytics loading is host-gated in index.html, so localhost never creates the Plausible script.
+  // Analytics delivery is host-gated by the bootstrap, so localhost never sends audience events.
   // A SPA fallback served at /meteo/:slug must resolve the relative application shell from site root.
   const base=nestedRouteBase(pathname),source=String(html);
   return base?injectBaseHref(source,base):source;

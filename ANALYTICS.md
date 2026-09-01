@@ -1,6 +1,6 @@
 # Plausible Analytics — MeteoCompare Web
 
-MeteoCompare utilise le tracker officiel Plausible associé à `meteocompare.app`, derrière le Worker first-party MeteoCompare. L'intégration est volontairement **manuelle et à faible cardinalité** : pageviews automatiques, outbound links automatiques, téléchargements automatiques et formulaires automatiques sont désactivés. Seuls les pageviews et événements définis dans le schéma partagé `js/analytics-schema.js` peuvent être envoyés.
+MeteoCompare utilise Plausible associé à `meteocompare.app` derrière le Worker first-party MeteoCompare, sans charger le tracker Plausible dans le navigateur. L'intégration est volontairement **manuelle et à faible cardinalité** : seuls les pageviews et événements définis dans le schéma partagé `js/analytics-schema.js` peuvent être envoyés.
 
 ## Architecture
 
@@ -8,25 +8,23 @@ Flux navigateur :
 
 ```text
 MeteoCompare Web
-  ├─ GET  /_mcx/p.js  → Worker → script Plausible
-  └─ POST /_mcx/e     → Worker → https://plausible.io/api/event
+  └─ POST /_mcx/e → Worker → https://plausible.io/api/event
 ```
 
 Configuration : `js/analytics-config.js`.
 
 - domaine Plausible : `meteocompare.app` ;
 - hôtes navigateur autorisés : `meteocompare.app`, `www.meteocompare.app` ;
-- script navigateur : `/_mcx/p.js` ;
 - endpoint événement navigateur : `/_mcx/e` ;
 - localhost, preview et forks : aucune mesure tant que leur hôte n'est pas autorisé.
 
-Le navigateur ne contacte pas directement `plausible.io`. Le Worker valide à nouveau le payload avant de le relayer. Cette double validation protège à la fois contre une régression du client et contre l'envoi direct d'événements arbitraires sur `/_mcx/e`.
+Le navigateur ne contacte pas directement `plausible.io` et ne charge aucun script Plausible. `js/mcx-events.js` fournit seulement une petite fonction compatible avec l'appel `plausible(name, options)` utilisé par l'application, puis POSTe le payload vers `/_mcx/e`. Le Worker valide à nouveau le payload avant de le relayer. Cette double validation protège à la fois contre une régression du client et contre l'envoi direct d'événements arbitraires sur `/_mcx/e`.
 
 Le proxy événement transmet explicitement le `User-Agent` du navigateur et l'adresse client fournie par Cloudflare comme `X-Forwarded-For`. Ces métadonnées sont nécessaires au traitement Plausible côté serveur ; le Worker ignore un `X-Forwarded-For` fourni arbitrairement par le client lorsqu'un `CF-Connecting-IP` fiable est disponible.
 
-## Cycle de vie du tracker
+## Cycle de vie du transport
 
-Le script Plausible n'est chargé que si :
+Le transport analytics n'envoie des événements que si :
 
 - l'hôte est autorisé ;
 - aucun signal GPC/DNT n'est actif ;
@@ -34,8 +32,8 @@ Le script Plausible n'est chargé que si :
 
 Le contrôleur `__METEOCOMPARE_ANALYTICS_CONTROL__` permet désormais de :
 
-- charger le tracker après réactivation de la mesure sans recharger toute l'application ;
-- retenter un chargement de script en erreur ;
+- réactiver immédiatement le transport après une modification de l'opt-out sans recharger toute l'application ;
+- exposer l'état local du transport ;
 - mémoriser le résultat du dernier envoi pour le centre de monitoring de la topbar.
 
 ## Pageviews
@@ -186,10 +184,9 @@ La ligne Plausible du centre de monitoring distingue :
 - hôte non suivi ;
 - GPC/DNT ;
 - opt-out local ;
-- chargement du script ;
-- erreur de chargement du script ;
+- transport prêt ;
 - erreur du dernier envoi ;
-- script chargé et âge du dernier envoi accepté.
+- transport actif et âge du dernier envoi accepté.
 
 Le monitoring ne génère pas de ping Plausible artificiel.
 

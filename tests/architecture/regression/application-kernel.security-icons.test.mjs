@@ -17,7 +17,7 @@ const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';
 const scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 const inlineScripts=scripts.filter(match=>!match[1].includes('src='));
 assert.equal(inlineScripts.length,0,'all executable JavaScript should live in external modules');
-assert.ok(scripts.some(match=>/src="js\/plausible-bootstrap\.js"/.test(match[1])),'external Plausible bootstrap must be loaded');
+assert.ok(scripts.some(match=>/src="js\/mcx-events\.js"/.test(match[1])),'external first-party metrics transport must be loaded');
 assert.ok(csp.includes(`script-src 'self'`),'script-src must restrict scripts to same-origin modules');
 assert.doesNotMatch(csp,/script-src[^;]*'unsafe-inline'/,'scripts must not use unsafe-inline');
 

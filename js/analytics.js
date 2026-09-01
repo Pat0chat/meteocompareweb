@@ -134,7 +134,7 @@ function analyticsEventContext(route,env=globalThis){return {app_version:APP_VER
 export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,plausibleImpl=null}={}){
   const tracker=()=>plausibleImpl||env.plausible;
   const status=()=>{
-    const configured=Boolean(config?.enabled&&config?.domain&&config?.scriptSrc);
+    const configured=Boolean(config?.enabled&&config?.domain&&config?.endpoint);
     const signal=privacySignal(env),optedOut=storageOptOut(env);
     const hostAllowed=configuredHostAllowed(config,env);
     const active=configured&&hostAllowed&&!signal&&!optedOut&&productionProtocol(env)&&typeof tracker()==='function';
@@ -151,9 +151,8 @@ export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,pl
       options.interactive=analyticsEventInteractive(name);
     }
     try{
-      // The site-specific Plausible script may still be loading. Its official
-      // bootstrap exposes a queueing plausible() function, so this call is safe
-      // before the remote script has finished downloading.
+      // mcx-events.js exposes a tiny first-party transport with the
+      // same plausible(name, options) surface used by this client.
       options.callback=result=>{try{env.__METEOCOMPARE_ANALYTICS_CONTROL__?.reportDelivery?.(result);}catch{}};
       tracker()(name,options);
       return Promise.resolve(true);

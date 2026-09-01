@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read=rel=>fs.readFileSync(new URL(`../../../${rel}`,import.meta.url),'utf8');
-const config=read('js/network-config.js'),network=read('js/network.js'),api=read('js/api.js'),marine=read('js/features/marine.js'),health=read('js/features/model-health.js'),radar=read('js/features/radar.js'),vigilance=read('js/features/vigilance.js'),analytics=read('js/analytics-config.js'),html=read('index.html'),sw=read('sw.js');
+const config=read('js/network-config.js'),serverAnalytics=read('js/server/analytics-upstream.js'),network=read('js/network.js'),api=read('js/api.js'),marine=read('js/features/marine.js'),health=read('js/features/model-health.js'),radar=read('js/features/radar.js'),vigilance=read('js/features/vigilance.js'),analytics=read('js/analytics-config.js'),html=read('index.html'),sw=read('sw.js');
 
-for(const endpoint of ['api.open-meteo.com','geocoding-api.open-meteo.com','archive-api.open-meteo.com','previous-runs-api.open-meteo.com','marine-api.open-meteo.com','map-tiles.open-meteo.com','api.rainviewer.com','tile.openstreetmap.org','public-api.meteofrance.fr','plausible.io']) assert.ok(config.includes(endpoint),`${endpoint} must be centralized in network-config.js`);
+for(const endpoint of ['api.open-meteo.com','geocoding-api.open-meteo.com','archive-api.open-meteo.com','previous-runs-api.open-meteo.com','marine-api.open-meteo.com','map-tiles.open-meteo.com','api.rainviewer.com','tile.openstreetmap.org','public-api.meteofrance.fr']) assert.ok(config.includes(endpoint),`${endpoint} must be centralized in network-config.js`);
+assert.match(serverAnalytics,/https:\/\/plausible\.io\/api\/event/,'Plausible upstream must live in a server-only module');
+assert.doesNotMatch(config,/plausible\.io/,'browser network config must not expose the Plausible upstream');
 for(const source of [api,marine,health,radar,vigilance,analytics]) assert.doesNotMatch(source,/https:\/\/(?:api|geocoding-api|archive-api|previous-runs-api|marine-api)\.open-meteo\.com|https:\/\/openmeteo-data-spatial\.b-cdn\.net|https:\/\/api\.rainviewer\.com|https:\/\/tile\.openstreetmap\.org|https:\/\/public-api\.meteofrance\.fr|https:\/\/plausible\.io/,'runtime modules must consume centralized network destinations');
 
 assert.doesNotMatch(config,/portail-api\.meteofrance\.fr\/token/,'OAuth token endpoint must not remain after API Key migration');
