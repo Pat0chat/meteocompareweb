@@ -1,4 +1,4 @@
-import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels, consensusGroupFor } from './models.js';
+import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels, consensusGroupFor, biasLeadDaysForModel } from './models.js';
 import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, loadModelHealth, saveModelHealth, createLocalBackup, restoreLocalBackup, clearAllData, clearPwaRuntime, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
 import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, buildScenarios, aggregateNormals, windArrow, dateLabel, timeLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, activeTodayHourlyPoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch } from './domain.js';
@@ -131,6 +131,7 @@ let pwaPostClearCleanup=Promise.resolve();
 function consumePwaClearReloadGuard(){try{const skip=sessionStorage.getItem(PWA_CLEAR_RELOAD_GUARD)==='1';if(skip)sessionStorage.removeItem(PWA_CLEAR_RELOAD_GUARD);return skip;}catch{return false;}}
 function armPwaClearReloadGuard(){try{sessionStorage.setItem(PWA_CLEAR_RELOAD_GUARD,'1');}catch{}}
 const {numberFormatters,forecastViews:forecastViewCache,seriesIndexes:seriesIndexCache,chartHoverData:chartHoverDataCache,routeScrollPositions}=runtime.cache;
+const localConsensusProfileCache=new WeakMap();
 let pendingScrollDirective = null;
 let interactionScrollContext = null;
 let historyScrollRaf = 0;
@@ -626,7 +627,15 @@ function syncStorageErrors(){for(const issue of getStorageIssues())state.errorCe
 function viewCache(f){let c=forecastViewCache.get(f);if(!c){c={days:new Map(),scenarios:new Map(),bands:new Map(),evolutionSource:null,evolutionReport:null,biasSource:null,biasToday:null,biasReport:null,visibleModelIds:null,newestRunTimestamp:undefined};forecastViewCache.set(f,c);}return c;}
 function consensusWeightSignature(weights){if(!weights)return 'family';return ['temperature','precipitation','wind'].map(k=>`${k}:${Object.entries(weights[k]||{}).sort(([a],[b])=>a.localeCompare(b)).map(([id,w])=>`${id}=${Number(w).toFixed(3)}`).join(',')}`).join('|');}
 function normalizeForecastOptions(value){return value&&typeof value==='object'&&('forecastEngine' in value||'weightsByVariable' in value||'calibrationByVariable' in value)?value:{weightsByVariable:value||{}};}
-function forecastOptionsSignature(value){const o=normalizeForecastOptions(value),cal=Object.fromEntries(['temperature','precipitation','wind'].map(k=>[k,Object.entries(o.calibrationByVariable?.[k]||{}).sort(([a],[b])=>a.localeCompare(b)).map(([id,p])=>`${id}:${Number(p.bias||0).toFixed(2)}:${Number(p.sampleSize||0)}`).join(',')]));return `${o.forecastEngine||'MULTI_CONSENSUS'}|${consensusWeightSignature(o.weightsByVariable)}|${JSON.stringify(cal)}`;}
+function canonicalSignatureValue(value){
+  if(value==null)return null;
+  if(typeof value==='number')return Number.isFinite(value)?value:null;
+  if(typeof value==='string'||typeof value==='boolean')return value;
+  if(Array.isArray(value))return value.map(canonicalSignatureValue);
+  if(typeof value==='object')return Object.fromEntries(Object.keys(value).sort((a,b)=>a.localeCompare(b)).map(key=>[key,canonicalSignatureValue(value[key])]));
+  return null;
+}
+function forecastOptionsSignature(value){const o=normalizeForecastOptions(value),cal=canonicalSignatureValue(o.calibrationByVariable||{});return `${o.forecastEngine||'MULTI_CONSENSUS'}|${consensusWeightSignature(o.weightsByVariable)}|${JSON.stringify(cal)}`;}
 function cachedAggregateDay(f,date,options=null){const o=normalizeForecastOptions(options),c=viewCache(f),key=`${date}|${forecastOptionsSignature(o)}`;if(!c.days.has(key))c.days.set(key,aggregateDay(f,date,o));return c.days.get(key);}
 function cachedScenarios(f,limit=null){const anchor=roundedHourLocal(f.city.timezone),key=`${anchor}|${limit==null?'all':String(limit)}`,c=viewCache(f);if(!c.scenarios.has(key))c.scenarios.set(key,buildScenarios(f,limit==null?Number.POSITIVE_INFINITY:limit));return c.scenarios.get(key);}
 function cachedBand(f,metric,horizon){const options=arguments[3]||null,o=normalizeForecastOptions(options),key=`${Math.floor(Date.now()/3600000)}|${roundedHourLocal(f.city.timezone)}|${metric}|${horizon}|${forecastOptionsSignature(o)}`,c=viewCache(f);if(!c.bands.has(key))c.bands.set(key,hourlyConfidenceBand(f,metric,horizon,new Date(),o));return c.bands.get(key);}
@@ -1116,12 +1125,20 @@ function renderDataDiagnosticsSection(city,f){
   return `<section class="section section-card diagnostics-section health-monitor" id="diagnostics"><div class="section-head"><div><h2>${esc(t('modelHealthMonitor'))}</h2><p>${esc(t('modelHealthDetailedIntro'))}</p></div><div class="section-actions"><button class="btn tonal" data-action="refresh-model-health" ${loading?'disabled':''}>${esc(loading?t('refreshing'):t('refreshHealth'))}</button><button class="btn subtle" data-action="toggle-diagnostics">${esc(t('close'))}</button></div></div><div class="diagnostic-summary"><span class="diag-chip high">${esc(t('healthHealthyCount',{count:report.summary.healthy}))}</span><span class="diag-chip medium">${esc(t('healthDelayedCount',{count:report.summary.delayed}))}</span><span class="diag-chip low">${esc(t('healthIncidentCount',{count:report.summary.incidents}))}</span></div><div class="table-wrap diagnostic-table-wrap"><table class="diagnostic-table health-table"><thead><tr><th>${esc(t('model'))}</th><th>${esc(t('status'))}</th><th>${esc(t('latestRun'))}</th><th>${esc(t('temperature'))}</th><th>${esc(t('precipitation'))}</th><th>${esc(t('wind'))}</th><th>${esc(t('missingVariables'))}</th><th>${esc(t('responseTime'))}</th><th>${esc(t('incidents24h'))}</th><th>${esc(t('incidents7d'))}</th></tr></thead><tbody>${rows}</tbody></table></div><p class="small">${esc(t('healthMetadataNote'))}</p></section>`;
 }
 
+function calibrationProfilePayload(reliability){return reliability?{bias:reliability.meanBias,score:reliability.score,standardDeviation:reliability.standardDeviation,meanAbsoluteError:reliability.meanAbsoluteError,sampleSize:reliability.sampleSize,precipitation:reliability.precipitation||null}:null;}
 function localConsensusWeights(cityId){
+  const source=state.bias[cityId]||null,city=state.cities.find(item=>item.id===cityId),cacheDay=city?cityToday(city.timezone):null,cached=source?localConsensusProfileCache.get(source):null;
+  if(cached?.day===cacheDay)return cached.value;
   const variables=[['TEMPERATURE','temperature'],['PRECIPITATION','precipitation'],['WIND_SPEED','wind']],maps={},calibrationByVariable={},historicalByVariable={},calibrated=new Set(),calibratedFamilies=new Set();
   for(const [variable,key] of variables){
-    const histories=biasHistoriesByModel(cityId,variable),cohort=comparableBiasCohort(histories);maps[key]={};calibrationByVariable[key]={};historicalByVariable[key]=null;
-    const allIds=Object.keys(histories);
-    for(const modelId of allIds){const reliability=computeLocalReliability(variable,histories[modelId]||[],30);if(!reliability)continue;calibrationByVariable[key][modelId]={bias:reliability.meanBias,score:reliability.score,standardDeviation:reliability.standardDeviation,meanAbsoluteError:reliability.meanAbsoluteError,sampleSize:reliability.sampleSize,precipitation:reliability.precipitation||null};}
+    const histories=biasHistoriesByModel(cityId,variable,1),cohort=comparableBiasCohort(histories);maps[key]={};calibrationByVariable[key]={};historicalByVariable[key]=null;
+    const biasSource=source||{forecasts:[]},allIds=[...new Set((biasSource.forecasts||[]).filter(x=>x.variable===variable).map(x=>x.modelId))].filter(id=>Boolean(getModel(id))).sort();
+    for(const modelId of allIds){
+      const byLeadDay={};
+      for(const leadDay of biasLeadDaysForModel(modelId)){const reliability=computeLocalReliability(variable,rawBiasSamples(cityId,modelId,variable,30,leadDay),30);if(reliability)byLeadDay[leadDay]=calibrationProfilePayload(reliability);}
+      if(!Object.keys(byLeadDay).length)continue;
+      calibrationByVariable[key][modelId]={...(byLeadDay[1]||{}),byLeadDay};
+    }
     if(!cohort||cohort.ids.length<3)continue;
     const scored=cohort.ids.map(modelId=>{const rows=(histories[modelId]||[]).filter(x=>cohort.dates.has(x.date)),r=computeLocalReliability(variable,rows,30);return r?{modelId,score:r.score}:null;}).filter(Boolean);if(scored.length<3)continue;
     const raw=scored.map(x=>0.8+(x.score/100)*0.4),avg=raw.reduce((a,b)=>a+b,0)/raw.length;
@@ -1130,7 +1147,9 @@ function localConsensusWeights(cityId){
     if(familyScores.length>=2)historicalByVariable[key]=Math.round(average(familyScores));
   }
   const availableHistorical=Object.values(historicalByVariable).filter(Number.isFinite),historicalOverall=availableHistorical.length>=2?Math.round(average(availableHistorical)):null;
-  return {maps,calibrationByVariable,calibratedCount:calibrated.size,calibratedFamilyCount:calibratedFamilies.size,ready:calibrated.size>=3&&calibratedFamilies.size>=2,historicalByVariable,historicalOverall};
+  const value={maps,calibrationByVariable,calibratedCount:calibrated.size,calibratedFamilyCount:calibratedFamilies.size,ready:calibrated.size>=3&&calibratedFamilies.size>=2,historicalByVariable,historicalOverall};
+  if(source)localConsensusProfileCache.set(source,{day:cacheDay,value});
+  return value;
 }
 function forecastEngineContext(cityId,engine=state.settings.forecastEngine){
   const profile=localConsensusWeights(cityId),weights=state.settings.localWeightedConsensus&&profile.ready?profile.maps:{};
@@ -1138,22 +1157,24 @@ function forecastEngineContext(cityId,engine=state.settings.forecastEngine){
 }
 function forecastEngineName(engine){const key={MULTI_CONSENSUS:'forecastEngineMulti',CALIBRATION:'forecastEngineCalibration',SCENARIOS:'forecastEngineScenarios',ADAPTIVE:'forecastEngineAdaptive'}[engine]||'forecastEngineMulti';return i18n().t(key);}
 
-function summaryDispersionCard({agg,key,metricFamily,label,hint,iconKind,iconClass,central,range,confidence,unit,digits=1,probability=null,secondary=null}){
+function summaryDispersionCard({agg,key,metricFamily,label,hint,iconKind,iconClass,central,range,confidence,unit,digits=1,probability=null,secondary=null,historicalReliability=null}){
   const {t}=i18n(),rows=(agg.data||[]).filter(x=>x.comparable?.[metricFamily]&&Number.isFinite(x[key])),values=rows.map(x=>x[key]),fallbackMin=values.length?Math.min(...values):null,fallbackMax=values.length?Math.max(...values):null,rawMin=Number.isFinite(range?.[0])?range[0]:fallbackMin,rawMax=Number.isFinite(range?.[1])?range[1]:fallbackMax,min=Number.isFinite(central)&&Number.isFinite(rawMin)?Math.min(rawMin,central):rawMin,max=Number.isFinite(central)&&Number.isFinite(rawMax)?Math.max(rawMax,central):rawMax;
   const span=Number.isFinite(min)&&Number.isFinite(max)?Math.max(.0001,max-min):null,pos=value=>Number.isFinite(value)&&Number.isFinite(span)?(span<=.0001?50:8+Math.max(0,Math.min(1,(value-min)/span))*84):50;
   const formatted=value=>Number.isFinite(value)?`${fmt(value,digits)}${unit}`:'—',modelDots=rows.map((row,index)=>{const model=getModel(row.modelId),name=model?.shortName||model?.name||row.modelId;return `<i class="summary-model-dot" style="--dot:${pos(row[key])}%;--dot-row:${index%2}" title="${attr(`${name} · ${formatted(row[key])}`)}" aria-label="${attr(`${name} ${formatted(row[key])}`)}"></i>`;}).join('');
   const confidenceValue=Number.isFinite(confidence?.percent)?Math.round(confidence.percent):null,confidenceClassName=Number.isFinite(confidenceValue)?confidenceClass(confidenceValue):'muted',rangeLabel=Number.isFinite(min)&&Number.isFinite(max)?`${formatted(min)} – ${formatted(max)}`:'—';
   const probabilityMeta=Number.isFinite(probability)?`<span class="summary-dispersion-meta-item probability">${esc(t('rainProbabilityShort',{probability:Math.round(probability)}))}</span>`:'';
   const secondaryMeta=secondary?`<span class="summary-dispersion-meta-item secondary">${secondary}</span>`:'';
-  const metadata=probabilityMeta||secondaryMeta?`<div class="summary-dispersion-meta"><div class="summary-dispersion-facts">${probabilityMeta}${secondaryMeta}</div></div>`:'';
+  const evidenceMeta=confidence?.evidenceLevel==='SINGLE_SOURCE'?`<span class="summary-dispersion-meta-item secondary">${esc(t('singleSourceEstimate'))}</span>`:confidence?.evidenceLevel==='LIMITED'?`<span class="summary-dispersion-meta-item secondary">${esc(t('limitedComparison'))}</span>`:'';
+  const reliabilityMeta=Number.isFinite(historicalReliability)?`<span class="summary-dispersion-meta-item secondary">${esc(t('historicalReliabilityShort',{percent:Math.round(historicalReliability)}))}</span>`:'';
+  const metadata=probabilityMeta||secondaryMeta||evidenceMeta||reliabilityMeta?`<div class="summary-dispersion-meta"><div class="summary-dispersion-facts">${probabilityMeta}${secondaryMeta}${reliabilityMeta}${evidenceMeta}</div></div>`:'';
   const agreement=confidenceValue!=null?Math.max(0,Math.min(100,confidenceValue)):0;
   return `<article class="summary-dispersion metric-${iconClass} ${confidenceClassName}"><div class="summary-dispersion-head"><span class="summary-metric-icon ${iconClass}">${summaryMetricIcon(iconKind)}</span><div class="summary-dispersion-title"><div class="tile-label">${esc(label)}</div><div class="tile-hint">${esc(hint)}</div></div><strong class="summary-dispersion-value">${formatted(central)}</strong></div><div class="summary-dispersion-visual"><div class="summary-dispersion-rail" aria-label="${attr(`${label} · ${t('modelRange')} ${rangeLabel}`)}"><span class="summary-dispersion-envelope"></span>${modelDots}<i class="summary-dispersion-center" style="--center:${pos(central)}%" title="${attr(`${hint} · ${formatted(central)}`)}"></i></div><div class="summary-dispersion-scale" style="--center:${pos(central)}%"><span>${formatted(min)}</span><strong>${formatted(central)}</strong><span>${formatted(max)}</span></div></div>${metadata}<div class="summary-agreement"><div class="summary-agreement-label"><span>${esc(t('modelConvergence'))}</span><strong>${confidenceValue!=null?`${confidenceValue}%`:'—'}</strong></div><div class="summary-agreement-track" aria-hidden="true"><i style="--agreement:${agreement}%"></i></div></div></article>`;
 }
 
 function renderGlobalAgreementCard(f,agg,cityId,profile=localConsensusWeights(cityId)){
-  const {t}=i18n(),overall=agg.confidence?.overallPercent,modelIds=Object.keys(f.seriesByModel||{}),modelCount=modelIds.length,familyCount=new Set(modelIds.map(consensusGroupFor)).size,historical=profile?.historicalOverall,convergence=Number.isFinite(overall)?t(overall>=80?'convergenceHigh':overall>=50?'convergenceMedium':'convergenceLow'):t('insufficientData');
+  const {t}=i18n(),overall=agg.confidence?.overallPercent,modelIds=Object.keys(f.seriesByModel||{}),modelCount=modelIds.length,familyCount=Number(agg.confidence?.familyCount)||new Set(modelIds.map(consensusGroupFor)).size,historical=profile?.historicalOverall,convergence=Number.isFinite(overall)?t(overall>=80?'convergenceHigh':overall>=50?'convergenceMedium':'convergenceLow'):t('insufficientData'),evidence=familyCount>0&&familyCount<3?` · ${t('limitedComparison')}`:'';
   const historicalBlock=Number.isFinite(historical)?`<div class="weighted-consensus historical-confidence"><span>${esc(t('historicalConfidence'))}</span><strong>${Math.round(historical)}%</strong><small>${esc(t('historicalConfidenceMeta',{count:profile.calibratedCount,families:profile.calibratedFamilyCount}))}</small></div>`:`<div class="weighted-consensus unavailable"><span>${esc(t('historicalConfidence'))}</span><strong>—</strong><small>${esc(t('historicalConfidenceInsufficient'))}</small></div>`;
-  return `<section class="section global-agreement-section" id="global-agreement"><div class="section-card global-agreement global-agreement-card ${Number.isFinite(overall)?confidenceClass(overall):'muted'}"><div class="global-agreement-head"><div class="global-agreement-heading-row"><div class="global-agreement-label">${esc(t('modelConvergence'))}</div><div class="global-agreement-value">${Number.isFinite(overall)?`${overall}%`:'—'}</div></div><div class="global-agreement-meta">${esc(Number.isFinite(overall)?`${convergence} · ${familyCount} ${t('familiesShort')} · ${modelCountLabel(modelCount)}`:`${t('insufficientData')} · ${familyCount} ${t('familiesShort')} · ${modelCountLabel(modelCount)}`)}</div></div>${historicalBlock}<button class="btn agreement-link" data-action="why-confidence">ⓘ ${esc(t('whyConvergence'))}</button></div></section>`;
+  return `<section class="section global-agreement-section" id="global-agreement"><div class="section-card global-agreement global-agreement-card ${Number.isFinite(overall)?confidenceClass(overall):'muted'}"><div class="global-agreement-head"><div class="global-agreement-heading-row"><div class="global-agreement-label">${esc(t('modelConvergence'))}</div><div class="global-agreement-value">${Number.isFinite(overall)?`${overall}%`:'—'}</div></div><div class="global-agreement-meta">${esc(Number.isFinite(overall)?`${convergence} · ${familyCount} ${t('familiesShort')} · ${modelCountLabel(modelCount)}${evidence}`:`${t('insufficientData')} · ${familyCount} ${t('familiesShort')} · ${modelCountLabel(modelCount)}${evidence}`)}</div></div>${historicalBlock}<button class="btn agreement-link" data-action="why-confidence">ⓘ ${esc(t('whyConvergence'))}</button></div></section>`;
 }
 
 function renderForecastEngineCompareAction(){
@@ -1168,7 +1189,7 @@ function renderTodaySummary(f,agg,now,cityId,profile=localConsensusWeights(cityI
   const cards=[
     summaryDispersionCard({agg,key:'tempMin',metricFamily:'temperature',label:t('tempMinimum'),hint:engineHintFor('tempMin'),iconKind:'temperature',iconClass:'temp-min',central:agg.tempMin,range:agg.tempMinRange,confidence:c.tempMin,unit:' °C',digits:1}),
     summaryDispersionCard({agg,key:'tempMax',metricFamily:'temperature',label:t('tempMaximum'),hint:engineHintFor('tempMax'),iconKind:'temperature',iconClass:'temp-max',central:agg.tempMax,range:agg.tempMaxRange,confidence:c.tempMax,unit:' °C',digits:1}),
-    summaryDispersionCard({agg,key:'precip',metricFamily:'precipitation',label:t('precipitation'),hint:engineHintFor('precipitation'),iconKind:'precipitation',iconClass:'rain',central:agg.precip,range:agg.precipRange,confidence:precipConfidence,unit:' mm',digits:1,probability:agg.precipProbability,secondary:Number.isFinite(agg.precipExpected)?`${esc(t('rainExpectedAmount',{amount:fmt(agg.precipExpected,1)}))}`:null}),
+    summaryDispersionCard({agg,key:'precipExpectedSource',metricFamily:'precipitation',label:t('precipitation'),hint:engineHintFor('precipitation'),iconKind:'precipitation',iconClass:'rain',central:agg.precip,range:agg.precipRange,confidence:precipConfidence,unit:' mm',digits:1,probability:agg.precipProbability,secondary:Number.isFinite(agg.precipConditional)?`<span title="${attr(t('rainExpectedAmountTitle'))}">${esc(t('rainIfWetAmountShort',{amount:fmt(agg.precipConditional,1)}))}</span><span class="sr-only">${esc(t('rainExpectedAmount',{amount:fmt(agg.precipExpected,1)}))}</span>`:null,historicalReliability:agg.precipitationDiagnostics?.historicalReliabilityPercent}),
     summaryDispersionCard({agg,key:'wind',metricFamily:'wind',label:t('wind'),hint:engineHintFor('wind'),iconKind:'wind',iconClass:'wind',central:agg.wind,range:agg.windRange,confidence:c.windMax,unit:' km/h',digits:0,secondary:Number.isFinite(agg.gust)?`${esc(t('gusts'))} ${fmt(agg.gust)} km/h`:null}),
     summaryDispersionCard({agg,key:'cloud',metricFamily:'condition',label:t('cloudCoverage'),hint:engineHintFor('cloud'),iconKind:'cloud',iconClass:'cloud',central:agg.cloud,range:agg.cloudRange,confidence:agg.cloudConfidence,unit:' %',digits:0})
   ].join('');
@@ -1436,12 +1457,12 @@ function biasVariableLabel(variable){const {t}=i18n();return variable==='TEMPERA
 function biasScale(variable){return variable==='TEMPERATURE'?{closeTolerance:1.5,maeScale:2.4,biasScale:1.2,spreadScale:3}:variable==='PRECIPITATION'?{closeTolerance:1,maeScale:3,biasScale:1.5,spreadScale:4}:{closeTolerance:5,maeScale:8,biasScale:5,spreadScale:10};}
 function average(values){return values.length?values.reduce((a,b)=>a+b,0)/values.length:null;}
 function sampleStdDev(values,mean){if(values.length<=1)return 0;return Math.sqrt(values.reduce((sum,v)=>sum+(v-mean)**2,0)/(values.length-1));}
-function rawBiasSamples(cityId,modelId,variable,windowDays=30){
+function rawBiasSamples(cityId,modelId,variable,windowDays=30,leadDay=1){
   const city=state.cities.find(c=>c.id===cityId),source=state.bias[cityId]||{forecasts:[],observations:[]};if(!city||source.reference!==BIAS_REFERENCE_ID)return [];
   const today=cityToday(city.timezone),end=addDays(today,-BIAS_REFERENCE_LAG_DAYS),start=addDays(end,-windowDays+1),obs=new Map();
   for(const o of source.observations||[])if(o.variable===variable&&o.targetDate>=start&&o.targetDate<=end&&Number.isFinite(o.value))obs.set(o.targetDate,o.value);
   const forecastByDate=new Map();
-  for(const f of source.forecasts||[])if(f.modelId===modelId&&f.variable===variable&&f.targetDate>=start&&f.targetDate<=end&&Number.isFinite(f.value))forecastByDate.set(f.targetDate,f.value);
+  for(const f of source.forecasts||[]){const rowLead=Number.isInteger(f.leadDay)?f.leadDay:1;if(rowLead===leadDay&&f.modelId===modelId&&f.variable===variable&&f.targetDate>=start&&f.targetDate<=end&&Number.isFinite(f.value))forecastByDate.set(f.targetDate,f.value);}
   return [...forecastByDate].map(([date,forecast])=>({date,forecast,observation:obs.get(date)})).filter(x=>Number.isFinite(x.observation)).map(x=>({...x,error:x.forecast-x.observation})).sort((a,b)=>a.date.localeCompare(b.date));
 }
 function computeLocalReliability(variable,samples,windowDays=30){
@@ -1456,13 +1477,14 @@ function computeLocalReliability(variable,samples,windowDays=30){
   let recentMeanAbsoluteError=null,previousMeanAbsoluteError=null,trend='INSUFFICIENT_DATA';
   if(absErrors.length>=10){const recentCount=Math.min(7,Math.floor(absErrors.length/2)),previousCount=Math.min(recentCount,absErrors.length-recentCount);if(previousCount>=3){recentMeanAbsoluteError=average(absErrors.slice(-recentCount));previousMeanAbsoluteError=average(absErrors.slice(-(recentCount+previousCount),-recentCount));const meaningful=Math.max(scale.closeTolerance*.15,previousMeanAbsoluteError*.12);trend=recentMeanAbsoluteError<previousMeanAbsoluteError-meaningful?'IMPROVING':recentMeanAbsoluteError>previousMeanAbsoluteError+meaningful?'DECLINING':'STABLE';}}
   let precipitation=null;
-  if(variable==='PRECIPITATION'){let hits=0,misses=0,falseAlarms=0,observedWetDays=0,forecastWetDays=0;for(const x of samples){const fw=isWetPrecipitation(x.forecast),ow=isWetPrecipitation(x.observation);if(fw)forecastWetDays++;if(ow)observedWetDays++;if(fw&&ow)hits++;else if(fw&&!ow)falseAlarms++;else if(!fw&&ow)misses++;}precipitation={hitRate:observedWetDays?hits/observedWetDays:null,falseAlarmRate:forecastWetDays?falseAlarms/forecastWetDays:null,missedEventRate:observedWetDays?misses/observedWetDays:null,hitCount:hits,falseAlarmCount:falseAlarms,missedEventCount:misses,observedWetDays,forecastWetDays};}
+  if(variable==='PRECIPITATION'){let hits=0,misses=0,falseAlarms=0,observedWetDays=0,forecastWetDays=0;const wetAmountErrors=[];for(const x of samples){const fw=isWetPrecipitation(x.forecast),ow=isWetPrecipitation(x.observation);if(fw)forecastWetDays++;if(ow)observedWetDays++;if(fw&&ow){hits++;wetAmountErrors.push(x.forecast-x.observation);}else if(fw&&!ow)falseAlarms++;else if(!fw&&ow)misses++;}let conditionalAmount=null;if(wetAmountErrors.length){const amountBias=average(wetAmountErrors),amountAbs=wetAmountErrors.map(Math.abs),amountMae=average(amountAbs),amountStdDev=sampleStdDev(wetAmountErrors,amountBias),amountWithin=amountAbs.filter(x=>x<=scale.closeTolerance).length/wetAmountErrors.length,amountScore=Math.max(0,Math.min(100,Math.round((expScore(amountMae,scale.maeScale)*.5+expScore(Math.abs(amountBias),scale.biasScale)*.22+expScore(amountStdDev,scale.spreadScale)*.18+amountWithin*.1)*100)));conditionalAmount={bias:amountBias,meanAbsoluteError:amountMae,standardDeviation:amountStdDev,sampleSize:wetAmountErrors.length,score:amountScore,condition:'FORECAST_AND_OBSERVED_WET'};}precipitation={hitRate:observedWetDays?hits/observedWetDays:null,falseAlarmRate:forecastWetDays?falseAlarms/forecastWetDays:null,missedEventRate:observedWetDays?misses/observedWetDays:null,hitCount:hits,falseAlarmCount:falseAlarms,missedEventCount:misses,observedWetDays,forecastWetDays,conditionalAmount};}
   return {variable,score,level,meanBias,meanAbsoluteError:mae,rootMeanSquareError:rmse,standardDeviation:stdDev,withinToleranceRate,overestimateRate,underestimateRate,closeRate:withinToleranceRate,overToleranceOverestimateRate,underToleranceUnderestimateRate,closeTolerance:scale.closeTolerance,sampleSize:samples.length,windowDays,recentMeanAbsoluteError,previousMeanAbsoluteError,trend,precipitation};
 }
-function biasHistoriesByModel(cityId,variable){
+function biasHistoriesByModel(cityId,variable,leadDay=1){
   const source=state.bias[cityId]||{forecasts:[]};const ids=[...new Set((source.forecasts||[]).filter(x=>x.variable===variable).map(x=>x.modelId))].filter(id=>Boolean(getModel(id)));
-  return Object.fromEntries(ids.map(id=>[id,rawBiasSamples(cityId,id,variable)]).filter(([,samples])=>samples.length));
+  return Object.fromEntries(ids.map(id=>[id,rawBiasSamples(cityId,id,variable,30,leadDay)]).filter(([,samples])=>samples.length));
 }
+
 function comparableBiasCohort(histories,minimumSamples=BIAS_MIN_SAMPLES){
   const entries=Object.entries(histories).filter(([,samples])=>samples.length>=minimumSamples).sort(([a],[b])=>a.localeCompare(b));if(entries.length<2)return null;
   let best=null;
@@ -1628,11 +1650,20 @@ function forecastEngineDetailMeta(detail){
   if(detail.fallback)parts.push(`${t('forecastEngineFallback')} → ${forecastEngineName(detail.effectiveEngine)}`);
   if(Number(detail.scenarioCount)>1)parts.push(t('forecastEngineScenarioCount',{count:detail.scenarioCount}));
   if(Number(detail.calibrationCoverage)>.01)parts.push(`${Math.round(detail.calibrationCoverage*100)}% ${t('forecastEngineCalibrated')}`);
+  if(detail.evidenceLevel==='SINGLE_SOURCE')parts.push(t('singleSourceEstimate'));
+  else if(detail.evidenceLevel==='LIMITED')parts.push(t('limitedComparison'));
   return parts.join(' · ');
 }
-function forecastEngineInterval(detail,unit='',digits=1){
-  const low=detail?.interval?.low,high=detail?.interval?.high;if(!Number.isFinite(low)||!Number.isFinite(high))return '';
+function forecastEngineFormatInterval(interval,unit='',digits=1){
+  const low=interval?.low,high=interval?.high;if(!Number.isFinite(low)||!Number.isFinite(high))return '';
   return `${fmt(low,digits)}–${fmt(high,digits)}${unit}`;
+}
+function forecastEngineInterval(detail,unit='',digits=1){return forecastEngineFormatInterval(detail?.interval,unit,digits);}
+function forecastEngineIntervalMeta(detail,unit='',digits=1){
+  if(!detail)return '';
+  const {t}=i18n(),scenario=forecastEngineFormatInterval(detail.scenarioInterval,unit,digits),all=forecastEngineFormatInterval(detail.allSourceInterval,unit,digits);
+  if(scenario&&all&&scenario!==all)return `<small>${esc(t('forecastEngineScenarioRange'))} ${esc(scenario)}</small><small>${esc(t('forecastEngineAllSourcesRange'))} ${esc(all)}</small>`;
+  const range=forecastEngineInterval(detail,unit,digits);return range?`<small>${esc(t('modelRange'))} ${esc(range)}</small>`:'';
 }
 function forecastEngineMetricValue(agg,key){
   if(!agg)return null;
@@ -1673,13 +1704,13 @@ function renderForecastEngineComparisonModal(cityId){
   const engineKey=engine=>({MULTI_CONSENSUS:'Multi',CALIBRATION:'Calibration',SCENARIOS:'Scenarios',ADAPTIVE:'Adaptive'}[engine]||'Multi');
   const engineCards=FORECAST_ENGINES.map(engine=>{const key=engineKey(engine),active=engine===selected;return `<article class="forecast-engine-overview-card ${active?'selected-engine':''}"><div class="forecast-engine-overview-head"><strong>${esc(t(`forecastEngine${key}`))}</strong>${active?`<span>${esc(t('forecastEngineSelected'))}</span>`:''}</div><p>${esc(t(`forecastEngine${key}Desc`))}</p></article>`;}).join('');
   const detailFor=(agg,key)=>agg?.engineDetails?.[key]||null;
-  const cell=(engine,agg,main,detail=null,sub='')=>{const active=engine===selected,meta=forecastEngineDetailMeta(detail),range=forecastEngineInterval(detail,main?.unit||'',main?.digits??1);return `<td class="forecast-engine-result ${active?'selected-engine':''}"><strong>${main?.text??'—'}</strong>${sub?`<span>${sub}</span>`:''}${range?`<small>${esc(t('modelRange'))} ${esc(range)}</small>`:''}${meta?`<small class="forecast-engine-result-meta">${esc(meta)}</small>`:''}</td>`;};
+  const cell=(engine,agg,main,detail=null,sub='')=>{const active=engine===selected,meta=forecastEngineDetailMeta(detail),ranges=forecastEngineIntervalMeta(detail,main?.unit||'',main?.digits??1);return `<td class="forecast-engine-result ${active?'selected-engine':''}"><strong>${main?.text??'—'}</strong>${sub?`<span>${sub}</span>`:''}${ranges}${meta?`<small class="forecast-engine-result-meta">${esc(meta)}</small>`:''}</td>`;};
   const rowsForDate=date=>{
     const row=(label,key,render)=>`<tr><th scope="row">${esc(label)}</th>${FORECAST_ENGINES.map(engine=>{const agg=matrix[engine][date];return render(engine,agg,detailFor(agg,key));}).join('')}</tr>`;
     return [
       row(t('tempMinimum'),'tempMin',(engine,agg,detail)=>cell(engine,agg,{text:Number.isFinite(agg.tempMin)?`${fmt(agg.tempMin,1)} °C`:'—',unit:' °C',digits:1},detail)),
       row(t('tempMaximum'),'tempMax',(engine,agg,detail)=>cell(engine,agg,{text:Number.isFinite(agg.tempMax)?`${fmt(agg.tempMax,1)} °C`:'—',unit:' °C',digits:1},detail)),
-      row(t('precipitation'),'precipitation',(engine,agg,detail)=>cell(engine,agg,{text:Number.isFinite(agg.precip)?`${fmt(agg.precip,1)} mm`:'—',unit:' mm',digits:1},detail,Number.isFinite(agg.precipProbability)?`${Math.round(agg.precipProbability)}% · ${Number.isFinite(agg.precipExpected)?fmt(agg.precipExpected,1)+' mm '+t('forecastEngineExpected'):''}`.replace(/ · $/,''):'')),
+      row(t('precipitation'),'precipitation',(engine,agg,detail)=>cell(engine,agg,{text:Number.isFinite(agg.precip)?`${fmt(agg.precip,1)} mm`:'—',unit:' mm',digits:1},detail,Number.isFinite(agg.precipProbability)?`${Math.round(agg.precipProbability)}% · ${Number.isFinite(agg.precipConditional)?t('rainIfWetAmountShort',{amount:fmt(agg.precipConditional,1)}):''}`.replace(/ · $/,''):'')),
       row(t('wind'),'wind',(engine,agg,detail)=>cell(engine,agg,{text:Number.isFinite(agg.wind)?`${fmt(agg.wind,0)} km/h`:'—',unit:' km/h',digits:0},detail)),
       row(t('gusts'),'gust',(engine,agg,detail)=>cell(engine,agg,{text:Number.isFinite(agg.gust)?`${fmt(agg.gust,0)} km/h`:'—',unit:' km/h',digits:0},detail)),
       row(t('cloudCoverage'),'cloud',(engine,agg,detail)=>cell(engine,agg,{text:Number.isFinite(agg.cloud)?`${fmt(agg.cloud,0)} %`:'—',unit:' %',digits:0},detail)),
@@ -2057,8 +2088,8 @@ function biasRefreshPlan(cityId,windowDays=30){
   ensureBiasLoaded(cityId);
   const city=state.cities.find(c=>c.id===cityId);if(!city)return {models:[],dates:[],missingDays:[],modelGaps:[],observationMissingDays:[],forecastRanges:[],observationRanges:[],requestCount:0,totalDays:0};
   const enabledIds=new Set(state.settings.enabledModelIds||[]),availableIds=Object.keys(state.forecasts[cityId]?.seriesByModel||{}),targetIds=availableIds.length?availableIds.filter(id=>enabledIds.has(id)):state.settings.enabledModelIds,models=selectedModels(targetIds).filter(m=>m.supportsDay1Bias!==false),today=cityToday(city.timezone),end=addDays(today,-BIAS_REFERENCE_LAG_DAYS),start=addDays(end,-windowDays+1),dates=dateRangeList(start,end),source=state.bias[cityId]||{forecasts:[],observations:[]},variables=['TEMPERATURE','PRECIPITATION','WIND_SPEED'];
-  const fset=new Set((source.forecasts||[]).map(x=>`${x.modelId}|${x.variable}|${x.targetDate}`)),referenceCurrent=source.reference===BIAS_REFERENCE_ID,oset=new Set((referenceCurrent?source.observations:[]).map(x=>`${x.variable}|${x.targetDate}`));
-  const modelGaps=models.map(model=>{const missingEntries=[];for(const date of dates)for(const variable of variables)if(!fset.has(`${model.id}|${variable}|${date}`))missingEntries.push({date,variable});const missingDays=[...new Set(missingEntries.map(x=>x.date))];return {modelId:model.id,name:model.name,missingDays,missingEntries:missingEntries.length,availableEntries:dates.length*variables.length-missingEntries.length,totalEntries:dates.length*variables.length};}),missingForecastDates=[...new Set(modelGaps.flatMap(x=>x.missingDays))].sort();
+  const fset=new Set((source.forecasts||[]).map(x=>`${x.modelId}|${x.variable}|${x.targetDate}|${Number.isInteger(x.leadDay)?x.leadDay:1}`)),referenceCurrent=source.reference===BIAS_REFERENCE_ID,oset=new Set((referenceCurrent?source.observations:[]).map(x=>`${x.variable}|${x.targetDate}`));
+  const modelGaps=models.map(model=>{const missingEntries=[],leadDays=biasLeadDaysForModel(model);for(const date of dates)for(const variable of variables)for(const leadDay of leadDays)if(!fset.has(`${model.id}|${variable}|${date}|${leadDay}`))missingEntries.push({date,variable,leadDay});const missingDays=[...new Set(missingEntries.map(x=>x.date))],totalEntries=dates.length*variables.length*leadDays.length;return {modelId:model.id,name:model.name,missingDays,missingEntries:missingEntries.length,availableEntries:totalEntries-missingEntries.length,totalEntries};}),missingForecastDates=[...new Set(modelGaps.flatMap(x=>x.missingDays))].sort();
   const observationMissingEntries=[];for(const date of dates)for(const variable of variables)if(!oset.has(`${variable}|${date}`))observationMissingEntries.push({date,variable});const missingObservationDates=[...new Set(observationMissingEntries.map(x=>x.date))].sort(),missingDays=[...new Set([...missingForecastDates,...missingObservationDates])].sort(),forecastRanges=contiguousDateRanges(missingForecastDates),observationRanges=contiguousDateRanges(missingObservationDates);
   return {models,start,end,dates,totalDays:dates.length,missingDays,modelGaps,observationMissingDays:missingObservationDates,observationMissingEntries:observationMissingEntries.length,forecastRanges,observationRanges,requestCount:forecastRanges.length+observationRanges.length};
 }
@@ -2072,7 +2103,7 @@ async function refreshBiasForCity(cityId){
     const biasEngine=await loadFeature('bias');if(!stillCurrent())return;
     for(const r of plan.forecastRanges){const prev=await fetchPreviousRuns(city,plan.models,r.start,r.end);if(!stillCurrent())return;forecasts.push(...biasEngine.normalizePreviousRuns(prev,city,plan.models,r.start,r.end));completedCalls++;toast(i18n().t('historyRefreshProgress',{current:completedCalls,total:plan.requestCount}),{id:toastId,type:'loading',title:i18n().t('historyRefreshToastTitle')});}
     for(const r of plan.observationRanges){const archive=await fetchBiasArchive(city,r.start,r.end);if(!stillCurrent())return;observations.push(...biasEngine.normalizeBiasObservations(archive,r.start,r.end));completedCalls++;toast(i18n().t('historyRefreshProgress',{current:completedCalls,total:plan.requestCount}),{id:toastId,type:'loading',title:i18n().t('historyRefreshToastTitle')});}
-    if(!stillCurrent())return;const today=cityToday(city.timezone),old=state.bias[cityId]||{forecasts:[],observations:[],updatedAt:null},mergedForecasts=dedupe([...(old.forecasts||[]),...forecasts],x=>`${x.modelId}|${x.variable}|${x.targetDate}`),trustedOldObs=old.reference===BIAS_REFERENCE_ID?(old.observations||[]):[],mergedObs=dedupe([...trustedOldObs,...observations],x=>`${x.variable}|${x.targetDate}`),cutoff=addDays(today,-45);
+    if(!stillCurrent())return;const today=cityToday(city.timezone),old=state.bias[cityId]||{forecasts:[],observations:[],updatedAt:null},mergedForecasts=dedupe([...(old.forecasts||[]),...forecasts],x=>`${x.modelId}|${x.variable}|${x.targetDate}|${Number.isInteger(x.leadDay)?x.leadDay:1}`),trustedOldObs=old.reference===BIAS_REFERENCE_ID?(old.observations||[]):[],mergedObs=dedupe([...trustedOldObs,...observations],x=>`${x.variable}|${x.targetDate}`),cutoff=addDays(today,-45);
     const nextBias={reference:BIAS_REFERENCE_ID,referenceLagDays:BIAS_REFERENCE_LAG_DAYS,forecasts:mergedForecasts.filter(x=>x.targetDate>=cutoff),observations:mergedObs.filter(x=>x.targetDate>=cutoff),updatedAt:Date.now()};state.bias[cityId]=nextBias;const after=biasRefreshPlan(cityId),remaining=new Set(after.missingDays),resolvedDays=plan.missingDays.filter(date=>!remaining.has(date)).length,fullDays=Math.max(0,after.totalDays-after.missingDays.length);nextBias.lastRefreshReport={completedAt:Date.now(),start:plan.start,end:plan.end,modelIds:plan.models.map(m=>m.id),requestedDays:plan.missingDays.length,resolvedDays,remainingDays:after.missingDays.length,requestCount:plan.requestCount,remainingModelIds:after.modelGaps.filter(x=>x.missingDays.length).map(x=>x.modelId),observationMissingDays:after.observationMissingDays.length};analysisStore.mark('bias',cityId);saveBias(cityId,nextBias);
     if(after.missingDays.length){toast(i18n().t('historyRefreshPartialMessage',{city:city.name,complete:fullDays,total:after.totalDays,remaining:after.missingDays.length}),{id:toastId,type:'warning',title:i18n().t('historyRefreshPartialTitle'),duration:8000});}else{toast(i18n().t('historyRefreshSuccessMessage',{city:city.name,total:after.totalDays}),{id:toastId,type:'success',title:i18n().t('historyRefreshSuccessTitle')});}
   }catch(err){if(biasRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId))toast(i18n().t('historyBiasError',{city:city.name,error:humanError(err)}),{id:toastId,type:'error',title:i18n().t('historyRefreshFailedTitle')});}finally{if(biasRefreshTokens.get(cityId)===token){biasRefreshTokens.delete(cityId);state.biasRefresh.delete(cityId);render();}}

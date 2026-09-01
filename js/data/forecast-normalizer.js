@@ -1,5 +1,6 @@
 import { zonedTimestampEpochs } from '../domain.js';
 import { normalizeForecastPayload } from './contracts.js';
+import { FORECAST_PHYSICAL_LIMITS, sanitizeNumericArray, sanitizeDailyTemperaturePair } from './forecast-quality.js';
 
 function values(raw, baseKey, model, single, allowShared=false) {
   const keys = [model.apiKey, ...model.aliases].map(key => `${baseKey}_${key}`);
@@ -9,12 +10,13 @@ function values(raw, baseKey, model, single, allowShared=false) {
 }
 function numberList(value, predicate=Number.isFinite) { return Array.isArray(value) ? value.map(x => predicate(x) ? x : null) : null; }
 function intList(value, predicate=Number.isFinite) { return Array.isArray(value) ? value.map(x => Number.isInteger(x) && predicate(x) ? x : null) : null; }
+function boundedList(value, limits, integer=false) { return sanitizeNumericArray(value, limits, { integer }); }
 function strings(value) { return Array.isArray(value) ? value.map(x => typeof x === 'string' ? x : null) : null; }
 function alignIndices(indices, vals) { return indices.map(i=>vals?.[i] ?? null); }
 function cloudCover(hourly, model, single) {
-  const total = intList(values(hourly,'cloud_cover',model,single), x=>x>=0&&x<=100);
+  const total = boundedList(values(hourly,'cloud_cover',model,single), FORECAST_PHYSICAL_LIMITS.cloudPercent, true).values;
   if (total?.some(x=>x!==null)) return total;
-  const layers = ['cloud_cover_low','cloud_cover_mid','cloud_cover_high'].map(key=>intList(values(hourly,key,model,single),x=>x>=0&&x<=100));
+  const layers = ['cloud_cover_low','cloud_cover_mid','cloud_cover_high'].map(key=>boundedList(values(hourly,key,model,single),FORECAST_PHYSICAL_LIMITS.cloudPercent,true).values);
   const size = Math.max(0, ...layers.map(x=>x?.length||0));
   if (!size) return total;
   return Array.from({length:size},(_,i)=> {
@@ -83,9 +85,10 @@ export function hourlySeriesHealth(series, model, requestedHours) {
   const alignedCount=canAssessAlignment?usableIndices.length:criticalMin;
   const usableSpan=usableIndices.length?usableIndices.at(-1)-usableIndices[0]+1:0;
   const internalGaps=canAssessAlignment?Math.max(0,usableSpan-alignedCount):0;
-  const fragmented=canAssessAlignment&&criticalMin>=8&&internalGaps>Math.max(2,Math.floor(criticalMin*.1));
+  let largestInternalGap=0;for(let i=1;i<usableIndices.length;i++)largestInternalGap=Math.max(largestInternalGap,Math.max(0,usableIndices[i]-usableIndices[i-1]-1));
+  const fragmented=canAssessAlignment&&criticalMin>=8&&(internalGaps>Math.max(2,Math.floor(criticalMin*.1))||largestInternalGap>=3);
   const degraded=severeShort||variableImbalance||sparseCritical||fragmented;
-  return {expected,minimum,counts,criticalMin,criticalMax,criticalTotal,alignedCount,internalGaps,ratio:Math.min(1,criticalMin/expected),degraded,severeShort,variableImbalance,sparseCritical,fragmented,shortRegional,score:alignedCount*1_000_000+criticalMin*1000+criticalTotal};
+  return {expected,minimum,counts,criticalMin,criticalMax,criticalTotal,alignedCount,internalGaps,largestInternalGap,ratio:Math.min(1,criticalMin/expected),degraded,severeShort,variableImbalance,sparseCritical,fragmented,shortRegional,gapPolicy:'NO_INTERPOLATION',score:alignedCount*1_000_000+criticalMin*1000+criticalTotal};
 }
 
 function civilDayAxis(timestamps,date){
@@ -133,35 +136,46 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
   const modelMeta = {};
   const errors = {};
   for (const model of models) {
-    const tempH = numberList(values(hourlyRaw,'temperature_2m',model,single));
-    const tempMax = numberList(values(dailyRaw,'temperature_2m_max',model,single));
-    const tempMin = numberList(values(dailyRaw,'temperature_2m_min',model,single));
-    const usable = (tempH||[]).some(Number.isFinite) || (tempMax||[]).some(Number.isFinite) || (tempMin||[]).some(Number.isFinite);
+    const qc={rejected:0,temperaturePairRejects:0};
+    const read=(container,key,limits,integer=false,allowShared=false)=>{
+      const result=boundedList(values(container,key,model,single,allowShared),limits,integer);
+      qc.rejected+=result.rejected;
+      return result.values;
+    };
+    const tempH = read(hourlyRaw,'temperature_2m',FORECAST_PHYSICAL_LIMITS.temperatureC);
+    const tempMaxRaw = read(dailyRaw,'temperature_2m_max',FORECAST_PHYSICAL_LIMITS.temperatureC);
+    const tempMinRaw = read(dailyRaw,'temperature_2m_min',FORECAST_PHYSICAL_LIMITS.temperatureC);
+    const tempMax=alignIndices(dailyIndices,tempMaxRaw),tempMin=alignIndices(dailyIndices,tempMinRaw);
+    for(let i=0;i<Math.max(tempMax.length,tempMin.length);i++){
+      const pair=sanitizeDailyTemperaturePair(tempMax[i],tempMin[i]);
+      tempMax[i]=pair.max;tempMin[i]=pair.min;if(pair.rejected){qc.rejected+=2;qc.temperaturePairRejects++;}
+    }
+    const usable = (tempH||[]).some(Number.isFinite) || tempMax.some(Number.isFinite) || tempMin.some(Number.isFinite);
     if (!usable) { errors[model.id]='MODEL_UNAVAILABLE'; continue; }
     const series = {
       modelId:model.id,
       hourly:{
         timestamps:[...hourlyTime],
         timestampEpochMs:[...hourlyEpochs],
-        temperature2m:alignIndices(hourlyIndices,tempH).map(x=>Number.isFinite(x)?x:null),
-        precipitation:alignIndices(hourlyIndices,numberList(values(hourlyRaw,'precipitation',model,single),x=>Number.isFinite(x)&&x>=0)).map(x=>Number.isFinite(x)&&x>=0?x:null),
-        precipitationProbability:alignIndices(hourlyIndices,intList(values(hourlyRaw,'precipitation_probability',model,single),x=>x>=0&&x<=100)),
+        temperature2m:alignIndices(hourlyIndices,tempH),
+        precipitation:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation',FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm)),
+        precipitationProbability:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation_probability',FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent,true)),
         cloudCover:alignIndices(hourlyIndices,cloudCover(hourlyRaw,model,single)),
-        windSpeed10m:alignIndices(hourlyIndices,numberList(values(hourlyRaw,'wind_speed_10m',model,single),x=>Number.isFinite(x)&&x>=0)),
-        windDirection10m:alignIndices(hourlyIndices,intList(values(hourlyRaw,'wind_direction_10m',model,single),x=>x>=0&&x<=360)),
-        windGusts10m:alignIndices(hourlyIndices,numberList(values(hourlyRaw,'wind_gusts_10m',model,single),x=>Number.isFinite(x)&&x>=0)),
-        weatherCode:alignIndices(hourlyIndices,intList(values(hourlyRaw,'weather_code',model,single))),
+        windSpeed10m:alignIndices(hourlyIndices,read(hourlyRaw,'wind_speed_10m',FORECAST_PHYSICAL_LIMITS.windKmh)),
+        windDirection10m:alignIndices(hourlyIndices,read(hourlyRaw,'wind_direction_10m',FORECAST_PHYSICAL_LIMITS.directionDeg,true)),
+        windGusts10m:alignIndices(hourlyIndices,read(hourlyRaw,'wind_gusts_10m',FORECAST_PHYSICAL_LIMITS.gustKmh)),
+        weatherCode:alignIndices(hourlyIndices,read(hourlyRaw,'weather_code',FORECAST_PHYSICAL_LIMITS.weatherCode,true)),
       },
       daily:{
         dates:[...dailyTime],
-        tempMax:alignIndices(dailyIndices,tempMax).map(x=>Number.isFinite(x)?x:null),
-        tempMin:alignIndices(dailyIndices,tempMin).map(x=>Number.isFinite(x)?x:null),
-        precipitationSum:alignIndices(dailyIndices,numberList(values(dailyRaw,'precipitation_sum',model,single),x=>Number.isFinite(x)&&x>=0)),
-        precipitationProbabilityMax:alignIndices(dailyIndices,intList(values(dailyRaw,'precipitation_probability_max',model,single),x=>x>=0&&x<=100)),
-        windSpeedMax:alignIndices(dailyIndices,numberList(values(dailyRaw,'wind_speed_10m_max',model,single),x=>Number.isFinite(x)&&x>=0)),
-        windGustsMax:alignIndices(dailyIndices,numberList(values(dailyRaw,'wind_gusts_10m_max',model,single),x=>Number.isFinite(x)&&x>=0)),
-        windDirection10mDominant:alignIndices(dailyIndices,intList(values(dailyRaw,'wind_direction_10m_dominant',model,single),x=>x>=0&&x<=360)),
-        weatherCode:alignIndices(dailyIndices,intList(values(dailyRaw,'weather_code',model,single))),
+        tempMax,
+        tempMin,
+        precipitationSum:alignIndices(dailyIndices,read(dailyRaw,'precipitation_sum',FORECAST_PHYSICAL_LIMITS.precipitationDailyMm)),
+        precipitationProbabilityMax:alignIndices(dailyIndices,read(dailyRaw,'precipitation_probability_max',FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent,true)),
+        windSpeedMax:alignIndices(dailyIndices,read(dailyRaw,'wind_speed_10m_max',FORECAST_PHYSICAL_LIMITS.windKmh)),
+        windGustsMax:alignIndices(dailyIndices,read(dailyRaw,'wind_gusts_10m_max',FORECAST_PHYSICAL_LIMITS.gustKmh)),
+        windDirection10mDominant:alignIndices(dailyIndices,read(dailyRaw,'wind_direction_10m_dominant',FORECAST_PHYSICAL_LIMITS.directionDeg,true)),
+        weatherCode:alignIndices(dailyIndices,read(dailyRaw,'weather_code',FORECAST_PHYSICAL_LIMITS.weatherCode,true)),
         sunrise:alignIndices(dailyIndices,strings(values(dailyRaw,'sunrise',model,single,true))),
         sunset:alignIndices(dailyIndices,strings(values(dailyRaw,'sunset',model,single,true))),
       }
@@ -169,7 +183,7 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
     sanitizeIncompleteFutureDaily(series);
     seriesByModel[model.id]=series;
     const coverage=seriesCoverage(series),health=hourlySeriesHealth(series,model,requestedHours||hourlyTime.length);
-    modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage, hourlyHealth:health, sourceApiKey:model.apiKey, resolutionKm:model.resolutionKm||null, nativeStepMinutes:model.nativeStepMinutes||60, updateMinutes:model.updateMinutes||null };
+    modelMeta[model.id]={ runTimestamp:modelRunTimestamp(raw,model), ...coverage, hourlyHealth:health, qualityControl:{rejectedValues:qc.rejected,temperaturePairRejects:qc.temperaturePairRejects,physicalLimitsApplied:true}, sourceApiKey:model.apiKey, resolutionKm:model.resolutionKm||null, nativeStepMinutes:model.nativeStepMinutes||60, updateMinutes:model.updateMinutes||null };
   }
   if (!Object.keys(seriesByModel).length) { const error=new Error('NO_USABLE_MODELS'); error.code='NO_USABLE_MODELS'; throw error; }
   const fetchedAt=new Date().toISOString();

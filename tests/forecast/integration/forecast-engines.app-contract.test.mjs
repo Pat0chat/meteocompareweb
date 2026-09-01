@@ -54,7 +54,7 @@ const precipRows=[
   {modelId:'GFS',amount:6,probability:80},
   {modelId:'ECMWF',amount:5.5,probability:78},
 ];
-const precipCalibration=Object.fromEntries(precipRows.map(row=>[row.modelId,{bias:1,score:80,standardDeviation:1,meanAbsoluteError:.8,sampleSize:20,precipitation:{observedWetDays:14,forecastWetDays:14}}]));
+const precipCalibration=Object.fromEntries(precipRows.map(row=>[row.modelId,{bias:1,score:80,standardDeviation:1,meanAbsoluteError:.8,sampleSize:20,precipitation:{observedWetDays:14,forecastWetDays:14,conditionalAmount:{bias:1,score:80,standardDeviation:1,meanAbsoluteError:.8,sampleSize:20}}}]));
 const rawRain=forecastEnginePrecipitation(precipRows,{engine:'MULTI_CONSENSUS'});
 const calibratedRain=forecastEnginePrecipitation(precipRows,{engine:'CALIBRATION',calibration:precipCalibration});
 assert.ok(calibratedRain.conditionalAmountMm<rawRain.conditionalAmountMm,'rain calibration should correct amount bias');

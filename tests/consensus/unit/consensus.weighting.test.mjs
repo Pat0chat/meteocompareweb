@@ -34,7 +34,7 @@ const rain=precipitationConsensus([
 ],{threshold:1});
 assert.equal(rain.probabilityPercent,50);
 assert.equal(rain.conditionalAmountMm,9);
-assert.equal(rain.centralAmountMm,9);
+assert.equal(rain.centralAmountMm,4.5);
 assert.equal(rain.expectedAmountMm,4.5);
 
 function series(tempMin,tempMax,precip,wind,prob=50){
@@ -53,7 +53,7 @@ const day=aggregateDay(forecast,'2026-08-19');
 assert.equal(day.tempMax,26.5,'daily center must be a robust family-balanced median, not an arithmetic mean');
 assert.equal(day.precipConditional,9);
 assert.equal(day.precipProbability,50);
-assert.equal(day.precip,9);
+assert.equal(day.precip,4.5);
 assert.ok(Number.isFinite(day.confidence.overallPercent));
 
 const timeline=buildTimelinePoints(forecast,'DAILY',new Date('2026-08-19T10:00:00Z'));

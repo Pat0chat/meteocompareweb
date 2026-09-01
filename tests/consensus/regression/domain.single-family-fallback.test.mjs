@@ -36,7 +36,7 @@ assert.equal(conf.overallPercent,null);
 
 const aggregate=aggregateDay(forecast,day);
 assert.equal(aggregate.tempMax,26);
-assert.equal(aggregate.precip,6,'central rain amount must remain available when the wet scenario reaches 50%');
+assert.equal(aggregate.precip,3,'central rain amount must remain continuous as P(wet) × amount-if-wet');
 assert.equal(aggregate.confidence.overallPercent,null);
 
 const now=new Date('2026-08-20T06:10:00Z');

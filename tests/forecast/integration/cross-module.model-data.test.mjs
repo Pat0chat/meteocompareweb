@@ -189,10 +189,10 @@ assert.match(app,/partialHourlyData/,'a still-partial model must be surfaced in 
 assert.match(modelSource,/HRRR_CONUS[\s\S]*supportsDay1Bias:false/);
 
 // Core retrieval contracts remain explicit: Forecast rolling hours, ERA5
-// normals, Previous Runs day1, and archive reference variables.
+// normals, Previous Runs lead-time series, and archive reference variables.
 assert.match(api,/forecast_hours/);
 assert.match(api,/models','era5'/);
-assert.match(api,/temperature_2m_previous_day1,precipitation_previous_day1,wind_speed_10m_previous_day1/);
+assert.match(api,/previous_day\$\{day\}/,'Previous Runs request must generate explicit D+1…D+7 lead-time variables');
 assert.match(api,/temperature_2m_max,precipitation_sum,wind_speed_10m_max/);
 
 for(const [lang,missing] of Object.entries(webTranslationAudit()))assert.deepEqual(missing,[],`missing web translations for ${lang}`);

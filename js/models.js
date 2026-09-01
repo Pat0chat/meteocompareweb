@@ -81,6 +81,14 @@ export function consensusGroupFor(idOrKey) {
   return CONSENSUS_GROUPS[model?.id] || model?.id || String(idOrKey||'UNKNOWN');
 }
 
+
+export function biasLeadDaysForModel(modelOrId) {
+  const model = typeof modelOrId === 'string' ? getModel(modelOrId) : modelOrId;
+  if (!model || model.supportsDay1Bias === false) return [];
+  const maxDays = Math.max(1, Math.min(7, Number(model.maxForecastDays) || Math.floor((Number(model.horizonHours) || 24) / 24) || 1));
+  return Array.from({ length: maxDays }, (_, index) => index + 1);
+}
+
 export function selectedModels(ids) {
   const set = new Set(Array.isArray(ids)?ids:[]);
   return WEATHER_MODELS.filter(m => set.has(m.id));

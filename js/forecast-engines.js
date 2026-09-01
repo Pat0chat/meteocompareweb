@@ -6,7 +6,9 @@ import {
   weightedStats,
   RAIN_THRESHOLD_MM,
   isWetPrecipitation,
+  precipitationConsensus,
 } from './consensus.js';
+import { evidenceLevelForFamilies } from './data/forecast-quality.js';
 
 export const FORECAST_ENGINES = Object.freeze([
   'MULTI_CONSENSUS',
@@ -21,13 +23,17 @@ const MIN_CALIBRATION_SAMPLES = 14;
 const FULL_CALIBRATION_SAMPLES = 30;
 const MIN_CALIBRATION_COVERAGE = 0.34;
 const MIN_CALIBRATED_FAMILIES = 2;
+const MIN_DOMINANT_SCENARIO_SHARE = 0.55;
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = value => Number.isFinite(value);
+const finiteOr = (value, fallback) => finite(Number(value)) ? Number(value) : fallback;
 
-function validWeightedRows(entries) {
+function validWeightedRows(entries, qualityMin = null, qualityMax = null) {
   return (entries || [])
-    .filter(row => finite(row?.value) && finite(row?.weight) && row.weight > 0)
+    .filter(row => finite(row?.value) && finite(row?.weight) && row.weight > 0
+      && (qualityMin == null || row.value >= qualityMin)
+      && (qualityMax == null || row.value <= qualityMax))
     .map(row => ({ ...row }))
     .sort((a, b) => a.value - b.value || String(a.modelId || '').localeCompare(String(b.modelId || '')));
 }
@@ -101,16 +107,20 @@ function robustFromBalanced(balanced, tight = 0.5, wide = 3) {
   const stats = weightedStats(robustRows);
   const interval = spreadInterval(robustRows, central, stats?.stdDev || 0);
 
+  const interModelSigma=finite(stats?.stdDev)?stats.stdDev:0;
   return {
     central,
     stats,
     interval,
+    allSourceInterval: interval,
     mad,
     rows: robustRows,
     convergencePercent:
       balanced.familyCount >= 2 ? scoreFromDispersion(stats?.stdDev, tight, wide) : null,
     count: balanced.modelCount,
     familyCount: balanced.familyCount,
+    evidenceLevel:evidenceLevelForFamilies(balanced.familyCount),
+    uncertainty:{interModelSigma,calibrationResidualSigma:0,totalSigma:interModelSigma,evidenceLevel:evidenceLevelForFamilies(balanced.familyCount)},
   };
 }
 
@@ -126,6 +136,10 @@ function multiConsensus(entries, { localWeights = {}, tight = 0.5, wide = 3, min
       low: bound(result.interval.low, min, max),
       high: bound(result.interval.high, min, max),
     },
+    allSourceInterval:{
+      low:bound(result.allSourceInterval?.low,min,max),
+      high:bound(result.allSourceInterval?.high,min,max),
+    },
     engine: 'MULTI_CONSENSUS',
     effectiveEngine: 'MULTI_CONSENSUS',
     fallback: false,
@@ -138,8 +152,15 @@ function multiConsensus(entries, { localWeights = {}, tight = 0.5, wide = 3, min
   };
 }
 
-function calibrationProfileFor(calibration, modelId) {
-  const profile = calibration?.[modelId];
+function calibrationProfileFor(calibration, modelId, leadDay = null) {
+  const root = calibration?.[modelId];
+  if (!root) return null;
+  const exactLead = Number.isInteger(leadDay) && leadDay >= 0
+    ? root.byLeadDay?.[leadDay] ?? root.byLeadDay?.[String(leadDay)] ?? null
+    : null;
+  // Legacy profiles without an explicit horizon remain usable only when the caller
+  // does not request a lead day. This prevents a D+1 bias from leaking into D+2..D+7.
+  const profile = Number.isInteger(leadDay) && leadDay >= 0 ? exactLead : root;
   return profile && finite(profile.bias) && Number(profile.sampleSize) >= MIN_CALIBRATION_SAMPLES
     ? profile
     : null;
@@ -153,7 +174,7 @@ function calibrationStrength(profile) {
 
 function calibrationConsensus(
   entries,
-  { localWeights = {}, calibration = {}, tight = 0.5, wide = 3, min = null, max = null } = {},
+  { localWeights = {}, calibration = {}, leadDay = null, tight = 0.5, wide = 3, min = null, max = null } = {},
 ) {
   const usable = (entries || []).filter(row => row?.modelId && finite(row?.value)).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
   if (!usable.length) return emptyResult('CALIBRATION');
@@ -169,16 +190,18 @@ function calibrationConsensus(
   let strengthSum = 0;
 
   const corrected = usable.map(row => {
-    const profile = calibrationProfileFor(calibration, row.modelId);
+    const profile = calibrationProfileFor(calibration, row.modelId, leadDay);
     if (!profile) return { ...row };
 
     const strength = calibrationStrength(profile);
-    const score = clamp(Number(profile.score) || 50, 0, 100);
+    const score = clamp(finiteOr(profile.score, 50), 0, 100);
     const skill = 0.85 + 0.3 * (score / 100);
     const familyWeight = familyBalance.weights[row.modelId] || 0;
+    const standardDeviation = Number(profile.standardDeviation);
+    const meanAbsoluteError = Number(profile.meanAbsoluteError);
     const noise = Math.max(
       0,
-      Number(profile.standardDeviation) || Number(profile.meanAbsoluteError) || 0,
+      finite(standardDeviation) ? standardDeviation : finite(meanAbsoluteError) ? meanAbsoluteError : 0,
     );
 
     calibratedIds.push(row.modelId);
@@ -231,7 +254,9 @@ function calibrationConsensus(
   const residualNoise = noiseMass ? noiseSum / noiseMass : 0;
   const averageStrength = calibratedMass ? strengthSum / calibratedMass : 0;
   const extraSigma = residualNoise * (0.2 + (1 - averageStrength) * 0.25);
-  const interval = spreadInterval(result.rows, result.central, result.stats?.stdDev || 0, extraSigma);
+  const interModelSigma=finite(result.stats?.stdDev)?result.stats.stdDev:0;
+  const totalSigma=Math.sqrt(interModelSigma**2+extraSigma**2);
+  const interval = spreadInterval(result.rows, result.central, interModelSigma, extraSigma);
 
   return {
     ...result,
@@ -240,6 +265,10 @@ function calibrationConsensus(
       low: bound(interval.low, min, max),
       high: bound(interval.high, min, max),
     },
+    allSourceInterval:{
+      low:bound(result.allSourceInterval?.low,min,max),
+      high:bound(result.allSourceInterval?.high,min,max),
+    },
     engine: 'CALIBRATION',
     effectiveEngine: 'CALIBRATION',
     fallback: false,
@@ -247,6 +276,8 @@ function calibrationConsensus(
     calibratedFamilyCount,
     calibrationStrength: averageStrength,
     historicalScore: weightedScoreMass ? weightedScore / weightedScoreMass : null,
+    residualSigma:extraSigma,
+    uncertainty:{interModelSigma,calibrationResidualSigma:extraSigma,totalSigma,evidenceLevel:evidenceLevelForFamilies(result.familyCount)},
     scenarioCount: 1,
     dominantShare: 1,
     explanation: 'BIAS_CORRECTED_SKILL_WEIGHTED',
@@ -324,6 +355,32 @@ function scenarioConsensus(
     .sort((a, b) => b.weight - a.weight);
 
   const dominant = clusters[0];
+  const allStats=weightedStats(balanced.entries);
+  const allCenter=weightedMedian(balanced.entries);
+  const allSourceInterval=spreadInterval(balanced.entries,allCenter,allStats?.stdDev||0);
+  if (dominant.share < MIN_DOMINANT_SCENARIO_SHARE) {
+    const fallback = multiConsensus(entries, { localWeights, tight, wide, min, max });
+    return {
+      ...fallback,
+      engine: 'SCENARIOS',
+      effectiveEngine: 'MULTI_CONSENSUS',
+      fallback: true,
+      fallbackReason: 'NO_DOMINANT_SCENARIO',
+      scenarioCount: 2,
+      dominantShare: dominant.share,
+      scenarioGap: split.gap,
+      scenarios: clusters.map(cluster => ({
+        share: cluster.share,
+        central: bound(cluster.central, min, max),
+        low: bound(cluster.low, min, max),
+        high: bound(cluster.high, min, max),
+      })),
+      allSourceInterval:{low:bound(allSourceInterval.low,min,max),high:bound(allSourceInterval.high,min,max)},
+      scenarioInterval:null,
+      evidenceLevel:evidenceLevelForFamilies(balanced.familyCount),
+      explanation: 'AMBIGUOUS_SCENARIOS',
+    };
+  }
   const interval = spreadInterval(dominant.rows, dominant.central, dominant.stdDev);
 
   return {
@@ -333,10 +390,14 @@ function scenarioConsensus(
       low: bound(interval.low, min, max),
       high: bound(interval.high, min, max),
     },
+    scenarioInterval:{low:bound(interval.low,min,max),high:bound(interval.high,min,max)},
+    allSourceInterval:{low:bound(allSourceInterval.low,min,max),high:bound(allSourceInterval.high,min,max)},
     rows: dominant.rows,
     convergencePercent: Math.round(clamp(dominant.share * 100, 0, 100)),
     count: balanced.modelCount,
     familyCount: balanced.familyCount,
+    evidenceLevel:evidenceLevelForFamilies(balanced.familyCount),
+    uncertainty:{interModelSigma:dominant.stdDev,calibrationResidualSigma:0,totalSigma:dominant.stdDev,evidenceLevel:evidenceLevelForFamilies(balanced.familyCount)},
     engine: 'SCENARIOS',
     effectiveEngine: 'SCENARIOS',
     fallback: false,
@@ -363,7 +424,7 @@ function adaptiveConsensus(entries, options = {}) {
 
   const strongScenario =
     scenarios.scenarioCount > 1 &&
-    scenarios.dominantShare >= 0.52 &&
+    scenarios.dominantShare >= MIN_DOMINANT_SCENARIO_SHARE &&
     scenarios.dominantShare <= 0.82 &&
     finite(scenarios.scenarioGap) &&
     scenarios.scenarioGap >= Math.max((options.tight || 0.5) * 1.1, (multi.stats?.stdDev || 0) * 0.5);
@@ -393,7 +454,7 @@ function adaptiveConsensus(entries, options = {}) {
       0.35 +
         calibration.calibrationCoverage * 0.25 +
         calibration.calibrationStrength * 0.2 +
-        ((calibration.historicalScore || 50) / 100) * 0.15,
+        ((finite(calibration.historicalScore) ? calibration.historicalScore : 50) / 100) * 0.15,
       0.5,
       0.85,
     );
@@ -402,8 +463,10 @@ function adaptiveConsensus(entries, options = {}) {
       options.min,
       options.max,
     );
-    const sigma = Math.max(calibration.stats?.stdDev || 0, multi.stats?.stdDev || 0);
-    const interval = spreadInterval(calibration.rows || multi.rows, central, sigma);
+    const interModelSigma = Math.max(calibration.stats?.stdDev || 0, multi.stats?.stdDev || 0);
+    const calibrationResidualSigma=(calibration.uncertainty?.calibrationResidualSigma||0)*trust;
+    const totalSigma=Math.sqrt(interModelSigma**2+calibrationResidualSigma**2);
+    const interval = spreadInterval(calibration.rows || multi.rows, central, interModelSigma, calibrationResidualSigma);
 
     return {
       ...calibration,
@@ -415,6 +478,9 @@ function adaptiveConsensus(entries, options = {}) {
       engine: 'ADAPTIVE',
       effectiveEngine: 'CALIBRATION',
       adaptiveTrust: trust,
+      residualSigma:calibrationResidualSigma,
+      uncertainty:{interModelSigma,calibrationResidualSigma,totalSigma,evidenceLevel:evidenceLevelForFamilies(calibration.familyCount)},
+      allSourceInterval:multi.allSourceInterval||multi.interval,
       adaptiveComponents: {
         multi: multi.central,
         calibration: calibration.central,
@@ -462,6 +528,10 @@ function emptyResult(engine) {
     calibrationStrength: 0,
     scenarioCount: 0,
     dominantShare: null,
+    evidenceLevel:'NONE',
+    allSourceInterval:{low:null,high:null},
+    scenarioInterval:null,
+    uncertainty:{interModelSigma:null,calibrationResidualSigma:null,totalSigma:null,evidenceLevel:'NONE'},
   };
 }
 
@@ -469,14 +539,17 @@ export function forecastEngineContinuous(entries, options = {}) {
   const engine = FORECAST_ENGINES.includes(options.engine)
     ? options.engine
     : DEFAULT_FORECAST_ENGINE;
+  const sanitized=(entries||[]).filter(row=>finite(row?.value)
+    && (options.qualityMin==null||row.value>=options.qualityMin)
+    && (options.qualityMax==null||row.value<=options.qualityMax));
 
-  if (engine === 'CALIBRATION') return calibrationConsensus(entries, options);
-  if (engine === 'SCENARIOS') return scenarioConsensus(entries, options);
-  if (engine === 'ADAPTIVE') return adaptiveConsensus(entries, options);
-  return multiConsensus(entries, options);
+  if (engine === 'CALIBRATION') return calibrationConsensus(sanitized, options);
+  if (engine === 'SCENARIOS') return scenarioConsensus(sanitized, options);
+  if (engine === 'ADAPTIVE') return adaptiveConsensus(sanitized, options);
+  return multiConsensus(sanitized, options);
 }
 
-function occurrenceAdjustment(calibration = {}, modelIds = [], localWeights = {}) {
+function occurrenceAdjustment(calibration = {}, modelIds = [], localWeights = {}, leadDay = null) {
   const ids = [...new Set((modelIds || []).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b)));
   if (!ids.length) return { delta: 0, coverage: 0, familyCount: 0 };
 
@@ -484,16 +557,18 @@ function occurrenceAdjustment(calibration = {}, modelIds = [], localWeights = {}
   const totalMass = Object.values(balance.weights).reduce((sum, weight) => sum + weight, 0) || 1;
   let adjustment = 0;
   let adjustmentMass = 0;
+  let scoreSum=0;
+  let scoreMass=0;
   const calibratedIds = [];
 
   for (const modelId of ids) {
-    const profile = calibration?.[modelId];
-    if (Number(profile?.sampleSize) < MIN_CALIBRATION_SAMPLES || !profile?.precipitation) continue;
+    const profile = calibrationProfileFor(calibration, modelId, leadDay);
+    if (!profile?.precipitation) continue;
 
     const n = Math.max(1, Number(profile.sampleSize) || 1);
     const observed = (profile.precipitation.observedWetDays || 0) / n;
     const forecast = (profile.precipitation.forecastWetDays || 0) / n;
-    const quality = clamp((Number(profile.score) || 50) / 100, 0.25, 1);
+    const quality = clamp(finiteOr(profile.score, 50) / 100, 0.25, 1);
     const strength = calibrationStrength(profile);
     const familyWeight = balance.weights[modelId] || 0;
     const weight = familyWeight * quality * strength;
@@ -502,6 +577,8 @@ function occurrenceAdjustment(calibration = {}, modelIds = [], localWeights = {}
     calibratedIds.push(modelId);
     adjustment += (observed - forecast) * weight;
     adjustmentMass += weight;
+    scoreSum+=finiteOr(profile.score,50)*familyWeight;
+    scoreMass+=familyWeight;
   }
 
   const calibratedMass = calibratedIds.reduce(
@@ -513,7 +590,28 @@ function occurrenceAdjustment(calibration = {}, modelIds = [], localWeights = {}
     delta: adjustmentMass ? clamp(adjustment / adjustmentMass, -0.2, 0.2) : 0,
     coverage: clamp(calibratedMass / totalMass, 0, 1),
     familyCount: familyBalancedWeights(calibratedIds, localWeights).familyCount,
+    historicalScore:scoreMass?scoreSum/scoreMass:null,
   };
+}
+
+
+function precipitationAmountCalibration(calibration = {}, leadDay = null) {
+  const out = {};
+  for (const [modelId, root] of Object.entries(calibration || {})) {
+    const profile = Number.isInteger(leadDay) && leadDay >= 0
+      ? root?.byLeadDay?.[leadDay] ?? root?.byLeadDay?.[String(leadDay)] ?? null
+      : root;
+    const amount = profile?.precipitation?.conditionalAmount;
+    if (!amount || !finite(amount.bias) || Number(amount.sampleSize) < MIN_CALIBRATION_SAMPLES) continue;
+    out[modelId] = {
+      bias: amount.bias,
+      score: finiteOr(amount.score, profile?.score ?? 50),
+      standardDeviation: amount.standardDeviation,
+      meanAbsoluteError: amount.meanAbsoluteError,
+      sampleSize: amount.sampleSize,
+    };
+  }
+  return out;
 }
 
 export function forecastEnginePrecipitation(
@@ -523,14 +621,20 @@ export function forecastEnginePrecipitation(
     threshold = RAIN_THRESHOLD_MM,
     localWeights = {},
     calibration = {},
+    leadDay = null,
     amountTight = 1,
     amountWide = 8,
+    amountMax = 1000,
   } = {},
 ) {
   const requested = FORECAST_ENGINES.includes(engine) ? engine : DEFAULT_FORECAST_ENGINE;
-  const usable = (rows || []).filter(
-    row => row?.modelId && (finite(row.amount) || finite(row.probability)),
-  ).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
+  const safeAmountMax=finite(amountMax)&&amountMax>threshold?amountMax:1000;
+  const usable = (rows || []).map(row=>{
+    if(!row?.modelId)return null;
+    const amount=finite(row.amount)&&row.amount>=0&&row.amount<=safeAmountMax?row.amount:null;
+    const probability=finite(row.probability)&&row.probability>=0&&row.probability<=100?row.probability:null;
+    return finite(amount)||finite(probability)?{...row,amount,probability}:null;
+  }).filter(Boolean).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
 
   if (!usable.length) {
     return {
@@ -548,11 +652,18 @@ export function forecastEnginePrecipitation(
     };
   }
 
+  const rawAgreement = precipitationConsensus(usable, {
+    threshold,
+    localWeights,
+    amountTight,
+    amountWide,
+  });
   const occurrence = familyBalancedWeights(usable.map(row => row.modelId), localWeights);
   const occurrenceCalibration = occurrenceAdjustment(
     calibration,
     usable.map(row => row.modelId),
     localWeights,
+    leadDay,
   );
   const canCalibrateOccurrence =
     (requested === 'CALIBRATION' || requested === 'ADAPTIVE') &&
@@ -561,7 +672,6 @@ export function forecastEnginePrecipitation(
 
   let probabilitySum = 0;
   let totalWeight = 0;
-  let nativeProbabilityCount = 0;
 
   for (const row of usable) {
     const weight = occurrence.weights[row.modelId] || 0;
@@ -570,7 +680,6 @@ export function forecastEnginePrecipitation(
     let probability;
     if (finite(row.probability)) {
       probability = clamp(row.probability / 100, 0, 1);
-      nativeProbabilityCount++;
     } else {
       probability = isWetPrecipitation(row.amount, threshold) ? 1 : 0;
     }
@@ -586,57 +695,93 @@ export function forecastEnginePrecipitation(
   const probability = totalWeight ? probabilitySum / totalWeight : null;
   const wetRows = usable.filter(row => isWetPrecipitation(row.amount, threshold));
   const amountEntries = wetRows.map(row => ({ modelId: row.modelId, value: row.amount }));
+  const amountCalibration = precipitationAmountCalibration(calibration, leadDay);
   const amountResult = forecastEngineContinuous(amountEntries, {
     engine: requested,
     localWeights,
-    calibration,
+    calibration: amountCalibration,
+    leadDay: null,
     tight: amountTight,
     wide: amountWide,
-    min: 0,
+    // A conditional wet-event amount must remain strictly above the wet threshold.
+    min: threshold + EPS,
   });
   const conditionalAmount = amountResult.central;
 
-  const occurrenceConvergence =
-    finite(probability) && occurrence.familyCount >= 2 ? Math.abs(probability - 0.5) * 200 : null;
-  const amountConvergence = amountResult.convergencePercent;
-  const convergence = finite(occurrenceConvergence)
-    ? finite(amountConvergence) && probability >= 0.5
-      ? Math.round(occurrenceConvergence * 0.7 + amountConvergence * 0.3)
-      : Math.round(occurrenceConvergence)
-    : null;
+  const occurrenceConvergence = rawAgreement.occurrenceConvergencePercent ?? null;
+  const amountConvergence = rawAgreement.amountConvergencePercent ?? null;
+  const convergence = rawAgreement.convergencePercent;
 
   const amounts = usable.map(row => row.amount).filter(finite);
   const hasAmount = amounts.length > 0;
+  const expectedAmount = finite(probability) && finite(conditionalAmount)
+    ? probability * conditionalAmount
+    : hasAmount && probability === 0 ? 0 : null;
+  const probabilitySigma = finite(rawAgreement.probabilityStdDevPercent)
+    ? rawAgreement.probabilityStdDevPercent / 100
+    : 0;
+  const conditionalSigma = finite(amountResult.uncertainty?.totalSigma)
+    ? amountResult.uncertainty.totalSigma
+    : finite(amountResult.stats?.stdDev) ? amountResult.stats.stdDev : 0;
+  const expectedSigma = finite(expectedAmount) && finite(conditionalAmount) && finite(probability)
+    ? Math.sqrt((conditionalAmount * probabilitySigma) ** 2 + (probability * conditionalSigma) ** 2)
+    : null;
+  const expectedIntervalFor = interval => {
+    if (!finite(expectedAmount)) return { low: null, high: null };
+    const scaledLow = finite(interval?.low) && finite(probability) ? probability * interval.low : expectedAmount;
+    const scaledHigh = finite(interval?.high) && finite(probability) ? probability * interval.high : expectedAmount;
+    const envelope = finite(expectedSigma) ? 1.2816 * expectedSigma : 0;
+    return {
+      low: bound(Math.min(scaledLow, expectedAmount - envelope), 0, safeAmountMax),
+      high: bound(Math.max(scaledHigh, expectedAmount + envelope), 0, safeAmountMax),
+    };
+  };
+  const expectedInterval=expectedIntervalFor(amountResult.interval);
+  const expectedScenarioInterval=amountResult.scenarioInterval?expectedIntervalFor(amountResult.scenarioInterval):null;
+  const expectedAllSourceInterval=expectedIntervalFor(amountResult.allSourceInterval||amountResult.interval);
+  const expectedScenarios=(amountResult.scenarios||[]).map(scenario=>({
+    ...scenario,
+    conditionalCentral:scenario.central,conditionalLow:scenario.low,conditionalHigh:scenario.high,
+    central:finite(probability)&&finite(scenario.central)?probability*scenario.central:null,
+    low:finite(probability)&&finite(scenario.low)?probability*scenario.low:null,
+    high:finite(probability)&&finite(scenario.high)?probability*scenario.high:null,
+  }));
   return {
     engine: requested,
     effectiveEngine: amountResult.effectiveEngine,
     probabilityPercent: finite(probability) ? Math.round(probability * 100) : null,
     conditionalAmountMm: finite(conditionalAmount) ? conditionalAmount : wetRows.length ? 0 : null,
-    centralAmountMm:
+    centralAmountMm:expectedAmount,
+    expectedAmountMm:expectedAmount,
+    conditionAmountMm:
       !hasAmount ? null : finite(probability) && probability >= 0.5 ? (finite(conditionalAmount) ? conditionalAmount : null) : 0,
-    expectedAmountMm:
-      finite(probability) && finite(conditionalAmount) ? probability * conditionalAmount : hasAmount && probability === 0 ? 0 : null,
     convergencePercent: convergence,
+    occurrenceConvergencePercent: occurrenceConvergence,
+    amountConvergencePercent: amountConvergence,
     count: usable.length,
     familyCount: occurrence.familyCount,
     wetModelCount: wetRows.length,
     wetFamilyCount: amountResult.familyCount,
-    source:
-      nativeProbabilityCount === usable.length
-        ? 'PROBABILITY'
-        : nativeProbabilityCount > 0
-          ? 'MIXED'
-          : 'MODEL_AGREEMENT',
+    source: rawAgreement.source,
     minMm: amounts.length ? Math.min(...amounts) : null,
     maxMm: amounts.length ? Math.max(...amounts) : null,
     conditionalStdDev: amountResult.stats?.stdDev ?? null,
-    interval: amountResult.interval,
+    interval:expectedInterval,
+    conditionalInterval:amountResult.interval||null,
     scenarioCount: amountResult.scenarioCount,
-    scenarios: amountResult.scenarios || null,
+    scenarios: expectedScenarios.length?expectedScenarios:null,
     calibrationCoverage: amountResult.calibrationCoverage || 0,
     calibratedFamilyCount: amountResult.calibratedFamilyCount || 0,
     calibrationStrength: amountResult.calibrationStrength || 0,
     occurrenceCalibrationCoverage: occurrenceCalibration.coverage,
+    historicalReliabilityPercent:[occurrenceCalibration.historicalScore,amountResult.historicalScore].filter(finite).length?[occurrenceCalibration.historicalScore,amountResult.historicalScore].filter(finite).reduce((a,b)=>a+b,0)/[occurrenceCalibration.historicalScore,amountResult.historicalScore].filter(finite).length:null,
+    agreement:{overallPercent:convergence,occurrencePercent:occurrenceConvergence,amountPercent:amountConvergence},
+    dispersion:{probabilityStdDevPercent:rawAgreement.probabilityStdDevPercent??null,amountStdDevMm:amountResult.stats?.stdDev??null,rawAmountRangeMm:amounts.length?Math.max(...amounts)-Math.min(...amounts):null},
+    evidenceLevel:evidenceLevelForFamilies(occurrence.familyCount),
+    uncertainty:finite(expectedSigma)?{interModelSigma:finite(probability)?probability*(amountResult.uncertainty?.interModelSigma||0):null,calibrationResidualSigma:finite(probability)?probability*(amountResult.uncertainty?.calibrationResidualSigma||0):null,probabilitySigma,conditionalAmountSigma:conditionalSigma,totalSigma:expectedSigma,evidenceLevel:evidenceLevelForFamilies(occurrence.familyCount)}:null,
+    conditionalUncertainty:amountResult.uncertainty||null,
+    allSourceInterval:expectedAllSourceInterval,
+    scenarioInterval:expectedScenarioInterval,
     fallback: amountResult.fallback || false,
     fallbackReason: amountResult.fallbackReason || null,
     explanation: amountResult.explanation,
@@ -666,6 +811,15 @@ export function forecastEngineSummary(result) {
     calibrationStrength: finite(result.calibrationStrength) ? result.calibrationStrength : 0,
     historicalScore: finite(result.historicalScore) ? result.historicalScore : null,
     interval: result.interval || null,
+    conditionalInterval:result.conditionalInterval||null,
+    scenarioInterval:result.scenarioInterval||null,
+    allSourceInterval:result.allSourceInterval||result.interval||null,
+    uncertainty:result.uncertainty||null,
+    conditionalUncertainty:result.conditionalUncertainty||null,
+    evidenceLevel:result.evidenceLevel||result.uncertainty?.evidenceLevel||null,
+    historicalReliabilityPercent:finite(result.historicalReliabilityPercent)?result.historicalReliabilityPercent:null,
+    agreement:result.agreement||null,
+    dispersion:result.dispersion||null,
     explanation: result.explanation || null,
   };
 }

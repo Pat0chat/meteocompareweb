@@ -1,4 +1,5 @@
 import { consensusGroupFor, CONDITION } from './models.js';
+import { evidenceLevelForFamilies } from './data/forecast-quality.js';
 
 const EPS=1e-12;
 export const RAIN_THRESHOLD_MM=0.1;
@@ -11,6 +12,15 @@ export function scoreFromDispersion(stdDev,tight,wide){
   if(stdDev<=tight)return 100;
   if(stdDev>=wide)return 0;
   return Math.round(100*(1-(stdDev-tight)/(wide-tight)));
+}
+
+/** Agreement between model probabilities, independent from event certainty.
+ * A set of [50, 50, 50] is perfect agreement even though the event itself is uncertain.
+ * For probabilities constrained to [0, 1], the maximum population standard deviation is 0.5.
+ */
+export function probabilityAgreementFromDispersion(stdDev){
+  if(!Number.isFinite(stdDev))return null;
+  return Math.round(100*(1-clamp(stdDev/.5,0,1)));
 }
 
 /**
@@ -61,8 +71,8 @@ export function weightedStats(entries){
 
 export function continuousConsensus(entries,localWeights={},tight=.5,wide=3){
   const balanced=familyBalancedEntries(entries,localWeights),stats=weightedStats(balanced.entries);
-  if(!stats)return {central:null,convergencePercent:null,count:0,familyCount:0,stats:null};
-  return {central:weightedMedian(balanced.entries),convergencePercent:balanced.familyCount>=2?scoreFromDispersion(stats.stdDev,tight,wide):null,count:balanced.modelCount,familyCount:balanced.familyCount,stats};
+  if(!stats)return {central:null,convergencePercent:null,count:0,familyCount:0,evidenceLevel:'NONE',stats:null};
+  return {central:weightedMedian(balanced.entries),convergencePercent:balanced.familyCount>=2?scoreFromDispersion(stats.stdDev,tight,wide):null,count:balanced.modelCount,familyCount:balanced.familyCount,evidenceLevel:evidenceLevelForFamilies(balanced.familyCount),stats};
 }
 
 const WEATHER_CONDITION_FAMILY=Object.freeze({
@@ -142,25 +152,29 @@ export function weatherConditionConsensus(entries,localWeights={},severity=()=>0
  * Precipitation is decomposed into P(wet) and amount conditional on a wet event.
  * Native model probabilities are used when present; deterministic models contribute
  * a binary wet/dry probability. The displayed deterministic amount is the conditional
- * weighted median only when P(wet) >= 50%; expectedAmountMm remains available separately.
+ * weighted median describes the conditional amount if wet; the central quantitative amount is
+ * the continuous expected amount P(wet) × amount-if-wet, avoiding a discontinuity around 50%.
  */
-export function precipitationConsensus(rows,{threshold=RAIN_THRESHOLD_MM,localWeights={},amountTight=1,amountWide=8}={}){
-  const usable=(rows||[]).filter(x=>x?.modelId&&(Number.isFinite(x.amount)||Number.isFinite(x.probability))).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
+export function precipitationConsensus(rows,{threshold=RAIN_THRESHOLD_MM,localWeights={},amountTight=1,amountWide=8,amountMax=1000}={}){
+  const safeAmountMax=Number.isFinite(amountMax)&&amountMax>threshold?amountMax:1000;
+  const usable=(rows||[]).map(row=>{if(!row?.modelId)return null;const amount=Number.isFinite(row.amount)&&row.amount>=0&&row.amount<=safeAmountMax?row.amount:null,probability=Number.isFinite(row.probability)&&row.probability>=0&&row.probability<=100?row.probability:null;return Number.isFinite(amount)||Number.isFinite(probability)?{...row,amount,probability}:null;}).filter(Boolean).slice().sort((a,b)=>String(a.modelId).localeCompare(String(b.modelId)));
   if(!usable.length)return {probabilityPercent:null,conditionalAmountMm:null,centralAmountMm:null,expectedAmountMm:null,convergencePercent:null,count:0,familyCount:0,wetModelCount:0,wetFamilyCount:0,source:null};
-  const occurrence=familyBalancedWeights(usable.map(x=>x.modelId),localWeights);let probability=0,total=0,nativeProbCount=0;
-  for(const row of usable){const w=occurrence.weights[row.modelId]||0;if(w<=0)continue;let p;if(Number.isFinite(row.probability)){p=clamp(row.probability/100,0,1);nativeProbCount++;}else p=isWetPrecipitation(row.amount,threshold)?1:0;probability+=w*p;total+=w;}
-  const p=total>0?probability/total:null,wet=usable.filter(x=>isWetPrecipitation(x.amount,threshold)),wetBalanced=familyBalancedEntries(wet.map(x=>({modelId:x.modelId,value:x.amount})),localWeights),conditional=weightedMedian(wetBalanced.entries),amountStats=weightedStats(wetBalanced.entries),amounts=usable.map(x=>x.amount).filter(Number.isFinite),hasAmount=amounts.length>0;
-  const occurrenceConv=Number.isFinite(p)&&occurrence.familyCount>=2?Math.abs(p-.5)*200:null;
+  let nativeProbCount=0;
+  const occurrenceInput=usable.map(row=>{let value;if(Number.isFinite(row.probability)){value=clamp(row.probability/100,0,1);nativeProbCount++;}else value=isWetPrecipitation(row.amount,threshold)?1:0;return {modelId:row.modelId,value};});
+  const occurrence=familyBalancedEntries(occurrenceInput,localWeights),occurrenceStats=weightedStats(occurrence.entries);
+  const p=occurrenceStats?.mean??null,wet=usable.filter(x=>isWetPrecipitation(x.amount,threshold)),wetBalanced=familyBalancedEntries(wet.map(x=>({modelId:x.modelId,value:x.amount})),localWeights),conditional=weightedMedian(wetBalanced.entries),amountStats=weightedStats(wetBalanced.entries),amounts=usable.map(x=>x.amount).filter(Number.isFinite),hasAmount=amounts.length>0;
+  const occurrenceConv=occurrenceStats&&occurrence.familyCount>=2?probabilityAgreementFromDispersion(occurrenceStats.stdDev):null;
   const amountConv=amountStats&&wetBalanced.familyCount>=2?scoreFromDispersion(amountStats.stdDev,amountTight,amountWide):null;
   const convergence=Number.isFinite(occurrenceConv)?(Number.isFinite(amountConv)&&p>=.5?Math.round(occurrenceConv*.7+amountConv*.3):Math.round(occurrenceConv)):null;
   const source=nativeProbCount===usable.length?'PROBABILITY':nativeProbCount>0?'MIXED':'MODEL_AGREEMENT';
   return {
     probabilityPercent:Number.isFinite(p)?Math.round(p*100):null,
     conditionalAmountMm:Number.isFinite(conditional)?conditional:(wet.length?0:null),
-    centralAmountMm:!hasAmount?null:(Number.isFinite(p)&&p>=.5?(Number.isFinite(conditional)?conditional:null):0),
+    centralAmountMm:Number.isFinite(p)&&Number.isFinite(conditional)?p*conditional:(hasAmount&&p===0?0:null),
     expectedAmountMm:Number.isFinite(p)&&Number.isFinite(conditional)?p*conditional:(hasAmount&&p===0?0:null),
-    convergencePercent:convergence,count:usable.length,familyCount:occurrence.familyCount,
-    wetModelCount:wet.length,wetFamilyCount:wetBalanced.familyCount,source,
+    conditionAmountMm:!hasAmount?null:(Number.isFinite(p)&&p>=.5?(Number.isFinite(conditional)?conditional:null):0),
+    convergencePercent:convergence,occurrenceConvergencePercent:occurrenceConv,amountConvergencePercent:amountConv,probabilityStdDevPercent:Number.isFinite(occurrenceStats?.stdDev)?occurrenceStats.stdDev*100:null,count:usable.length,familyCount:occurrence.familyCount,
+    wetModelCount:wet.length,wetFamilyCount:wetBalanced.familyCount,source,evidenceLevel:evidenceLevelForFamilies(occurrence.familyCount),
     minMm:amounts.length?Math.min(...amounts):null,
     maxMm:amounts.length?Math.max(...amounts):null,
     conditionalStdDev:amountStats?.stdDev??null

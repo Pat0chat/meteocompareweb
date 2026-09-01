@@ -1,4 +1,4 @@
-import { selectedModels } from './models.js';
+import { selectedModels, biasLeadDaysForModel } from './models.js';
 import { normalizeBatchedForecast, hourlySeriesHealth } from './data/forecast-normalizer.js';
 import { normalizeCity, normalizeForecastPayload } from './data/contracts.js';
 export { normalizeBatchedForecast, hourlySeriesHealth, sanitizeIncompleteFutureDaily } from './data/forecast-normalizer.js';
@@ -134,34 +134,39 @@ export async function fetchClimateNormals(city, startDate, endDate) {
   return fetchJson(u,45000,null,'archive');
 }
 
-function previousRunSeries(hourly,base,model,single){
-  const lead=`${base}_previous_day1`,keys=[];
-  for(const key of [model.apiKey,...model.aliases])keys.push(`${lead}_${key}`,`${base}_${key}_previous_day1`);
+function previousRunSeries(hourly,base,model,single,leadDay=1){
+  const lead=`${base}_previous_day${leadDay}`,keys=[];
+  for(const key of [model.apiKey,...model.aliases])keys.push(`${lead}_${key}`,`${base}_${key}_previous_day${leadDay}`);
   if(single)keys.push(lead);
   for(const key of keys)if(Array.isArray(hourly?.[key]))return hourly[key];
   return null;
 }
 function previousRunHealth(raw,model,single){
   const h=raw?.hourly||{},expected=Array.isArray(h.time)?h.time.filter(x=>typeof x==='string'&&x).length:0,count=a=>Array.isArray(a)?a.filter(Number.isFinite).length:0;
-  const counts={temperature:count(previousRunSeries(h,'temperature_2m',model,single)),precipitation:count(previousRunSeries(h,'precipitation',model,single)),wind:count(previousRunSeries(h,'wind_speed_10m',model,single))};
-  const criticalMin=Math.min(counts.temperature,counts.precipitation,counts.wind),minimum=expected?Math.min(expected,Math.max(8,Math.floor(expected*.55))):0;
-  return {expected,minimum,counts,criticalMin,degraded:expected>0&&criticalMin<minimum,hasAny:Object.values(counts).some(Boolean)};
+  // Recovery detects partial transport/model payloads from the universally expected D+1 series.
+  // Higher lead days may legitimately be unavailable for a model/archive period and are handled
+  // as calibration-coverage gaps instead of repeatedly retrying the whole request.
+  const counts={temperature:count(previousRunSeries(h,'temperature_2m',model,single,1)),precipitation:count(previousRunSeries(h,'precipitation',model,single,1)),wind:count(previousRunSeries(h,'wind_speed_10m',model,single,1))};
+  const values=Object.values(counts),criticalMin=Math.min(...values),minimum=expected?Math.min(expected,Math.max(8,Math.floor(expected*.55))):0;
+  return {expected,minimum,counts,criticalMin,degraded:expected>0&&criticalMin<minimum,hasAny:values.some(Boolean)};
 }
 function previousRunsUrl(city,models,startDate,endDate){
   const u = new URL(PREVIOUS_RUNS_URL);
   u.searchParams.set('latitude',String(city.latitude)); u.searchParams.set('longitude',String(city.longitude));
   u.searchParams.set('models',models.map(m=>m.apiKey).join(','));
-  u.searchParams.set('hourly','temperature_2m_previous_day1,precipitation_previous_day1,wind_speed_10m_previous_day1');
+  const leadDays=[...new Set(models.flatMap(biasLeadDaysForModel))].sort((a,b)=>a-b);
+  const variables=leadDays.flatMap(day=>['temperature_2m','precipitation','wind_speed_10m'].map(base=>`${base}_previous_day${day}`));
+  u.searchParams.set('hourly',variables.join(','));
   u.searchParams.set('timezone',city.timezone||'auto'); u.searchParams.set('start_date',startDate); u.searchParams.set('end_date',endDate);
   u.searchParams.set('wind_speed_unit','kmh'); u.searchParams.set('temperature_unit','celsius'); u.searchParams.set('precipitation_unit','mm');
   return u;
 }
 function mergePreviousRunModel(target,recovery,model,recoverySingle){
   const th=target.hourly||{},rh=recovery.hourly||{},targetTimes=Array.isArray(th.time)?th.time:[],recoveryTimes=Array.isArray(rh.time)?rh.time:[],index=new Map(recoveryTimes.map((x,i)=>[x,i]));
-  for(const base of ['temperature_2m','precipitation','wind_speed_10m']){
-    const src=previousRunSeries(rh,base,model,recoverySingle);if(!src)continue;
+  for(const leadDay of biasLeadDaysForModel(model))for(const base of ['temperature_2m','precipitation','wind_speed_10m']){
+    const src=previousRunSeries(rh,base,model,recoverySingle,leadDay);if(!src)continue;
     const aligned=targetTimes.map(ts=>{const i=index.get(ts);return i==null?null:(src[i]??null);});
-    th[`${base}_previous_day1_${model.apiKey}`]=aligned;
+    th[`${base}_previous_day${leadDay}_${model.apiKey}`]=aligned;
   }
   target.hourly=th;return target;
 }

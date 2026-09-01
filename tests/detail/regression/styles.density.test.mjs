@@ -10,7 +10,7 @@ const modal=app.slice(app.indexOf('function renderForecastEngineComparisonModal(
 const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function healthStatusClass('));
 assert.doesNotMatch(modal,/forecast-engine-reading/,'engine comparison must not repeat the reading banner');
 assert.doesNotMatch(summary,/summary-dispersion-facts[^`]*modelRange/s,'model range must not be repeated as a summary fact');
-assert.match(summary,/const metadata=probabilityMeta\|\|secondaryMeta\?/,'summary metadata must disappear entirely when there is no complementary fact');
+assert.match(summary,/const metadata=probabilityMeta\|\|secondaryMeta\|\|evidenceMeta\|\|reliabilityMeta\?/,'summary metadata must disappear entirely when there is no complementary fact');
 assert.match(app,/forecast-engine-compare-icon" aria-hidden="true">Σ</,'engine comparison must use the Sigma icon');
 assert.match(css,/\.forecast-engine-compare-card::before \{ content: none; \}/,'engine comparison must not use a colored accent border');
 assert.match(css,/\.forecast-engine-compare-card:hover \{[\s\S]*?border-color: var\(--panel-border\);/,'engine comparison hover must keep the neutral border');
