@@ -39,6 +39,9 @@ assert.doesNotMatch(app,/🦋/,'the placeholder butterfly emoji must not be used
 assert.doesNotMatch(app,/class=\"section-card about-install\"|about-install-grid/,'About must not duplicate installation controls already present in the topbar');
 assert.match(css,/\.about-hero/,'About page has dedicated layout styling');
 assert.match(css,/\.donation-grid/,'support overlay has dedicated donation layout styling');
+assert.match(css,/\.topbar \.support-nav \.nav-icon[\s\S]*animation:\s*support-heart-pulse 12s/,'topbar support heart should pulse only occasionally');
+assert.match(css,/@keyframes support-heart-pulse[\s\S]*#e54863[\s\S]*scale\(1\.08\)/,'support heart pulse should briefly become red with only a subtle scale change');
+assert.match(css,/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.topbar \.support-nav \.nav-icon[\s\S]*animation:\s*none/,'support heart pulse must respect reduced-motion preferences');
 
 // PWA install UX: custom prompt where available, honest manual fallback elsewhere.
 assert.match(html,/<meta name="mobile-web-app-capable" content="yes" \/>/,'modern Chromium PWA capability meta is present');

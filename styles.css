@@ -1345,7 +1345,21 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
 /* About, PWA install, support, and explicit comparison legends */
 
 .topbar .support-nav { color: color-mix(in srgb, var(--primary) 78%, var(--muted)); }
+.topbar .support-nav .nav-icon {
+  transform-origin: center;
+  animation: support-heart-pulse 12s ease-in-out infinite;
+}
 .topbar .support-nav:hover { color: #d94f70; background: color-mix(in srgb, #e84a70 8%, var(--surface-2)); }
+@keyframes support-heart-pulse {
+  0%, 72%, 100% { color: inherit; transform: scale(1); }
+  74% { color: #df4967; transform: scale(1.06); }
+  76% { color: #e54863; transform: scale(1); }
+  78% { color: #df4967; transform: scale(1.08); }
+  81% { color: inherit; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topbar .support-nav .nav-icon { animation: none; }
+}
 .topbar .bluesky-nav { width:38px; padding:0; justify-content:center; color:#0560FF; text-decoration:none; opacity:.88; }
 .topbar .bluesky-nav .bluesky-icon { width:18px; height:18px; display:block; flex:none; }
 .topbar .bluesky-nav:hover { background:color-mix(in srgb,#0560FF 10%,var(--surface-2)); color:#0560FF; opacity:1; }
