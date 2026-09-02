@@ -8,8 +8,9 @@ assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.doesNotMatch(app,/class="city-context-bar"/);
 assert.match(app,/class="detail-hero-actions"/);
 assert.match(app,/rainIfWetAmountShort/);
-assert.match(app,/rainExpectedAmount/);
-assert.match(app,/rainProbabilityShort/);
+assert.match(app,/summaryRainExpectedLabel/);
+assert.match(app,/summaryRainIfWetLabel/);
+assert.match(app,/insightsMetricProbability/);
 assert.match(app,/maxProbabilityTitle/);
 assert.match(app,/dailyRainProbabilityLegend/);
 assert.doesNotMatch(app,/function renderInsights\(/,'the redundant À retenir block must stay removed');
@@ -18,6 +19,6 @@ assert.match(css,/:where\(\.table-wrap table\) tbody tr > \* \{[\s\S]*height: 64
 assert.match(css,/\.forecast-table tbody tr > \* \{ height: 78px; \}/);
 for(const lang of ['fr','en','es','de','it']){
   const {catalog}=await import(`../../../js/locales/${lang}.js?test=${Date.now()}`);
-  for(const key of ['onlineData','dataAge','freshness','maxProbability','maxProbabilityTitle','rainExpectedAmount','rainExpectedAmountTitle','rainIfWetAmountShort','dailyRainProbabilityLegend']) assert.ok(catalog[key],`${lang}:${key}`);
+  for(const key of ['onlineData','dataAge','freshness','maxProbability','maxProbabilityTitle','rainExpectedAmountTitle','rainIfWetAmountShort','summaryRainExpectedLabel','summaryRainIfWetLabel','dailyRainProbabilityLegend']) assert.ok(catalog[key],`${lang}:${key}`);
 }
 console.log('tests/ui/regression/app.clarity.test.mjs: OK');

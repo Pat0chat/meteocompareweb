@@ -9,6 +9,7 @@ const html=fs.readFileSync(new URL('../../../index.html',import.meta.url),'utf8'
 const styles=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf8');
 
 const renderTimeline=app.slice(app.indexOf('function renderTimeline('),app.indexOf('function renderConfidenceSection('));
+const renderPoint=app.slice(app.indexOf('function timelineMetricRail('),app.indexOf('function timelineEventMarker('));
 assert.match(renderTimeline,/selectRegularTimelinePoints\(analysis,mode==='HOURLY'\?24:7,1\)/,'detail 24 h timeline must render hourly points');
 assert.match(app,/function homeTimelinePoints[\s\S]*selectRegularTimelinePoints\(buildTimelinePoints\(f,'HOURLY'[\s\S]*maxPoints,3\)/,'home mini timeline keeps its compact 3-hour sampling');
 assert.match(app,/disagreementAnalysis\(cityId\)[\s\S]*selectRegularTimelinePoints\(buildTimelinePoints\(f,'HOURLY',new Date\(\),opts\),24,1\)/,'detail disagreement analysis must use the same hourly grid');
@@ -18,5 +19,17 @@ assert.match(network,/modelMetadata: '\/_mcx\/model-metadata'/);
 assert.doesNotMatch(health,/fetch\(`https:\/\/openmeteo-data-spatial\.b-cdn\.net/);
 assert.doesNotMatch(html,/openmeteo-data-spatial\.b-cdn\.net/,'browser CSP no longer needs a direct metadata CDN connection');
 assert.match(styles,/timeline-ruler, \.timeline-full \{ grid-template-columns: repeat\(var\(--timeline-cols, 8\), minmax\(148px,1fr\)\); \}/,'hourly timeline columns must have enough width for condition labels');
-assert.match(styles,/timeline-condition > span:last-child \{[^}]*white-space:nowrap;[^}]*text-overflow:ellipsis;/,'weather condition labels must stay on one line');
+assert.match(styles,/timeline-condition > span:last-child \{[^}]*white-space:normal;[^}]*-webkit-line-clamp:2;/,'weather condition labels must use a stable two-line area instead of ellipsis');
+assert.match(styles,/timeline-point-head span \{[^}]*white-space:normal;[^}]*-webkit-line-clamp:2;/,'localized timeline dates must be readable on two lines');
+assert.match(renderPoint,/engineDetail\?\.allSourceInterval\|\|engineDetail\?\.interval/,'timeline rails must distinguish the probable all-source interval');
+assert.match(renderPoint,/retainedInterval=normalizedInterval\(engineDetail\?\.interval\)/,'timeline rails must retain the selected engine interval separately');
+assert.match(renderPoint,/precipitationExpectedMinAcrossModelsMm[\s\S]*engineDetails\?\.precipitation/,'rain rail must compare expected precipitation on one consistent scale');
+assert.match(renderPoint,/engineDetails\?\.cloud[\s\S]*engineDetails\?\.wind/,'cloud and wind timeline metrics must consume their engine intervals');
+assert.match(renderPoint,/timeline-rain-probability-metric[\s\S]*timeline-rain-amount-metric/,'rain probability and probabilistic accumulation must use distinct timeline rows');
+assert.match(renderPoint,/precipitationProbabilityMin[\s\S]*engineDetail:null[\s\S]*precipitationExpectedMinAcrossModelsMm/,'probability spread must stay separate from amount intervals');
+assert.match(renderPoint,/windGustMinAcrossModels[\s\S]*engineDetails\?\.gust[\s\S]*timeline-gust-metric/,'gusts must be promoted to their own metric with a complete engine rail');
+assert.match(renderPoint,/renderMetric\('precipitation-probability'[\s\S]*renderMetric\('precipitation-amount'[\s\S]*renderMetric\('wind'[\s\S]*renderMetric\('gust'/,'probability, accumulation, wind and gusts must use semantically distinct glyphs');
+assert.match(renderPoint,/timeline-metric-label[\s\S]*timelineRainProbabilityShort[\s\S]*timelineRainAmountShort/,'narrow metric rows must expose short labels rather than hiding long descriptions');
+assert.match(renderTimeline,/summaryRainExpectedLabel[\s\S]*windMedianLegend[\s\S]*gusts[\s\S]*timeline-rail-legend/,'the chronology legend must name weighted rain and gusts separately');
+assert.match(renderTimeline,/timeline-rail-legend[\s\S]*summarySpreadLegend[\s\S]*summaryIntervalLegend/,'the chronology legend must explain spread and intervals once globally');
 console.log('detail hourly timeline and first-party model health proxy: OK');

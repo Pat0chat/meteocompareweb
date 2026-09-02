@@ -74,7 +74,13 @@ assert.match(html,/data-timeline-mode="DAILY"/,'Timeline must offer 7-day mode')
 assert.match(html,/class="timeline-full"/,'Full rich timeline must be rendered');
 assert.match(html,/class="timeline-temp-band"/,'Timeline must retain thermal heat bands');
 assert.match(html,/class="timeline-precip-heat"/,'Timeline must retain precipitation heat indicators');
-assert.match(html,/class="timeline-metric"/,'Timeline must retain precipitation, cloud and wind metrics');
+assert.match(html,/class="timeline-metric (?:timeline-rain|timeline-cloud|timeline-wind)-metric"/,'Timeline must retain precipitation, cloud and wind metrics');
+assert.match(html,/timeline-rain-probability-metric/,'Timeline must render rain probability as a distinct metric');
+assert.match(html,/timeline-rain-amount-metric/,'Timeline must render weighted rain accumulation as a distinct metric');
+assert.match(html,/timeline-gust-metric/,'Timeline must render gusts as a distinct metric');
+assert.match(html,/wx-metric-precipitation-probability/,'Timeline must render a dedicated probability glyph');
+assert.match(html,/wx-metric-precipitation-amount/,'Timeline must render a dedicated accumulation glyph');
+assert.match(html,/wx-metric-gust/,'Timeline must render a dedicated gust glyph');
 assert.match(html,/class="chart-legend"/,'Agreement chart must have a legend');
 assert.match(html,/class="agreement-strip"/,'Hourly agreement band must expose a color-coded confidence strip');
 assert.match(html,/class="chart-band-segment (?:high|medium|low)"/,'The min-max inter-model envelope must itself be color-coded by agreement');

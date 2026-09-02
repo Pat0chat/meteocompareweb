@@ -72,6 +72,11 @@ const dailyScore=dayConfidence(dailyForecast,'2026-09-01');
 const dailyPoint=buildTimelinePoints(dailyForecast,'DAILY',new Date('2026-09-01T00:00:00Z'))[0];
 assert.equal(dailyPoint.consensusPercent,dailyScore.overallPercent);
 assert.deepEqual(dailyPoint.divergenceReasons,dailyScore.divergenceReasons);
+assert.equal(dailyPoint.precipitationExpectedMinAcrossModelsMm,.65,'timeline rain dispersion must use expected amount per model');
+assert.equal(dailyPoint.precipitationExpectedMaxAcrossModelsMm,2.25,'timeline rain dispersion must stay on the engine interval scale');
+assert.equal(dailyPoint.windGustMinAcrossModels,19,'timeline gust dispersion must retain the lowest model value');
+assert.equal(dailyPoint.windGustMaxAcrossModels,22,'timeline gust dispersion must retain the highest model value');
+assert.ok(dailyPoint.engineDetails.gust?.interval,'timeline gusts must expose the retained engine interval');
 
 // Adaptive calibration must propagate residual historical uncertainty instead of only source spread.
 const calibration={};

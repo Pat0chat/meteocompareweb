@@ -32,7 +32,10 @@ assert.match(summary,/summary-model-dot/);
 assert.match(summary,/summary-dispersion-envelope/);
 assert.match(summary,/modelConvergence/);
 assert.match(summary,/modelRange/);
-assert.match(summary,/rainProbabilityShort/);
+assert.match(summary,/insightsMetricProbability/);
+assert.match(summary,/summaryRainExpectedLabel/);
+assert.match(summary,/summaryRainIfWetLabel/);
+assert.match(summary,/summary-mini-card/);
 assert.equal((summary.match(/summaryDispersionCard\(\{agg,/g)||[]).length,6); // helper signature + five metric calls
 assert.doesNotMatch(summary,/class="summary-tile metric-/);
 for(const selector of ['.summary-dispersion-grid','.summary-dispersion-rail','.summary-model-dot','.summary-agreement-track'])assert.ok(css.includes(selector),selector);

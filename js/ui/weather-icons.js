@@ -79,9 +79,12 @@ const OPTICAL_OFFSETS={
 const METRICS={
   temperature:'<path class="wx-metric-stroke" d="M27 28.2V10a7 7 0 0 0-14 0v18.2a10 10 0 1 0 14 0Z"/><path class="wx-metric-soft" d="M20 8.5v24"/><circle class="wx-metric-fill" cx="20" cy="34.5" r="4.8"/><path class="wx-metric-highlight" d="M17.2 9.4c0-1.9 1.1-3.2 2.8-3.2"/>',
   precipitation:'<path class="wx-metric-stroke" d="M24 4.5S12.5 17.1 12.5 27.1a11.5 11.5 0 0 0 23 0C35.5 17.1 24 4.5 24 4.5Z"/><path class="wx-metric-highlight" d="M17.7 27.7c.8 3 2.9 4.7 6 5.2"/>',
+  'precipitation-probability':'<path class="wx-metric-stroke wx-probability-drop" d="M24 4.5S12.5 17.1 12.5 27.1a11.5 11.5 0 0 0 23 0C35.5 17.1 24 4.5 24 4.5Z"/><g class="wx-metric-stroke wx-metric-percent"><circle cx="20" cy="23" r="1.8"/><circle cx="28" cy="31" r="1.8"/><path d="m29.2 21.8-10.4 10.4"/></g>',
+  'precipitation-amount':'<g class="wx-metric-stroke wx-metric-rain-gauge"><path d="M12 21v15.8a5 5 0 0 0 5 5h14a5 5 0 0 0 5-5V21"/><path d="M12 28h24M12 34h24"/><path d="M18 7.5s-3 3.7-3 6.1a3 3 0 0 0 6 0c0-2.4-3-6.1-3-6.1ZM30 4.5s-3 3.7-3 6.1a3 3 0 0 0 6 0c0-2.4-3-6.1-3-6.1Z"/></g>',
   rain:'<g class="wx-cloud wx-metric-cloud-shape"><path class="wx-cloud-body" d="M11.5 28.8h23.2a6.9 6.9 0 0 0 .5-13.8 10.8 10.8 0 0 0-20.4-1.7 8.1 8.1 0 0 0-3.3 15.5Z"/><path class="wx-cloud-highlight" d="M14.3 20.2c1-1.1 2.3-1.6 3.7-1.6.8-3.3 3.1-5.5 6.4-5.9"/></g><g class="wx-rain"><path d="M16.5 34l-2.1 5.2M25 34l-2.1 5.2M33.4 34l-2.1 5.2"/></g>',
   cloud:'<g class="wx-cloud wx-metric-cloud-shape"><path class="wx-cloud-body" d="M9.5 33h26.3a8 8 0 0 0 .6-16A12 12 0 0 0 14 15a9 9 0 0 0-4.5 18Z"/><path class="wx-cloud-highlight" d="M13.2 23c1.2-1.2 2.8-1.8 4.5-1.8.8-4.2 3.9-7 8-7.4"/></g>',
   wind:'<g class="wx-metric-stroke wx-wind-lines"><path d="M6.5 15.5h23.2a5.3 5.3 0 1 0-4.6-8"/><path d="M6.5 24h31.2a5.4 5.4 0 1 1-4.7 8.1"/><path d="M6.5 32.5h14.8"/></g>',
+  gust:'<g class="wx-metric-stroke wx-gust-lines"><path d="M6 13h27"/><path d="m28 7 7 6-7 6"/><path d="M6 25h35"/><path d="m35 19 7 6-7 6"/><path d="M6 37h24"/><path d="m25 31 7 6-7 6"/></g>',
   sunrise:'<g class="wx-metric-stroke"><path d="M6.5 35.5h35"/><path d="M12.8 29.5a11.2 11.2 0 0 1 22.4 0"/><path d="M24 6.5v7.2M9.8 17.8l5.2 3M38.2 17.8l-5.2 3"/></g><path class="wx-metric-highlight" d="M19.4 24.4a6.6 6.6 0 0 1 9.2 0"/>',
   sunset:'<g class="wx-metric-stroke"><path d="M6.5 35.5h35"/><path d="M12.8 29.5a11.2 11.2 0 0 1 22.4 0"/><path d="M24 6.5v7.2M9.8 17.8l5.2 3M38.2 17.8l-5.2 3"/></g><path class="wx-metric-stroke" d="M24 18v8m-4-4 4 4 4-4"/>'
 };

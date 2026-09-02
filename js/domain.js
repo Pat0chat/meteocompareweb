@@ -458,9 +458,11 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     }
     const temperatures=snaps.map(row=>hourly?row.temperature:row.tempMax).filter(Number.isFinite);
     const precipitationAmounts=snaps.map(row=>row.precipitation).filter(Number.isFinite);
+    const precipitationExpectedAmounts=snaps.map(row=>Number.isFinite(row.precipitation)?(Number.isFinite(row.precipitationProbability)?row.precipitation*(row.precipitationProbability/100):row.precipitation):null).filter(Number.isFinite);
     const probabilities=snaps.map(row=>row.precipitationProbability).filter(Number.isFinite);
     const clouds=snaps.map(row=>row.cloudCover).filter(Number.isFinite);
     const winds=snaps.map(row=>row.wind).filter(Number.isFinite);
+    const gusts=snaps.map(row=>row.windGust).filter(Number.isFinite);
 
     return {
       mode,key,timestamp:hourly?key:null,epochMs:hourly?epochMs:null,date:hourly?key.slice(0,10):key,
@@ -483,6 +485,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       precipitationHistoricalReliabilityPercent:precipitationForecast.historicalReliabilityPercent??null,
       precipitationMinAcrossModelsMm:precipitationAmounts.length?Math.min(...precipitationAmounts):null,
       precipitationMaxAcrossModelsMm:precipitationAmounts.length?Math.max(...precipitationAmounts):null,
+      precipitationExpectedMinAcrossModelsMm:precipitationExpectedAmounts.length?Math.min(...precipitationExpectedAmounts):null,
+      precipitationExpectedMaxAcrossModelsMm:precipitationExpectedAmounts.length?Math.max(...precipitationExpectedAmounts):null,
       precipitationProbabilityMin:probabilities.length?Math.min(...probabilities):null,
       precipitationProbabilityMax:probabilities.length?Math.max(...probabilities):null,
       cloudCoverPercent:Number.isFinite(cloudForecast.central)?Math.round(cloudForecast.central):null,
@@ -492,6 +496,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       windMinAcrossModels:winds.length?Math.min(...winds):null,
       windMaxAcrossModels:winds.length?Math.max(...winds):null,
       windGustKmh:gustForecast.central,
+      windGustMinAcrossModels:gusts.length?Math.min(...gusts):null,
+      windGustMaxAcrossModels:gusts.length?Math.max(...gusts):null,
       condition,conditionInferred,conditionSource:conditionResolution.conditionSource,
       conditionNativeModelCount:conditionResolution.nativeModelCount,conditionDerivedModelCount:conditionResolution.derivedModelCount,
       modelCount:snaps.length,

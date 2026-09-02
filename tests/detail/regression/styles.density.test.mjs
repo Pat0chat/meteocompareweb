@@ -10,11 +10,20 @@ const modal=app.slice(app.indexOf('function renderForecastEngineComparisonModal(
 const detail=app.slice(app.indexOf('function renderCityDetail('),app.indexOf('function healthStatusClass('));
 assert.doesNotMatch(modal,/forecast-engine-reading/,'engine comparison must not repeat the reading banner');
 assert.doesNotMatch(summary,/summary-dispersion-facts[^`]*modelRange/s,'model range must not be repeated as a summary fact');
-assert.match(summary,/const metadata=probabilityMeta\|\|secondaryMeta\|\|evidenceMeta\|\|reliabilityMeta\?/,'summary metadata must disappear entirely when there is no complementary fact');
+assert.match(summary,/const metadata=miniCards\|\|supplementalMeta\?/,'summary metadata must disappear entirely when there is no mini-card or supporting fact');
 assert.match(app,/forecast-engine-compare-icon" aria-hidden="true">Σ</,'engine comparison must use the Sigma icon');
 assert.match(css,/\.forecast-engine-compare-card::before \{ content: none; \}/,'engine comparison must not use a colored accent border');
 assert.match(css,/\.forecast-engine-compare-card:hover \{[\s\S]*?border-color: var\(--panel-border\);/,'engine comparison hover must keep the neutral border');
-assert.match(css,/\.summary-dispersion-meta-item \{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/,'summary facts must be plain text rather than pills');
+assert.match(css,/\.summary-dispersion-meta-item \{[\s\S]*?padding: 0;[\s\S]*?border: 0;[\s\S]*?background: transparent;/,'supporting summary facts must remain plain text');
+assert.match(css,/\.summary-mini-card \{[\s\S]*?min-height: 52px;[\s\S]*?align-content: start;[\s\S]*?padding: 6px 8px;[\s\S]*?border: 1px solid/,'rain and wind facts must use compact top-aligned mini-cards');
+assert.match(css,/\.summary-mini-card-label \{[\s\S]*?min-height: 0;[\s\S]*?display: block;/,'mini-card labels must not reserve an empty line above their text');
+assert.match(css,/\.summary-dispersion-facts \{[\s\S]*?grid-template-columns: repeat\(3,minmax\(0,1fr\)\);/,'rain facts must form a three-card row');
+assert.match(css,/\.summary-mini-card\.wide \{ grid-column: 1 \/ -1; \}/,'the wind mini-card must occupy the matching metadata row');
+assert.match(css,/\.summary-range-values \{[\s\S]*?grid-template-columns:minmax\(0,1fr\);[\s\S]*?width:fit-content;[\s\S]*?max-width:100%;/,'probable and engine ranges must stack without consuming the full rail width');
+assert.match(css,/\.summary-range-values > span \{[\s\S]*?justify-content:flex-start;/,'range labels and values must remain grouped together');
+assert.match(css,/\.overview-primary \.summary-dispersion-grid \{ grid-template-rows:none; \}/,'summary rows must size to their own content on wide screens');
+assert.match(app,/rainMiniFacts=\[\{label:t\('insightsMetricProbability'\)[\s\S]*?summaryRainExpectedLabel[\s\S]*?summaryRainIfWetLabel/,'precipitation must expose probability, weighted total and wet-event amount as three facts');
+assert.match(app,/windMiniFacts=Number\.isFinite\(agg\.gust\)\?\[\{label:t\('gusts'\)[\s\S]*?wide:true/,'wind gusts must use the aligned wide mini-card');
 assert.match(detail,/detail-hero-support.*detail-hero-support-meta.*hero-meta.*detail-hero-support-context.*renderSeoDetailTitleContext\(city\)/s,'hero support must render metadata first and SEO context below');
 assert.match(css,/\.detail-hero-support \{[\s\S]*?grid-template-columns: minmax\(0,1fr\);/,'hero support must be stacked vertically');
 
