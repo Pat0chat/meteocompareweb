@@ -81,6 +81,14 @@ assert.match(html,/timeline-gust-metric/,'Timeline must render gusts as a distin
 assert.match(html,/wx-metric-precipitation-probability/,'Timeline must render a dedicated probability glyph');
 assert.match(html,/wx-metric-precipitation-amount/,'Timeline must render a dedicated accumulation glyph');
 assert.match(html,/wx-metric-gust/,'Timeline must render a dedicated gust glyph');
+assert.match(html,/class="scenario scenario-card scenario-principal"/,'12 h scenarios must identify the main family-ranked scenario');
+assert.match(html,/class="scenario-primary-badge">Principal/);
+assert.match(html,/class="scenario-timing"/,'wet 12 h scenarios must expose their timing on an early/middle/late ribbon');
+assert.match(html,/class="scenario-weight-track"/,'12 h scenarios must visualize their family-balanced support');
+assert.match(html,/class="scenario-fact scenario-fact-temp"/);
+assert.match(html,/class="scenario-fact scenario-fact-rain"/);
+assert.match(html,/class="scenario-fact scenario-fact-gust"/);
+assert.match(html,/Le poids indique la part équilibrée des familles de modèles, pas une probabilité météorologique\./,'family weight must be explicitly distinguished from weather probability');
 assert.match(html,/class="chart-legend agreement-band-legend"/,'Agreement chart must have a dedicated interval legend');
 assert.match(html,/class="agreement-strip"/,'Hourly agreement band must expose a color-coded confidence strip');
 assert.match(html,/class="chart-band-segment chart-band-raw"/,'The hourly band must retain the raw model spread');

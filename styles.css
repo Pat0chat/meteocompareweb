@@ -5307,3 +5307,178 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
     text-align:center;
   }
 }
+
+/* Twelve-hour scenarios: expose timing, family-balanced support and ranges
+   without turning the family vote into a weather probability. */
+.scenario-section .section-head { margin-bottom:10px; padding-bottom:9px; }
+.scenario-section .section-head p { max-width:48ch; }
+.scenario-card {
+  display:block;
+  min-width:0;
+  padding:11px 12px 12px;
+  border-color:color-mix(in srgb,var(--border-strong) 66%,var(--border));
+  background:color-mix(in srgb,var(--surface-2) 34%,var(--surface));
+}
+.scenario-card.scenario-principal {
+  border-color:color-mix(in srgb,var(--primary) 34%,var(--border));
+  background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 5%,var(--surface)),var(--surface) 68%);
+}
+.scenario-card-header {
+  display:grid;
+  grid-template-columns:2.35rem minmax(0,1fr);
+  gap:9px;
+  align-items:center;
+  min-width:0;
+}
+.scenario-card-title,.scenario-heading-row { min-width:0; }
+.scenario-heading-row {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:7px;
+}
+.scenario-card .scenario-main {
+  min-width:0;
+  font-size:.84rem;
+  line-height:1.3;
+}
+.scenario-primary-badge {
+  flex:0 0 auto;
+  padding:2px 6px;
+  border:1px solid color-mix(in srgb,var(--primary) 30%,var(--border));
+  border-radius:999px;
+  color:var(--primary);
+  background:var(--primary-soft);
+  font-size:var(--type-micro);
+  font-weight:820;
+  line-height:1.3;
+}
+.scenario-support {
+  margin-top:2px;
+  color:var(--muted);
+  font-size:var(--type-micro);
+  line-height:1.35;
+}
+.scenario-timing {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:4px;
+  margin:9px 0 8px;
+}
+.scenario-timing-segment {
+  display:grid;
+  gap:3px;
+  min-width:0;
+}
+.scenario-timing-segment i {
+  display:block;
+  height:4px;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--border-strong) 65%,var(--surface-3));
+}
+.scenario-timing-segment small {
+  overflow:visible;
+  color:var(--subtle);
+  font-size:var(--type-micro);
+  line-height:1.2;
+  text-align:center;
+  white-space:normal;
+}
+.scenario-timing-segment.active i { background:var(--primary); }
+.scenario-timing-segment.active small { color:var(--text); font-weight:760; }
+.scenario-weight { margin-top:8px; }
+.scenario-timing + .scenario-weight { margin-top:0; }
+.scenario-weight-head {
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:8px;
+  color:var(--muted);
+  font-size:var(--type-micro);
+  line-height:1.3;
+}
+.scenario-weight-head strong {
+  color:var(--text);
+  font-size:.76rem;
+  font-variant-numeric:tabular-nums;
+}
+.scenario-weight-track {
+  height:5px;
+  margin-top:4px;
+  overflow:hidden;
+  border-radius:999px;
+  background:color-mix(in srgb,var(--border) 62%,var(--surface-3));
+}
+.scenario-weight-track i {
+  display:block;
+  width:clamp(2px,var(--scenario-share,0%),100%);
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--primary) 68%,var(--rain)),var(--primary));
+}
+.scenario-facts {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:5px;
+  margin-top:9px;
+}
+.scenario-fact {
+  display:grid;
+  align-content:start;
+  gap:4px;
+  min-width:0;
+  min-height:52px;
+  padding:6px 7px;
+  border:1px solid color-mix(in srgb,var(--border) 72%,transparent);
+  border-radius:8px;
+  background:color-mix(in srgb,var(--surface-2) 76%,var(--surface));
+}
+.scenario-fact > span {
+  display:flex;
+  align-items:center;
+  gap:3px;
+  min-width:0;
+  color:var(--muted);
+  font-size:var(--type-micro);
+  line-height:1.2;
+  overflow-wrap:anywhere;
+}
+.scenario-fact .wx-icon { flex:0 0 auto; width:.9rem; height:.9rem; }
+.scenario-fact-temp .wx-icon { color:var(--temp); }
+.scenario-fact-rain .wx-icon { color:var(--rain); }
+.scenario-fact-gust .wx-icon { color:var(--wind); }
+.scenario-fact strong {
+  min-width:0;
+  font-size:.74rem;
+  line-height:1.25;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.scenario-method-note {
+  display:flex;
+  align-items:flex-start;
+  gap:6px;
+  margin:10px 1px 0;
+  padding-top:9px;
+  border-top:1px solid color-mix(in srgb,var(--border) 62%,transparent);
+  color:var(--muted);
+  font-size:var(--type-micro);
+  line-height:1.42;
+}
+.scenario-method-note span { flex:0 0 auto; color:var(--primary); }
+.scenario-compact-weight {
+  display:grid;
+  justify-items:end;
+  gap:1px;
+  color:var(--muted);
+  line-height:1.1;
+}
+.scenario-compact-weight strong { color:var(--text); font-size:.8rem; font-variant-numeric:tabular-nums; }
+.scenario-compact-weight small { font-size:var(--type-micro); }
+
+@media(max-width:380px){
+  .scenario-card { padding:10px; }
+  .scenario-facts { gap:4px; }
+  .scenario-fact { padding:6px 5px; }
+  .scenario-fact strong { font-size:.70rem; }
+}

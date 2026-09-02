@@ -1213,25 +1213,41 @@ function scenarioLabel(s){
   return key?t(key):s.kind;
 }
 function scenarioIcon(kind){return weatherIcons.renderScenario(kind,{size:'small'});}
-function scenarioModelLabel(s){const {t}=i18n();return t('scenarioModels',{used:s.modelCount,total:s.totalModelCount,models:t(s.totalModelCount===1?'modelSingular':'models')});}
 function scenarioRankTitle(s){const {t}=i18n();return t('scenarioRankMeta',{families:s.familyCount,totalFamilies:s.totalFamilyCount,share:s.voteSharePercent});}
+function scenarioRangeValue(min,max,unit,digits=0){
+  if(Number.isFinite(min)&&Number.isFinite(max))return fmtRange(min,max,unit,digits);
+  const value=Number.isFinite(min)?min:max;
+  return Number.isFinite(value)?`${fmt(value,digits)}${unit}`:'—';
+}
+function scenarioTimingMarkup(s){
+  if(!['EARLY','MIDDLE','LATE','THROUGHOUT'].includes(s.timing))return '';
+  const {t}=i18n(),segments=[['EARLY','scenarioTimingEarly'],['MIDDLE','scenarioTimingMiddle'],['LATE','scenarioTimingLate']],timingKey={EARLY:'scenarioTimingEarly',MIDDLE:'scenarioTimingMiddle',LATE:'scenarioTimingLate',THROUGHOUT:'scenarioTimingThroughout'}[s.timing];
+  return `<div class="scenario-timing" role="img" aria-label="${attr(t('scenarioTimingAria',{timing:t(timingKey)}))}">${segments.map(([timing,key])=>`<span class="scenario-timing-segment ${s.timing===timing||s.timing==='THROUGHOUT'?'active':''}"><i aria-hidden="true"></i><small>${esc(t(key))}</small></span>`).join('')}</div>`;
+}
+function scenarioFactsMarkup(s){
+  const {t}=i18n(),facts=[
+    ['temp',weatherIcons.renderMetric('temperature',{size:'tiny'}),t('temperature'),scenarioRangeValue(s.tempMin,s.tempMax,' °C',0)],
+    ['rain',weatherIcons.renderMetric('precipitation-amount',{size:'tiny'}),t('timelineRainAmountShort'),scenarioRangeValue(s.precipMin,s.precipMax,' mm',1)],
+    ['gust',weatherIcons.renderMetric('gust',{size:'tiny'}),t('gusts'),scenarioRangeValue(s.gustMin,s.gustMax,' km/h',0)],
+  ];
+  return `<div class="scenario-facts">${facts.map(([kind,icon,label,value])=>`<div class="scenario-fact scenario-fact-${kind}"><span>${icon}${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('')}</div>`;
+}
 function scenarioRemainderMarkup(scenarios,limit=SCENARIO_DISPLAY_LIMIT){
   const hidden=scenarios.slice(limit);if(!hidden.length)return '';
   const {t}=i18n(),models=hidden.reduce((sum,s)=>sum+s.modelCount,0),total=scenarios[0]?.totalModelCount||models,key=hidden.length===1?'scenarioOtherVariantSummary':'scenarioOtherVariantsSummary';
   return `<div class="scenario-more">${esc(t(key,{count:hidden.length,used:models,total}))}</div>`;
 }
 function renderScenarioRows(scenarios,{compact=false,limit=SCENARIO_DISPLAY_LIMIT}={}){
-  const visible=scenarios.slice(0,limit);
-  return visible.map(s=>{
-    const rankTitle=attr(scenarioRankTitle(s));
-    if(compact)return `<div class="scenario"><span class="scenario-icon">${scenarioIcon(s.kind)}</span><span><span class="scenario-main">${esc(scenarioLabel(s))}</span><span class="cell-sub" title="${rankTitle}">${esc(scenarioModelLabel(s))}</span></span></div>`;
-    const parts=[];if(Number.isFinite(s.tempMin)&&Number.isFinite(s.tempMax))parts.push(`${fmt(s.tempMin)}–${fmt(s.tempMax)} °C`);if(Number.isFinite(s.precipMax))parts.push(i18n().t('scenarioRainPart',{range:fmtRange(s.precipMin,s.precipMax,' mm',1)}));if(Number.isFinite(s.gustMax))parts.push(i18n().t('scenarioGustPart',{value:fmt(s.gustMax)}));
-    return `<div class="scenario"><div class="scenario-icon">${scenarioIcon(s.kind)}</div><div><div class="scenario-main">${esc(scenarioLabel(s))}</div><div class="scenario-sub">${esc(parts.join(' · '))}</div></div><span class="pill" title="${rankTitle}">${esc(scenarioModelLabel(s))}</span></div>`;
+  const {t}=i18n(),visible=scenarios.slice(0,limit);
+  return visible.map((s,index)=>{
+    const rankTitle=attr(scenarioRankTitle(s)),share=Math.max(0,Math.min(100,Number(s.voteSharePercent)||0)),support=`${t('independentFamilies',{count:s.familyCount})} · ${modelCountLabel(s.modelCount)}`;
+    if(compact)return `<div class="scenario scenario-compact"><span class="scenario-icon">${scenarioIcon(s.kind)}</span><span><span class="scenario-main">${esc(scenarioLabel(s))}</span><span class="cell-sub" title="${rankTitle}">${esc(support)}</span></span><span class="scenario-compact-weight" title="${rankTitle}"><strong>${share}%</strong><small>${esc(t('scenarioFamilyWeightCompact'))}</small></span></div>`;
+    return `<article class="scenario scenario-card ${index===0?'scenario-principal':''}"><div class="scenario-card-header"><div class="scenario-icon">${scenarioIcon(s.kind)}</div><div class="scenario-card-title"><div class="scenario-heading-row"><div class="scenario-main">${esc(scenarioLabel(s))}</div>${index===0?`<span class="scenario-primary-badge">${esc(t('scenarioPrimary'))}</span>`:''}</div><div class="scenario-support">${esc(support)}</div></div></div>${scenarioTimingMarkup(s)}<div class="scenario-weight" title="${rankTitle}"><div class="scenario-weight-head"><span>${esc(t('scenarioFamilyWeight'))}</span><strong>${share}%</strong></div><div class="scenario-weight-track" aria-hidden="true"><i style="--scenario-share:${share}%"></i></div></div>${scenarioFactsMarkup(s)}</article>`;
   }).join('');
 }
 function renderScenarios(scenarios){
   const {t}=i18n();if(!scenarios.length)return '';
-  return `<section class="section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('home_scenarios_title'))}</h2><p>${esc(t('scenarioSectionSubtitle'))}</p></div></div><div class="scenario-list">${renderScenarioRows(scenarios)}${scenarioRemainderMarkup(scenarios)}</div></div></section>`;
+  return `<section class="section scenario-section"><div class="section-card"><div class="section-head"><div><h2>${esc(t('home_scenarios_title'))}</h2><p>${esc(t('scenarioSectionSubtitle'))}</p></div></div><div class="scenario-list">${renderScenarioRows(scenarios)}${scenarioRemainderMarkup(scenarios)}</div><p class="scenario-method-note"><span aria-hidden="true">ⓘ</span>${esc(t('scenarioFamilyWeightNote'))}</p></div></section>`;
 }
 
 function renderTimeline(f,engineContext=null){
