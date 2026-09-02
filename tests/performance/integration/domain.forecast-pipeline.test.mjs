@@ -44,11 +44,11 @@ function timed(fn){const t0=performance.now();fn();return performance.now()-t0;}
 days.forEach(d=>aggregateDay(forecast,d));hourlyConfidenceBand(forecast,'TEMPERATURE',168);buildScenarios(forecast);buildTimelinePoints(forecast,24);computeBiases({forecasts,observations},today);buildEvolution(forecast,snapshots);
 const measurements={
   sevenDayAggregation:timed(()=>days.forEach(d=>aggregateDay(forecast,d))),
-  threeBands:timed(()=>['TEMPERATURE','PRECIPITATION','WIND'].forEach(m=>hourlyConfidenceBand(forecast,m,168))),
+  sixBands:timed(()=>['TEMPERATURE','PRECIPITATION_PROBABILITY','PRECIPITATION','CLOUD','WIND','GUST'].forEach(m=>hourlyConfidenceBand(forecast,m,168))),
   scenarios:timed(()=>buildScenarios(forecast)),
   timeline:timed(()=>buildTimelinePoints(forecast,24)),
   bias:timed(()=>computeBiases({forecasts,observations},today)),
   evolution:timed(()=>buildEvolution(forecast,snapshots)),
 };
-for(const [name,ms] of Object.entries(measurements)) assert.ok(ms<120,`${name} unexpectedly slow: ${ms.toFixed(1)} ms`);
+for(const [name,ms] of Object.entries(measurements)){const budget=name==='sixBands'?360:120;assert.ok(ms<budget,`${name} unexpectedly slow: ${ms.toFixed(1)} ms`);}
 console.log('MeteoCompare Web global performance audit: OK',Object.fromEntries(Object.entries(measurements).map(([k,v])=>[k,`${v.toFixed(2)}ms`])));

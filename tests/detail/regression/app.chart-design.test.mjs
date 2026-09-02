@@ -16,12 +16,15 @@ assert.match(comparison,/compare-point/,'comparison charts expose hoverable data
 assert.match(comparison,/agreement-zone high/,'city agreement chart exposes confidence zones');
 assert.match(app,/bias-error-connector/,'bias chart renders forecast-observation gaps');
 assert.match(app,/chartLastGap/,'bias chart exposes latest error summary');
-assert.match(app,/chartRange/,'charts expose their displayed range');
+assert.match(app,/summarySpreadLegend/,'hourly charts expose their raw model spread');
+assert.match(app,/PRECIPITATION_PROBABILITY[\s\S]*PRECIPITATION[\s\S]*CLOUD[\s\S]*WIND[\s\S]*GUST/,'hourly band exposes probability, weighted accumulation, cloud, wind and gust metrics separately');
+assert.match(app,/summaryProbableRange[\s\S]*summaryEngineRange/,'hourly band reuses the established probable and retained interval vocabulary');
 assert.match(css,/Analytical chart redesign/,'chart redesign CSS is present');
 assert.match(css,/\.chart-pro-head/,'professional chart header styling exists');
 assert.match(css,/\.chart-point:hover/,'chart points have hover feedback');
 assert.match(css,/\.compare-legend\.rich/,'comparison legends include richer values');
 assert.match(css,/\.bias-error-connector\.over/,'bias overestimation gaps are styled');
+assert.match(css,/\.agreement-metric-tabs/,'hourly metric selector has a compact responsive layout');
 assert.match(i18n,/importCatalog/,'i18n uses lazy locale loading');
 for (const lang of ['fr','en','es','de','it']) assert.match(localeFiles[lang],/\"chartRange\":/,`${lang} chart translations exist`);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');

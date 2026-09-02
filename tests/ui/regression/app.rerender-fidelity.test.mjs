@@ -81,9 +81,11 @@ assert.match(html,/timeline-gust-metric/,'Timeline must render gusts as a distin
 assert.match(html,/wx-metric-precipitation-probability/,'Timeline must render a dedicated probability glyph');
 assert.match(html,/wx-metric-precipitation-amount/,'Timeline must render a dedicated accumulation glyph');
 assert.match(html,/wx-metric-gust/,'Timeline must render a dedicated gust glyph');
-assert.match(html,/class="chart-legend"/,'Agreement chart must have a legend');
+assert.match(html,/class="chart-legend agreement-band-legend"/,'Agreement chart must have a dedicated interval legend');
 assert.match(html,/class="agreement-strip"/,'Hourly agreement band must expose a color-coded confidence strip');
-assert.match(html,/class="chart-band-segment (?:high|medium|low)"/,'The min-max inter-model envelope must itself be color-coded by agreement');
+assert.match(html,/class="chart-band-segment chart-band-raw"/,'The hourly band must retain the raw model spread');
+assert.match(html,/class="chart-band-segment chart-band-probable"/,'The hourly band must expose the probable engine interval');
+assert.match(html,/class="chart-band-segment chart-band-retained"/,'The hourly band must expose the retained engine interval');
 assert.match(html,/class="model-header-stack"/,'Model metadata and bias pills must use a non-overlapping stacked header layout');
 assert.match(html,/agreement-level-legend[\s\S]*Élevé ≥80%[\s\S]*Moyen 50–79%[\s\S]*Faible &lt;50%/,'Agreement strip must explain high, medium and low confidence colors');
 assert.match(html,/class="table-legend heatmap-legend"/,'Temperature table must have a heatmap legend');

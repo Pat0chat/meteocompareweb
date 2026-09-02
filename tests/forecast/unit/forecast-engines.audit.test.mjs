@@ -147,4 +147,20 @@ for (const engine of ['CALIBRATION', 'SCENARIOS', 'ADAPTIVE']) {
   );
 }
 
+const probabilityBand=hourlyConfidenceBand(forecast,'PRECIPITATION_PROBABILITY',3,new Date('2026-08-22T17:10:00Z'),options('MULTI_CONSENSUS'));
+assert.equal(probabilityBand[0].minValue,35,'probability spread must use model probabilities on a percent scale');
+assert.equal(probabilityBand[0].maxValue,88,'probability spread must not reuse precipitation amounts');
+assert.equal(probabilityBand[0].engineDetail,null,'probability must not fabricate an engine interval');
+
+const amountBand=hourlyConfidenceBand(forecast,'PRECIPITATION',3,new Date('2026-08-22T17:10:00Z'),options('MULTI_CONSENSUS'));
+assert.ok(Math.abs(amountBand[0].minValue-(1/24*.35))<1e-9,'weighted accumulation spread must use P(rain) × amount for every model');
+assert.ok(Math.abs(amountBand[0].maxValue-(11/24*.88))<1e-9,'weighted accumulation maximum must stay on the same scale as its central value');
+assert.ok(amountBand.every(point=>Number.isFinite(point.engineDetail?.interval?.low)&&Number.isFinite(point.engineDetail?.allSourceInterval?.high)),'weighted accumulation must expose retained and probable engine intervals');
+
+for(const metric of ['CLOUD','GUST']){
+  const band=hourlyConfidenceBand(forecast,metric,3,new Date('2026-08-22T17:10:00Z'),options('MULTI_CONSENSUS'));
+  assert.equal(band.length,3,`${metric} must be available in the hourly convergence band`);
+  assert.ok(band.every(point=>Number.isFinite(point.meanValue)&&point.engineDetail?.interval),`${metric} must expose a central value and engine interval`);
+}
+
 console.log(`MeteoCompare ${APP_VERSION} forecast-engine audit: OK`);

@@ -44,7 +44,7 @@ const current=currentConditions(forecast,now);
 assert.equal(current.familyCount,1);
 assert.equal(current.temperature,21,'current central value must survive unavailable convergence');
 
-for(const metric of ['TEMPERATURE','WIND','PRECIPITATION']){
+for(const metric of ['TEMPERATURE','PRECIPITATION_PROBABILITY','PRECIPITATION','CLOUD','WIND','GUST']){
   const band=hourlyConfidenceBand(forecast,metric,3,now);
   assert.equal(band.length,3,`${metric} band must keep weather points with one family`);
   assert.ok(band.every(p=>Number.isFinite(p.meanValue)),`${metric} central values must stay finite`);

@@ -30,7 +30,7 @@ export function chartTickIndices(length,maxTicks=7){
   return out;
 }
 
-export function chartMetricUnit(metric){return metric==='TEMPERATURE'?'°C':metric==='PRECIPITATION'?'mm':metric==='AGREEMENT'?'%':'km/h';}
+export function chartMetricUnit(metric){return metric==='TEMPERATURE'?'°C':metric==='PRECIPITATION'?'mm':['PRECIPITATION_PROBABILITY','CLOUD','AGREEMENT'].includes(metric)?'%':'km/h';}
 export function chartMetricDigits(metric){return metric==='PRECIPITATION'?1:0;}
 
 export function svgLinePath(points){

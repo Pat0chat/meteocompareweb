@@ -215,8 +215,8 @@ export function hourlyConfidenceBand(forecast, metric='TEMPERATURE', horizonHour
     .filter(epochMs=>epochMs>=anchor)
     .sort((a,b)=>a-b)
     .slice(0,horizonHours);
-  const thresholds=metric==='WIND'?[2,12]:[.5,3];
-  const weightKey=metric==='WIND'?'wind':metric==='PRECIPITATION'?'precipitation':'temperature';
+  const thresholds=['WIND','GUST'].includes(metric)?[2,12]:metric==='CLOUD'?[10,50]:[.5,3];
+  const weightKey=['WIND','GUST'].includes(metric)?'wind':metric==='CLOUD'?'condition':['PRECIPITATION','PRECIPITATION_PROBABILITY'].includes(metric)?'precipitation':'temperature';
 
   return times.map(epochMs=>{
     const rows=[];
@@ -228,34 +228,52 @@ export function hourlyConfidenceBand(forecast, metric='TEMPERATURE', horizonHour
         timestamp:modelSeries.hourly.timestamps[index],
         temperature:physicalValue(modelSeries.hourly.temperature2m[index],FORECAST_PHYSICAL_LIMITS.temperatureC),
         wind:physicalValue(modelSeries.hourly.windSpeed10m[index],FORECAST_PHYSICAL_LIMITS.windKmh),
+        gust:physicalValue(modelSeries.hourly.windGusts10m[index],FORECAST_PHYSICAL_LIMITS.gustKmh),
+        cloud:physicalValue(modelSeries.hourly.cloudCover[index],FORECAST_PHYSICAL_LIMITS.cloudPercent),
         precipitation:physicalValue(modelSeries.hourly.precipitation[index],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm),
         probability:physicalValue(modelSeries.hourly.precipitationProbability[index],FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent),
       });
     }
 
-    if(metric==='PRECIPITATION'){
+    if(['PRECIPITATION','PRECIPITATION_PROBABILITY'].includes(metric)){
       const precipitationRows=rows.map(row=>({modelId:row.modelId,amount:row.precipitation,probability:row.probability}));
       const forecastValue=forecastEnginePrecipitation(precipitationRows,{
-        ...engineConfig(options,'precipitation',1,8,{calibration:{}}),
-        threshold:RAIN_THRESHOLD_MM,amountTight:1,amountWide:8,amountMax:FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max,
+        ...engineConfig(options,'precipitation',.5,4,{calibration:{}}),
+        threshold:RAIN_THRESHOLD_MM,amountTight:.5,amountWide:4,amountMax:FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max,
       });
       const agreement=precipitationConsensus(precipitationRows,{
-        threshold:RAIN_THRESHOLD_MM,localWeights:weights.precipitation||{},amountTight:1,amountWide:8,amountMax:FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max,
+        threshold:RAIN_THRESHOLD_MM,localWeights:weights.precipitation||{},amountTight:.5,amountWide:4,amountMax:FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max,
       });
       if(!forecastValue.count)return null;
-      return {
+      const effectiveProbabilities=rows.map(row=>Number.isFinite(row.probability)?row.probability:Number.isFinite(row.precipitation)?(isWetPrecipitation(row.precipitation)?100:0):null).filter(Number.isFinite);
+      if(metric==='PRECIPITATION_PROBABILITY')return {
         timestamp:rows[0]?.timestamp||localHourFromEpoch(epochMs,timezone),epochMs,
-        meanValue:forecastValue.centralAmountMm,
-        minValue:agreement.minMm,maxValue:agreement.maxMm,stdDev:agreement.conditionalStdDev,
-        percent:agreement.convergencePercent,modelCount:agreement.count,familyCount:agreement.familyCount,
+        meanValue:forecastValue.probabilityPercent,
+        minValue:effectiveProbabilities.length?Math.min(...effectiveProbabilities):null,
+        maxValue:effectiveProbabilities.length?Math.max(...effectiveProbabilities):null,
+        stdDev:agreement.probabilityStdDevPercent,
+        percent:agreement.occurrenceConvergencePercent,modelCount:agreement.count,familyCount:agreement.familyCount,
         precipitationProbability:forecastValue.probabilityPercent,
         conditionalAmountMm:forecastValue.conditionalAmountMm,
+        engineDetail:null,
+      };
+      const expectedEntries=rows.map(row=>({modelId:row.modelId,value:Number.isFinite(row.precipitation)?row.precipitation*(Number.isFinite(row.probability)?row.probability/100:1):null}));
+      const expectedAgreement=continuousConsensus(expectedEntries,weights.precipitation||{},.5,4),engineDetail=forecastEngineSummary(forecastValue);
+      return {
+        timestamp:rows[0]?.timestamp||localHourFromEpoch(epochMs,timezone),epochMs,
+        meanValue:forecastValue.expectedAmountMm,
+        minValue:expectedAgreement.stats?.min??null,maxValue:expectedAgreement.stats?.max??null,stdDev:expectedAgreement.stats?.stdDev??null,
+        percent:expectedAgreement.convergencePercent,modelCount:expectedAgreement.count,familyCount:expectedAgreement.familyCount,
+        precipitationProbability:forecastValue.probabilityPercent,
+        conditionalAmountMm:forecastValue.conditionalAmountMm,
+        engineDetail,
       };
     }
 
-    const key=metric==='WIND'?'wind':'temperature';
+    const key=metric==='WIND'?'wind':metric==='GUST'?'gust':metric==='CLOUD'?'cloud':'temperature';
     const entries=rows.map(row=>({modelId:row.modelId,value:row[key]}));
-    const forecastValue=forecastEngineContinuous(entries,engineConfig(options,weightKey,...thresholds,{min:metric==='WIND'?0:null,calibration:{}}));
+    const bounds=['WIND','GUST'].includes(metric)?{min:0,calibration:{}}:metric==='CLOUD'?{min:0,max:100,calibration:{}}:{calibration:{}};
+    const forecastValue=forecastEngineContinuous(entries,engineConfig(options,weightKey,...thresholds,bounds));
     const agreement=continuousConsensus(entries,weights[weightKey]||{},...thresholds);
     if(!forecastValue.stats||!agreement.stats)return null;
     return {
@@ -263,6 +281,7 @@ export function hourlyConfidenceBand(forecast, metric='TEMPERATURE', horizonHour
       meanValue:forecastValue.central,
       minValue:agreement.stats.min,maxValue:agreement.stats.max,stdDev:agreement.stats.stdDev,
       percent:agreement.convergencePercent,modelCount:agreement.count,familyCount:agreement.familyCount,
+      engineDetail:forecastEngineSummary(forecastValue),
     };
   }).filter(Boolean);
 }

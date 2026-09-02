@@ -21,6 +21,9 @@ assert.equal(normalized.localWeightedConsensus, true);
 assert.equal(normalized.forecastEngine, 'SCENARIOS');
 assert.deepEqual(normalized.collapsedSections, { good:true, open:false });
 assert.equal('extra' in normalized, false);
+assert.equal(normalizeSettings({confidenceMetric:'PRECIPITATION_PROBABILITY'}).confidenceMetric,'PRECIPITATION_PROBABILITY');
+assert.equal(normalizeSettings({confidenceMetric:'CLOUD'}).confidenceMetric,'CLOUD');
+assert.equal(normalizeSettings({confidenceMetric:'GUST'}).confidenceMetric,'GUST');
 
 const fallback = normalizeSettings({ theme:'OLED', language:'KLINGON', chartHorizon:48, localWeightedConsensus:1, forecastEngine:'UNKNOWN' });
 assert.equal(fallback.theme, DEFAULT_SETTINGS.theme);

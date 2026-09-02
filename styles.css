@@ -1064,16 +1064,14 @@ body, html[data-theme="dark"] body { background-image: none; }
 @keyframes meteo-spin { to { transform: rotate(360deg); } }
 
 /* Action hierarchy, agreement envelope and model-header polish */
-/* The min/max inter-model envelope itself carries confidence, not only the strip below it. */
+/* Metric intervals use the metric accent; agreement colours remain confined to the strip below. */
 .chart-band-segment { stroke: none; pointer-events: auto; }
-.chart-band-segment.high { fill: var(--good);  }
-.chart-band-segment.medium { fill: var(--medium);  }
-.chart-band-segment.low { fill: var(--low);  }
-.chart-band-segment.unknown { fill: var(--surface-3); fill-opacity: .38; }
-.legend-area.agreement-range {
-  background: linear-gradient(90deg, color-mix(in srgb,var(--low) 52%,transparent), color-mix(in srgb,var(--medium) 52%,transparent), color-mix(in srgb,var(--good) 52%,transparent));
-  border-color: color-mix(in srgb, var(--border-strong) 52%, transparent);
-}
+.chart-band-raw { fill: color-mix(in srgb,var(--text) 24%,transparent); }
+.chart-band-probable { fill: color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 48%,transparent); }
+.chart-band-retained { fill: color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 72%,transparent); }
+.legend-line.raw-spread { height:0; border-top:2px dashed color-mix(in srgb,var(--text) 42%,transparent); background:none; }
+.legend-area.probable-range { background:color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 12%,transparent); border-color:color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 42%,var(--border)); }
+.legend-area.retained-range { background:color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 22%,transparent); border:2px solid color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 76%,var(--border)); }
 
 /* Reserve a distinct row for calibration/bias so it never covers model metadata. */
 .model-header-stack {
@@ -1268,10 +1266,13 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
 .chart-point { fill: var(--primary); opacity: .56; }
 .chart-point:hover { opacity: 1; r: 5.8px; }
 .chart-band-segment { transition: fill-opacity .14s ease; }
-.chart-band-segment:hover { fill-opacity: .34; }
-.chart-band-segment.high { fill-opacity: .16; }
-.chart-band-segment.medium { fill-opacity: .19; }
-.chart-band-segment.low { fill-opacity: .18; }
+.chart-band-segment:hover { fill-opacity: .30; }
+.chart-band-raw { fill-opacity: .06; }
+.chart-band-probable { fill-opacity: .13; }
+.chart-band-retained { fill-opacity: .22; }
+.chart-probable-edge,.chart-retained-edge { fill:none; vector-effect:non-scaling-stroke; }
+.chart-probable-edge { stroke:color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 48%,transparent); stroke-width:1; stroke-dasharray:5 4; }
+.chart-retained-edge { stroke:color-mix(in srgb,var(--agreement-metric-accent,var(--primary)) 82%,transparent); stroke-width:1.5; }
 
 /* Comparison charts */
 .target-compare-chart, .city-compare-chart {
@@ -1628,6 +1629,20 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .agreement-band-hover .chart-pro-head small { display:block; margin-top:2px; color:var(--muted); font-size:.7rem; font-weight:650; }
 .agreement-band-hover:not(.is-hovering) .chart-pro-head strong { color:var(--muted); }
 .agreement-band-hover.is-hovering .chart-pro-head { background: color-mix(in srgb, var(--surface) 94%, var(--primary) 6%); }
+.agreement-section { --agreement-metric-accent:var(--primary); }
+.agreement-metric-temperature { --agreement-metric-accent:var(--temp); }
+.agreement-metric-precipitation-probability,.agreement-metric-precipitation { --agreement-metric-accent:var(--rain); }
+.agreement-metric-cloud { --agreement-metric-accent:#718096; }
+.agreement-metric-wind,.agreement-metric-gust { --agreement-metric-accent:var(--wind); }
+.agreement-section .chart-line { stroke:var(--agreement-metric-accent); filter:drop-shadow(0 1px 1px color-mix(in srgb,var(--agreement-metric-accent) 18%,transparent)); }
+.agreement-section .chart-point { fill:var(--agreement-metric-accent); }
+.agreement-section .agreement-band-hover .chart-hover-marker.mean { --series:var(--agreement-metric-accent); }
+.agreement-metric-tabs { flex:1 1 auto; }
+.agreement-metric-tabs .seg-btn { flex:0 0 auto; gap:5px; }
+.agreement-metric-tabs .wx-icon { width:1rem; height:1rem; }
+.agreement-metric-context { margin:-3px 0 11px; padding:8px 10px; border-left:3px solid color-mix(in srgb,var(--agreement-metric-accent) 62%,var(--border)); border-radius:0 8px 8px 0; background:color-mix(in srgb,var(--agreement-metric-accent) 6%,var(--surface-2)); color:var(--muted); font-size:.7rem; line-height:1.45; }
+.agreement-band-legend .legend-line.mean { background:var(--agreement-metric-accent); }
+.agreement-band-hover .chart-pro-head > div { flex:1 1 128px; }
 
 /* Minimal audience measurement — privacy control */
 .analytics-privacy-card{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}

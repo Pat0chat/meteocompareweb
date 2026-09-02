@@ -40,10 +40,10 @@ assert.match(app, /history\.replaceState\(\{\.\.\.history\.state,mcRouteKey:key,
 assert.match(app, /captureScrollContext\(target=null\)/, 'same-view controls must capture a stable viewport context before rerendering');
 assert.match(app, /type:'selector',selector,top:target\.getBoundingClientRect\(\)\.top/, 'interactive controls must preserve their exact viewport coordinate across rerenders');
 assert.match(app, /type:'anchor',id:section\.id/, 'section anchors must remain as a fallback for controls without a stable selector');
-assert.match(app, /chart-band-segment \$\{level\}/, 'the min-max agreement envelope must be segmented and confidence-colored');
-assert.match(css, /\.chart-band-segment\.high[^}]*fill:\s*var\(--good\)/s, 'high-agreement envelope segments must use the good color');
-assert.match(css, /\.chart-band-segment\.medium[^}]*fill:\s*var\(--medium\)/s, 'medium-agreement envelope segments must use the medium color');
-assert.match(css, /\.chart-band-segment\.low[^}]*fill:\s*var\(--low\)/s, 'low-agreement envelope segments must use the low color');
+assert.match(app, /chart-band-raw[\s\S]*chart-band-probable[\s\S]*chart-band-retained/, 'the hourly band must separate raw spread, probable range and retained range');
+assert.match(css, /\.chart-band-probable[^}]*--agreement-metric-accent/s, 'probable intervals must use the metric accent rather than agreement colors');
+assert.match(css, /\.chart-band-retained[^}]*--agreement-metric-accent/s, 'retained intervals must use the metric accent rather than agreement colors');
+assert.doesNotMatch(app, /chart-band-segment \$\{level\}/, 'agreement colors must stay in the dedicated strip instead of tinting interval geometry');
 assert.match(app, /class="model-header-stack"/, 'table model headers must reserve separate rows for metadata and bias state');
 assert.match(app, /class="model-bias-slot"/, 'table bias/calibration pills must live in a dedicated model-header slot');
 assert.match(app, /bias-chip bias-chip-button pending table-bias-chip[^>]*data-bias-model=/, 'calibration pills must remain clickable and open the model reliability page');

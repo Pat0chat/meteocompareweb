@@ -11,7 +11,10 @@ assert.match(comparison,/data-hover-chart=\"model\"/,'model charts carry hover d
 assert.match(app,/data-hover-chart=\"agreement-band\"/,'hourly agreement band uses the same interactive hover engine');
 assert.match(app,/data-band-hover-agreement/,'agreement band exposes a live agreement value instead of a static end value');
 assert.match(app,/data-band-hover-range/,'agreement band exposes the hovered min-max range');
+assert.match(app,/data-band-hover-probable/,'agreement band exposes the hovered probable range');
+assert.match(app,/data-band-hover-retained/,'agreement band exposes the hovered engine-retained range');
 assert.match(app,/data-band-hover-models/,'agreement band exposes the hovered model count');
+assert.match(app,/data-band-hover-rain/,'rain bands expose probability and amount-if-wet without merging their meanings');
 assert.match(app,/svg\.dataset\.hoverChart==='agreement-band'/,'hover handler has agreement-band specific value formatting');
 assert.match(app,/querySelectorAll\('\[data-hover-value\]'\)/,'comparison legend values reset when pointer leaves the graph');
 assert.match(css,/\.agreement-band-hover \.chart-hover-marker\.mean/,'agreement band hover markers are styled');
