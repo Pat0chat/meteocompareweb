@@ -8,7 +8,7 @@ const app=read('js/app.js'),css=read('styles.css');
 assert.match(app,/function homeForecastEngineContext\(cityId\)\{\s*return forecastEngineContext\(cityId\);/);
 assert.match(app,/currentConditions\(f,new Date\(\),engineContext\)/);
 assert.match(app,/cachedAggregateDay\(f,today,engineContext\)/);
-assert.match(app,/homeTimelinePoints\(f,engineContext,5\)/);
+assert.match(app,/homeTimelinePoints\(f,engineContext,12\)/);
 assert.match(app,/aboutVisualStepEnginesTitle/);
 assert.match(app,/aboutVisualEnginesKicker/);
 assert.match(app,/about-visual-engine-grid/);

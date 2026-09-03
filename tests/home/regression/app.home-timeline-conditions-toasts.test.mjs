@@ -10,8 +10,11 @@ assert.match(home,/home-mini-condition/,'Each compact hourly slot must expose a 
 assert.match(home,/aggregateConditionMarkup\(point,'tiny'\)/,'Compact timeline must render the aggregate condition with consensus provenance');
 assert.match(home,/conditionInfo\.label/,'Timeline tooltips must include the localized condition label');
 assert.match(css,/\.home-mini-condition\s*\{/);
-assert.match(css,/\.home-mini-condition \.condition-icon \.wx-icon\s*\{[^}]*width:1\.45rem/s);
-assert.match(css,/\.home-mini-hour \{[^}]*grid-template-rows:auto 24px auto auto auto/s,'Timeline layout must reserve a dedicated row for conditions');
+assert.match(css,/\.home-mini-condition \.condition-icon \.wx-icon\s*\{[^}]*width:1\.35rem/s);
+assert.match(css,/\.home-mini-hour \{[^}]*grid-template-rows:auto 22px auto auto auto[^}]*padding:5px 3px/s,'Timeline layout must preserve a compact condition row and visible vertical breathing room');
+assert.match(css,/\.home-mini-time \{[^}]*line-height:1;/s,'Timeline hours must keep a compact line box away from the top edge');
+assert.match(css,/\.home-mini-rain \{[^}]*min-height:13px;[^}]*line-height:1;/s,'Timeline accumulation metadata must leave room above the lower edge');
+assert.match(css,/\.home-mini-hour small \{[^}]*line-height:1;/s,'Timeline accumulation values must not consume the restored bottom padding');
 
 assert.match(app,/homeCityAddedLoading[\s\S]*type:'loading'/,'Adding a city should provide progress feedback');
 assert.match(app,/homeCityAddedSuccess[\s\S]*type:'success'/,'Adding a city should update its toast on completion');

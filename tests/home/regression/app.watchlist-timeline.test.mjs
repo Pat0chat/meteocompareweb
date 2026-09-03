@@ -14,7 +14,7 @@ assert.match(css,/\.overview-layout\s*\{[^}]*align-items:\s*start/s);
 assert.match(css,/\.overview-primary\s*\{[^}]*display:\s*block[^}]*min-height:\s*0/s);
 assert.match(css,/\.overview-secondary\s*\{[^}]*height:\s*auto[^}]*grid-template-rows:\s*none/s);
 assert.doesNotMatch(css,/TodaySummary must match the full height/);
-assert.match(app,/activeTodayHourlyPoints\(homeTimelinePoints\(f,forecastOptions,8,now\),timezone,now\)/);
+assert.match(app,/activeTodayHourlyPoints\(homeTimelinePoints\(f,forecastOptions,8,now,3\),timezone,now\)/,'watchlist analysis must retain its 3-hour sampling independently from the hourly home rail');
 
 const tz='Europe/Paris';
 const now=new Date('2026-08-20T13:23:00.000Z'); // 15:23 in Paris (CEST)

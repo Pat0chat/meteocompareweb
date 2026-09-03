@@ -12,6 +12,11 @@ assert.match(api,/const suspicious=models\.filter[\s\S]*recoveryAttempted/,'shor
 assert.match(app,/class="evolution-table-head"/,'forecast evolution must use one analytical matrix instead of a card grid');
 assert.match(app,/data-evolution-variable=/,'forecast evolution must allow switching variable without multiplying cards');
 assert.match(app,/class="evolution-track"/,'forecast evolution must render revision trajectories');
+assert.match(app,/class="evolution-summary /,'forecast evolution must lead with the strongest revision signal');
+assert.match(app,/class="evolution-legend"/,'forecast evolution must explain central trajectory, comparable spread and stability zone');
+assert.match(app,/class="evolution-dispersion-band"/,'forecast evolution trajectories must expose the comparable model spread');
+assert.match(app,/evolutionDispersionMethod/,'forecast evolution must distinguish raw historical spread from the engine-retained interval');
+assert.match(app,/currentLow:e\.currentLow|low:e\.currentLow/,'current dispersion bounds must enter the trajectory points');
 assert.match(app,/const plotTop=pad\.t,plotBottom=height-pad\.b,clampPlotY=/,'evolution threshold geometry must be clamped to the local plot area');
 assert.match(app,/thresholdBottomVisible=rawBandBottom>=plotTop&&rawBandBottom<=plotBottom/,'threshold visibility must follow the clipped plot domain');
 assert.match(app,/const thresholdBottomLabel=thresholdBottomVisible\?/,'out-of-range lower threshold labels must be hidden with their boundary');
@@ -22,6 +27,9 @@ assert.match(app,/class="reliability-rank-row"/,'local reliability must use comp
 assert.match(app,/data-reliability-variable=/,'local reliability must use variable tabs');
 assert.match(app,/reliability\.score/,'local reliability compact ranking must expose the local score');
 assert.match(css,/\.evolution-row \{ display:grid/,'evolution rows must be aligned as a desktop analysis matrix');
+assert.match(css,/\.evolution-summary \{/,'evolution revision summary must be styled');
+assert.match(css,/\.evolution-dispersion-band\{fill:color-mix\(in srgb,var\(--primary\) 10%,transparent\)\}/,'historical model spread must use a restrained fill');
+assert.match(css,/\.evolution-dispersion-edge\{[^}]*34%[^}]*stroke-width:1;/,'historical model spread boundaries must remain readable after attenuation');
 assert.match(css,/\.reliability-table-head,\.reliability-rank-row/,'local reliability must use a compact table-like layout');
 
 // Simulate the precise ICON-D2 failure mode inside a 7-day multi-model

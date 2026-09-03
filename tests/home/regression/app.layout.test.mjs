@@ -10,6 +10,8 @@ const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.index
 assert.match(home,/class="home-hero"/);
 assert.match(home,/home-city-grid/);
 assert.match(home,/home-mini-timeline/);
+assert.match(home,/homeTimelinePoints\(f,engineContext,12\)/,'home cards must request the complete 12-hour rail');
+assert.match(home,/class="home-mini-timeline" role="region" tabindex="0"/,'the hourly rail must be keyboard-scrollable and exposed as a labelled region');
 assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail/);
 assert.match(home,/homeWatchCandidate/);
 assert.match(home,/home-watch-section/);
@@ -17,6 +19,8 @@ assert.doesNotMatch(home,/dashboard-kpis/);
 assert.match(css,/\.home-city-grid\s*\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/s);
 assert.match(css,/@media \(max-width: 980px\)[\s\S]*?\.home-city-grid \{ grid-template-columns:1fr; \}/);
 assert.match(css,/\.home-city-card:hover/);
+assert.match(css,/\.home-mini-timeline\s*\{[^}]*height:98px;[^}]*grid-auto-flow:column;[^}]*overflow-x:auto;[^}]*scroll-snap-type:inline proximity;/s,'the 12-hour rail must scroll horizontally inside its fixed-height card slot');
+assert.match(css,/\.home-mini-hour\s*\{[^}]*scroll-snap-align:start;/s,'hourly cells must snap without widening the card');
 assert.doesNotMatch(css,/\.home-consensus-rail/);
 assert.match(css,/\.home-watch-grid/);
 for(const lang of ['fr','en','es','de','it']){
