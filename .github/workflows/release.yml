@@ -27,8 +27,8 @@ jobs:
           TAG="${GITHUB_REF_NAME#v}"
           APP_VERSION="$(node tools/project-version.mjs)"
           test "$TAG" = "$APP_VERSION" || { echo "Tag v$TAG != app-version.js $APP_VERSION"; exit 1; }
-      - name: Run full regression suite
-        run: npm run tests
+      - name: Run release audit
+        run: npm run audit:release
       - name: Build release archive
         shell: bash
         run: |

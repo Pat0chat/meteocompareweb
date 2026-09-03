@@ -1,5 +1,6 @@
 import { DEFAULT_MODEL_IDS, REFRESH_INTERVALS, WEATHER_MODELS } from '../models.js';
 import { DEFAULT_FORECAST_ENGINE, FORECAST_ENGINES } from '../forecast-engines.js';
+import { FORECAST_PHYSICAL_LIMITS, isWithinPhysicalLimits } from './forecast-quality.js';
 
 const KNOWN_MODEL_IDS = new Set(WEATHER_MODELS.map(model => model.id));
 const REFRESH_IDS = new Set(REFRESH_INTERVALS.map(row => row.id));
@@ -105,11 +106,16 @@ const DAILY_KEYS = ['tempMax','tempMin','precipitationSum','precipitationProbabi
 
 function arrayAligned(value,length){ return Array.isArray(value)&&value.length===length; }
 function arrayValuesValid(value,predicate){if(!Array.isArray(value))return false;for(let i=0;i<value.length;i++){const item=value[i];if(item!==null&&!predicate(item))return false;}return true;}
-const finiteNumber=value=>Number.isFinite(value);
-const nonNegative=value=>Number.isFinite(value)&&value>=0;
-const integer=value=>Number.isInteger(value);
-const percent=value=>Number.isInteger(value)&&value>=0&&value<=100;
-const direction=value=>Number.isInteger(value)&&value>=0&&value<=360;
+const within=limits=>value=>isWithinPhysicalLimits(value,limits);
+const integerWithin=limits=>value=>Number.isInteger(value)&&isWithinPhysicalLimits(value,limits);
+const temperature=within(FORECAST_PHYSICAL_LIMITS.temperatureC);
+const hourlyPrecipitation=within(FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm);
+const dailyPrecipitation=within(FORECAST_PHYSICAL_LIMITS.precipitationDailyMm);
+const wind=within(FORECAST_PHYSICAL_LIMITS.windKmh);
+const gust=within(FORECAST_PHYSICAL_LIMITS.gustKmh);
+const percent=integerWithin(FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent);
+const direction=integerWithin(FORECAST_PHYSICAL_LIMITS.directionDeg);
+const weatherCode=integerWithin(FORECAST_PHYSICAL_LIMITS.weatherCode);
 const textValue=value=>typeof value==='string';
 function timestampsValid(values){ return Array.isArray(values)&&values.every(value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)); }
 function datesValid(values){ return Array.isArray(values)&&values.every(value=>typeof value==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(value)); }
@@ -126,11 +132,13 @@ export function forecastSeriesIssues(series){
   if(dailyLength<0||!datesValid(daily.dates))issues.push('DAILY_AXIS_INVALID');
   if(hourlyLength>=0){
     for(const key of HOURLY_KEYS)if(!arrayAligned(hourly[key],hourlyLength))issues.push(`HOURLY_${key}_MISALIGNED`);
-    if(arrayAligned(hourly.temperature2m,hourlyLength)&&!arrayValuesValid(hourly.temperature2m,finiteNumber))issues.push('HOURLY_temperature2m_INVALID');
-    for(const key of ['precipitation','windSpeed10m','windGusts10m'])if(arrayAligned(hourly[key],hourlyLength)&&!arrayValuesValid(hourly[key],nonNegative))issues.push(`HOURLY_${key}_INVALID`);
+    if(arrayAligned(hourly.temperature2m,hourlyLength)&&!arrayValuesValid(hourly.temperature2m,temperature))issues.push('HOURLY_temperature2m_INVALID');
+    if(arrayAligned(hourly.precipitation,hourlyLength)&&!arrayValuesValid(hourly.precipitation,hourlyPrecipitation))issues.push('HOURLY_precipitation_INVALID');
+    if(arrayAligned(hourly.windSpeed10m,hourlyLength)&&!arrayValuesValid(hourly.windSpeed10m,wind))issues.push('HOURLY_windSpeed10m_INVALID');
+    if(arrayAligned(hourly.windGusts10m,hourlyLength)&&!arrayValuesValid(hourly.windGusts10m,gust))issues.push('HOURLY_windGusts10m_INVALID');
     for(const key of ['precipitationProbability','cloudCover'])if(arrayAligned(hourly[key],hourlyLength)&&!arrayValuesValid(hourly[key],percent))issues.push(`HOURLY_${key}_INVALID`);
     if(arrayAligned(hourly.windDirection10m,hourlyLength)&&!arrayValuesValid(hourly.windDirection10m,direction))issues.push('HOURLY_windDirection10m_INVALID');
-    if(arrayAligned(hourly.weatherCode,hourlyLength)&&!arrayValuesValid(hourly.weatherCode,integer))issues.push('HOURLY_weatherCode_INVALID');
+    if(arrayAligned(hourly.weatherCode,hourlyLength)&&!arrayValuesValid(hourly.weatherCode,weatherCode))issues.push('HOURLY_weatherCode_INVALID');
     if(hourly.timestampEpochMs!=null){
       if(!arrayAligned(hourly.timestampEpochMs,hourlyLength))issues.push('HOURLY_timestampEpochMs_MISALIGNED');
       else if(hourly.timestampEpochMs.some(value=>!Number.isFinite(value)))issues.push('HOURLY_timestampEpochMs_INVALID');
@@ -139,11 +147,14 @@ export function forecastSeriesIssues(series){
   }
   if(dailyLength>=0){
     for(const key of DAILY_KEYS)if(!arrayAligned(daily[key],dailyLength))issues.push(`DAILY_${key}_MISALIGNED`);
-    for(const key of ['tempMax','tempMin'])if(arrayAligned(daily[key],dailyLength)&&!arrayValuesValid(daily[key],finiteNumber))issues.push(`DAILY_${key}_INVALID`);
-    for(const key of ['precipitationSum','windSpeedMax','windGustsMax'])if(arrayAligned(daily[key],dailyLength)&&!arrayValuesValid(daily[key],nonNegative))issues.push(`DAILY_${key}_INVALID`);
+    for(const key of ['tempMax','tempMin'])if(arrayAligned(daily[key],dailyLength)&&!arrayValuesValid(daily[key],temperature))issues.push(`DAILY_${key}_INVALID`);
+    if(arrayAligned(daily.tempMax,dailyLength)&&arrayAligned(daily.tempMin,dailyLength))for(let i=0;i<dailyLength;i++)if(Number.isFinite(daily.tempMax[i])&&Number.isFinite(daily.tempMin[i])&&daily.tempMax[i]<daily.tempMin[i]){issues.push('DAILY_TEMPERATURE_PAIR_INVALID');break;}
+    if(arrayAligned(daily.precipitationSum,dailyLength)&&!arrayValuesValid(daily.precipitationSum,dailyPrecipitation))issues.push('DAILY_precipitationSum_INVALID');
+    if(arrayAligned(daily.windSpeedMax,dailyLength)&&!arrayValuesValid(daily.windSpeedMax,wind))issues.push('DAILY_windSpeedMax_INVALID');
+    if(arrayAligned(daily.windGustsMax,dailyLength)&&!arrayValuesValid(daily.windGustsMax,gust))issues.push('DAILY_windGustsMax_INVALID');
     if(arrayAligned(daily.precipitationProbabilityMax,dailyLength)&&!arrayValuesValid(daily.precipitationProbabilityMax,percent))issues.push('DAILY_precipitationProbabilityMax_INVALID');
     if(arrayAligned(daily.windDirection10mDominant,dailyLength)&&!arrayValuesValid(daily.windDirection10mDominant,direction))issues.push('DAILY_windDirection10mDominant_INVALID');
-    if(arrayAligned(daily.weatherCode,dailyLength)&&!arrayValuesValid(daily.weatherCode,integer))issues.push('DAILY_weatherCode_INVALID');
+    if(arrayAligned(daily.weatherCode,dailyLength)&&!arrayValuesValid(daily.weatherCode,weatherCode))issues.push('DAILY_weatherCode_INVALID');
     for(const key of ['sunrise','sunset'])if(arrayAligned(daily[key],dailyLength)&&!arrayValuesValid(daily[key],textValue))issues.push(`DAILY_${key}_INVALID`);
     const completeness=daily.completeness;
     if(completeness!=null){

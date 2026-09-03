@@ -56,11 +56,17 @@ for(let iteration=0;iteration<64;iteration++){
   assert.deepEqual(rows,snapshot,'forecast engines must not mutate source rows');
 
   const precipitation=modelIds.map(modelId=>({modelId,amount:rand()*25,probability:rand()*100}));
+  const precipitationSnapshot=structuredClone(precipitation);
   for(const engine of engines){
     const result=forecastEnginePrecipitation(precipitation,{engine});
+    const reversed=forecastEnginePrecipitation([...precipitation].reverse(),{engine});
     assert.ok(Number.isFinite(result.centralAmountMm)&&result.centralAmountMm>=0,`${engine}: rain amount must stay non-negative`);
     assert.ok(Number.isFinite(result.probabilityPercent)&&result.probabilityPercent>=0&&result.probabilityPercent<=100,`${engine}: rain probability must stay bounded`);
+    assert.ok(result.interval.low<=result.centralAmountMm&&result.centralAmountMm<=result.interval.high,`${engine}: rain interval must contain the central amount`);
+    assert.equal(result.centralAmountMm,reversed.centralAmountMm,`${engine}: rain result must be order invariant`);
+    assert.equal(result.probabilityPercent,reversed.probabilityPercent,`${engine}: rain probability must be order invariant`);
   }
+  assert.deepEqual(precipitation,precipitationSnapshot,'precipitation engines must not mutate source rows');
 }
 
 console.log(`MeteoCompare Web ${APP_VERSION} full maintenance audit: OK`);

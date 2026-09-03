@@ -55,7 +55,10 @@ assert.doesNotMatch(app,/function esc\b|function attr\b/,'app must not duplicate
 assert.doesNotMatch(radar,/function esc\b/,'radar must not duplicate HTML escaping');
 assert.match(worker,/server\/vigilance-shared\.js/,'Worker Vigilance normalization must use the shared server contract');
 assert.match(preview,/server\/vigilance-shared\.js/,'preview Vigilance normalization must use the shared server contract');
-for(const selector of ['summary-tile','about-reading','about-engine-card','reliability-column','android-nav','install-status','forecast-engine-overview-action','forecast-engine-overview-symbol']) assert.doesNotMatch(css,new RegExp(`\\.${selector}\\b`),`dead CSS selector remains: ${selector}`);
+for(const selector of [
+  'summary-tile','about-reading','about-engine-card','reliability-column','android-nav','install-status','forecast-engine-overview-action','forecast-engine-overview-symbol',
+  'about-hero-badges','about-step-index','big-value','city-name','evolution-track-guide','footer-line','kpi-label','kpi-note','kpi-value','metric-value','scenario-sub','section-eyebrow','status-row','summary-value-line','tide-range','timeline-date','unit-note',
+]) assert.doesNotMatch(css,new RegExp(`\\.${selector}\\b`),`dead CSS selector remains: ${selector}`);
 
 // Runtime source contains no debug leftovers and every relative module import resolves.
 const runtimeFiles=[];

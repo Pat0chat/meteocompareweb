@@ -17,11 +17,12 @@ Pour tester la sortie de production SEO avec les URL propres `/meteo/{ville}` :
 npm run build
 npm run preview
 npm run tests
+npm run audit:release
 ```
 
 Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
 
-Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre récursivement les fichiers `tests/<fonctionnalité>/<portée>/*.test.mjs`, les exécute dans un ordre stable et retourne un code d’erreur si au moins une suite échoue. Les suites peuvent aussi être filtrées par fonctionnalité, portée ou nom de fichier via `tools/run-tests.mjs`. En local, `npm run preview` sert exactement le HTML de production ; le bootstrap analytics détecte que l’hôte n’est pas `meteocompare.app` et n’envoie donc aucun événement réseau. En production Worker, le navigateur n’embarque plus le script Plausible : il envoie uniquement les événements autorisés vers le chemin first-party opaque `/_mcx/e`, et seul le Worker contacte `plausible.io` côté serveur.
+Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre récursivement les fichiers `tests/<fonctionnalité>/<portée>/*.test.mjs`, les exécute dans un ordre stable et retourne un code d'erreur si au moins une suite échoue. Les suites peuvent aussi être filtrées par fonctionnalité, portée ou nom de fichier via `tools/run-tests.mjs`. Avant une release, `npm run audit:release` vérifie en plus la syntaxe de toutes les sources JavaScript, les liens de documentation et les artefacts interdits, exécute toute la suite, construit `dist/` puis contrôle son contenu public. En local, `npm run preview` sert exactement le HTML de production ; le bootstrap analytics détecte que l’hôte n’est pas `meteocompare.app` et n’envoie donc aucun événement réseau. En production Worker, le navigateur n’embarque plus le script Plausible : il envoie uniquement les événements autorisés vers le chemin first-party opaque `/_mcx/e`, et seul le Worker contacte `plausible.io` côté serveur.
 
 ## Déployer sur Cloudflare Workers — configuration recommandée
 
