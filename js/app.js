@@ -935,11 +935,11 @@ function homeTemperatureHeatColor(temp){
 function renderHomeMiniTimeline(points){
   const {t}=i18n();
   if(!points.length)return '';
-  return `<div class="home-mini-timeline-wrap"><div class="home-mini-timeline" role="region" tabindex="0" aria-label="${esc(t('homeMiniTimelineAria'))}">${points.map(point=>{
+  return `<div class="home-mini-timeline-wrap"><div class="home-mini-timeline-scroll" role="region" tabindex="0" aria-label="${esc(t('homeMiniTimelineAria'))}"><div class="home-mini-timeline" style="--home-timeline-cols:${points.length}">${points.map(point=>{
     const prob=point.precipitationPercent,amount=point.precipitationConditionalMm,temp=point.temperatureC,heat=homeTemperatureHeatColor(temp),condition=point.condition,conditionInfo=localizedConditionInfo(condition);
     const tooltip=`${timeLabel(point.timestamp)} · ${condition?conditionInfo.label:t('dataUnavailable')} · ${Number.isFinite(temp)?`${fmt(temp,1)} °C`:'—'}${Number.isFinite(prob)?` · ${Math.round(prob)} %`:''}${isWetPrecipitation(amount)?` · ${fmt(amount,1)} mm`:''}`;
     return `<div class="home-mini-hour ${Number.isFinite(prob)&&prob>=30?'wet':''}" style="--heat-color:${heat}" title="${attr(tooltip)}"><span class="home-mini-time">${esc(timeLabel(point.timestamp))}</span><span class="home-mini-condition">${condition?aggregateConditionMarkup(point,'tiny'):'<span class="home-mini-condition-empty" aria-hidden="true">—</span>'}</span><strong>${Number.isFinite(temp)?`${fmt(temp)}°`:'—'}</strong><span class="home-mini-rain">${Number.isFinite(prob)&&prob>=20?`${weatherIcons.renderMetric('precipitation',{size:'micro'})} ${Math.round(prob)}%`:'·'}</span><small>${isWetPrecipitation(amount)?`${fmt(amount,1)} mm`:'—'}</small></div>`;
-  }).join('')}</div><div class="home-heat-key" aria-label="${esc(t('homeHeatScaleHint'))}" title="${attr(t('homeHeatScaleHint'))}"><span>−10°</span><i></i><span>40°+</span></div></div>`;
+  }).join('')}</div></div><div class="home-heat-key" aria-label="${esc(t('homeHeatScaleHint'))}" title="${attr(t('homeHeatScaleHint'))}"><span>−10°</span><i></i><span>40°+</span></div></div>`;
 }
 function homeWatchCandidate(city,f,forecastOptions,now=new Date()){
   const {t}=i18n(),timezone=f?.city?.timezone||f?.timezone||city?.timezone||'UTC',points=activeTodayHourlyPoints(homeTimelinePoints(f,forecastOptions,8,now,3),timezone,now).slice(0,8);if(!points.length)return null;
