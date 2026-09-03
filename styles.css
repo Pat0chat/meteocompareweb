@@ -1549,12 +1549,11 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .evolution-row-now { min-width:0; padding-left:4px; }
 .evolution-row-now > span { color:var(--muted); font-size:.7rem; }
 .evolution-row-now > strong { display:block; margin:2px 0 4px; font-size:1.08rem; font-variant-numeric:tabular-nums; }
-.evolution-trend { width:max-content; max-width:100%; padding:2px 7px; border-radius:999px; font-weight:700; font-size:.7rem; }
-.evolution-trend.up { color:var(--low); background:color-mix(in srgb,var(--low) 10%,transparent); }
-.evolution-trend.down { color:#2684c7; background:color-mix(in srgb,#2684c7 11%,transparent); }
-.evolution-trend.stable { color:var(--good); background:color-mix(in srgb,var(--good) 11%,transparent); }
-.evolution-trend.volatile { color:var(--medium); background:color-mix(in srgb,var(--medium) 13%,transparent); }
-.evolution-delta { display:block; margin-top:5px; color:var(--muted); font-size:.7rem; font-variant-numeric:tabular-nums; }
+.evolution-trend { width:max-content; max-width:100%; font-weight:700; font-size:.7rem; }
+.evolution-trend.up { color:var(--low); }
+.evolution-trend.down { color:#2684c7; }
+.evolution-trend.stable { color:var(--good); }
+.evolution-trend.volatile { color:var(--medium); }
 .evolution-row-spread { display:block; margin-top:2px; color:var(--muted); font-size:.7rem; font-variant-numeric:tabular-nums; }
 .evolution-no-track { color:var(--muted); font-size:.7rem; padding:22px 0; text-align:center; }
 
@@ -1591,7 +1590,7 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
   .evolution-row-date span { margin:0; }
   .evolution-row-now { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; padding:0; }
   .evolution-row-now > strong { margin:0; }
-  .evolution-trend,.evolution-delta { grid-column:1/-1; }
+  .evolution-trend { grid-column:1/-1; }
   .reliability-table-head { grid-template-columns:28px minmax(110px,1fr) 92px 18px; }
   .reliability-table-head span:nth-child(4) { display:none; }
   .reliability-rank-row { grid-template-columns:28px minmax(110px,1fr) 92px 18px; }
