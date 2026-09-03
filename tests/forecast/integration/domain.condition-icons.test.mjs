@@ -18,7 +18,7 @@ function series({nativeHourly=false,nativeDaily=false}={}){
 
 const inferred=series();
 const direct=series({nativeHourly:true,nativeDaily:true});
-assert.deepEqual(hourlyCondition(inferred,0),{condition:'MAINLY_CLEAR',inferred:true});
+assert.deepEqual(hourlyCondition(inferred,0),{condition:'CLEAR',inferred:true});
 assert.deepEqual(hourlyCondition(direct,0),{condition:'MAINLY_CLEAR',inferred:false});
 assert.equal(dailyCondition(inferred,'2026-08-18').inferred,true);
 assert.equal(dailyCondition(direct,'2026-08-18').inferred,false);

@@ -28,6 +28,15 @@ export function fromWmoCode(code) {
   if ([95,96,99].includes(code)) return CONDITION.THUNDERSTORM;
   return CONDITION.UNKNOWN;
 }
+const SKY_CONDITIONS=new Set([CONDITION.CLEAR,CONDITION.MAINLY_CLEAR,CONDITION.PARTLY_CLOUDY,CONDITION.OVERCAST]);
+function isSignificantCondition(condition){return Boolean(condition&&condition!==CONDITION.UNKNOWN&&!SKY_CONDITIONS.has(condition));}
+export function skyConditionFromCloudCover(cloud) {
+  if (!Number.isFinite(cloud)||cloud<0||cloud>100) return null;
+  if (cloud < 20) return CONDITION.CLEAR;
+  if (cloud < 45) return CONDITION.MAINLY_CLEAR;
+  if (cloud < 90) return CONDITION.PARTLY_CLOUDY;
+  return CONDITION.OVERCAST;
+}
 export function inferCondition(precip, temp, cloud) {
   if (Number.isFinite(precip)) {
     const freezing = (Number.isFinite(temp) ? temp : 10) <= 0;
@@ -35,13 +44,7 @@ export function inferCondition(precip, temp, cloud) {
     if (precip >= 1) return freezing ? CONDITION.SNOW_SHOWERS : CONDITION.RAIN_SHOWERS;
     if (isWetPrecipitation(precip)) return freezing ? CONDITION.SNOW_SHOWERS : CONDITION.DRIZZLE;
   }
-  if (Number.isFinite(cloud)) {
-    if (cloud < 15) return CONDITION.CLEAR;
-    if (cloud < 40) return CONDITION.MAINLY_CLEAR;
-    if (cloud < 70) return CONDITION.PARTLY_CLOUDY;
-    return CONDITION.OVERCAST;
-  }
-  return null;
+  return skyConditionFromCloudCover(cloud);
 }
 
 export function conditionInfo(condition){ return CONDITION_INFO[condition] || CONDITION_INFO.UNKNOWN; }
@@ -140,17 +143,27 @@ export function hourlyCondition(series,index){
 }
 
 /* Aggregate weather conditions have a different provenance from a single-model
-   fallback. Prefer a real multi-family vote of native WMO codes. When native
-   categorical coverage is too narrow, derive one condition from the already
-   aggregated consensus variables instead of letting per-model heuristics pose
-   as the final consensus. */
-function resolveAggregateCondition(rows,{temperature=null,precipitation=null,cloud=null}={}){
+   fallback. Native WMO codes remain authoritative for significant phenomena.
+   When their winning branch only describes the sky, robust multi-family cloud
+   cover refines that branch without allowing a per-model heuristic to pose as
+   the final consensus. */
+function resolveAggregateCondition(rows,{temperature=null,precipitation=null,cloud=null,cloudFamilyCount=0,cloudModelCount=0,cloudAgreementPercent=null}={}){
   const usable=(rows||[]).filter(row=>row?.modelId&&row.condition&&row.condition!==CONDITION.UNKNOWN);
   const native=usable.filter(row=>!row.conditionInferred);
   const voteFor=list=>weatherConditionConsensus(list.map(row=>({modelId:row.modelId,value:row.condition})),{},condition=>conditionInfo(condition).severity);
   const nativeVote=voteFor(native);
   const allVote=voteFor(usable);
   const nativeModelCount=native.length,derivedModelCount=Math.max(0,usable.length-native.length);
+
+  if(nativeVote.value&&nativeVote.group!=='SKY'){
+    return {condition:nativeVote.value,conditionInferred:false,conditionSource:nativeVote.familyCount>=2?'MODEL_CODE_CONSENSUS':'MODEL_CODE_LIMITED',conditionVote:nativeVote,nativeModelCount,derivedModelCount};
+  }
+
+  const refinedSky=nativeVote.group==='SKY'&&cloudFamilyCount>=2?skyConditionFromCloudCover(cloud):null;
+  if(refinedSky){
+    const cloudVote={...nativeVote,value:refinedSky,percent:Number.isFinite(cloudAgreementPercent)?cloudAgreementPercent:null,count:cloudModelCount||nativeVote.count,familyCount:cloudFamilyCount,group:'SKY',phenomenonGroup:'DRY',skyAgreementPercent:Number.isFinite(cloudAgreementPercent)?cloudAgreementPercent:null};
+    return {condition:refinedSky,conditionInferred:true,conditionSource:'CONSENSUS_VARIABLES',conditionVote:cloudVote,nativeModelCount,derivedModelCount};
+  }
 
   if(nativeVote.value&&(nativeVote.familyCount>=2||usable.length===1)){
     return {condition:nativeVote.value,conditionInferred:false,conditionSource:nativeVote.familyCount>=2?'MODEL_CODE_CONSENSUS':'MODEL_CODE_LIMITED',conditionVote:nativeVote,nativeModelCount,derivedModelCount};
@@ -177,8 +190,9 @@ export function currentConditions(forecast, now=new Date(), options={}) {
     const axis=hourlyAxis(series,timezone),i=axis.indexByEpoch.get(targetSlot);if(i==null)continue;
     const vote=hourlyCondition(series,i);rows.push({modelId,temperature:physicalValue(series.hourly.temperature2m[i],FORECAST_PHYSICAL_LIMITS.temperatureC),precipitation:physicalValue(series.hourly.precipitation[i],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm),precipitationProbability:physicalValue(series.hourly.precipitationProbability[i],FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent),wind:physicalValue(series.hourly.windSpeed10m[i],FORECAST_PHYSICAL_LIMITS.windKmh),cloud:physicalValue(series.hourly.cloudCover[i],FORECAST_PHYSICAL_LIMITS.cloudPercent),condition:vote.condition,conditionInferred:vote.inferred});
   }
-  const temp=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.temperature})),engineConfig(options,'temperature',.5,3,{calibration:{}})),wind=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.wind})),engineConfig(options,'wind',2,12,{min:0,calibration:{}})),cloud=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.cloud})),engineConfig(options,'condition',10,50,{min:0,max:100})),precip=forecastEnginePrecipitation(rows.map(x=>({modelId:x.modelId,amount:x.precipitation,probability:x.precipitationProbability})),{...engineConfig(options,'precipitation',.5,4,{calibration:{}}),threshold:RAIN_THRESHOLD_MM,amountTight:.5,amountWide:4,amountMax:FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max});
-  const resolved=resolveAggregateCondition(rows,{temperature:temp.central,precipitation:precip.conditionAmountMm,cloud:cloud.central}),cv=resolved.conditionVote;
+  const cloudEntries=rows.map(x=>({modelId:x.modelId,value:x.cloud}));
+  const temp=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.temperature})),engineConfig(options,'temperature',.5,3,{calibration:{}})),wind=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.wind})),engineConfig(options,'wind',2,12,{min:0,calibration:{}})),cloud=forecastEngineContinuous(cloudEntries,engineConfig(options,'condition',10,50,{min:0,max:100})),cloudAgreement=continuousConsensus(cloudEntries,{},10,50),precip=forecastEnginePrecipitation(rows.map(x=>({modelId:x.modelId,amount:x.precipitation,probability:x.precipitationProbability})),{...engineConfig(options,'precipitation',.5,4,{calibration:{}}),threshold:RAIN_THRESHOLD_MM,amountTight:.5,amountWide:4,amountMax:FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max});
+  const resolved=resolveAggregateCondition(rows,{temperature:temp.central,precipitation:precip.conditionAmountMm,cloud:cloud.central,cloudFamilyCount:cloudAgreement.familyCount,cloudModelCount:cloudAgreement.count,cloudAgreementPercent:cloudAgreement.convergencePercent}),cv=resolved.conditionVote;
   return {temperature:temp.central,wind:wind.central,cloudCover:Number.isFinite(cloud.central)?Math.round(cloud.central):null,condition:resolved.condition,conditionInferred:resolved.conditionInferred,conditionSource:resolved.conditionSource,conditionNativeModelCount:resolved.nativeModelCount,conditionDerivedModelCount:resolved.derivedModelCount,modelCount:rows.length,familyCount:Math.max(temp.familyCount,wind.familyCount,cv.familyCount),forecastEngine:options?.forecastEngine||DEFAULT_FORECAST_ENGINE,engineDetails:{temperature:forecastEngineSummary(temp),precipitation:forecastEngineSummary(precip),wind:forecastEngineSummary(wind),cloud:forecastEngineSummary(cloud)}};
 }
 
@@ -196,12 +210,21 @@ export function dailyPrecipitationTemperature(series,date){
   return weight>0?weighted/weight:null;
 }
 export function dailyCondition(series,date){
-  const di=series.daily.dates.indexOf(date); if(di>=0){const c=fromWmoCode(physicalValue(series.daily.weatherCode?.[di],FORECAST_PHYSICAL_LIMITS.weatherCode));if(c&&c!==CONDITION.UNKNOWN)return {condition:c,inferred:false};}
+  const di=series?.daily?.dates?.indexOf(date)??-1;
+  const dailyNative=di>=0?fromWmoCode(physicalValue(series.daily.weatherCode?.[di],FORECAST_PHYSICAL_LIMITS.weatherCode)):null;
+  if(isSignificantCondition(dailyNative))return {condition:dailyNative,inferred:false};
   const codes=[];let precip=0,pCount=0,clouds=[];
-  series.hourly.timestamps.forEach((ts,i)=>{if(ts.slice(0,10)!==date)return;const c=fromWmoCode(physicalValue(series.hourly.weatherCode?.[i],FORECAST_PHYSICAL_LIMITS.weatherCode));if(c&&c!==CONDITION.UNKNOWN)codes.push(c);const p=physicalValue(series.hourly.precipitation?.[i],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm);if(Number.isFinite(p)){precip+=p;pCount++;}const cl=physicalValue(series.hourly.cloudCover?.[i],FORECAST_PHYSICAL_LIMITS.cloudPercent);if(Number.isFinite(cl))clouds.push(cl);});
-  if(codes.length){const condition=weatherConditionConsensus(codes.map((value,index)=>({modelId:`hour-${index}`,value})),{},value=>conditionInfo(value).severity).value;return {condition,inferred:true};}
+  (series?.hourly?.timestamps||[]).forEach((ts,i)=>{if(typeof ts!=='string'||ts.slice(0,10)!==date)return;const c=fromWmoCode(physicalValue(series.hourly.weatherCode?.[i],FORECAST_PHYSICAL_LIMITS.weatherCode));if(c&&c!==CONDITION.UNKNOWN)codes.push(c);const p=physicalValue(series.hourly.precipitation?.[i],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm);if(Number.isFinite(p)){precip+=p;pCount++;}const cl=physicalValue(series.hourly.cloudCover?.[i],FORECAST_PHYSICAL_LIMITS.cloudPercent);if(Number.isFinite(cl))clouds.push(cl);});
+  const significantCodes=codes.filter(isSignificantCondition);
+  if(significantCodes.length){const condition=weatherConditionConsensus(significantCodes.map((value,index)=>({modelId:`hour-${index}`,value})),{},value=>conditionInfo(value).severity).value;return {condition,inferred:true};}
   const precipTemperature=dailyPrecipitationTemperature(series,date);
-  const cond=inferCondition(pCount?precip:null,precipTemperature,clouds.length?stats(clouds).mean:null);return cond?{condition:cond,inferred:true}:{condition:null,inferred:true};
+  const wetCondition=inferCondition(pCount?precip:null,precipTemperature,null);
+  if(isSignificantCondition(wetCondition))return {condition:wetCondition,inferred:true};
+  const hourlySky=clouds.length?skyConditionFromCloudCover(stats(clouds).mean):null;
+  if(hourlySky)return {condition:hourlySky,inferred:hourlySky!==dailyNative};
+  if(dailyNative&&dailyNative!==CONDITION.UNKNOWN)return {condition:dailyNative,inferred:false};
+  if(codes.length){const condition=weatherConditionConsensus(codes.map((value,index)=>({modelId:`hour-${index}`,value})),{},value=>conditionInfo(value).severity).value;return {condition,inferred:true};}
+  return {condition:null,inferred:true};
 }
 
 
@@ -334,7 +357,7 @@ export function aggregateDay(forecast, date, options={}) {
   const precipTempForecast=forecastEngineContinuous(data.filter(row=>row.comparable.condition&&Number.isFinite(row.precipTemperature)).map(row=>({modelId:row.modelId,value:row.precipTemperature})),engineConfig(options,'temperature',.5,3,{calibration:{}}));
   const conditionResolution=resolveAggregateCondition(
     data.filter(row=>row.comparable.condition),
-    {temperature:precipTempForecast.central,precipitation:precip.conditionAmountMm,cloud:cloudConsensus.central},
+    {temperature:precipTempForecast.central,precipitation:precip.conditionAmountMm,cloud:cloudConsensus.central,cloudFamilyCount:cloudAgreement.familyCount,cloudModelCount:cloudAgreement.count,cloudAgreementPercent:cloudAgreement.convergencePercent},
   );
   const conditionVote=conditionResolution.conditionVote;
   const condition=conditionResolution.condition,conditionInferred=conditionResolution.conditionInferred;
@@ -418,9 +441,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       const wind=hourly?physicalValue(modelSeries.hourly.windSpeed10m[index],FORECAST_PHYSICAL_LIMITS.windKmh):(windComparable?physicalValue(modelSeries.daily.windSpeedMax[index],FORECAST_PHYSICAL_LIMITS.windKmh):null);
       const windGust=hourly?physicalValue(modelSeries.hourly.windGusts10m[index],FORECAST_PHYSICAL_LIMITS.gustKmh):(windComparable?physicalValue(modelSeries.daily.windGustsMax[index],FORECAST_PHYSICAL_LIMITS.gustKmh):null);
       const precipTemperature=hourly?temperature:dailyPrecipitationTemperature(modelSeries,key);
-      const native=fromWmoCode(hourly?modelSeries.hourly.weatherCode[index]:(conditionComparable?modelSeries.daily.weatherCode[index]:null));
-      const condition=(native&&native!==CONDITION.UNKNOWN)?native:inferCondition(precipitation,precipTemperature,cloudCover);
-      const conditionInferred=Boolean(condition&&condition!==CONDITION.UNKNOWN)&&!(native&&native!==CONDITION.UNKNOWN);
+      const conditionResult=conditionComparable?(hourly?hourlyCondition(modelSeries,index):dailyCondition(modelSeries,key)):{condition:null,inferred:false};
+      const condition=conditionResult.condition,conditionInferred=conditionResult.inferred;
       if([temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,precipTemperature].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN)){
         snaps.push({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,precipTemperature,condition,conditionInferred});
       }
@@ -448,6 +470,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     const temperatureAgreement=continuousConsensus(tempEntries,weights.temperature||{},.5,3);
     const minAgreement=hourly?null:continuousConsensus(minEntries,weights.temperature||{},.5,3);
     const windAgreement=continuousConsensus(windEntries,weights.wind||{},2,12);
+    const cloudAgreement=continuousConsensus(cloudEntries,{},10,50);
     const precipitationAgreement=precipitationConsensus(precipitationRows,{
       threshold:rainThreshold,localWeights:weights.precipitation||{},
       amountTight:hourly?.5:1,amountWide:hourly?4:8,amountMax:hourly?FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max:FORECAST_PHYSICAL_LIMITS.precipitationDailyMm.max,
@@ -457,6 +480,9 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       temperature:precipTempForecast.central,
       precipitation:precipitationForecast.conditionAmountMm,
       cloud:cloudForecast.central,
+      cloudFamilyCount:cloudAgreement.familyCount,
+      cloudModelCount:cloudAgreement.count,
+      cloudAgreementPercent:cloudAgreement.convergencePercent,
     });
     const conditionVote=conditionResolution.conditionVote;
     const condition=conditionResolution.condition,conditionInferred=conditionResolution.conditionInferred;

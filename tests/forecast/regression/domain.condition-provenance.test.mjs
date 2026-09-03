@@ -8,22 +8,36 @@ function series({code=null,cloud=50,precip=0,prob=10,temp=20}={}){return {
   daily:{dates:[day],tempMin:[temp-5],tempMax:[temp+3],precipitationSum:[precip],precipitationProbabilityMax:[prob],windSpeedMax:[10],windGustsMax:[16],windDirection10mDominant:[180],weatherCode:[code],sunrise:[null],sunset:[null]},
 };}
 
-// Two independent native-code families must win over a heuristic fallback from another model.
+// Native sky codes define the broad SKY branch, then multi-family cloud cover refines its subtype.
 const nativeForecast={city:{timezone:'UTC'},seriesByModel:{
   GFS:series({code:0,cloud:5}),
   ECMWF:series({code:1,cloud:20}),
   ICON_EU:series({code:null,cloud:95,precip:6,prob:90}),
 }};
 const now=currentConditions(nativeForecast,new Date(`${day}T12:05:00Z`));
-assert.equal(now.conditionSource,'MODEL_CODE_CONSENSUS');
-assert.equal(now.conditionInferred,false);
+assert.equal(now.conditionSource,'CONSENSUS_VARIABLES');
+assert.equal(now.conditionInferred,true);
 assert.equal(now.conditionNativeModelCount,2);
 assert.equal(now.conditionDerivedModelCount,1);
+assert.equal(now.condition,'MAINLY_CLEAR');
 assert.notEqual(now.condition,'RAIN','an inferred model fallback must not override a multi-family native categorical consensus');
 const daily=aggregateDay(nativeForecast,day);
-assert.equal(daily.conditionSource,'MODEL_CODE_CONSENSUS');
+assert.equal(daily.conditionSource,'CONSENSUS_VARIABLES');
 const nativeTimeline=buildTimelinePoints(nativeForecast,'HOURLY',new Date(`${day}T11:35:00Z`));
-assert.equal(nativeTimeline[0]?.conditionSource,'MODEL_CODE_CONSENSUS');
+assert.equal(nativeTimeline[0]?.conditionSource,'CONSENSUS_VARIABLES');
+
+// Significant WMO phenomena stay authoritative and are never replaced by cloud cover.
+const significantForecast={city:{timezone:'UTC'},seriesByModel:{
+  GFS:series({code:61,cloud:5,precip:0,prob:10}),
+  ECMWF:series({code:80,cloud:15,precip:0,prob:10}),
+  UKMO_GLOBAL:series({code:null,cloud:10,precip:0,prob:10}),
+}};
+const significantNow=currentConditions(significantForecast,new Date(`${day}T12:05:00Z`));
+assert.equal(significantNow.condition,'RAIN');
+assert.equal(significantNow.conditionSource,'MODEL_CODE_CONSENSUS');
+assert.equal(significantNow.conditionInferred,false);
+assert.equal(aggregateDay(significantForecast,day).condition,'RAIN');
+assert.equal(buildTimelinePoints(significantForecast,'HOURLY',new Date(`${day}T11:35:00Z`))[0]?.condition,'RAIN');
 
 // With no native weather codes, derive the aggregate condition once from central consensus variables.
 const derivedForecast={city:{timezone:'UTC'},seriesByModel:{

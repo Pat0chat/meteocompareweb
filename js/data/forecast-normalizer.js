@@ -13,16 +13,17 @@ function intList(value, predicate=Number.isFinite) { return Array.isArray(value)
 function boundedList(value, limits, integer=false) { return sanitizeNumericArray(value, limits, { integer }); }
 function strings(value) { return Array.isArray(value) ? value.map(x => typeof x === 'string' ? x : null) : null; }
 function alignIndices(indices, vals) { return indices.map(i=>vals?.[i] ?? null); }
+export function combineCloudLayers(low, mid, high) {
+  if (![low,mid,high].every(value=>Number.isInteger(value)&&value>=0&&value<=100)) return null;
+  return Math.round(Math.max(low,mid,high*.5));
+}
 function cloudCover(hourly, model, single) {
   const total = boundedList(values(hourly,'cloud_cover',model,single), FORECAST_PHYSICAL_LIMITS.cloudPercent, true).values;
   if (total?.some(x=>x!==null)) return total;
   const layers = ['cloud_cover_low','cloud_cover_mid','cloud_cover_high'].map(key=>boundedList(values(hourly,key,model,single),FORECAST_PHYSICAL_LIMITS.cloudPercent,true).values);
   const size = Math.max(0, ...layers.map(x=>x?.length||0));
   if (!size) return total;
-  return Array.from({length:size},(_,i)=> {
-    const valid=layers.map(array=>array?.[i]).filter(x=>Number.isInteger(x)&&x>=0&&x<=100);
-    return valid.length ? Math.max(...valid) : null;
-  });
+  return Array.from({length:size},(_,i)=>combineCloudLayers(layers[0]?.[i],layers[1]?.[i],layers[2]?.[i]));
 }
 
 function parseIsoCandidate(value) {

@@ -12,7 +12,9 @@ assert.match(consensus,/weightedOrdinalCondition/,'ordered condition families mu
 
 assert.match(domain,/function resolveAggregateCondition\(/,'aggregate condition provenance must be resolved in one shared domain path');
 assert.match(domain,/const voteFor=list=>weatherConditionConsensus\(/,'aggregate native/inferred categorical inputs must still use the hierarchical consensus primitive');
-assert.match(domain,/if\(nativeVote\.value&&\(nativeVote\.familyCount>=2\|\|usable\.length===1\)\)/,'multi-family native weather codes must be preferred before any aggregate-variable fallback');
+assert.match(domain,/if\(nativeVote\.value&&nativeVote\.group!=='SKY'\)/,'significant native WMO phenomena must be resolved before any cloud-cover refinement');
+assert.match(domain,/nativeVote\.group==='SKY'&&cloudFamilyCount>=2\?skyConditionFromCloudCover\(cloud\):null/,'native SKY codes must be refined only by multi-family cloud cover');
+assert.match(domain,/cloudAgreement=continuousConsensus\(cloudEntries/,'cloud refinement must use the raw multi-family agreement path');
 assert.match(domain,/const derived=inferCondition\(precipitation,temperature,cloud\)/,'when native categorical coverage is insufficient the final condition must be derived once from central consensus variables');
 assert.doesNotMatch(domain,/weightedVote\(/,'domain condition synthesis must never fall back to the legacy flat categorical vote');
 

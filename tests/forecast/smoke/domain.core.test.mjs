@@ -34,7 +34,7 @@ const raw={
 const f=normalizeBatchedForecast(raw,city,[arome,gfs]);
 assert.equal(f.seriesByModel.AROME_FRANCE_HD.hourly.timestamps.length,2,'invalid timestamp must be removed');
 assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.hourly.temperature2m,[20,22],'value alignment must follow retained timestamp indices');
-assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.hourly.cloudCover,[40,70],'AROME HD cloud fallback must use max low/mid/high layer');
+assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.hourly.cloudCover,[40,50],'AROME HD cloud fallback must cap high-cloud influence at 50%');
 assert.deepEqual(f.seriesByModel.AROME_FRANCE_HD.daily.sunrise,['2026-08-17T06:35','2026-08-18T06:36'],'shared sunrise should be accepted');
 assert.equal(f.modelMeta.AROME_FRANCE_HD.runTimestamp,'2026-08-17T00:00:00.000Z','run metadata should be retained when the API exposes it');
 assert.equal(f.modelMeta.AROME_FRANCE_HD.lastTimestamp,'2026-08-17T02:00','per-model temporal coverage should be retained');
