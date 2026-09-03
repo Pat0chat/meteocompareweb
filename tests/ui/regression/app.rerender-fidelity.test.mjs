@@ -41,7 +41,7 @@ localStorage.setItem('meteocompare.web.settings.v1',JSON.stringify(currentRecord
 const listeners={};
 let routeLandmarkFocuses=0;const routeLandmark={hasAttribute(){return false},getAttribute(){return null},setAttribute(){},removeAttribute(){},focus(options){assert.equal(options?.preventScroll,true,'route landmark focus must never scroll the page');routeLandmarkFocuses++;}};
 const stickyTopbar={getBoundingClientRect(){return {height:72}}};
-const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},querySelector(sel){if(sel==='.topbar')return stickyTopbar;return routeLandmark},set innerHTML(v){this._html=v},get innerHTML(){return this._html}};
+const app={_html:'',addEventListener(t,f){listeners[t]=f},contains(){return true},querySelector(sel){if(sel==='.topbar')return stickyTopbar;return routeLandmark},set innerHTML(v){this._html=v;const modal=selectorLookup.get('.forecast-engine-modal');if(modal){modal.scrollTop=0;const track=modal.querySelector?.('.forecast-engine-divergence-track');if(track)track.scrollLeft=0;}},get innerHTML(){return this._html}};
 let sectionLookup=new Map(),selectorLookup=new Map();
 const cssVars=new Map();const rootStyle={scrollBehavior:'',setProperty(prop,value){cssVars.set(prop,value)},removeProperty(prop){if(prop==='scroll-behavior')this.scrollBehavior='';cssVars.delete(prop)}};
 globalThis.document={activeElement:null,documentElement:{dataset:{},lang:'',scrollTop:0,style:rootStyle},body:{scrollTop:0,classList:{toggle(){}}},querySelector(sel){if(sel==='#app')return app;if(sel==='#toast-root')return {appendChild(){}};return selectorLookup.get(sel)||null},getElementById(id){return sectionLookup.get(id)||null},createElement(){return {className:'',textContent:'',remove(){}}},addEventListener(){}};
@@ -110,6 +110,45 @@ assert.match(html,/class="reliability-rank-row"[^>]*data-bias-model=/,'Local rel
 function clickDataset(dataset,section=null,controlTop=null){const target={dataset,closest(selector){if(selector==='section[id]'&&section)return section;return this}};if(Number.isFinite(controlTop))target.getBoundingClientRect=()=>({top:controlTop});listeners.click({target});return app.innerHTML;}
 function makeSection(id,top){return {id,getBoundingClientRect(){return {top}}};}
 function makeControl(top){return {getBoundingClientRect(){return {top}}};}
+
+// The comparison modal must progressively disclose engine differences without
+// duplicating seven complete tables.
+let engineModal=clickDataset({action:'open-engine-comparison'});
+assert.match(engineModal,/class="forecast-engine-snapshot /,'engine comparison must lead with a seven-day divergence summary');
+assert.match(engineModal,/class="forecast-engine-chart-interval all-sources"/,'the selected engine chart must expose the all-source spread');
+assert.match(engineModal,/class="forecast-engine-chart-interval retained"/,'the selected engine chart must expose the retained interval');
+assert.equal((engineModal.match(/class="forecast-engine-day"/g)||[]).length,1,'only the selected day must render a full comparison table');
+const selectableDate=engineModal.match(/data-engine-detail-date="([^"]+)"/)?.[1];
+assert.ok(selectableDate,'divergence timeline must expose selectable dates');
+const divergenceTrack={scrollLeft:126};
+const modalViewport={scrollTop:584,querySelector(selector){return selector==='.forecast-engine-divergence-track'?divergenceTrack:null;}};
+let detailControlFocuses=0,chartControlFocuses=0;
+selectorLookup.set('.forecast-engine-modal',modalViewport);
+selectorLookup.set(`[data-engine-detail-date="${selectableDate}"]`,{focus(options){assert.equal(options?.preventScroll,true);detailControlFocuses++;}});
+engineModal=clickDataset({engineDetailDate:selectableDate});
+await Promise.resolve();
+assert.match(engineModal,new RegExp(`class="forecast-engine-divergence-day [^"]*selected[^"]*" data-engine-detail-date="${selectableDate}"`),'selecting a timeline day must update the detailed panel');
+assert.equal(modalViewport.scrollTop,584,'selecting a timeline day must preserve the modal vertical scroll position');
+assert.equal(divergenceTrack.scrollLeft,126,'selecting a timeline day must preserve the timeline horizontal position');
+assert.equal(detailControlFocuses,1,'the replacement timeline control must recover focus without scrolling');
+modalViewport.scrollTop=417;divergenceTrack.scrollLeft=83;
+selectorLookup.set('[data-engine-chart-variable="precipProbability"]',{focus(options){assert.equal(options?.preventScroll,true);chartControlFocuses++;}});
+engineModal=clickDataset({engineChartVariable:'precipProbability'});
+await Promise.resolve();
+assert.match(engineModal,/class="chip active" aria-pressed="true" data-engine-chart-variable="precipProbability"/,'rain probability must be independently selectable');
+assert.equal(modalViewport.scrollTop,417,'changing the chart variable must preserve the modal vertical scroll position');
+assert.equal(divergenceTrack.scrollLeft,83,'changing the chart variable must preserve the timeline horizontal position');
+assert.equal(chartControlFocuses,1,'the replacement chart control must recover focus without scrolling');
+let chartFragment=engineModal.slice(engineModal.indexOf('<div class="forecast-engine-chart-grid">'),engineModal.indexOf('<section class="forecast-engine-divergence">'));
+assert.doesNotMatch(chartFragment,/forecast-engine-chart-interval/,'rain probability must not inherit an amount interval');
+engineModal=clickDataset({engineChartVariable:'precipExpected'});
+assert.match(engineModal,/class="chip active" aria-pressed="true" data-engine-chart-variable="precipExpected"/,'probabilized accumulation must be independently selectable');
+chartFragment=engineModal.slice(engineModal.indexOf('<div class="forecast-engine-chart-grid">'),engineModal.indexOf('<section class="forecast-engine-divergence">'));
+assert.match(chartFragment,/forecast-engine-chart-interval retained/,'probabilized accumulation must retain the engine interval');
+clickDataset({action:'close-modal'});
+selectorLookup.delete('.forecast-engine-modal');
+selectorLookup.delete(`[data-engine-detail-date="${selectableDate}"]`);
+selectorLookup.delete('[data-engine-chart-variable="precipProbability"]');
 
 // Real rerenders must translate the complete city-detail surface, not only the settings screen.
 for(const [pref,lang] of [['ENGLISH','en'],['SPANISH','es'],['GERMAN','de'],['ITALIAN','it']]){

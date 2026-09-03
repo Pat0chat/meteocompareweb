@@ -17,10 +17,22 @@ assert.match(app,/forecast-engine-compare-card/,'engine comparison must be a ded
 assert.match(app,/forecastEngineCompareIntro/);
 assert.match(app,/renderForecastEngineLineChart/);
 assert.match(app,/renderForecastEngineDivergenceTimeline/);
-const engineComparison=app.slice(app.indexOf('function renderForecastEngineComparisonModal('),app.indexOf('function renderModal('));
+const engineComparison=app.slice(app.indexOf('function forecastEngineDetailMeta('),app.indexOf('function renderModal('));
 assert.match(engineComparison,/data-engine-chart-variable/,'comparison must expose a variable selector');
 assert.match(engineComparison,/cloudCoverage/,'cloud cover must be selectable and present in the comparison');
 assert.equal((engineComparison.match(/renderForecastEngineLineChart\(dates,matrix,selected,chartConfig\)/g)||[]).length,1,'comparison must render one selected-variable chart at a time');
+assert.match(engineComparison,/forecast-engine-snapshot/,'comparison must start with an actionable divergence snapshot');
+assert.match(engineComparison,/forecast-engine-chart-interval \$\{kind\}/,'selected engine ranges must be rendered on the chart');
+assert.match(engineComparison,/all-sources',30/,'chart must expose the broad all-source spread');
+assert.match(engineComparison,/retained',10/,'chart must expose the narrower retained engine range');
+assert.match(engineComparison,/data-engine-detail-date/,'the divergence timeline must select the detailed day');
+assert.match(engineComparison,/role="tabpanel"/,'the selected day values must be exposed as the timeline panel');
+assert.match(engineComparison,/precipProbability:\{key:'precipProbability'/,'rain probability must have its own chart variable');
+assert.match(engineComparison,/precipExpected:\{key:'precipExpected'/,'probabilized accumulation must have its own chart variable');
+assert.match(engineComparison,/timelineRainProbabilityShort[\s\S]*summaryRainExpectedLabel[\s\S]*summaryRainIfWetLabel/,'detailed rain values must separate probability, expected accumulation and amount if wet');
+assert.match(engineComparison,/const dayTable=detailDate\?/,'comparison must render a single selected-day detail table');
+assert.match(engineComparison,/forecastEngineCentralDifferenceNote/,'comparison must explain that engine divergence is not model agreement or weather probability');
+assert.match(app,/rerenderForecastEngineModalPreservingView/,'comparison controls must preserve the modal and timeline scroll positions when rerendering');
 assert.match(app,/forecastEngineTempTrend/);
 assert.match(app,/forecastEngineRainTrend/);
 assert.match(app,/forecastEngineWindTrend/,'comparison must include a wind chart');
@@ -28,10 +40,10 @@ assert.doesNotMatch(app,/forecast-engine-compare-kicker/,'comparison entry point
 assert.doesNotMatch(app,/summary-dispersion-models/,'summary dispersion metadata must not repeat the model count');
 assert.match(app,/forecast-engine-modal-city/,'city must be prominent in the comparison modal');
 assert.match(app,/summary-dispersion-facts/,'summary metadata must be grouped into clean facts');
-for(const cls of ['detail-hero-primary','detail-hero-support','detail-seo-context','forecast-engine-compare-card','forecast-engine-compare-icon','forecast-engine-chart-grid','forecast-engine-divergence-track','forecast-engine-divergence-metric','summary-dispersion-facts']) assert.ok(css.includes(`.${cls}`),`missing ${cls} styling`);
+for(const cls of ['detail-hero-primary','detail-hero-support','detail-seo-context','forecast-engine-compare-card','forecast-engine-compare-icon','forecast-engine-snapshot','forecast-engine-chart-grid','forecast-engine-chart-interval','forecast-engine-divergence-track','forecast-engine-divergence-metric','forecast-engine-result-range','summary-dispersion-facts']) assert.ok(css.includes(`.${cls}`),`missing ${cls} styling`);
 for(const locale of ['fr','en','es','de','it']){
   const text=read(`js/locales/${locale}.js`);
   assert.ok(!/forecastEngineModalTitle[^\n]*V3|aboutForecastEnginesTitle[^\n]*V3/.test(text),`${locale} must not expose the V3 label`);
-  for(const key of ['forecastEngineCompareIntro','forecastEngineVisualOverview','forecastEngineTempTrend','forecastEngineRainTrend','forecastEngineWindTrend','forecastEngineDivergenceTimeline','forecastEngineDivergenceLow','forecastEngineDivergenceMedium','forecastEngineDivergenceHigh','forecastEngineInspectDetails']) assert.ok(text.includes(`"${key}"`),`${locale} missing ${key}`);
+  for(const key of ['forecastEngineCompareIntro','forecastEngineVisualOverview','forecastEngineTempTrend','forecastEngineRainTrend','forecastEngineRainProbabilityTrend','forecastEngineWindTrend','forecastEngineDivergenceTimeline','forecastEngineDivergenceLow','forecastEngineDivergenceMedium','forecastEngineDivergenceHigh','forecastEngineInspectDetails','forecastEngineRetainedRange','forecastEngineConditionVariants','forecastEngineComparisonSummaryTitle','forecastEngineComparisonSummaryBody','forecastEngineOverallSpread','forecastEngineMarkedDays','forecastEnginePeakDay','forecastEngineInspectDay','forecastEngineMainDriver','forecastEngineCentralDifferenceNote','forecastEngineDetailDateAria','forecastEngineDetailSelectedDay']) assert.ok(text.includes(`"${key}"`),`${locale} missing ${key}`);
 }
 console.log('MeteoCompare detail + Forecast Engines visual polish: OK');
