@@ -730,7 +730,7 @@ html[data-theme="dark"] body {
 
 .global-agreement { border-radius: 12px; box-shadow: none; border: 1px solid currentColor; }
 
-.scenario { border-radius: 10px; border-left: 0; background: var(--surface-2); }
+.scenario { border-radius: 10px; background: var(--surface-2); }
 
 /* Dashboard without pseudo-indexes and terminal framing. */
 .metric { border-radius: 10px; }
