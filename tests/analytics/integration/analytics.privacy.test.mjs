@@ -31,6 +31,13 @@ assert.equal(
   ),
   'https://meteocompare.app/settings'
 );
+assert.equal(
+  sanitizedAnalyticsUrl(
+    {name:'home'},
+    {origin:'https://meteocompare.app',pathname:'/meteo/',search:'',hash:'',protocol:'https:'}
+  ),
+  'https://meteocompare.app/'
+);
 
 const calls=[];
 const storage=new Map();

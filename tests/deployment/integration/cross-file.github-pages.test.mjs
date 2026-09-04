@@ -11,7 +11,7 @@ assert.doesNotMatch(html,/\b(?:src|href)="\//,'HTML assets must not assume domai
 assert.equal(manifest.start_url,'./#/');
 assert.equal(manifest.scope,'./');
 assert.equal(manifest.id,'./');
-assert.match(app,/serviceWorker\.register\('\.\/sw\.js'/,'service worker registration must stay relative to the repository subpath');
+assert.match(app,/serviceWorker\.register\(appAssetUrl\('sw\.js'\),\{scope:rootPath,updateViaCache:'none'\}\)/,'service worker registration must resolve from the module-derived repository root');
 assert.match(sw,/['"]\.\/index\.html['"]/,'service worker shell paths must be relative');
 assert.ok(fs.existsSync(new URL('../../../.nojekyll',import.meta.url)),'branch-based Pages publishing should include .nojekyll');
 assert.match(workflowText,/actions\/configure-pages@v6/);

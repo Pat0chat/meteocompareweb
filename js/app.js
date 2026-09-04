@@ -160,7 +160,10 @@ async function registerPwaServiceWorker(){
     const registrations=await navigator.serviceWorker.getRegistrations?.()||[],rootPath=new URL(APP_ROOT_URL).pathname.replace(/\/?$/,'/'),legacyPrefix=`${rootPath}meteo/`;
     await Promise.all(registrations.filter(registration=>{try{return new URL(registration.scope).pathname.startsWith(legacyPrefix);}catch{return false;}}).map(registration=>registration.unregister()));
   }catch(err){console.warn('Legacy service worker cleanup:',err);}
-  try{await navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'});}
+  try{
+    const rootPath=new URL(APP_ROOT_URL).pathname.replace(/\/?$/,'/');
+    await navigator.serviceWorker.register(appAssetUrl('sw.js'),{scope:rootPath,updateViaCache:'none'});
+  }
   catch(err){console.warn('Service worker:',err);}
 }
 

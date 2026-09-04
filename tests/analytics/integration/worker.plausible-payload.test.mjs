@@ -77,6 +77,13 @@ try{
   assert.equal(JSON.parse(forwarded[0].options.body).u,'https://meteocompare.app/settings');
 
   forwarded.length=0;
+  const legacyMeteoLanding=await proxyPlausibleEvent(new Request('https://meteocompare.app/_mcx/e',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({
+    n:'pageview',u:'https://meteocompare.app/meteo/',p:{app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'direct'}
+  })}));
+  assert.equal(legacyMeteoLanding.status,202,'legacy /meteo/ landing URLs must be canonicalized instead of rejected');
+  assert.equal(JSON.parse(forwarded[0].options.body).u,'https://meteocompare.app/');
+
+  forwarded.length=0;
   const spoofedDomain=await proxyPlausibleEvent(new Request('https://meteocompare.app/_mcx/e',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({n:'pageview',u:'https://meteocompare.app/',d:'evil.example'})}));
   assert.equal(spoofedDomain.status,202,'client domain fields are ignored after first-party URL validation');
   assert.equal(JSON.parse(forwarded[0].options.body).d,'meteocompare.app');

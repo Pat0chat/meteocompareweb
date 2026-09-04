@@ -24,8 +24,11 @@ export function analyticsRoutePath(route){
 function projectBasePath(pathname='/'){
   let path=String(pathname||'/').split(/[?#]/,1)[0]||'/';
   if(!path.startsWith('/'))path=`/${path}`;
-  // Clean SEO city routes must resolve to the application root rather than
-  // being treated as a deployment directory (e.g. /meteo/toulouse/city).
+  // Clean SEO city routes and the legacy /meteo[/] landing alias must
+  // resolve to the application root rather than being treated as deployment
+  // directories (e.g. /meteo/toulouse/city or /meteo/city).
+  const meteoLanding=path.match(/^(.*)\/meteo\/?$/i);
+  if(meteoLanding)return `${meteoLanding[1]||''}/`.replace(/\/+/g,'/')||'/';
   const seoCity=path.match(/^(.*)\/meteo\/[^/]+\/?$/i);
   if(seoCity)return `${seoCity[1]||''}/`.replace(/\/+/g,'/')||'/';
   if(path.endsWith('/'))return path;

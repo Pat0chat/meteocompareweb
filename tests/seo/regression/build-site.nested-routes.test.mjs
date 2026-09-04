@@ -24,7 +24,7 @@ assert.match(index,/type="module" src="js\/app\.js"/);
 
 const app=read('js/app.js');
 assert.match(app,/const APP_ROOT_URL=new URL\('\.\.\/',import\.meta\.url\)/,'runtime assets must resolve from the application module location');
-assert.match(app,/navigator\.serviceWorker\.register\('\.\/sw\.js',\{updateViaCache:'none'\}\)/,'PWA registration must stay relative to the deployment root');
+assert.match(app,/navigator\.serviceWorker\.register\(appAssetUrl\('sw\.js'\),\{scope:rootPath,updateViaCache:'none'\}\)/,'PWA registration must resolve from the application module root, not the current nested URL');
 assert.match(app,/legacyPrefix=`\$\{rootPath\}meteo\/`/,'legacy nested service-worker registrations must be removed relative to the app root');
 assert.match(app,/class="logo" src="\$\{attr\(appAssetUrl\('assets\/icon\.png'\)\)\}"/,'topbar logo must use the route-independent asset resolver');
 assert.doesNotMatch(app,/class="logo" src="assets\/icon\.png"/,'topbar logo must not depend on the current document route depth');

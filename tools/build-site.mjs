@@ -82,7 +82,7 @@ for(const city of SEO_CITIES){
 const sitemap=[`${site}/`,...SEO_CITIES.map(city=>`${site}${cityPublicPath(city)}`)];
 await writeFile(join(out,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemap.map(url=>`  <url>\n    <loc>${xml(url)}</loc>\n  </url>`).join('\n')}\n</urlset>\n`);
 await writeFile(join(out,'robots.txt'),`User-agent: *\nAllow: /\n\nSitemap: ${site}/sitemap.xml\n`);
-await writeFile(join(out,'_redirects'),`/index.html / 301\n/meteo/:slug/ /meteo/:slug 301\n`);
+await writeFile(join(out,'_redirects'),`/index.html / 301\n/meteo / 301\n/meteo/ / 301\n/meteo/:slug/ /meteo/:slug 301\n`);
 
 console.log(`Built MeteoCompare ${SEO_CITIES.length} city pages + home into ${out}`);
 console.log(`Search Console verification meta: ${verification?'enabled':'not configured (DNS verification recommended)'}`);

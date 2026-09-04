@@ -112,6 +112,7 @@ function canonicalAnalyticsPath(url){
   }
   if(ROUTE_PATHS.has(pathname))return pathname;
   if(pathname==='/index.html')return '/';
+  if(/^\/meteo\/?$/i.test(pathname))return '/';
   if(/^\/meteo\/[^/]+\/?$/i.test(pathname))return '/city';
   return null;
 }
