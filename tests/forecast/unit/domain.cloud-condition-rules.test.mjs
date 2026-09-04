@@ -17,24 +17,34 @@ assert.equal(skyConditionFromCloudCover(101),null);
 
 const day='2026-09-02';
 function dailySeries({dailyCode,hourlyCodes=[3,3,3,3],clouds=[25,45,65,85],precipitation=[0,0,0,0]}={}){
-  const timestamps=clouds.map((_,index)=>`${day}T${String(index*6).padStart(2,'0')}:00`);
+  const length=Math.max(hourlyCodes.length,clouds.length,precipitation.length),timestamps=Array.from({length},(_,index)=>`${day}T${String(index).padStart(2,'0')}:00`);
+  const fill=(values,fallback)=>Array.from({length},(_,index)=>values[index]??fallback);
   return {
-    hourly:{timestamps,temperature2m:clouds.map(()=>18),precipitation,precipitationProbability:clouds.map(()=>10),cloudCover:clouds,windSpeed10m:clouds.map(()=>8),windGusts10m:clouds.map(()=>14),weatherCode:hourlyCodes},
-    daily:{dates:[day],tempMin:[12],tempMax:[22],precipitationSum:[precipitation.reduce((sum,value)=>sum+value,0)],precipitationProbabilityMax:[10],windSpeedMax:[10],windGustsMax:[16],windDirection10mDominant:[180],weatherCode:[dailyCode],sunrise:[null],sunset:[null]},
+    hourly:{timestamps,temperature2m:fill([],18),precipitation:fill(precipitation,0),precipitationProbability:fill([],10),cloudCover:fill(clouds,50),windSpeed10m:fill([],8),windGusts10m:fill([],14),weatherCode:fill(hourlyCodes,null)},
+    daily:{dates:[day],tempMin:[12],tempMax:[22],precipitationSum:[precipitation.reduce((sum,value)=>sum+(Number(value)||0),0)],precipitationProbabilityMax:[10],windSpeedMax:[10],windGustsMax:[16],windDirection10mDominant:[180],weatherCode:[dailyCode],sunrise:[null],sunset:[null]},
   };
 }
 
-const variableSky=dailyCondition(dailySeries({dailyCode:3}),day);
-assert.equal(variableSky.condition,CONDITION.PARTLY_CLOUDY,'daily WMO 3 must yield to variable hourly cloud cover');
-assert.equal(variableSky.inferred,true);
+const nativeHourlySky=dailyCondition(dailySeries({dailyCode:3}),day);
+assert.deepEqual(nativeHourlySky,{condition:CONDITION.OVERCAST,inferred:false,conditionSource:'HOURLY_WMO_AGGREGATE'},'hourly WMO sky codes must stay native and must not be replaced by cloud-cover inference');
 
-assert.deepEqual(dailyCondition(dailySeries({dailyCode:2,clouds:[],hourlyCodes:[]}),day),{condition:CONDITION.PARTLY_CLOUDY,inferred:false},'daily WMO 2 mapping must remain intact without hourly cloud evidence');
-assert.deepEqual(dailyCondition(dailySeries({dailyCode:3,clouds:[],hourlyCodes:[]}),day),{condition:CONDITION.OVERCAST,inferred:false},'daily WMO 3 mapping must remain intact without hourly cloud evidence');
+const gifLike=dailyCondition(dailySeries({
+  dailyCode:3,
+  hourlyCodes:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,3,3,3],
+  clouds:[10,10,12,12,15,15,18,18,20,20,22,22,24,24,25,25,28,30,35,40,45,81,92,99],
+}),day);
+assert.deepEqual(gifLike,{condition:CONDITION.MAINLY_CLEAR,inferred:false,conditionSource:'HOURLY_WMO_AGGREGATE'},'a severe daily sky code must yield to the dominant hourly WMO sky state without becoming inferred');
+
+assert.deepEqual(dailyCondition(dailySeries({dailyCode:2,clouds:[],hourlyCodes:[]}),day),{condition:CONDITION.PARTLY_CLOUDY,inferred:false,conditionSource:'DAILY_WMO_NATIVE'},'daily WMO 2 mapping must remain intact when hourly WMO evidence is unavailable');
+assert.deepEqual(dailyCondition(dailySeries({dailyCode:3,clouds:[],hourlyCodes:[]}),day),{condition:CONDITION.OVERCAST,inferred:false,conditionSource:'DAILY_WMO_NATIVE'},'daily WMO 3 mapping must remain intact when hourly WMO evidence is unavailable');
 
 const dailyRain=dailyCondition(dailySeries({dailyCode:61,clouds:[5,10,15,20],hourlyCodes:[0,0,0,0]}),day);
-assert.deepEqual(dailyRain,{condition:CONDITION.RAIN,inferred:false},'a significant daily WMO phenomenon must stay authoritative');
+assert.deepEqual(dailyRain,{condition:CONDITION.RAIN,inferred:false,conditionSource:'DAILY_WMO_NATIVE'},'a significant daily WMO phenomenon must stay authoritative');
 
-const hourlyStorm=dailyCondition(dailySeries({dailyCode:3,clouds:[10,20,30,40],hourlyCodes:[0,95,0,0]}),day);
-assert.deepEqual(hourlyStorm,{condition:CONDITION.THUNDERSTORM,inferred:true},'a significant hourly WMO phenomenon must override a daily sky-only code');
+const hourlyDominant=dailyCondition(dailySeries({dailyCode:3,clouds:[10,20,30,40],hourlyCodes:[0,95,0,0]}),day);
+assert.deepEqual(hourlyDominant,{condition:CONDITION.CLEAR,inferred:false,conditionSource:'HOURLY_WMO_AGGREGATE'},'an isolated severe hourly code must not turn a dry sky day into an inferred severe condition');
 
-console.log('Cloud-cover thresholds and daily WMO arbitration rules: OK');
+const derived=dailyCondition(dailySeries({dailyCode:null,hourlyCodes:[null,null,null,null],clouds:[25,45,65,85]}),day);
+assert.deepEqual(derived,{condition:CONDITION.PARTLY_CLOUDY,inferred:true,conditionSource:'DERIVED_VARIABLES'},'cloud-cover fallback must be the only daily sky path marked inferred');
+
+console.log('Cloud-cover thresholds and daily WMO provenance/arbitration rules: OK');

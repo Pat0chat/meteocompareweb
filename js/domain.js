@@ -197,7 +197,7 @@ export function currentConditions(forecast, now=new Date(), options={}) {
 }
 
 export function dailyCloudCoverMean(series,date){
-  const vals=[];series.hourly.timestamps.forEach((ts,i)=>{if(ts.slice(0,10)===date){const v=series.hourly.cloudCover[i];if(Number.isInteger(v)&&v>=0&&v<=100)vals.push(v);}});return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+  const hourly=series?.hourly||{},vals=[];(hourly.timestamps||[]).forEach((ts,i)=>{if(typeof ts!=='string'||ts.slice(0,10)!==date)return;const v=physicalValue(hourly.cloudCover?.[i],FORECAST_PHYSICAL_LIMITS.cloudPercent);if(Number.isFinite(v))vals.push(v);});return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
 }
 export function dailyPrecipitationTemperature(series,date){
   const hourly=series?.hourly||{},timestamps=hourly.timestamps||[];let weighted=0,weight=0;
@@ -209,22 +209,28 @@ export function dailyPrecipitationTemperature(series,date){
   }
   return weight>0?weighted/weight:null;
 }
+function aggregateHourlyWmoCondition(codes){
+  const entries=(codes||[]).filter(condition=>condition&&condition!==CONDITION.UNKNOWN).map((value,index)=>({modelId:`hour-${index}`,value}));
+  return weatherConditionConsensus(entries,{},value=>conditionInfo(value).severity).value||null;
+}
 export function dailyCondition(series,date){
   const di=series?.daily?.dates?.indexOf(date)??-1;
   const dailyNative=di>=0?fromWmoCode(physicalValue(series.daily.weatherCode?.[di],FORECAST_PHYSICAL_LIMITS.weatherCode)):null;
-  if(isSignificantCondition(dailyNative))return {condition:dailyNative,inferred:false};
+  if(isSignificantCondition(dailyNative))return {condition:dailyNative,inferred:false,conditionSource:'DAILY_WMO_NATIVE'};
+
   const codes=[];let precip=0,pCount=0,clouds=[];
   (series?.hourly?.timestamps||[]).forEach((ts,i)=>{if(typeof ts!=='string'||ts.slice(0,10)!==date)return;const c=fromWmoCode(physicalValue(series.hourly.weatherCode?.[i],FORECAST_PHYSICAL_LIMITS.weatherCode));if(c&&c!==CONDITION.UNKNOWN)codes.push(c);const p=physicalValue(series.hourly.precipitation?.[i],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm);if(Number.isFinite(p)){precip+=p;pCount++;}const cl=physicalValue(series.hourly.cloudCover?.[i],FORECAST_PHYSICAL_LIMITS.cloudPercent);if(Number.isFinite(cl))clouds.push(cl);});
-  const significantCodes=codes.filter(isSignificantCondition);
-  if(significantCodes.length){const condition=weatherConditionConsensus(significantCodes.map((value,index)=>({modelId:`hour-${index}`,value})),{},value=>conditionInfo(value).severity).value;return {condition,inferred:true};}
+
+  const hourlyWmo=aggregateHourlyWmoCondition(codes);
+  if(hourlyWmo)return {condition:hourlyWmo,inferred:false,conditionSource:'HOURLY_WMO_AGGREGATE'};
+  if(dailyNative&&dailyNative!==CONDITION.UNKNOWN)return {condition:dailyNative,inferred:false,conditionSource:'DAILY_WMO_NATIVE'};
+
   const precipTemperature=dailyPrecipitationTemperature(series,date);
   const wetCondition=inferCondition(pCount?precip:null,precipTemperature,null);
-  if(isSignificantCondition(wetCondition))return {condition:wetCondition,inferred:true};
+  if(isSignificantCondition(wetCondition))return {condition:wetCondition,inferred:true,conditionSource:'DERIVED_VARIABLES'};
   const hourlySky=clouds.length?skyConditionFromCloudCover(stats(clouds).mean):null;
-  if(hourlySky)return {condition:hourlySky,inferred:hourlySky!==dailyNative};
-  if(dailyNative&&dailyNative!==CONDITION.UNKNOWN)return {condition:dailyNative,inferred:false};
-  if(codes.length){const condition=weatherConditionConsensus(codes.map((value,index)=>({modelId:`hour-${index}`,value})),{},value=>conditionInfo(value).severity).value;return {condition,inferred:true};}
-  return {condition:null,inferred:true};
+  if(hourlySky)return {condition:hourlySky,inferred:true,conditionSource:'DERIVED_VARIABLES'};
+  return {condition:null,inferred:false,conditionSource:null};
 }
 
 

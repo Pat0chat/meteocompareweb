@@ -1,2 +1,2 @@
 // MeteoCompare Web application version. Keep release tags aligned with this value.
-globalThis.METEOCOMPARE_APP_VERSION = '2.0.0';
+globalThis.METEOCOMPARE_APP_VERSION = '2.0.2';

@@ -26,7 +26,7 @@ const single={city:{timezone:'UTC'},seriesByModel:{GFS:{
   daily:{dates:[day],tempMin:[14],tempMax:[24],precipitationSum:[0],precipitationProbabilityMax:[5],windSpeedMax:[10],windGustsMax:[16],windDirection10mDominant:[180],weatherCode:[3],sunrise:[null],sunset:[null]},
 }}};
 const dailyTimeline=buildTimelinePoints(single,'DAILY',new Date(`${day}T00:00:00Z`));
-assert.equal(dailyTimeline[0]?.condition,CONDITION.PARTLY_CLOUDY,'daily timeline must use hourly cloud evidence even with one model');
-assert.equal(dailyTimeline[0]?.conditionInferred,true);
+assert.equal(dailyTimeline[0]?.condition,CONDITION.OVERCAST,'daily timeline must preserve the dominant hourly WMO sky condition for a single model');
+assert.equal(dailyTimeline[0]?.conditionInferred,false);
 
 console.log('Multi-family sky refinement across current, daily and timeline outputs: OK');
