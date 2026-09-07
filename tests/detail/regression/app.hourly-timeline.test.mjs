@@ -3,7 +3,6 @@ import fs from 'node:fs';
 
 const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
 const fr=fs.readFileSync(new URL('../../../js/locales/fr.js',import.meta.url),'utf8');
-const health=fs.readFileSync(new URL('../../../js/features/model-health.js',import.meta.url),'utf8');
 const network=fs.readFileSync(new URL('../../../js/network-config.js',import.meta.url),'utf8');
 const html=fs.readFileSync(new URL('../../../index.html',import.meta.url),'utf8');
 const styles=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf8');
@@ -14,9 +13,6 @@ assert.match(renderTimeline,/selectRegularTimelinePoints\(analysis,mode==='HOURL
 assert.match(app,/function homeTimelinePoints\(f,forecastOptions,maxPoints=12,now=new Date\(\),stepHours=1\)[\s\S]*selectRegularTimelinePoints\(buildTimelinePoints\(f,'HOURLY'[\s\S]*maxPoints,stepHours\)/,'home mini timeline must expose 12 consecutive hourly points');
 assert.match(app,/disagreementAnalysis\(cityId\)[\s\S]*selectRegularTimelinePoints\(buildTimelinePoints\(f,'HOURLY',new Date\(\),opts\),24,1\)/,'detail disagreement analysis must use the same hourly grid');
 assert.match(fr,/"next24Regular":"Prochaines 24 heures · repères chaque heure"/);
-assert.match(health,/METADATA_PROXY_PATH=NETWORK_ENDPOINTS\.firstParty\.modelMetadata/);
-assert.match(network,/modelMetadata: '\/_mcx\/model-metadata'/);
-assert.doesNotMatch(health,/fetch\(`https:\/\/openmeteo-data-spatial\.b-cdn\.net/);
 assert.doesNotMatch(html,/openmeteo-data-spatial\.b-cdn\.net/,'browser CSP no longer needs a direct metadata CDN connection');
 assert.match(styles,/timeline-ruler, \.timeline-full \{ grid-template-columns: repeat\(var\(--timeline-cols, 8\), minmax\(148px,1fr\)\); \}/,'hourly timeline columns must have enough width for condition labels');
 assert.match(styles,/timeline-condition > span:last-child \{[^}]*white-space:normal;[^}]*-webkit-line-clamp:2;/,'weather condition labels must use a stable two-line area instead of ellipsis');
@@ -32,4 +28,4 @@ assert.match(renderPoint,/renderMetric\('precipitation-probability'[\s\S]*render
 assert.match(renderPoint,/timeline-metric-label[\s\S]*timelineRainProbabilityShort[\s\S]*timelineRainAmountShort/,'narrow metric rows must expose short labels rather than hiding long descriptions');
 assert.match(renderTimeline,/summaryRainExpectedLabel[\s\S]*windMedianLegend[\s\S]*gusts[\s\S]*timeline-rail-legend/,'the chronology legend must name weighted rain and gusts separately');
 assert.match(renderTimeline,/timeline-rail-legend[\s\S]*summarySpreadLegend[\s\S]*summaryIntervalLegend/,'the chronology legend must explain spread and intervals once globally');
-console.log('detail hourly timeline and first-party model health proxy: OK');
+console.log('detail hourly timeline: OK');

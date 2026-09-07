@@ -20,9 +20,7 @@ assert.match(app,/state\.comparePanelOpen\[key\]=next/,'Comparison disclosure st
 assert.match(css,/\.detailed-card\[data-collapsed=\"true\"\] \.detailed-export-actions \.btn/,'Detailed export buttons should hide with the folded card while keeping the collapse control available');
 assert.match(css,/\.timeline-card\[data-collapsed=\"true\"\] \.timeline-mode/,'Timeline 24h/7d controls must hide when folded');
 
-// Model health has one disclosure mechanism only: its explicit diagnostic action.
-assert.doesNotMatch(specs,/\['diagnostics'/,'Model health must not have a redundant generic fold button');
-assert.match(app,/data-action="toggle-diagnostics"/,'Model health must keep the explicit open/close diagnostic action');
-assert.match(app,/state\.diagnosticsOpen/,'Model health detailed state must remain explicit');
+// Model health UI and its dedicated diagnostics disclosure have been removed.
+assert.doesNotMatch(app,/toggle-diagnostics|refresh-model-health|modelHealthMonitor|diagnosticsOpen/);
 
 console.log('tests/detail/regression/app.interactions.test.mjs: OK');

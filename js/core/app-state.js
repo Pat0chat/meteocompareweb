@@ -26,13 +26,9 @@ export class AppState {
     this.integrityReport=null;
     this.integrityLoading=false;
     this.errorCenter=null;
-    this.diagnosticsOpen=new Set();
     this.marine={};
     this.marineLoading=new Set();
-    this.modelHealth={};
-    this.modelHealthHistory={};
-    this.modelHealthLoading=new Set();
-    this.backupOptions={forecasts:false,normals:true,bias:true,evolution:true,marine:true,health:true};
+    this.backupOptions={forecasts:false,normals:true,bias:true,evolution:true,marine:true};
     this.localDataUi={advancedOpen:false,privacyOpen:false,cacheOpen:false};
   }
 }

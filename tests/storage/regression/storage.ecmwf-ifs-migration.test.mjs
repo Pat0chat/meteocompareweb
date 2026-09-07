@@ -31,7 +31,6 @@ localStorage.setItem('meteocompare.web.bias.paris',JSON.stringify(envelope('bias
   reference:'ERA5',forecasts:[{modelId:'ECMWF',variable:'TEMPERATURE',targetDate:'2026-08-20',value:24}],observations:[{variable:'TEMPERATURE',targetDate:'2026-08-20',value:23}],updatedAt:Date.now(),lastRefreshReport:{modelIds:['GFS','ECMWF'],remainingModelIds:['ECMWF']}
 })));
 localStorage.setItem('meteocompare.web.evolution.paris',JSON.stringify(envelope('evolution',[{capturedAt:Date.now()-3600000,qualityVersion:2,daily:{'2026-08-29':{ECMWF:{temperature:26,precipitation:2,wind:20},GFS:{temperature:25,precipitation:1,wind:18}}}}])));
-localStorage.setItem('meteocompare.web.health.paris',JSON.stringify(envelope('health',[{capturedAt:Date.now()-3600000,qualityVersion:2,rows:[{modelId:'ECMWF',status:'OK'},{modelId:'GFS',status:'OK'}]}])));
 
 const storage=await import(`../../../js/storage.js?ifs9=${Date.now()}`);
 assert.equal(storage.DATA_SCHEMA_VERSION,4);
@@ -60,8 +59,6 @@ const evolution=storage.loadEvolution('paris');
 assert.ok(evolution[0].daily['2026-08-29'][ECMWF_IFS025_LEGACY_ID]);
 assert.equal(evolution[0].daily['2026-08-29'].ECMWF,undefined,'run-to-run evolution must not compare 25 km history against new 9 km ECMWF');
 
-const health=storage.loadModelHealth('paris');
-assert.equal(health[0].rows[0].modelId,ECMWF_IFS025_LEGACY_ID,'old health incidents must not carry over to the new 9 km source');
 
 const appSource=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
 assert.match(appSource,/map\(x=>x\.modelId\)\)\]\.filter\(id=>Boolean\(getModel\(id\)\)\)/,'legacy model ids must be retained in storage but excluded from active reliability cohorts');

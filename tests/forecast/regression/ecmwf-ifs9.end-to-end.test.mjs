@@ -3,7 +3,6 @@ import { fetchForecast, fetchPreviousRuns } from '../../../js/api.js';
 import { resetApiUsage } from '../../../js/api-budget.js';
 import { aggregateDay, buildScenarios, buildTimelinePoints, currentConditions, hourlyConfidenceBand } from '../../../js/domain.js';
 import { normalizePreviousRuns } from '../../../js/features/bias.js';
-import { fetchModelRunMetadata } from '../../../js/features/model-health.js';
 import { familyBalancedWeights } from '../../../js/consensus.js';
 import { getModel } from '../../../js/models.js';
 
@@ -104,13 +103,5 @@ assert.match(previousUrl,/models=ecmwf_ifs/);
 assert.doesNotMatch(previousUrl,/ecmwf_ifs025/);
 const reliabilityRows=normalizePreviousRuns(previous,city,[ecmwf],historyDay,historyDay);
 assert.equal(reliabilityRows.filter(row=>row.modelId==='ECMWF').length,3,'temperature, rain and wind reliability rows must keep the active ECMWF identity');
-
-// Model-health metadata must also use the 9 km key through the first-party endpoint.
-let healthUrl='';
-globalThis.fetch=async url=>{healthUrl=String(url);return new Response(JSON.stringify({completed:true,reference_time:'2026-08-28T00:00:00Z',valid_times:[],variables:[]}),{status:200,headers:{'content-type':'application/json'}});};
-const health=await fetchModelRunMetadata([ecmwf],{concurrency:1,timeoutMs:1000});
-assert.match(healthUrl,/_mcx\/model-metadata\?key=ecmwf_ifs/);
-assert.equal(health.ECMWF.modelId,'ECMWF');
-assert.equal(health.ECMWF.error,undefined);
 
 console.log('ECMWF IFS HRES 9 km end-to-end forecast/consensus data chain: OK');

@@ -44,7 +44,7 @@ assert.match(app,/new ApplicationKernel\(/);
 const ops=new OperationRegistry(),first=ops.begin('city'),second=ops.begin('city');
 assert.equal(ops.isCurrent('city',first),false);assert.equal(ops.isCurrent('city',second),true);
 let loads=0;const registry=new FeatureRegistry({demo:async()=>{loads++;return {ok:true};}});await Promise.all([registry.load('demo'),registry.load('demo')]);assert.equal(loads,1);
-const kernel=new ApplicationKernel({settings:{},cities:[],route:{name:'home'},online:true,featureLoaders:{},analysisLoaders:{bias:()=>null,evolution:()=>null,normals:()=>null,marine:()=>null,health:()=>[]}});
+const kernel=new ApplicationKernel({settings:{},cities:[],route:{name:'home'},online:true,featureLoaders:{},analysisLoaders:{bias:()=>null,evolution:()=>null,normals:()=>null,marine:()=>null}});
 assert.equal(kernel.state.route.name,'home');assert.ok(kernel.operations.weather instanceof OperationRegistry);assert.ok(kernel.cache.forecastViews instanceof WeakMap);
 
 console.log('tests/architecture/regression/application-kernel.security-icons.test.mjs: OK');

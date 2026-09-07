@@ -18,10 +18,9 @@ assert.doesNotMatch(app,/renderSeoCityContext\(city\)/,'standalone SEO city cont
 
 const context=app.indexOf('${renderSeoDetailTitleContext(city)}');
 const timeline=app.indexOf('${renderTimeline(f,engineContext)}');
-const diagnostics=app.indexOf('${renderDataDiagnosticsSection(city,f)}');
 const nearby=app.indexOf('${renderSeoNearby(city)}');
 assert.ok(context>=0 && timeline>context,'SEO city context must remain crawlable in the detail title before the timeline');
-assert.ok(nearby>diagnostics,'nearby SEO links should remain near the end of the detail page');
+assert.ok(nearby>timeline,'nearby SEO links should remain near the end of the detail page');
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(fs.readFileSync(new URL('../../../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 

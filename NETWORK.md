@@ -21,8 +21,6 @@ L'objectif n'est volontairement **pas** de proxifier tout le trafic. Les gros fl
 | Archives / normales ERA5 | `js/api.js` → `js/api-budget.js` | `archive-api.open-meteo.com/v1/archive` | direct | 45 s | budget, erreurs structurées ; persistance gérée hors transport |
 | Runs précédents | `js/api.js` → `js/api-budget.js` | `previous-runs-api.open-meteo.com/v1/forecast` | direct | 45 s | récupération best-effort des séries historiques tronquées |
 | Marine | `js/features/marine.js` → `js/api-budget.js` | `marine-api.open-meteo.com/v1/marine` | direct | 15–30 s ; détection cache/capacité selon appel | budget commun, validation de grille côtière, fallback modèle de vagues |
-| Santé des modèles | `js/features/model-health.js` | `/_mcx/model-metadata` | first-party | navigateur 10 s ; Worker edge 5 min | clé validée, timeout Worker, 502/504, CDN tiers invisible du navigateur |
-| Métadonnées santé amont | `worker.js` | `map-tiles.open-meteo.com/data_spatial/<key>/latest.json` | Worker → tiers | 12 s ; cache edge 5 min | GET/HEAD seulement, clé bornée, réponse JSON durcie |
 | Métadonnées radar | `js/features/radar.js` → `js/network.js` | `api.rainviewer.com/public/weather-maps.json` | direct, optionnel | 12 s ; mémoire 5 min | host RainViewer retourné validé avant usage |
 | Images radar d'analyse | `js/features/radar.js` → `js/network.js` | `*.rainviewer.com/...png` | direct, optionnel | 15 s ; cache navigateur `force-cache` | abort à la fermeture, HTTP/timeout commun, échec limité au radar |
 | Image radar affichée | `<img>` dynamique | `*.rainviewer.com/...png` | direct, optionnel | cache HTTP navigateur | échec visuel non bloquant pour la météo principale |
@@ -65,7 +63,6 @@ Le Service Worker ne doit gérer que le shell PWA. Il contourne explicitement :
 - tous les sous-domaines `*.open-meteo.com` ;
 - toute origine externe.
 
-Cela évite qu'une réponse dynamique first-party soit accidentellement stockée comme un asset immuable. Avant cet audit, `/_mcx/model-metadata` pouvait être placé dans le Cache Storage PWA sans expiration effective ; ce point est corrigé.
 
 ## CSP
 
@@ -74,7 +71,6 @@ La CSP navigateur reflète la politique de transport :
 - `connect-src 'self'` pour les proxies first-party ;
 - accès direct autorisé uniquement aux API Open-Meteo et à RainViewer ;
 - `img-src` autorise uniquement les images locales/data, OpenStreetMap et RainViewer ;
-- Plausible et `map-tiles.open-meteo.com` ne sont pas autorisés directement, puisqu'ils passent par le Worker.
 
 Un test de régression vérifie désormais l'alignement entre configuration réseau, CSP et Service Worker.
 

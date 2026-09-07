@@ -7,9 +7,6 @@ import { VIGILANCE_DEPARTMENT_PATTERN, normalizeMeteoFranceApiKey, meteoFranceUp
 import { PLAUSIBLE_UPSTREAM_EVENT } from './js/server/analytics-upstream.js';
 
 const EVENT_PATH = ANALYTICS_CONFIG.endpoint;
-const MODEL_METADATA_PATH = NETWORK_ENDPOINTS.firstParty.modelMetadata;
-const MODEL_METADATA_UPSTREAM = NETWORK_ENDPOINTS.openMeteo.modelMetadataUpstream;
-const MODEL_METADATA_KEY = /^[a-z0-9_]{1,80}$/i;
 const VIGILANCE_PATH = NETWORK_ENDPOINTS.firstParty.vigilance;
 const HEALTH_PATH = NETWORK_ENDPOINTS.firstParty.health;
 const METEOFRANCE_VIGILANCE_URL = NETWORK_ENDPOINTS.meteoFrance.vigilanceCarte;
@@ -31,41 +28,6 @@ async function fetchUpstream(url,options={},timeoutMs=NETWORK_TIMEOUTS_MS.worker
 function headOrBody(request,response){
   return request.method==='HEAD'?new Response(null,{status:response.status,statusText:response.statusText,headers:response.headers}):response;
 }
-
-function cachedJsonHeaders(upstream){
-  const headers=new Headers();
-  headers.set('content-type','application/json; charset=utf-8');
-  headers.set('cache-control','public, max-age=300');
-  headers.set('x-content-type-options','nosniff');
-  const etag=upstream.headers.get('etag');if(etag)headers.set('etag',etag);
-  const modified=upstream.headers.get('last-modified');if(modified)headers.set('last-modified',modified);
-  return headers;
-}
-
-function modelMetadataFallbackResponse(error,upstreamStatus=null){
-  const headers=new Headers({'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','x-meteocompare-model-metadata':'forecast-run-fallback'});
-  if(Number.isFinite(upstreamStatus))headers.set('x-upstream-status',String(upstreamStatus));
-  return new Response(JSON.stringify({unavailable:true,error,forecastFallback:true}),{status:200,headers});
-}
-
-export async function proxyModelMetadata(request,ctx){
-  if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method Not Allowed',{status:405,headers:{Allow:'GET, HEAD'}});
-  const url=new URL(request.url),key=(url.searchParams.get('key')||'').trim();
-  if(!MODEL_METADATA_KEY.test(key))return new Response('Invalid model key',{status:400,headers:{'cache-control':'no-store'}});
-
-  const cacheKey=new Request(`${url.origin}${MODEL_METADATA_PATH}?key=${encodeURIComponent(key)}`,{method:'GET'}),cached=await caches.default.match(cacheKey);
-  if(cached)return headOrBody(request,cached);
-
-  let upstream;
-  try{upstream=await fetchUpstream(`${MODEL_METADATA_UPSTREAM}/${encodeURIComponent(key)}/latest.json`,{method:'GET',headers:{Accept:'application/json'},redirect:'follow'});}
-  catch(error){const timedOut=error?.name==='AbortError'||error?.code==='NETWORK_TIMEOUT';return modelMetadataFallbackResponse(timedOut?'UPSTREAM_TIMEOUT':'UPSTREAM_UNAVAILABLE');}
-  if(!upstream.ok)return modelMetadataFallbackResponse(`UPSTREAM_HTTP_${upstream.status}`,upstream.status);
-
-  const response=new Response(upstream.body,{status:upstream.status,headers:cachedJsonHeaders(upstream)});
-  ctx.waitUntil(caches.default.put(cacheKey,response.clone()));
-  return headOrBody(request,response);
-}
-
 
 function jsonResponse(payload,status=200,headers={}){
   return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','x-content-type-options':'nosniff',...headers}});
@@ -105,7 +67,6 @@ export function proxySystemHealth(request,env){
     checkedAt:new Date().toISOString(),
     capabilities:{
       forecastProxy:false,
-      modelMetadataProxy:true,
       vigilanceProxy:true,
       vigilanceConfigured:Boolean(meteoFranceApiKey(env)),
       analyticsProxy:Boolean(ANALYTICS_CONFIG.enabled),
@@ -157,7 +118,6 @@ export default {
   async fetch(request,env,ctx){
     const pathname=new URL(request.url).pathname;
     if(pathname===EVENT_PATH)return proxyPlausibleEvent(request);
-    if(pathname===MODEL_METADATA_PATH)return proxyModelMetadata(request,ctx);
     if(pathname===VIGILANCE_PATH)return proxyVigilance(request,env,ctx);
     if(pathname===HEALTH_PATH)return proxySystemHealth(request,env);
     if(pathname.startsWith('/_mcx/'))return new Response('Not Found',{status:404,headers:{'cache-control':'no-store'}});

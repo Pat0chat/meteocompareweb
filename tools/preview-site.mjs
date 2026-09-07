@@ -11,9 +11,6 @@ const projectRoot=resolve(fileURLToPath(new URL('../',import.meta.url)));
 const root=resolve(fileURLToPath(new URL('../dist/',import.meta.url)));
 const port=Number(process.env.PORT)||4173;
 
-const modelMetadataPath=NETWORK_ENDPOINTS.firstParty.modelMetadata;
-const modelMetadataUpstream=NETWORK_ENDPOINTS.openMeteo.modelMetadataUpstream;
-const modelMetadataKey=/^[a-z0-9_]{1,80}$/i;
 const vigilancePath=NETWORK_ENDPOINTS.firstParty.vigilance;
 const healthPath=NETWORK_ENDPOINTS.firstParty.health;
 
@@ -58,35 +55,13 @@ async function proxyVigilance(url,res){const department=String(url.searchParams.
 
 
 function proxySystemHealth(res){
-  const payload={ok:true,service:'meteocompare-preview',version:'preview',checkedAt:new Date().toISOString(),capabilities:{forecastProxy:false,modelMetadataProxy:true,vigilanceProxy:true,vigilanceConfigured:Boolean(previewSecret('METEOFRANCE_API_KEY')),analyticsProxy:false}};
+  const payload={ok:true,service:'meteocompare-preview',version:'preview',checkedAt:new Date().toISOString(),capabilities:{forecastProxy:false,vigilanceProxy:true,vigilanceConfigured:Boolean(previewSecret('METEOFRANCE_API_KEY')),analyticsProxy:false}};
   res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-meteocompare-health':'ok'});res.end(JSON.stringify(payload));
-}
-
-let metadataUpstreamUnavailableUntil=0;
-function previewMetadataFallback(res,error='UPSTREAM_UNAVAILABLE'){
-  const body=JSON.stringify({unavailable:true,error,forecastFallback:true,previewFallback:true});
-  res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-meteocompare-preview-fallback':'forecast-run'});res.end(body);
-}
-async function proxyModelMetadata(url,res){
-  const key=(url.searchParams.get('key')||'').trim();
-  if(!modelMetadataKey.test(key)){res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});res.end('Invalid model key');return;}
-  if(Date.now()<metadataUpstreamUnavailableUntil){previewMetadataFallback(res);return;}
-  try{
-    const upstream=await fetchNetworkResponse(`${modelMetadataUpstream}/${encodeURIComponent(key)}/latest.json`,{timeoutMs:Math.min(NETWORK_TIMEOUTS_MS.workerUpstream,4000),headers:{Accept:'application/json'}});
-    const body=Buffer.from(await upstream.arrayBuffer());
-    res.writeHead(200,{'content-type':upstream.headers.get('content-type')||'application/json; charset=utf-8','cache-control':'no-store'});res.end(body);
-  }catch(error){
-    metadataUpstreamUnavailableUntil=Date.now()+30_000;
-    console.warn(`Preview model metadata unavailable for ${key}; using forecast-run fallback:`,error?.message||error);
-    const reason=error?.code==='NETWORK_TIMEOUT'?'UPSTREAM_TIMEOUT':error?.code==='HTTP_ERROR'?`UPSTREAM_HTTP_${error.status}`:'UPSTREAM_UNAVAILABLE';
-    previewMetadataFallback(res,reason);
-  }
 }
 
 createServer(async(req,res)=>{
   try{
     const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`);
-    if(url.pathname===modelMetadataPath){await proxyModelMetadata(url,res);return;}
     if(url.pathname===vigilancePath){await proxyVigilance(url,res);return;}
     if(url.pathname===healthPath){proxySystemHealth(res);return;}
     const file=await resolveRequest(url.pathname);

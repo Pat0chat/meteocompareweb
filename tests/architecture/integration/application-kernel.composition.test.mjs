@@ -42,7 +42,7 @@ assert.match(css,/@media \(prefers-reduced-motion: reduce\)/,'reduced motion mus
 const ops=new OperationRegistry(),token=ops.begin('city');
 assert.equal(ops.isCurrent('city',token),true);ops.finish('city',token);assert.equal(ops.get('city'),undefined);
 let loads=0;const registry=new FeatureRegistry({demo:async()=>{loads++;return {ok:true};}});const [a,b]=await Promise.all([registry.load('demo'),registry.load('demo')]);assert.equal(loads,1);assert.deepEqual(a,b);
-const kernel=new ApplicationKernel({settings:{},cities:[],route:{name:'home'},online:true,featureLoaders:{},analysisLoaders:{bias:()=>null,evolution:()=>null,normals:()=>null,marine:()=>null,health:()=>[]}});
+const kernel=new ApplicationKernel({settings:{},cities:[],route:{name:'home'},online:true,featureLoaders:{},analysisLoaders:{bias:()=>null,evolution:()=>null,normals:()=>null,marine:()=>null}});
 assert.equal(kernel.state.route.name,'home');assert.ok(kernel.cache.forecastViews instanceof WeakMap);assert.ok(kernel.operations.weather instanceof OperationRegistry);
 
 console.log('Application kernel composition: OK');

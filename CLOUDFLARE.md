@@ -1,6 +1,6 @@
 # Configuration Cloudflare — MeteoCompare
 
-Le projet est préparé pour Cloudflare Workers Builds avec assets statiques, pré-rendu SEO et proxies first-party pour Plausible, les métadonnées de santé des modèles et la Vigilance officielle Météo-France. La politique réseau complète et les flux volontairement laissés directs sont documentés dans `NETWORK.md`.
+Le projet est préparé pour Cloudflare Workers Builds avec assets statiques, pré-rendu SEO et proxies first-party pour Plausible et la Vigilance officielle Météo-France. La politique réseau complète et les flux volontairement laissés directs sont documentés dans `NETWORK.md`.
 
 ## Configuration recommandée — Settings > Build
 
@@ -42,7 +42,7 @@ Le build génère `dist/`. Le fichier `wrangler.jsonc` déclare déjà :
 
 ## Proxy Plausible first-party
 
-`worker.js` relaie `/_mcx/e` vers l’Events API Plausible et `/_mcx/model-metadata?key=…` vers les fichiers `latest.json` de métadonnées Open-Meteo utilisés par la santé des modèles. Le navigateur ne charge plus de script Plausible externe ou proxifié : `js/mcx-events.js` construit localement les payloads minimaux et les envoie uniquement au endpoint first-party. Les destinations et timeouts sont centralisés dans `js/network-config.js` ; les appels amont du Worker sont bornés ; pour la santé des modèles, une indisponibilité amont est convertie en fallback JSON 200 vers le timestamp du run de prévision afin de ne pas exposer les statuts tiers au navigateur. Le navigateur reste sur `meteocompare.app`; la requête de santé ne dépend donc plus d’un accès direct du poste client au service de métadonnées `map-tiles.open-meteo.com`. Les autres requêtes sont servies par le binding `ASSETS`. Le Service Worker navigateur contourne explicitement `/_mcx/*` afin que ces réponses dynamiques ne soient jamais figées dans le cache du shell PWA.
+`worker.js` relaie `/_mcx/e` vers l’Events API Plausible. Le navigateur ne charge plus de script Plausible externe ou proxifié : `js/mcx-events.js` construit localement les payloads minimaux et les envoie uniquement au endpoint first-party. Les destinations et timeouts sont centralisés dans `js/network-config.js` et les appels amont du Worker sont bornés. Les autres requêtes sont servies par le binding `ASSETS`. Le Service Worker navigateur contourne explicitement `/_mcx/*` afin que ces réponses dynamiques ne soient jamais figées dans le cache du shell PWA.
 
 Ce mécanisme suit le modèle de proxy Cloudflare recommandé par Plausible. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `index.html` et les tests associés.
 

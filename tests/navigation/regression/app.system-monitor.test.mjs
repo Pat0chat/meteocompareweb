@@ -8,7 +8,7 @@ assert.match(network,/health:\s*'\/_mcx\/health'/,'system monitor must use one f
 assert.match(app,/function renderSystemMonitor\(/,'topbar status must render a monitoring popover');
 assert.match(app,/monitorForecastItem\(\)/,'forecast health must be part of the monitor');
 assert.match(app,/monitorVigilanceItem\(\)/,'Météo-France Vigilance must be part of the monitor');
-assert.match(app,/monitorMetadataItem\(\)/,'model metadata health must be part of the monitor');
+assert.doesNotMatch(app,/monitorMetadataItem\(\)/,'model-health metadata row must be removed from the monitor');
 assert.match(app,/monitorAnalyticsItem\(\)/,'Plausible must be part of the monitor');
 assert.match(app,/monitorPwaItem\(\)/,'PWA/cache state must be part of the monitor');
 assert.match(app,/fetchJsonResource\(NETWORK_ENDPOINTS\.firstParty\.health/,'worker probe must stay first-party');

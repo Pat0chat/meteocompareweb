@@ -99,8 +99,6 @@ Tous les événements personnalisés reçoivent automatiquement les propriétés
 - `Forecast Engine Changed` (`engine`)
 - `Forecast Engine Comparison Opened`
 - `Confidence Explanation Opened`
-- `Diagnostics Opened`
-- `Model Health Refreshed`
 - `Vigilance Refreshed`
 - `Local Weighting Changed` (`enabled`)
 
@@ -196,10 +194,10 @@ Les analyses les plus utiles sont :
 
 1. **Acquisition SEO** : `/city` + `navigation=seo`, puis `SEO City Favorite Added` ;
 2. **Activation** : `City Search Opened` → `City Added` ;
-3. **Engagement prévision** : `Forecast View Changed`, `Confidence Explanation Opened`, `Forecast Engine Comparison Opened`, `Diagnostics Opened` ;
+3. **Engagement prévision** : `Forecast View Changed`, `Confidence Explanation Opened`, `Forecast Engine Comparison Opened` ;
 4. **Modèles** : `Model Comparison Changed`, `Model Selection Changed`, `Forecast Engine Changed` ;
 5. **Radar** : ouverture → mode → horizon → recalcul ;
-6. **Vigilance / santé** : `Vigilance Refreshed`, `Model Health Refreshed` ;
+6. **Vigilance** : `Vigilance Refreshed` ;
 7. **Installation** : `Install Option Selected` → `PWA Install Click` → `PWA Install Prompt Result` → `PWA Installed` ;
 8. **Portabilité** : exports et sauvegardes locales ;
 9. **Support** : `Support Opened` puis destination externe agrégée.

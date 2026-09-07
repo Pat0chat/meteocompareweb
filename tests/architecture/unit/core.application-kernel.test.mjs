@@ -7,7 +7,7 @@ const route = { name:'home' };
 const kernel = new ApplicationKernel({
   settings, cities, route, online:1,
   featureLoaders:{ radar: async()=>({}) },
-  analysisLoaders:{ bias:()=>({}), evolution:()=>[], normals:()=>null, health:()=>[] },
+  analysisLoaders:{ bias:()=>({}), evolution:()=>[], normals:()=>null },
 });
 
 assert.equal(kernel.state.settings, settings);
@@ -16,7 +16,7 @@ assert.equal(kernel.state.route, route);
 assert.equal(kernel.state.online, true);
 assert.ok(kernel.state.loading instanceof Set);
 assert.ok(kernel.state.marineLoading instanceof Set);
-assert.deepEqual(kernel.state.backupOptions, { forecasts:false,normals:true,bias:true,evolution:true,marine:true,health:true });
+assert.deepEqual(kernel.state.backupOptions, { forecasts:false,normals:true,bias:true,evolution:true,marine:true });
 
 const weather = kernel.operations.weather.begin('paris');
 kernel.operations.bias.begin('paris');

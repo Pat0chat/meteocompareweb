@@ -17,12 +17,10 @@ export class LocalAnalysisStore {
     if(!this.loaded[type])throw new Error(`UNKNOWN_ANALYSIS:${type}`);
     if(!this.loaded[type].has(cityId)){
       const value=this.loaders[type]?.(cityId);
-      if(type==='health')this.state.modelHealthHistory[cityId]=value||[];
-      else if(type==='normals'){ if(value)this.state.normals[cityId]=value; }
+      if(type==='normals'){ if(value)this.state.normals[cityId]=value; }
       else this.state[type][cityId]=value;
       this.loaded[type].add(cityId);
     }
-    if(type==='health')return this.state.modelHealthHistory[cityId]||[];
     if(type==='normals')return this.state.normals[cityId]||null;
     return this.state[type][cityId]||null;
   }

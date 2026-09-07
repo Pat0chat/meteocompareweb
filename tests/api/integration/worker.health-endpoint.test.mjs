@@ -7,7 +7,7 @@ assert.equal(response.headers.get('cache-control'),'no-store');
 const body=await response.json();
 assert.equal(body.ok,true);
 assert.equal(body.service,'meteocompare-worker');
-assert.equal(body.capabilities.modelMetadataProxy,true);
+assert.equal('modelMetadataProxy' in body.capabilities,false);
 assert.equal(body.capabilities.vigilanceProxy,true);
 assert.equal(body.capabilities.vigilanceConfigured,true);
 assert.equal(body.capabilities.analyticsProxy,true);

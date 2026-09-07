@@ -65,7 +65,7 @@ Le flux est : `ville normalisée → résolution département → /_mcx/vigilanc
 
 ## Topbar service monitoring
 
-The Web topbar exposes a passive system monitoring center. `/_mcx/health` checks only the first-party Worker and configuration flags; upstream providers are not synthetically probed. Forecast, Vigilance, model-metadata and Plausible rows reflect the latest real application requests.
+The Web topbar exposes a passive system monitoring center. `/_mcx/health` checks only the first-party Worker and configuration flags; upstream providers are not synthetically probed. Forecast, Vigilance and Plausible rows reflect the latest real application requests.
 
 ## Utilitaires de shell HTML
 

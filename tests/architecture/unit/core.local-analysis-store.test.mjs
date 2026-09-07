@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { LocalAnalysisStore } from '../../../js/core/local-analysis-store.js';
 
-const state = { bias:{}, evolution:{}, normals:{}, modelHealthHistory:{} };
-const calls = { bias:0, evolution:0, normals:0, health:0 };
+const state = { bias:{}, evolution:{}, normals:{} };
+const calls = { bias:0, evolution:0, normals:0 };
 const store = new LocalAnalysisStore({ state, loaders: {
   bias: cityId => (calls.bias++, { cityId, forecasts:[1] }),
   evolution: cityId => (calls.evolution++, [{ cityId }]),
   normals: cityId => (calls.normals++, cityId === 'missing' ? null : { cityId }),
-  health: cityId => (calls.health++, cityId === 'empty' ? null : [{ cityId }]),
 } });
 
 assert.equal(store.has('bias','paris'), false);
@@ -19,8 +18,6 @@ assert.equal(store.has('bias','paris'), true);
 assert.deepEqual(store.get('evolution','paris'), [{ cityId:'paris' }]);
 assert.deepEqual(store.get('normals','paris'), { cityId:'paris' });
 assert.equal(store.get('normals','missing'), null);
-assert.deepEqual(store.get('health','paris'), [{ cityId:'paris' }]);
-assert.deepEqual(store.get('health','empty'), []);
 
 store.forget('paris');
 assert.equal(store.has('bias','paris'), false);

@@ -26,13 +26,12 @@ for(const lang of langs){
   for(const key of convergenceKeys) assert.ok(!terminology[lang].test(catalogs[lang][key]),`${lang}.${key} must use convergence/reliability terminology`);
   assert.ok(catalogs[lang].apiLocalLimit.includes('{limit}'),`${lang}.apiLocalLimit must preserve limit placeholder`);
   assert.ok(catalogs[lang].supportBodyDetailed.length<180,`${lang}: support copy should stay concise`);
-  assert.ok(catalogs[lang].healthMetadataNote.length<180,`${lang}: health note should stay concise`);
 }
 
 assert.match(css,/\.storage-category-main \{[^}]*grid-template-rows:/s,'global copy/layout rules must remain present without historical release comments');
 assert.match(css,/\.storage-category-main \{[^}]*grid-template-rows:/s);
 assert.match(css,/\.setting-control\{[\s\S]*display:grid;/,'settings controls should use intrinsic grid flow');
 assert.match(css,/\.privacy-grid article \{[^}]*display:grid/s);
-assert.match(css,/:where\(\.forecast-table,\.diagnostic-table,\.health-table\) tbody td \{ text-align:center;/);
+assert.match(css,/:where\(\.forecast-table\) tbody td \{ text-align:center;/);
 
 console.log('tests/i18n/regression/app.copy.test.mjs: OK');

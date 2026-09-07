@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { classifyError, ErrorCenter } from '../../../js/errors.js';
-import { buildCityDiagnostics } from '../../../js/features/diagnostics.js';
 import { WEATHER_MODELS } from '../../../js/models.js';
 
 const read=p=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),'utf8');
@@ -15,7 +14,7 @@ for(const lang of ['fr','en','es','de','it']){
   assert.match(i18n,new RegExp(`import\\('\\.\\/locales\\/${lang}\\.js'\\)`),`${lang} locale must be dynamically imported`);
   assert.ok(locales[lang].length>10_000,`${lang} translation payload should live in a separate bundle`);
 }
-for(const feature of ['bias','evolution','diagnostics','comparison']) assert.match(app,new RegExp(`import\\('\\.\\/features\\/${feature}\\.js'\\)`),`${feature} must be lazy loaded`);
+for(const feature of ['bias','evolution','comparison']) assert.match(app,new RegExp(`import\\('\\.\\/features\\/${feature}\\.js'\\)`),`${feature} must be lazy loaded`);
 assert.doesNotMatch(sw,/android_strings\.js/,'service worker shell must not preload the old monolithic translation catalog');
 
 // 2 — structured errors keep useful fallback actions and are centrally manageable.
@@ -28,25 +27,8 @@ const center=new ErrorCenter();center.report('city:paris:network',network);asser
 assert.match(app,/data-error-action/,'user error actions must be rendered');
 assert.match(app,/ERROR_ACTIONS/,'error actions must use the centralized action registry');
 
-// 3 — diagnostics report all configured models without letting one damaged model invalidate healthy ones.
-const enabled=WEATHER_MODELS.map(m=>m.id);
-const makeMeta=(count,last='2026-08-20T12:00')=>({coverageByVariable:{temperature:{count,lastTimestamp:last},precipitation:{count,lastTimestamp:last},wind:{count,lastTimestamp:last},conditions:{count,lastTimestamp:last}},loadedAt:'2026-08-18T12:00:00Z'});
-const seriesByModel={},modelMeta={};
-for(const model of WEATHER_MODELS){seriesByModel[model.id]={hourly:{},daily:{}};modelMeta[model.id]=makeMeta(24);}
-modelMeta.ICON_D2={...makeMeta(24),dataWarning:'PARTIAL_HOURLY_SERIES',recoveryAttempted:true};
-modelMeta.GFS={...makeMeta(24),recoveredFromBatch:true,recoveryAttempted:true};
-modelMeta.ECMWF={...makeMeta(24),coverageByVariable:{...makeMeta(24).coverageByVariable,precipitation:{count:0,lastTimestamp:null}}};
-delete seriesByModel.METNO_NORDIC;
-const diagnostic=buildCityDiagnostics({city:{timezone:'Europe/Paris'},fetchedAt:'2026-08-18T12:00:00Z',seriesByModel,modelMeta,errors:{}},WEATHER_MODELS,enabled);
-assert.equal(diagnostic.rows.length,WEATHER_MODELS.length);
-assert.equal(diagnostic.rows.find(x=>x.modelId==='ICON_D2').status,'PARTIAL');
-assert.equal(diagnostic.rows.find(x=>x.modelId==='GFS').status,'RECOVERED');
-assert.equal(diagnostic.rows.find(x=>x.modelId==='ECMWF').status,'VARIABLE_MISSING');
-assert.equal(diagnostic.rows.find(x=>x.modelId==='METNO_NORDIC').status,'OUT_OF_DOMAIN_OR_UNAVAILABLE');
-assert.equal(diagnostic.rows.find(x=>x.modelId==='AROME_FRANCE_HD').status,'OK');
-assert.equal(diagnostic.summary.total,WEATHER_MODELS.length);
-assert.match(app,/data-scroll-section="diagnostics"/,'city page must expose diagnostics navigation');
-assert.match(app,/data-action="toggle-diagnostics"/,'diagnostics must be expandable without leaving the city');
+// 3 — the removed model-health diagnostics feature must not remain in the runtime graph.
+assert.doesNotMatch(app,/features\/diagnostics|features\/model-health|data-scroll-section="diagnostics"|toggle-diagnostics|refresh-model-health/);
 
 // 4 — local records have a schema, explicit migrations and selective integrity repair.
 assert.match(storageSource,/export const DATA_SCHEMA_VERSION = CURRENT_DATA_SCHEMA_VERSION/);

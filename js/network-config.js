@@ -3,7 +3,6 @@
 // outside this file: they are not application data-plane requests.
 export const NETWORK_ENDPOINTS = Object.freeze({
   firstParty: Object.freeze({
-    modelMetadata: '/_mcx/model-metadata',
     vigilance: '/_mcx/vigilance',
     analyticsEvent: '/_mcx/e',
     health: '/_mcx/health',
@@ -14,7 +13,6 @@ export const NETWORK_ENDPOINTS = Object.freeze({
     archive: 'https://archive-api.open-meteo.com/v1/archive',
     previousRuns: 'https://previous-runs-api.open-meteo.com/v1/forecast',
     marine: 'https://marine-api.open-meteo.com/v1/marine',
-    modelMetadataUpstream: 'https://map-tiles.open-meteo.com/data_spatial',
   }),
   meteoFrance: Object.freeze({
     vigilanceCarte: 'https://public-api.meteofrance.fr/public/DPVigilance/v1/cartevigilance/encours',
@@ -28,7 +26,6 @@ export const NETWORK_ENDPOINTS = Object.freeze({
 export const NETWORK_TIMEOUTS_MS = Object.freeze({
   defaultJson: 30_000,
   openMeteoArchive: 45_000,
-  modelMetadata: 10_000,
   vigilance: 12_000,
   radarMetadata: 12_000,
   radarImage: 15_000,

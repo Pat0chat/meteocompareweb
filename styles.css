@@ -1699,16 +1699,13 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .partial-day-note{display:block;margin-top:.28rem;color:var(--warning,#a16207);font-size:.74rem;font-weight:650;letter-spacing:.01em}
 [data-theme="dark"] .partial-day-note{color:#f5c76a}
 
-/* Robustness suite: actionable errors, data diagnostics and integrity checks */
+/* Robustness suite: actionable errors and integrity checks */
 .error-panel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;margin:12px auto;max-width:1580px;padding:14px 16px;border:1px solid var(--outline);background:var(--surface);border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.05)}
 .error-panel-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:999px;font-weight:800;background:var(--surface-2);color:var(--text)}.error-panel.error .error-panel-icon{background:#fee2e2;color:#991b1b}.error-panel.warning .error-panel-icon{background:#fef3c7;color:#92400e}
 .error-panel-copy{display:flex;flex-direction:column;gap:3px;min-width:0}.error-panel-copy strong{font-size:.92rem}.error-panel-copy span,.error-panel-copy small{color:var(--muted);line-height:1.4}.error-panel-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
-.diagnostics-section{scroll-margin-top:calc(var(--sticky-stack-height, 132px) + 18px)}.diagnostic-summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.diag-chip{display:inline-flex;align-items:center;min-height:28px;padding:4px 10px;border-radius:999px;font-size:.8rem;font-weight:750;border:1px solid var(--outline);background:var(--surface-2)}.diag-chip.muted{color:var(--muted)}
-.diagnostic-table-wrap{margin-top:14px;max-height:520px}.diagnostic-table{min-width:1120px}.diagnostic-table th,.diagnostic-table td{vertical-align:top}.diagnostic-table tbody th{position:sticky;left:0;z-index:2;background:var(--surface)}.diagnostic-table td strong,.diagnostic-table th strong{display:block}.diagnostic-table td small,.diagnostic-table th small{display:block;margin-top:3px;color:var(--muted);font-size:.74rem}.status-pill.muted{color:var(--muted);background:var(--surface-2)}
 .integrity-section{margin-top:18px}.integrity-status{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--outline)}.integrity-status span{font-size:.8rem;color:inherit;opacity:.82}.integrity-issues{display:grid;gap:8px;margin-top:12px}.integrity-issue{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--outline);border-radius:10px;background:var(--surface)}.integrity-issue div{display:flex;flex-direction:column;gap:2px}.integrity-issue small{color:var(--muted);overflow-wrap:anywhere}.section-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .feature-loading{min-height:220px;display:grid;place-items:center;align-content:center;gap:10px;text-align:center}
 @media(max-width:760px){.error-panel{grid-template-columns:auto 1fr}.error-panel-actions{grid-column:1/-1;justify-content:flex-start}.integrity-status{align-items:flex-start;flex-direction:column}}
-[data-theme="dark"] .diag-chip.high,[data-theme="dark"] .integrity-status.healthy{background:rgba(22,101,52,.18);color:#86efac;border-color:rgba(134,239,172,.3)}[data-theme="dark"] .diag-chip.medium{background:rgba(146,64,14,.18);color:#fcd34d;border-color:rgba(252,211,77,.25)}[data-theme="dark"] .diag-chip.low{background:rgba(153,27,27,.18);color:#fca5a5;border-color:rgba(252,165,165,.25)}[data-theme="dark"] .integrity-status.issues{background:rgba(154,52,18,.15);color:#fdba74;border-color:rgba(253,186,116,.25)}
 
 .feature-inline-loading{display:flex;align-items:center;gap:.6rem;min-height:54px;padding:.76rem 1rem;color:var(--muted);font-size:.92rem}.loader.small{width:18px;height:18px;border-width:2px}
 
@@ -1716,9 +1713,9 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .backup-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.55rem;margin:1rem 0}.backup-option{display:flex;align-items:center;gap:.65rem;padding:.74rem .84rem;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);cursor:pointer}.backup-option input{width:1rem;height:1rem}.api-usage-section .storage-kpis.compact{grid-template-columns:repeat(4,minmax(0,1fr));margin:1rem 0}.marine-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));}.marine-kpis>div{padding:.80rem .85rem;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);min-width:0}.marine-kpis span{display:block;font-size:.76rem;color:var(--text-muted);margin-bottom:.25rem}.marine-kpis strong{font-size:1.08rem;font-variant-numeric:tabular-nums}@media(max-width:900px){.api-usage-section .storage-kpis.compact{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.marine-kpis{grid-template-columns:1fr}.backup-options{grid-template-columns:1fr}.api-usage-section .storage-kpis.compact{grid-template-columns:1fr 1fr}}
 
-/* Marine tides, model health and locally weighted consensus */
+/* Marine tides and locally weighted consensus */
 .weighted-consensus{margin-top:10px;padding-top:10px;border-top:1px solid color-mix(in srgb,var(--border) 75%,transparent);display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:end}.weighted-consensus span{font-size:.76rem;font-weight:700}.weighted-consensus strong{font-size:1.4rem;line-height:1}.weighted-consensus small{grid-column:1/-1;opacity:.72}.weighted-consensus.unavailable strong{opacity:.45}
-.chart-zero-line{stroke:var(--border);stroke-width:1;stroke-dasharray:4 5}.health-table{min-width:1320px}.health-table th:first-child,.health-table td:first-child{min-width:150px}.health-table td,.health-table th{vertical-align:top}.health-table td small,.health-table th small{display:block;margin-top:3px;white-space:nowrap}.health-monitor .diagnostic-summary{margin-bottom:12px}
+.chart-zero-line{stroke:var(--border);stroke-width:1;stroke-dasharray:4 5}
 @media(max-width:900px){.weighted-consensus{grid-template-columns:1fr auto}}
 
 /* Marine UI, full-width agreement chart and About layout */
@@ -2098,15 +2095,15 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .about-method-flow p, .privacy-grid p{ max-width:68ch; }
 
 /* Tables: headings and values stay on stable axes. */
-:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) th,
-:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) td {
+:where(.forecast-table,.storage-table) th,
+:where(.forecast-table,.storage-table) td {
   vertical-align: middle;
 }
-:where(.forecast-table,.diagnostic-table,.health-table) thead th { text-align:center; line-height:1.3; }
-:where(.forecast-table,.diagnostic-table,.health-table) thead th:first-child { text-align:left; }
-:where(.forecast-table,.diagnostic-table,.health-table) tbody td { text-align:center; }
-:where(.forecast-table,.diagnostic-table,.health-table) tbody th,
-:where(.forecast-table,.diagnostic-table,.health-table) tbody td:first-child { text-align:left; }
+:where(.forecast-table) thead th { text-align:center; line-height:1.3; }
+:where(.forecast-table) thead th:first-child { text-align:left; }
+:where(.forecast-table) tbody td { text-align:center; }
+:where(.forecast-table) tbody th,
+:where(.forecast-table) tbody td:first-child { text-align:left; }
 .table-legend,.chart-legend,.timeline-legend { line-height:1.4; }
 
 /* Shorter copy should not leave oversized empty header zones. */
@@ -2206,14 +2203,14 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 /* Cards: consistent content axes and restrained interaction without visual jumping. */
 
 /* Tables and dense data views: common row rhythm and numerical baseline. */
-:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) th,
-:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) td {
+:where(.forecast-table,.storage-table) th,
+:where(.forecast-table,.storage-table) td {
   line-height: 1.35;
 }
-:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) tbody tr:last-child > * {
+:where(.forecast-table,.storage-table) tbody tr:last-child > * {
   border-bottom: 0;
 }
-:where(.forecast-table,.diagnostic-table,.health-table,.storage-table) td:not(:first-child) {
+:where(.forecast-table,.storage-table) td:not(:first-child) {
   font-variant-numeric: tabular-nums;
 }
 
@@ -2255,7 +2252,7 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .forecast-table .forecast-date-month { display:block; margin-top:2px; color:var(--muted); font-size:var(--type-caption); font-weight:650; line-height:1.2; text-transform:capitalize; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .forecast-table .forecast-date-time { display:block; margin-top:3px; color:var(--muted); font-size:var(--type-caption); font-weight:650; line-height:1.2; white-space:nowrap; }
 
-:where(.diagnostic-table,.health-table,.storage-table) tbody tr > * { height: 64px; }
+:where(.storage-table) tbody tr > * { height: 64px; }
 .disagreement-table table tbody tr > * { height: 58px; }
 :where(.table-wrap table) tbody tr > * > :first-child { margin-top: 0; }
 :where(.table-wrap table) tbody tr > * > :last-child { margin-bottom: 0; }
@@ -2611,9 +2608,6 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .error-panel.error { border-color:color-mix(in srgb,var(--semantic-danger) 34%,var(--border)); background:color-mix(in srgb,var(--semantic-danger) 5%,var(--surface)); }
 .error-panel.warning { border-color:color-mix(in srgb,var(--semantic-warning) 30%,var(--border)); background:color-mix(in srgb,var(--semantic-warning) 5%,var(--surface)); }
 .error-panel.info { border-color:color-mix(in srgb,var(--semantic-info) 28%,var(--border)); }
-.diag-chip.high { color:var(--semantic-success); background:color-mix(in srgb,var(--semantic-success) 9%,var(--surface)); border-color:color-mix(in srgb,var(--semantic-success) 28%,var(--border)); }
-.diag-chip.medium { color:var(--semantic-warning); background:color-mix(in srgb,var(--semantic-warning) 9%,var(--surface)); border-color:color-mix(in srgb,var(--semantic-warning) 28%,var(--border)); }
-.diag-chip.low { color:var(--semantic-danger); background:color-mix(in srgb,var(--semantic-danger) 9%,var(--surface)); border-color:color-mix(in srgb,var(--semantic-danger) 28%,var(--border)); }
 
 /* ========================================================================== */
 /* Modern home and compact dashboard */

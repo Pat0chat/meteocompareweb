@@ -11,12 +11,6 @@ assert.doesNotMatch(html,/<script[^>]+src="https:\/\/plausible\.io/);
 assert.match(worker,/env\.ASSETS\.fetch\(request\)/);
 assert.match(worker,/PLAUSIBLE_UPSTREAM_EVENT/);
 assert.match(serverAnalytics,/https:\/\/plausible\.io\/api\/event/);
-assert.match(worker,/MODEL_METADATA_PATH = NETWORK_ENDPOINTS\.firstParty\.modelMetadata/);
-assert.match(network,/modelMetadata: '\/_mcx\/model-metadata'/);
-assert.match(network,/map-tiles\.open-meteo\.com\/data_spatial/);
-assert.match(worker,/MODEL_METADATA_KEY/);
-assert.match(worker,/forecast-run-fallback/);
-assert.match(worker,/UPSTREAM_HTTP_/);
 assert.match(worker,/fetchUpstream/);
 assert.match(worker,/ANALYTICS_MAX_BODY_BYTES/);
 assert.match(worker,/sanitizePlausibleProxyPayload/,'Worker must revalidate analytics payloads server-side');
@@ -31,4 +25,5 @@ assert.doesNotMatch(bootstrap,/https:\/\/plausible\.io|createElement\(['"]script
 assert.doesNotMatch(network,/upstreamScript|analyticsScript|plausible\.io/,'Plausible upstream must not be part of the browser data plane');
 assert.doesNotMatch(worker,/proxyPlausibleScript|SCRIPT_PATH/,'Worker should proxy events only, not a browser tracker script');
 assert.match(preview,/host-gated/,'local preview relies on host-gated analytics transport');
+assert.doesNotMatch(worker,/MODEL_METADATA_PATH|proxyModelMetadata/,'obsolete model-health metadata proxy must be removed');
 console.log('MeteoCompare first-party Plausible Cloudflare proxy: OK');

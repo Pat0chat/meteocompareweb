@@ -31,7 +31,6 @@ function baseBackup(dataSchemaVersion){
       forecasts:{paris:{city,timezone:city.timezone,fetchedAt:'2026-08-27T12:00:00.000Z',seriesByModel:{GFS:series('GFS'),ECMWF:series('ECMWF')},modelMeta:{GFS:{},ECMWF:{}},errors:{},requestedModelIds:['GFS','ECMWF']}},
       bias:{paris:{reference:'ERA5',forecasts:[{modelId:'ECMWF',variable:'TEMPERATURE',targetDate:'2026-08-20',value:24}],observations:[{variable:'TEMPERATURE',targetDate:'2026-08-20',value:23}],updatedAt:1,lastRefreshReport:{modelIds:['ECMWF'],remainingModelIds:['ECMWF']}}},
       evolution:{paris:[{capturedAt:1,qualityVersion:2,daily:{'2026-08-29':{ECMWF:{temperature:26,precipitation:2,wind:20}}}}]},
-      health:{paris:[{capturedAt:1,qualityVersion:2,rows:[{modelId:'ECMWF',status:'OK'}]}]},
     },
   };
 }
@@ -46,7 +45,6 @@ assert.equal(forecast?.seriesByModel?.ECMWF,undefined,'old backup forecast value
 assert.deepEqual(forecast?.requestedModelIds,['GFS'],'old ECMWF must be removed from freshness coverage so the 9 km model is fetched again');
 assert.equal(storage.loadBias('paris').forecasts[0].modelId,ECMWF_IFS025_LEGACY_ID,'old reliability history must stay legacy after backup restore');
 assert.equal(storage.loadEvolution('paris')[0].daily['2026-08-29'][ECMWF_IFS025_LEGACY_ID].temperature,26,'old evolution history must remain attributable to IFS 25 km');
-assert.equal(storage.loadModelHealth('paris')[0].rows[0].modelId,ECMWF_IFS025_LEGACY_ID,'old health history must not contaminate IFS 9 km incident counts');
 
 // A v4 backup is already source-aware and must preserve a genuine 9 km ECMWF record.
 const freshBackup=baseBackup(4);
@@ -54,7 +52,6 @@ freshBackup.appVersion='current-schema-fixture';
 freshBackup.data.forecasts.paris.modelMeta.ECMWF={sourceApiKey:'ecmwf_ifs',resolutionKm:9};
 freshBackup.data.bias.paris.forecasts[0].modelId='ECMWF';
 freshBackup.data.evolution.paris[0].daily['2026-08-29']={ECMWF:{temperature:26,precipitation:2,wind:20}};
-freshBackup.data.health.paris[0].rows[0].modelId='ECMWF';
 await storage.restoreLocalBackup(freshBackup,{replace:true});
 const fresh=storage.loadForecast('paris');
 assert.ok(fresh?.seriesByModel?.ECMWF,'current-schema IFS 9 km backups must preserve the active ECMWF series');
@@ -62,6 +59,5 @@ assert.equal(fresh.modelMeta.ECMWF.sourceApiKey,'ecmwf_ifs');
 assert.equal(fresh.modelMeta.ECMWF.resolutionKm,9);
 assert.equal(storage.loadBias('paris').forecasts[0].modelId,'ECMWF');
 assert.ok(storage.loadEvolution('paris')[0].daily['2026-08-29'].ECMWF);
-assert.equal(storage.loadModelHealth('paris')[0].rows[0].modelId,'ECMWF');
 
 console.log('ECMWF IFS 9 km backup restore migration: OK');

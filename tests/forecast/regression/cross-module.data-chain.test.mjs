@@ -7,7 +7,6 @@ import {
 import { normalizeMarine, nearestMarineIndex, detectTideEvents, tideRangeNext24h } from '../../../js/features/marine.js';
 import { buildEvolution } from '../../../js/features/evolution.js';
 import { computeBiases, normalizePreviousRuns, BIAS_REFERENCE_LAG_DAYS } from '../../../js/features/bias.js';
-import { buildModelHealthReport } from '../../../js/features/model-health.js';
 import { renderTargetedModelComparison } from '../../../js/features/comparison.js';
 import { fetchBiasArchive } from '../../../js/api.js';
 import { getModel } from '../../../js/models.js';
@@ -112,22 +111,7 @@ const gfs=getModel('GFS'),badTimes=Array.from({length:23},(_,i)=>`2026-08-01T${S
 for(const base of ['temperature_2m','precipitation','wind_speed_10m']) badRaw.hourly[`${base}_previous_day1_${gfs.apiKey}`]=badTimes.map(()=>base==='temperature_2m'?20:1);
 assert.equal(normalizePreviousRuns(badRaw,{timezone:'UTC'},[gfs],'2026-08-01','2026-08-01').length,0);
 
-// 6. Model health cadence is based on the last completed ingestion, not run initialisation.
-const model=getModel('GFS'),healthNow=Date.parse('2026-08-18T12:00:00.000Z');
-const healthForecast={city:{timezone:'UTC'},seriesByModel:{GFS:{}},modelMeta:{GFS:{coverageByVariable:{temperature:{count:24,lastTimestamp:'2026-08-19T00:00'},precipitation:{count:24,lastTimestamp:'2026-08-19T00:00'},wind:{count:24,lastTimestamp:'2026-08-19T00:00'},conditions:{count:24,lastTimestamp:'2026-08-19T00:00'}}}},errors:{}};
-const meta={GFS:{referenceTime:new Date(healthNow-10*3600e3).toISOString(),lastModifiedTime:new Date(healthNow-3*3600e3).toISOString(),responseMs:20}};
-let report=buildModelHealthReport(healthForecast,[model],['GFS'],meta,[],healthNow),row=report.rows[0];
-assert.equal(row.healthStatus,'OK','recent completed ingestion must be healthy even if model initialisation is old');
-assert.equal(row.cadenceBase,'MODIFIED');
-assert.equal(row.expectedRunAt,new Date(healthNow+3*3600e3).toISOString());
-meta.GFS.lastModifiedTime=new Date(healthNow-7*3600e3).toISOString();
-report=buildModelHealthReport(healthForecast,[model],['GFS'],meta,[],healthNow);assert.equal(report.rows[0].healthStatus,'DELAYED');
-
-const absentGlobal={city:{timezone:'UTC'},seriesByModel:{},modelMeta:{},errors:{GFS:'MODEL_UNAVAILABLE'}};
-report=buildModelHealthReport(absentGlobal,[model],['GFS'],{GFS:{...meta.GFS,lastModifiedTime:new Date(healthNow).toISOString()}},[],healthNow);
-assert.equal(report.rows[0].healthStatus,'DEGRADED','an active global model with no forecast data must never be reported healthy');
-
-// 7. Model comparison must neither consume PARTIAL daily values nor visually
+// 6. Model comparison must neither consume PARTIAL daily values nor visually
 // bridge a missing day with a continuous SVG segment.
 const cmpToday=cityToday('UTC'),cmpDates=[cmpToday,addDays(cmpToday,1),addDays(cmpToday,2)];
 function compareSeries(values,statuses){return {hourly:{timestamps:[],temperature2m:[],precipitation:[],windSpeed10m:[]},daily:{dates:cmpDates,tempMax:values,tempMin:values.map(v=>v-8),precipitationSum:[0,0,0],windSpeedMax:[20,20,20],completeness:{temperature:statuses.map(status=>({status})),precipitation:statuses.map(()=>({status:'FULL'})),wind:statuses.map(()=>({status:'FULL'})),condition:statuses.map(()=>({status:'FULL'}))}}};}
