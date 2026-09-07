@@ -1,13 +1,13 @@
 # Mesure d’audience interne
 
-MeteoCompare n’utilise pas de fournisseur analytics tiers. Le navigateur envoie uniquement des pageviews et événements explicitement autorisés vers `/_mcx/e` sur le même domaine. Le Worker valide et minimise les données avant de les stocker dans un Durable Object SQLite.
+MeteoCompare n’utilise plus de fournisseur analytics tiers. Le navigateur envoie uniquement des pageviews et événements explicitement autorisés vers `/_mcx/e` sur le même domaine. Le Worker valide et minimise les données avant de les stocker dans un Durable Object SQLite.
 
 ## Données collectées
 
 - route fonctionnelle agrégée (`/`, `/city`, `/compare`, etc.) ;
 - source externe réduite au nom d’hôte ;
 - paramètres `utm_source`, `utm_medium`, `utm_campaign` ;
-- pays fourni par Cloudflare, classe d’appareil et navigateur dérivés du User-Agent sans conserver ce dernier ;
+- pays fourni par Cloudflare, classe d’appareil, navigateur et système d’exploitation dérivés du User-Agent sans conserver ce dernier ;
 - langue, mode navigateur/PWA et version de l’application ;
 - événements fonctionnels appartenant à la liste blanche de `js/analytics-schema.js`.
 
@@ -19,7 +19,7 @@ Le Worker calcule un pseudonyme journalier par HMAC à partir de l’IP, du User
 
 ## Tableau de bord
 
-`/admin` affiche les visiteurs journaliers agrégés, pages vues, événements, pages, sources, pays, appareils, navigateurs, campagnes UTM et une courbe journalière. Il affiche aussi l’état du Worker, du stockage analytics et des principaux services météo.
+`/admin` affiche les visiteurs journaliers agrégés, pages vues, interactions, pages/visiteur, moyennes quotidiennes et comparaison avec la période précédente. Le tableau de bord comprend des graphiques d’audience quotidienne et des dernières 24 h, les pages, sources, pays, appareils, navigateurs, systèmes d’exploitation, langues, modes d’affichage, navigation, thèmes, densité, versions de l’application ainsi que les dimensions UTM source/médium/campagne. Il affiche aussi l’état du Worker, du stockage analytics et des principaux services météo avec leur latence instantanée.
 
 ## Secrets de production
 

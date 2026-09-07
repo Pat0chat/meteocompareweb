@@ -85,7 +85,7 @@ Pour l’attribution d’acquisition :
 
 Les propriétés et événements acceptés sont filtrés par une liste blanche partagée entre le navigateur et le Worker Cloudflare afin qu’un identifiant, une chaîne arbitraire ou un événement forgé ne puisse pas être relayé par `/_mcx/e`. MeteoCompare construit une URL déjà anonymisée et réduit lui-même le referrer externe à son origine ; un referrer interne est supprimé avant l’envoi first-party. Aucun suivi automatique du scroll, de la visibilité des sections, des impressions ou du temps passé n’est activé.
 
-Le Worker utilise l’adresse IP fournie par Cloudflare et le User-Agent uniquement pour calculer un pseudonyme journalier HMAC et des catégories agrégées (pays, type d’appareil, navigateur). L’IP et le User-Agent bruts ne sont jamais stockés. Le pseudonyme change chaque jour et ne sert pas au suivi inter-sites ou au profilage.
+Le Worker utilise l’adresse IP fournie par Cloudflare et le User-Agent uniquement pour calculer un pseudonyme journalier HMAC et des catégories agrégées (pays, type d’appareil, navigateur et système d’exploitation). L’IP et le User-Agent bruts ne sont jamais stockés. Le pseudonyme change chaque jour et ne sert pas au suivi inter-sites ou au profilage.
 
 ## 4. Cookies, identifiants et signaux de confidentialité
 
