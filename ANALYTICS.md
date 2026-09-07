@@ -1,6 +1,6 @@
 # Mesure d’audience interne
 
-MeteoCompare n’utilise plus de fournisseur analytics tiers. Le navigateur envoie uniquement des pageviews et événements explicitement autorisés vers `/_mcx/e` sur le même domaine. Le Worker valide et minimise les données avant de les stocker dans un Durable Object SQLite.
+MeteoCompare n’utilise pas de fournisseur analytics tiers. Le navigateur envoie uniquement des pageviews et événements explicitement autorisés vers `/_mcx/e` sur le même domaine. Le Worker valide et minimise les données avant de les stocker dans un Durable Object SQLite.
 
 ## Données collectées
 
@@ -32,5 +32,9 @@ npx wrangler secret put ANALYTICS_HASH_SECRET
 ```
 
 Utiliser des secrets longs et indépendants pour les deux derniers. La session admin est un cookie `HttpOnly`, `Secure`, `SameSite=Strict`, signé côté Worker et valable 12 heures.
+
+## Test local complet
+
+`npm run cloudflare` lance le Worker avec le Durable Object SQLite local et active le tracking uniquement sur `http://localhost:8787` (ou `127.0.0.1:8787`). Cela permet de générer des pages vues et événements de test puis de les consulter immédiatement dans `/admin`, sans toucher aux statistiques de production. `npm run preview` reste volontairement exclu du tracking.
 
 Les données analytics sont conservées 180 jours au maximum.

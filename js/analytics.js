@@ -90,7 +90,9 @@ function configuredHostAllowed(config,env=globalThis){
   let host=String(env.location?.hostname||'').toLowerCase();
   if(!host){try{host=new URL(String(env.location?.origin||'')).hostname.toLowerCase();}catch{}}
   const allowed=Array.isArray(config?.allowedHosts)&&config.allowedHosts.length?config.allowedHosts:[config?.domain,config?.domain?`www.${config.domain}`:null];
-  return Boolean(host&&allowed.filter(Boolean).map(value=>String(value).toLowerCase()).includes(host));
+  if(host&&allowed.filter(Boolean).map(value=>String(value).toLowerCase()).includes(host))return true;
+  const local=config?.localDevelopment||{},localHosts=(local.hosts||[]).map(value=>String(value).toLowerCase());
+  return Boolean(host&&localHosts.includes(host)&&String(env.location?.port||'')===String(local.port||'')&&String(env.location?.protocol||'')==='http:');
 }
 
 function displayMode(env=globalThis){

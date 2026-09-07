@@ -13,6 +13,7 @@
     "test:static": "node tools/run-tests.mjs --scope static",
     "test:smoke": "node tools/run-tests.mjs --scope smoke",
     "test:performance": "node tools/run-tests.mjs --feature performance",
-    "audit:release": "node tools/release-audit.mjs"
+    "audit:release": "node tools/release-audit.mjs",
+    "cloudflare": "node tools/cloudflare-dev.mjs && npx --yes wrangler@latest dev --local --port 8787 --persist-to .wrangler/state"
   }
 }

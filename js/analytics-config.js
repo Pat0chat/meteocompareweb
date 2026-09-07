@@ -7,6 +7,7 @@ export const ANALYTICS_CONFIG = Object.freeze({
   provider: 'meteocompare',
   domain: 'meteocompare.app',
   allowedHosts: ['meteocompare.app', 'www.meteocompare.app'],
+  localDevelopment: Object.freeze({ hosts: ['localhost', '127.0.0.1'], port: '8787' }),
   optOutStorageKey: 'meteocompare.web.analytics.optout.v1',
   endpoint: NETWORK_ENDPOINTS.firstParty.analyticsEvent,
 });

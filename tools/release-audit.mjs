@@ -38,7 +38,7 @@ function run(command,args,label,{quiet=false}={}){
 function assert(condition,message){if(!condition)throw new Error(message);}
 
 async function auditSource(){
-  const files=await walk(root,{exclude:new Set(['.git','dist','release'])});
+  const files=await walk(root,{exclude:new Set(['.git','dist','release','.wrangler','node_modules','.dev.vars'])});
   const scripts=files.filter(file=>['.js','.mjs'].includes(extname(file)));
   for(const file of scripts)await run(process.execPath,['--check',file],`Syntax check ${slash(relative(root,file))}`,{quiet:true});
 
@@ -46,9 +46,13 @@ async function auditSource(){
     const rel=slash(relative(root,file)),name=rel.split('/').at(-1);
     if(name==='.DS_Store'||name==='Thumbs.db'||name.endsWith('~')||name.endsWith('.log')||name.endsWith('.map'))return true;
     if(/^\.env(?:\.|$)/.test(name)&&!name.endsWith('.example'))return true;
-    return name==='.dev.vars';
+    return false;
   });
   assert(!forbidden.length,`Forbidden release artifacts: ${forbidden.map(file=>slash(relative(root,file))).join(', ')}`);
+
+  const gitignore=await readFile(join(root,'.gitignore'),'utf8');
+  assert(/^\.dev\.vars\*?$/m.test(gitignore),'.gitignore must exclude local Cloudflare .dev.vars secrets');
+  assert(/^\.wrangler\/$/m.test(gitignore),'.gitignore must exclude local Wrangler state');
 
   const markdown=files.filter(file=>extname(file)==='.md');
   for(const file of markdown){
@@ -70,6 +74,11 @@ async function auditBuild(version){
   assert(cityPages.length===SEO_CITIES.length,`Production build has ${cityPages.length} city pages; expected ${SEO_CITIES.length}`);
   assert(!(await exists(join(dist,'js','server'))),'Server-only modules leaked into the public build');
   const builtFiles=await walk(dist);
+  const leakedSecrets=builtFiles.filter(file=>{
+    const name=slash(relative(dist,file)).split('/').at(-1);
+    return name==='.dev.vars'||name.startsWith('.dev.vars.')||(/^\.env(?:\.|$)/.test(name)&&!name.endsWith('.example'));
+  });
+  assert(!leakedSecrets.length,`Local secrets leaked into production build: ${leakedSecrets.map(file=>slash(relative(dist,file))).join(', ')}`);
   assert(!builtFiles.some(file=>file.endsWith('.map')),'Source maps must not ship in the production build');
   assert((await readFile(join(dist,'VERSION'),'utf8')).trim()===version,'dist/VERSION does not match app-version.js');
 

@@ -58,6 +58,7 @@ self.addEventListener('fetch', event => {
   // the PWA shell cache. This includes first-party Worker proxies and direct
   // Open-Meteo data APIs.
   if(url.origin===self.location.origin&&url.pathname.startsWith('/_mcx/'))return;
+  if(url.origin===self.location.origin&&['/admin','/admin/','/admin.html','/admin.js','/admin.css'].includes(url.pathname))return;
   if(/(^|\.)open-meteo\.com$/i.test(url.hostname))return;
   if(url.origin!==self.location.origin)return;
 

@@ -7,6 +7,7 @@ import { APP_VERSION } from '../../../js/version.js';
 assert.equal(ANALYTICS_CONFIG.enabled,true,'production analytics should be enabled for meteocompare.app');
 assert.equal(ANALYTICS_CONFIG.domain,'meteocompare.app');
 assert.deepEqual(ANALYTICS_CONFIG.allowedHosts,['meteocompare.app','www.meteocompare.app']);
+assert.deepEqual(ANALYTICS_CONFIG.localDevelopment,{hosts:['localhost','127.0.0.1'],port:'8787'});
 assert.equal(analyticsRoutePath({name:'city',id:'paris-secret'}),'/city');
 assert.equal(analyticsRoutePath({name:'bias',id:'paris-secret',modelId:'icon_d2',variable:'temperature'}),'/bias');
 assert.equal(analyticsRoutePath({name:'notfound',slug:'private-slug'}),'/404');
@@ -115,6 +116,8 @@ client.setOptOut(false); assert.equal(client.status().active,true);assert.equal(
 env.navigator.globalPrivacyControl=true; assert.equal(client.status().active,false); await client.pageview({name:'home'}); assert.equal(calls.length,beforeUnknown);
 env.navigator.globalPrivacyControl=false; env.navigator.doNotTrack='1'; assert.equal(client.status().active,false);
 env.navigator.doNotTrack='0'; env.location.hostname='preview.pages.dev'; assert.equal(client.status().hostAllowed,false); assert.equal(client.status().active,false);
+env.location={origin:'http://localhost:8787',hostname:'localhost',port:'8787',pathname:'/',search:'',hash:'',protocol:'http:'}; assert.equal(client.status().hostAllowed,true); assert.equal(client.status().active,true,'wrangler local mode must allow first-party analytics testing');
+env.location.port='4173'; assert.equal(client.status().hostAllowed,false); assert.equal(client.status().active,false,'static npm preview must remain analytics-isolated');
 
 const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
 for(const event of ['PWA Install Click','PWA Installed','PWA Install Prompt Result','City Search Opened','City Added','SEO City Favorite Added','City Removed','Forecast Refreshed','Forecast View Changed','Model Comparison Changed','Model Selection Changed','City Comparison Started','Marine Activated','Vigilance Refreshed','Forecast Engine Comparison Opened','Confidence Explanation Opened','Data Exported','Local Backup Exported','Local Backup Imported','Share Link Copied','Share Link Fallback Opened','Local Weighting Changed','Forecast Engine Changed','Rain Radar Opened','Rain Radar Range Changed','Rain Radar Mode Changed','Rain Radar Horizon Changed','Rain Radar Fullscreen Changed','Rain Radar Projection Recalculated','System Monitor Opened','System Monitor Refreshed','Support Opened','External Link Opened']){

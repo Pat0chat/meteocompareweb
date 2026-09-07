@@ -11,4 +11,8 @@ const unknown=sanitizeAnalyticsIngressPayload({name:'Arbitrary Event',url:'https
 assert.deepEqual(unknown,{ok:false,error:'EVENT_NOT_ALLOWED'});
 const wrong=sanitizeAnalyticsIngressPayload({name:'pageview',url:'https://evil.example/'},{allowedHosts});
 assert.deepEqual(wrong,{ok:false,error:'URL_NOT_ALLOWED'});
+const local=sanitizeAnalyticsIngressPayload({name:'pageview',url:'http://localhost:8787/'},{allowedHosts:[...allowedHosts,'localhost'],allowedProtocols:['https:','http:']});
+assert.equal(local.ok,true,'explicit local Worker ingress must accept localhost HTTP');
+const localRejectedByProduction=sanitizeAnalyticsIngressPayload({name:'pageview',url:'http://localhost:8787/'},{allowedHosts});
+assert.deepEqual(localRejectedByProduction,{ok:false,error:'URL_NOT_ALLOWED'});
 console.log('Internal analytics payload validation: OK');

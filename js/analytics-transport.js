@@ -2,7 +2,9 @@ import { ANALYTICS_CONFIG } from './analytics-config.js';
 import { NETWORK_TIMEOUTS_MS } from './network-config.js';
 
 const host=String(globalThis.location?.hostname||'').toLowerCase();
-const allowedHost=ANALYTICS_CONFIG.allowedHosts.includes(host);
+const localDevelopment=ANALYTICS_CONFIG.localDevelopment||{};
+const localHost=(localDevelopment.hosts||[]).includes(host)&&String(globalThis.location?.port||'')===String(localDevelopment.port||'')&&String(globalThis.location?.protocol||'')==='http:';
+const allowedHost=ANALYTICS_CONFIG.allowedHosts.includes(host)||localHost;
 const dnt=String(globalThis.navigator?.doNotTrack||globalThis.doNotTrack||'').toLowerCase();
 const privacySignal=globalThis.navigator?.globalPrivacyControl===true||dnt==='1'||dnt==='yes';
 

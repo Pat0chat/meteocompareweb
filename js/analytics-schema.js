@@ -114,9 +114,9 @@ function canonicalAnalyticsPath(url){
   if(/^\/meteo\/[^/]+\/?$/i.test(pathname))return '/city';
   return null;
 }
-function sanitizeCampaignUrl(raw,allowedHosts){
+function sanitizeCampaignUrl(raw,allowedHosts,allowedProtocols=['https:']){
   let url;try{url=new URL(String(raw||''));}catch{return null;}
-  if(url.protocol!=='https:'||!allowedHosts.includes(url.hostname.toLowerCase()))return null;
+  if(!allowedProtocols.includes(url.protocol)||!allowedHosts.includes(url.hostname.toLowerCase()))return null;
   const canonicalPath=canonicalAnalyticsPath(url);if(!canonicalPath)return null;
   url.pathname=canonicalPath;
   const query=new URLSearchParams();
@@ -133,11 +133,12 @@ function sanitizePayloadReferrer(raw,allowedHosts){
   return `${url.protocol}//${url.host}/`;
 }
 
-export function sanitizeAnalyticsIngressPayload(payload,{allowedHosts=[]}={}){
+export function sanitizeAnalyticsIngressPayload(payload,{allowedHosts=[],allowedProtocols=['https:']}={}){
   if(!payload||typeof payload!=='object'||Array.isArray(payload))return {ok:false,error:'INVALID_PAYLOAD'};
   const name=String(payload.name||'');if(!isAllowedAnalyticsEvent(name))return {ok:false,error:'EVENT_NOT_ALLOWED'};
   const hosts=[...new Set((allowedHosts||[]).map(x=>String(x).toLowerCase()).filter(Boolean))];
-  const url=sanitizeCampaignUrl(payload.url,hosts);if(!url)return {ok:false,error:'URL_NOT_ALLOWED'};
+  const protocols=[...new Set((allowedProtocols||[]).map(x=>String(x).toLowerCase()).filter(Boolean))];
+  const url=sanitizeCampaignUrl(payload.url,hosts,protocols);if(!url)return {ok:false,error:'URL_NOT_ALLOWED'};
   const props=name==='pageview'?sanitizeAnalyticsPageProps(payload.props||{}):sanitizeAnalyticsEventProps(name,payload.props||{});
   if(props==null)return {ok:false,error:'EVENT_NOT_ALLOWED'};
   const output={name,url};

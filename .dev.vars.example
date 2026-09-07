@@ -1,6 +1,9 @@
-# Local development only. Copy this file to .dev.vars and keep .dev.vars out of Git.
-# Paste ONLY the Météo-France API Key token. The Worker sends it as `Authorization: Bearer <API_KEY>` to DPVigilance.
-METEOFRANCE_API_KEY=PASTE_METEOFRANCE_API_KEY_HERE
-ADMIN_PASSWORD="change-me"
+# Local development only. Keep .dev.vars out of Git.
+# `npm run cloudflare` creates the three required local secrets automatically when missing.
+# Copy/edit this file only if you prefer to choose the values yourself.
+ADMIN_PASSWORD="change-me-local"
 ADMIN_SESSION_SECRET="replace-with-a-long-random-secret"
 ANALYTICS_HASH_SECRET="replace-with-another-long-random-secret"
+
+# Optional. Paste only the Météo-France API Key token to test Vigilance locally.
+# METEOFRANCE_API_KEY="..."

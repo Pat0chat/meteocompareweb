@@ -44,7 +44,27 @@ Le build génère `dist/`. Le fichier `wrangler.jsonc` déclare déjà :
 
 `worker.js` stocke les événements de `/_mcx/e` dans le Durable Object SQLite. Le navigateur ne charge aucun tracker tiers : `js/analytics-transport.js` construit localement les payloads minimaux et les envoie uniquement au endpoint first-party. Les destinations et timeouts sont centralisés dans `js/network-config.js` et les appels amont du Worker sont bornés. Les autres requêtes sont servies par le binding `ASSETS`. Le Service Worker navigateur contourne explicitement `/_mcx/*` afin que ces réponses dynamiques ne soient jamais figées dans le cache du shell PWA.
 
-Le Durable Object `AnalyticsStore` utilise SQLite et est déclaré dans `wrangler.jsonc`. `/admin` est protégé par une session signée côté Worker. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `admin.js` et les tests associés.
+Le Durable Object `AnalyticsStore` utilise SQLite et est déclaré dans `wrangler.jsonc`. `/admin` est protégé par une session signée côté Worker. La route canonique `/admin` est transmise telle quelle au binding `ASSETS` : il ne faut pas la réécrire en `/admin.html`, car le `html_handling` automatique de Cloudflare redirige précisément `/admin.html` vers `/admin`, ce qui créerait une boucle. Les assets admin sont servis avec `Cache-Control: no-store` et le Service Worker les contourne explicitement. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `admin.js` et les tests associés.
+
+### Environnement Cloudflare local complet
+
+Pour lancer l'application avec le même Worker et les mêmes bindings que la production :
+
+```bash
+npm run cloudflare
+```
+
+`tools/cloudflare-dev.mjs` prépare les secrets locaux et effectue le build, puis le script npm lance `wrangler dev --local --port 8787 --persist-to .wrangler/state` via le shell natif du système, avec persistance locale dans `.wrangler/state`. Si `.dev.vars` n'existe pas ou s'il manque un secret admin/analytics, la commande génère automatiquement `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` et `ANALYTICS_HASH_SECRET`; le mot de passe local nouvellement créé est affiché dans le terminal. `.dev.vars*` et `.wrangler/` sont ignorés par Git. L’audit de release ignore ces fichiers locaux, mais vérifie qu’ils sont bien exclus par `.gitignore` et qu’aucun secret local n’est présent dans `dist/`.
+
+- application : `http://localhost:8787/`
+- administration : `http://localhost:8787/admin`
+- analytics local : actif uniquement sur `localhost:8787` et `127.0.0.1:8787`
+- preview statique `npm run preview` : analytics désactivé sur le port `4173`
+- `METEOFRANCE_API_KEY` : facultatif en local, à ajouter manuellement dans `.dev.vars`
+
+Sous Windows, Wrangler est volontairement lancé par le script npm lui-même (et non via `child_process.spawn()` sur `npx.cmd`) afin d'éviter l'erreur `spawn EINVAL` observée avec certaines versions récentes de Node.js, notamment Node 24.
+
+Le Worker conserve les règles de production strictes : les payloads analytics HTTP ne sont acceptés que lorsque la requête elle-même provient du runtime local sur le port 8787. Sur `meteocompare.app`, les URLs analytics restent obligatoirement en HTTPS et la session admin garde le cookie `Secure`.
 
 ## Google Search Console
 
