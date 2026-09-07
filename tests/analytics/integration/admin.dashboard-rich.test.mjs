@@ -21,4 +21,13 @@ assert.match(store,/campaignMediums/);
 assert.match(worker,/osFromUa/);
 assert.match(app,/dateLabel\(bands\[i\]\.timestamp\.slice\(0,10\),i18n\(\)\.locale,'long'\)/,'hourly convergence axis must use localized long dates');
 assert.doesNotMatch(app,/bands\[i\]\.timestamp\.slice\(5,10\)/,'hourly convergence axis must not expose raw month-day strings');
+
+assert.match(app,/chart-date-guide/,'hourly convergence chart must draw visible vertical date guides above the band fills');
+assert.match(css,/\.hour-line-halo/,'hourly admin visitor curve must have a contrast halo');
+assert.match(css,/\.hour-dot/,'hourly admin visitor curve must expose visible data points');
+assert.match(html,/legend-hour-pages[\s\S]*legend-hour-visitors/,'hourly admin chart must explain bars versus visitor line');
+for(const locale of ['fr','en','de','es','it']){
+  const text=read(`js/locales/${locale}.js`);
+  assert.doesNotMatch(text,/la mesure d.audience interne de MeteoCompare/,'locale must not contain the broken mixed-language analytics phrase');
+}
 console.log('Rich private admin dashboard + localized convergence dates: OK');

@@ -4,3 +4,25 @@
 @media(max-width:1120px){.metrics{grid-template-columns:repeat(3,1fr)}.data-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.services{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.shell{width:min(100% - 20px,1340px);padding-top:18px}.topbar{align-items:flex-start}.subtitle,.private-badge{display:none}.toolbar{position:static;align-items:flex-start;flex-direction:column}.toolbar>div{align-items:flex-start;flex-direction:column}.ranges{flex-wrap:wrap}.metrics{grid-template-columns:repeat(2,1fr)}.period-facts{grid-template-columns:repeat(2,1fr)}.period-facts>div{border-bottom:1px solid var(--line)}.period-facts>div:nth-child(2n){border-right:0}.analytics-grid,.data-grid,.services{grid-template-columns:1fr}.data-grid .span-2{grid-column:auto}.service-summary{grid-template-columns:1fr 1fr}.donut-wrap{grid-template-columns:1fr 1fr}.section-title{align-items:flex-start;flex-direction:column}.chart-legend{flex-wrap:wrap}.admin-footer{flex-direction:column}}
 @media(max-width:480px){.metrics{grid-template-columns:1fr}.period-facts{grid-template-columns:1fr}.period-facts>div{border-right:0}.service-summary{grid-template-columns:1fr}.donut-wrap{grid-template-columns:1fr}.header-actions{align-self:center}.brand-mark{width:38px;height:38px}.card{border-radius:15px;padding:15px}.topbar h1{font-size:1.5rem}.list-label>span:last-child{display:none}}
+
+/* Hourly analytics: subdued volume bars, high-contrast visitor curve. */
+.hourly-head-meta{display:flex;align-items:flex-end;flex-direction:column;gap:5px}
+.hourly-legend .legend-hour-pages i{height:8px;width:12px;border-radius:3px;background:color-mix(in srgb,var(--accent) 32%,transparent);border:1px solid color-mix(in srgb,var(--accent) 48%,var(--line))}
+.hourly-legend .legend-hour-visitors i{background:var(--cyan);height:3px}
+.hour-bar{fill:color-mix(in srgb,var(--accent) 24%,transparent);stroke:color-mix(in srgb,var(--accent) 42%,var(--line));stroke-width:.8}
+.hour-line-halo,.hour-line{fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.hour-line-halo{stroke:var(--card-solid);stroke-width:6;opacity:.92}
+.hour-line{stroke:var(--cyan);stroke-width:3.2}
+.hour-dot{fill:var(--card-solid);stroke:var(--cyan);stroke-width:1.8}
+@media(max-width:760px){.hourly-head-meta{align-items:flex-start}.hourly-legend{flex-wrap:wrap}}
+
+/* Hourly analytics: subdued volume bars, high-contrast visitor curve. */
+.hourly-head-meta{display:flex;align-items:flex-end;flex-direction:column;gap:5px}
+.hourly-legend .legend-hour-pages i{height:8px;width:12px;border-radius:3px;background:color-mix(in srgb,var(--accent) 32%,transparent);border:1px solid color-mix(in srgb,var(--accent) 48%,var(--line))}
+.hourly-legend .legend-hour-visitors i{background:var(--cyan);height:3px}
+.hour-bar{fill:color-mix(in srgb,var(--accent) 24%,transparent);stroke:color-mix(in srgb,var(--accent) 42%,var(--line));stroke-width:.8}
+.hour-line-halo,.hour-line{fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.hour-line-halo{stroke:var(--card-solid);stroke-width:6;opacity:.92}
+.hour-line{stroke:var(--cyan);stroke-width:3.2}
+.hour-dot{fill:var(--card-solid);stroke:var(--cyan);stroke-width:1.8}
+@media(max-width:760px){.hourly-head-meta{align-items:flex-start}.hourly-legend{flex-wrap:wrap}}
