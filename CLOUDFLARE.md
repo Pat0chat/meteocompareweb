@@ -24,7 +24,7 @@ Le Worker du dashboard doit porter le même nom que la propriété `name` de `wr
 meteocompare
 ```
 
-Le build génère `dist/`. Le fichier `wrangler.jsonc` déclare déjà :
+Le build génère `dist/`. Les routes applicatives principales utilisent le hash (`#/…`) et les pages SEO `/meteo/{ville}` sont pré-rendues ; les URL propres inconnues doivent donc recevoir une vraie réponse 404, pas un fallback SPA en statut 200. Le fichier `wrangler.jsonc` déclare déjà :
 
 ```json
 {
@@ -34,8 +34,8 @@ Le build génère `dist/`. Le fichier `wrangler.jsonc` déclare déjà :
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/_mcx/*"],
-    "not_found_handling": "single-page-application"
+    "run_worker_first": ["/_mcx/*", "/admin", "/admin/*", "/admin.html", "/admin.js", "/admin.css"],
+    "not_found_handling": "404-page"
   }
 }
 ```
@@ -44,7 +44,7 @@ Le build génère `dist/`. Le fichier `wrangler.jsonc` déclare déjà :
 
 `worker.js` stocke les événements de `/_mcx/e` dans le Durable Object SQLite. Le navigateur ne charge aucun tracker tiers : `js/analytics-transport.js` construit localement les payloads minimaux et les envoie uniquement au endpoint first-party. Les destinations et timeouts sont centralisés dans `js/network-config.js` et les appels amont du Worker sont bornés. Les autres requêtes sont servies par le binding `ASSETS`. Le Service Worker navigateur contourne explicitement `/_mcx/*` afin que ces réponses dynamiques ne soient jamais figées dans le cache du shell PWA.
 
-Le Durable Object `AnalyticsStore` utilise SQLite et est déclaré dans `wrangler.jsonc`. `/admin` est protégé par une session signée côté Worker. La route canonique `/admin` est transmise telle quelle au binding `ASSETS` : il ne faut pas la réécrire en `/admin.html`, car le `html_handling` automatique de Cloudflare redirige précisément `/admin.html` vers `/admin`, ce qui créerait une boucle. Les assets admin sont servis avec `Cache-Control: no-store` et le Service Worker les contourne explicitement. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `admin.js` et les tests associés.
+Le Durable Object `AnalyticsStore` utilise SQLite et est déclaré dans `wrangler.jsonc`. `ANALYTICS_HASH_SECRET` est obligatoire pour l’ingestion analytics et n’est jamais remplacé par le secret de session admin : les deux secrets restent strictement séparés. `/admin` est protégé par une session signée côté Worker. La route canonique `/admin` est transmise telle quelle au binding `ASSETS` : il ne faut pas la réécrire en `/admin.html`, car le `html_handling` automatique de Cloudflare redirige précisément `/admin.html` vers `/admin`, ce qui créerait une boucle. Les assets admin sont servis avec `Cache-Control: no-store` et le Service Worker les contourne explicitement. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `admin.js` et les tests associés.
 
 ### Environnement Cloudflare local complet
 

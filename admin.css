@@ -16,13 +16,3 @@
 .hour-dot{fill:var(--card-solid);stroke:var(--cyan);stroke-width:1.8}
 @media(max-width:760px){.hourly-head-meta{align-items:flex-start}.hourly-legend{flex-wrap:wrap}}
 
-/* Hourly analytics: subdued volume bars, high-contrast visitor curve. */
-.hourly-head-meta{display:flex;align-items:flex-end;flex-direction:column;gap:5px}
-.hourly-legend .legend-hour-pages i{height:8px;width:12px;border-radius:3px;background:color-mix(in srgb,var(--accent) 32%,transparent);border:1px solid color-mix(in srgb,var(--accent) 48%,var(--line))}
-.hourly-legend .legend-hour-visitors i{background:var(--cyan);height:3px}
-.hour-bar{fill:color-mix(in srgb,var(--accent) 24%,transparent);stroke:color-mix(in srgb,var(--accent) 42%,var(--line));stroke-width:.8}
-.hour-line-halo,.hour-line{fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-.hour-line-halo{stroke:var(--card-solid);stroke-width:6;opacity:.92}
-.hour-line{stroke:var(--cyan);stroke-width:3.2}
-.hour-dot{fill:var(--card-solid);stroke:var(--cyan);stroke-width:1.8}
-@media(max-width:760px){.hourly-head-meta{align-items:flex-start}.hourly-legend{flex-wrap:wrap}}

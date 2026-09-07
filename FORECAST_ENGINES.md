@@ -12,7 +12,7 @@ Default and always-available baseline. Models are balanced by independent numeri
 
 Uses the local verification history already collected by MeteoCompare. For a verified variable, a measured local bias is corrected before aggregation and historical skill can slightly adjust model influence. Calibration profiles are horizon-specific: D+1, D+2, … up to D+7 when the source model exposes that lead time. A missing or immature horizon never borrows the D+1 correction; it falls back to Multi-consensus. Legacy archive rows without a lead-time field are interpreted as D+1 only.
 
-The 1.17.14 safety audit keeps this deliberately conservative:
+The safety rules keep this deliberately conservative:
 
 - a model still needs at least 14 valid observations before it can contribute calibrated information;
 - at 14 samples the measured bias is only partially corrected; calibration strength grows progressively and reaches full strength at 30 samples;
@@ -49,7 +49,7 @@ Weather-condition codes deliberately do **not** pass through Calibration, Scenar
 
 This means changing the selected quantitative forecast engine may change temperatures, rain amounts/probabilities, wind or cloud cover, while the central weather-condition label remains the same hierarchical multi-model consensus for the same source-model inputs.
 
-A central audit correction, strengthened in 1.17.14, separates two concepts everywhere:
+A central invariant separates two concepts everywhere:
 
 1. **source-model agreement** — calculated only from raw comparable model values and family balancing;
 2. **central forecast** — calculated by the selected forecast engine.
@@ -62,7 +62,7 @@ The daily convergence score now has one shared contract in every view. It averag
 
 ## Input quality and missing-data policy
 
-Before consensus, forecast values pass through broad physical plausibility guards. Impossible temperatures, precipitation amounts/probabilities, cloud cover, wind/gust values, directions and WMO codes become missing values instead of entering the statistics. A daily `Tmax < Tmin` pair is rejected as internally inconsistent. The same guards are reapplied when aggregating older locally cached forecasts, so stale pre-1.17.14 data cannot bypass the safety layer.
+Before consensus, forecast values pass through broad physical plausibility guards. Impossible temperatures, precipitation amounts/probabilities, cloud cover, wind/gust values, directions and WMO codes become missing values instead of entering the statistics. A daily `Tmax < Tmin` pair is rejected as internally inconsistent. The same guards are reapplied when aggregating older locally cached forecasts, so stale cached data cannot bypass the safety layer.
 
 Missing hourly slots are never interpolated implicitly for current conditions or consensus. If a model does not contain the exact civil-hour slot being analysed, that model is absent for that slot. Series health also records internal gaps and flags long fragmented runs. This favours an explicit smaller sample over a fabricated continuous trajectory.
 

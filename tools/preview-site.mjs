@@ -30,7 +30,7 @@ async function resolveRequest(pathname){
   let file=await existingFile(base);if(file)return file;
   file=await existingFile(`${base}.html`);if(file)return file;
   file=await existingFile(join(base,'index.html'));if(file)return file;
-  return existingFile(join(root,'index.html'));
+  return null;
 }
 
 
@@ -65,9 +65,11 @@ createServer(async(req,res)=>{
     if(url.pathname===vigilancePath){await proxyVigilance(url,res);return;}
     if(url.pathname===healthPath){proxySystemHealth(res);return;}
     const file=await resolveRequest(url.pathname);
-    if(!file){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});res.end('Not found');return;}
-    let body=await readFile(file),type=types[extname(file).toLowerCase()]||'application/octet-stream';
+    const status=file?200:404;
+    const responseFile=file||await existingFile(join(root,'404.html'));
+    if(!responseFile){res.writeHead(404,{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'});res.end('Not found');return;}
+    let body=await readFile(responseFile),type=types[extname(responseFile).toLowerCase()]||'application/octet-stream';
     if(type.startsWith('text/html'))body=Buffer.from(preparePreviewHtml(body.toString('utf8'),{pathname:url.pathname}),'utf8');
-    res.writeHead(200,{'content-type':type,'cache-control':'no-store'});res.end(body);
+    res.writeHead(status,{'content-type':type,'cache-control':'no-store'});res.end(body);
   }catch(error){res.writeHead(500,{'content-type':'text/plain; charset=utf-8'});res.end(String(error?.message||error));}
 }).listen(port,'127.0.0.1',()=>console.log(`MeteoCompare preview: http://127.0.0.1:${port}`));

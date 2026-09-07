@@ -11,6 +11,8 @@ const env={
 const ctx={waitUntil(){}};
 let response=await worker.fetch(new Request('https://meteocompare.app/_mcx/admin/session'),env,ctx);
 assert.equal((await response.json()).authenticated,false);
+response=await worker.fetch(new Request('https://meteocompare.app/_mcx/admin/session',{method:'POST'}),env,ctx);
+assert.equal(response.status,405);assert.equal(response.headers.get('allow'),'GET, HEAD');
 response=await worker.fetch(new Request('https://meteocompare.app/_mcx/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:'wrong'})}),env,ctx);
 assert.equal(response.status,401);
 response=await worker.fetch(new Request('https://meteocompare.app/_mcx/admin/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:env.ADMIN_PASSWORD})}),env,ctx);
@@ -32,9 +34,14 @@ response=await worker.fetch(new Request('http://127.0.0.1:8787/admin'),routeEnv,
 assert.equal(response.status,200,'/admin must be served directly without redirect loop');
 assert.equal(response.headers.get('cache-control'),'no-store');
 assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
+assert.equal(response.headers.get('x-content-type-options'),'nosniff');
+assert.equal(response.headers.get('referrer-policy'),'no-referrer');
+assert.match(response.headers.get('content-security-policy')||'',/frame-ancestors 'none'/);
 assert.deepEqual(assetRequests,['/admin'],'the assets binding must receive canonical /admin, not /admin.html');
 response=await worker.fetch(new Request('http://127.0.0.1:8787/admin/'),routeEnv,ctx);
 assert.equal(response.status,308);
 assert.equal(response.headers.get('location'),'http://127.0.0.1:8787/admin');
+response=await worker.fetch(new Request('https://meteocompare.app/_mcx/admin/logout'),env,ctx);
+assert.equal(response.status,405);assert.equal(response.headers.get('allow'),'POST');
 
 console.log('Private admin signed-session authentication + canonical route: OK');

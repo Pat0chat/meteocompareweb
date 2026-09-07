@@ -1,6 +1,6 @@
 # Référencement de meteocompare.app
 
-La release `1.16.0` consolide les fondations SEO P0 à P6 de MeteoCompare.
+L’architecture actuelle consolide les fondations SEO P0 à P6 de MeteoCompare.
 
 ## P0 — Google Search Console
 
@@ -60,7 +60,8 @@ Le build génère :
 
 - `dist/sitemap.xml` avec l’accueil et toutes les villes du catalogue ;
 - `dist/robots.txt` autorisant l’exploration et déclarant le sitemap ;
-- `dist/_redirects` pour normaliser notamment les variantes avec slash final.
+- `dist/_redirects` pour normaliser notamment les variantes avec slash final ;
+- `dist/404.html`, servi avec un vrai statut HTTP 404 par Cloudflare pour les URL propres inconnues afin d’éviter les soft 404.
 
 ## P5 — contenu des pages ville
 

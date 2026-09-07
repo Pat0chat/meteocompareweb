@@ -55,10 +55,15 @@ assert.doesNotMatch(app,/function esc\b|function attr\b/,'app must not duplicate
 assert.doesNotMatch(radar,/function esc\b/,'radar must not duplicate HTML escaping');
 assert.match(worker,/server\/vigilance-shared\.js/,'Worker Vigilance normalization must use the shared server contract');
 assert.match(preview,/server\/vigilance-shared\.js/,'preview Vigilance normalization must use the shared server contract');
+assert.match(preview,/const status=file\?200:404/,'preview must preserve HTTP 404 status for unknown routes');
+assert.doesNotMatch(preview,/return existingFile\(join\(root,'index\.html'\)\)/,'preview must not silently fall back to index.html for unknown clean URLs');
 for(const selector of [
+  'city-grid','current-temp','hero-copy','kpi',
   'summary-tile','about-reading','about-engine-card','reliability-column','android-nav','install-status','forecast-engine-overview-action','forecast-engine-overview-symbol',
   'about-hero-badges','about-step-index','big-value','city-name','evolution-track-guide','footer-line','kpi-label','kpi-note','kpi-value','metric-value','scenario-sub','section-eyebrow','status-row','summary-value-line','tide-range','timeline-date','unit-note',
 ]) assert.doesNotMatch(css,new RegExp(`\\.${selector}\\b`),`dead CSS selector remains: ${selector}`);
+
+assert.equal(fs.existsSync(path.join(root,'assets','bluesky.svg')),false,'obsolete external Bluesky asset must stay removed; the UI uses the inline official mark');
 
 // Runtime source contains no debug leftovers and every relative module import resolves.
 const runtimeFiles=[];

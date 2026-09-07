@@ -31,10 +31,10 @@ npx wrangler secret put ADMIN_SESSION_SECRET
 npx wrangler secret put ANALYTICS_HASH_SECRET
 ```
 
-Utiliser des secrets longs et indépendants pour les deux derniers. La session admin est un cookie `HttpOnly`, `Secure`, `SameSite=Strict`, signé côté Worker et valable 12 heures.
+Utiliser des secrets longs et indépendants pour les deux derniers. `ANALYTICS_HASH_SECRET` est requis pour accepter de nouveaux événements et n’est jamais remplacé par `ADMIN_SESSION_SECRET`. La session admin est un cookie `HttpOnly`, `Secure`, `SameSite=Strict`, signé côté Worker et valable 12 heures.
 
 ## Test local complet
 
 `npm run cloudflare` lance le Worker avec le Durable Object SQLite local et active le tracking uniquement sur `http://localhost:8787` (ou `127.0.0.1:8787`). Cela permet de générer des pages vues et événements de test puis de les consulter immédiatement dans `/admin`, sans toucher aux statistiques de production. `npm run preview` reste volontairement exclu du tracking.
 
-Les données analytics sont conservées 180 jours au maximum.
+Les données analytics sont conservées 180 jours au maximum. Le nettoyage de rétention est vérifié au plus une fois par jour par le Durable Object, sans dépendre d’un tirage aléatoire ou du volume de trafic.

@@ -40,6 +40,7 @@ assert.match(build,/sitemap\.xml/);
 assert.match(build,/robots\.txt/);
 assert.match(build,/_redirects/);
 assert.match(wrangler,/"directory"\s*:\s*"\.\/dist"/);
+assert.match(wrangler,/"not_found_handling"\s*:\s*"404-page"/,'Cloudflare must return a real 404 for unknown clean URLs instead of a soft-404 SPA fallback');
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(fs.readFileSync(new URL('../../../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
 assert.match(sw,/cache\.put\(request,copy\)/,'navigation cache must preserve each clean URL independently');

@@ -37,6 +37,50 @@ function run(command,args,label,{quiet=false}={}){
 
 function assert(condition,message){if(!condition)throw new Error(message);}
 
+function relativeModuleSpecifiers(source){
+  const specs=[];
+  for(const match of String(source).matchAll(/(?:import|export)\s+(?:[^'\"]*?\s+from\s+)?['\"]([^'\"]+)['\"]/g))if(match[1].startsWith('.'))specs.push(match[1]);
+  for(const match of String(source).matchAll(/import\s*\(\s*['\"]([^'\"]+)['\"]\s*\)/g))if(match[1].startsWith('.'))specs.push(match[1]);
+  for(const call of String(source).matchAll(/importScripts\(([^)]*)\)/g))for(const match of call[1].matchAll(/['\"]([^'\"]+)['\"]/g))if(match[1].startsWith('.'))specs.push(match[1]);
+  return specs;
+}
+
+async function resolveModule(fromFile,specifier){
+  const raw=resolve(dirname(fromFile),specifier),candidates=extname(raw)?[raw]:[raw,`${raw}.js`,`${raw}.mjs`,join(raw,'index.js')];
+  for(const candidate of candidates)if(await exists(candidate))return candidate;
+  return null;
+}
+
+async function auditBrowserGraph(){
+  const browserModules=(await walk(join(root,'js'))).filter(file=>['.js','.mjs'].includes(extname(file))&&!slash(relative(root,file)).startsWith('js/server/'));
+  const moduleSet=new Set(browserModules.map(file=>resolve(file)));
+  const entrypoints=[join(root,'js','app.js'),join(root,'js','analytics-transport.js'),join(root,'admin.js'),join(root,'sw.js')];
+  const visited=new Set();
+  async function visit(file){
+    file=resolve(file);if(visited.has(file))return;visited.add(file);
+    const source=await readFile(file,'utf8');
+    for(const specifier of relativeModuleSpecifiers(source)){
+      const target=await resolveModule(file,specifier);
+      assert(target,`${slash(relative(root,file))}: unresolved runtime import ${specifier}`);
+      const rel=slash(relative(root,target));
+      assert(!rel.startsWith('js/server/'),`${slash(relative(root,file))}: browser runtime imports server-only module ${rel}`);
+      if(moduleSet.has(resolve(target))||['app-version.js','cache-version.js'].includes(rel))await visit(target);
+    }
+  }
+  for(const entrypoint of entrypoints)await visit(entrypoint);
+  const orphaned=browserModules.filter(file=>!visited.has(resolve(file)));
+  assert(!orphaned.length,`Orphan browser modules: ${orphaned.map(file=>slash(relative(root,file))).join(', ')}`);
+}
+
+async function auditRuntimeAssets(){
+  const assetRoot=join(root,'assets');if(!await exists(assetRoot))return;
+  const assets=await walk(assetRoot);
+  const runtimeFiles=[join(root,'index.html'),join(root,'admin.html'),join(root,'styles.css'),join(root,'admin.css'),join(root,'sw.js'),join(root,'admin.js'),join(root,'manifest.webmanifest'),join(root,'manifest.fr.webmanifest'),join(root,'manifest.en.webmanifest'),join(root,'manifest.es.webmanifest'),join(root,'manifest.de.webmanifest'),join(root,'manifest.it.webmanifest'),...(await walk(join(root,'js'))).filter(file=>['.js','.mjs'].includes(extname(file))&&!slash(relative(root,file)).startsWith('js/server/'))];
+  const runtimeText=(await Promise.all(runtimeFiles.map(file=>readFile(file,'utf8')))).join('\n');
+  const orphaned=assets.filter(file=>!runtimeText.includes(slash(relative(root,file))));
+  assert(!orphaned.length,`Orphan public assets: ${orphaned.map(file=>slash(relative(root,file))).join(', ')}`);
+}
+
 async function auditSource(){
   const files=await walk(root,{exclude:new Set(['.git','dist','release','.wrangler','node_modules','.dev.vars'])});
   const scripts=files.filter(file=>['.js','.mjs'].includes(extname(file)));
@@ -53,6 +97,9 @@ async function auditSource(){
   const gitignore=await readFile(join(root,'.gitignore'),'utf8');
   assert(/^\.dev\.vars\*?$/m.test(gitignore),'.gitignore must exclude local Cloudflare .dev.vars secrets');
   assert(/^\.wrangler\/$/m.test(gitignore),'.gitignore must exclude local Wrangler state');
+
+  await auditBrowserGraph();
+  await auditRuntimeAssets();
 
   const markdown=files.filter(file=>extname(file)==='.md');
   for(const file of markdown){

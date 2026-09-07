@@ -6,6 +6,8 @@ assert.match(html,/src="js\/analytics-transport\.js"/);
 assert.match(worker,/sanitizeAnalyticsIngressPayload/);
 assert.match(worker,/analyticsStub\(env\)/);
 assert.match(worker,/ANALYTICS_HASH_SECRET/);
+assert.doesNotMatch(worker,/ANALYTICS_HASH_SECRET\|\|env\?\.ADMIN_SESSION_SECRET/,'analytics hashing must never reuse the admin session secret');
+assert.match(worker,/ANALYTICS_HASH_NOT_CONFIGURED/,'analytics ingestion must fail closed when its dedicated hashing secret is missing');
 assert.match(worker,/ADMIN_SESSION_SECRET/);
 assert.match(worker,/HttpOnly/);
 assert.match(worker,/Secure/);

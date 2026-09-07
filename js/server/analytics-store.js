@@ -14,13 +14,21 @@ export class AnalyticsStore{
     const existing=new Set(rows(this.sql.exec('PRAGMA table_info(events)')).map(row=>String(row.name||'')));
     for(const [name,type] of [['os','TEXT'],['navigation','TEXT'],['theme','TEXT'],['density','TEXT']])if(!existing.has(name))this.sql.exec(`ALTER TABLE events ADD COLUMN ${name} ${type}`);
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts); CREATE INDEX IF NOT EXISTS idx_events_name_ts ON events(name,ts); CREATE INDEX IF NOT EXISTS idx_events_path_ts ON events(path,ts); CREATE INDEX IF NOT EXISTS idx_events_day ON events(day);`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS maintenance(key TEXT PRIMARY KEY, value TEXT NOT NULL);`);
+  }
+  maintainRetention(){
+    const today=dateKey(new Date()),last=rows(this.sql.exec(`SELECT value FROM maintenance WHERE key='retention_cleanup'`))[0]?.value;
+    if(last===today)return;
+    const cutoff=Math.floor(Date.now()/1000)-RETENTION_DAYS*86400;
+    this.sql.exec('DELETE FROM events WHERE ts < ?',cutoff);
+    this.sql.exec(`INSERT INTO maintenance(key,value) VALUES('retention_cleanup',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,today);
   }
   async fetch(request){
+    this.maintainRetention();
     const url=new URL(request.url);
     if(request.method==='POST'&&url.pathname==='/event'){
       const e=await request.json();
       this.sql.exec(`INSERT INTO events(ts,day,name,path,visitor,referrer,utm_source,utm_medium,utm_campaign,country,device,browser,language,display_mode,app_version,props,os,navigation,theme,density) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,e.ts,e.day,e.name,e.path,e.visitor||null,e.referrer||null,e.utm_source||null,e.utm_medium||null,e.utm_campaign||null,e.country||null,e.device||null,e.browser||null,e.language||null,e.display_mode||null,e.app_version||null,e.props||null,e.os||null,e.navigation||null,e.theme||null,e.density||null);
-      if(Math.random()<0.01)this.sql.exec('DELETE FROM events WHERE ts < ?',Math.floor(Date.now()/1000)-RETENTION_DAYS*86400);
       return Response.json({ok:true});
     }
     if(request.method==='GET'&&url.pathname==='/health'){const count=rows(this.sql.exec('SELECT COUNT(*) AS n FROM events'))[0]?.n||0;return Response.json({ok:true,events:Number(count),retentionDays:RETENTION_DAYS});}
