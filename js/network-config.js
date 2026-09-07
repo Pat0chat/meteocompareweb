@@ -6,6 +6,11 @@ export const NETWORK_ENDPOINTS = Object.freeze({
     vigilance: '/_mcx/vigilance',
     analyticsEvent: '/_mcx/e',
     health: '/_mcx/health',
+    adminSession: '/_mcx/admin/session',
+    adminLogin: '/_mcx/admin/login',
+    adminLogout: '/_mcx/admin/logout',
+    adminAnalytics: '/_mcx/admin/analytics',
+    adminStatus: '/_mcx/admin/status',
   }),
   openMeteo: Object.freeze({
     forecast: 'https://api.open-meteo.com/v1/forecast',

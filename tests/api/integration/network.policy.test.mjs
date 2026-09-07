@@ -2,12 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 const read=rel=>fs.readFileSync(new URL(`../../../${rel}`,import.meta.url),'utf8');
-const config=read('js/network-config.js'),serverAnalytics=read('js/server/analytics-upstream.js'),network=read('js/network.js'),api=read('js/api.js'),marine=read('js/features/marine.js'),radar=read('js/features/radar.js'),vigilance=read('js/features/vigilance.js'),analytics=read('js/analytics-config.js'),html=read('index.html'),sw=read('sw.js');
+const config=read('js/network-config.js'),analyticsStore=read('js/server/analytics-store.js'),network=read('js/network.js'),api=read('js/api.js'),marine=read('js/features/marine.js'),radar=read('js/features/radar.js'),vigilance=read('js/features/vigilance.js'),analytics=read('js/analytics-config.js'),html=read('index.html'),sw=read('sw.js');
 
 for(const endpoint of ['api.open-meteo.com','geocoding-api.open-meteo.com','archive-api.open-meteo.com','previous-runs-api.open-meteo.com','marine-api.open-meteo.com','api.rainviewer.com','tile.openstreetmap.org','public-api.meteofrance.fr']) assert.ok(config.includes(endpoint),`${endpoint} must be centralized in network-config.js`);
-assert.match(serverAnalytics,/https:\/\/plausible\.io\/api\/event/,'Plausible upstream must live in a server-only module');
-assert.doesNotMatch(config,/plausible\.io/,'browser network config must not expose the Plausible upstream');
-for(const source of [api,marine,radar,vigilance,analytics]) assert.doesNotMatch(source,/https:\/\/(?:api|geocoding-api|archive-api|previous-runs-api|marine-api)\.open-meteo\.com|https:\/\/openmeteo-data-spatial\.b-cdn\.net|https:\/\/api\.rainviewer\.com|https:\/\/tile\.openstreetmap\.org|https:\/\/public-api\.meteofrance\.fr|https:\/\/plausible\.io/,'runtime modules must consume centralized network destinations');
+assert.doesNotMatch([analytics,analyticsStore].join('\n'),/https:\/\//,'analytics config and storage must not depend on a third-party URL');
+for(const source of [api,marine,radar,vigilance,analytics]) assert.doesNotMatch(source,/https:\/\/(?:api|geocoding-api|archive-api|previous-runs-api|marine-api)\.open-meteo\.com|https:\/\/openmeteo-data-spatial\.b-cdn\.net|https:\/\/api\.rainviewer\.com|https:\/\/tile\.openstreetmap\.org|https:\/\/public-api\.meteofrance\.fr/,'runtime modules must consume centralized network destinations');
 
 assert.doesNotMatch(config,/portail-api\.meteofrance\.fr\/token/,'OAuth token endpoint must not remain after API Key migration');
 assert.match(network,/credentials='omit'/);
@@ -22,7 +21,7 @@ assert.match(analytics,/optOutStorageKey: 'meteocompare\.web\.analytics\.optout\
 
 const csp=html.match(/Content-Security-Policy" content="([^"]+)/)?.[1]||'';
 for(const host of ['https://api.open-meteo.com','https://geocoding-api.open-meteo.com','https://archive-api.open-meteo.com','https://previous-runs-api.open-meteo.com','https://marine-api.open-meteo.com','https://api.rainviewer.com','https://*.rainviewer.com']) assert.ok(csp.includes(host),`CSP must allow direct data source ${host}`);
-assert.ok(!csp.includes('plausible.io'),'Plausible must remain first-party from the browser');
+assert.ok(csp.includes("connect-src 'self'"),'analytics endpoint must remain first-party');
 assert.ok(!csp.includes('meteofrance.fr'),'Météo-France Vigilance must remain first-party from the browser');
 assert.match(sw,/url\.pathname\.startsWith\('\/_mcx\/'\)\)return/,'Worker proxies must bypass service-worker storage');
 assert.doesNotMatch(config,/modelMetadata|map-tiles\.open-meteo\.com/,'model-health metadata networking must be removed');

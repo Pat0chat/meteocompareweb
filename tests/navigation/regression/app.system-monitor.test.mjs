@@ -2,14 +2,14 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const read=rel=>fs.readFileSync(new URL(`../../../${rel}`,import.meta.url),'utf8');
-const app=read('js/app.js'),css=read('styles.css'),network=read('js/network-config.js'),bootstrap=read('js/mcx-events.js');
+const app=read('js/app.js'),css=read('styles.css'),network=read('js/network-config.js'),bootstrap=read('js/analytics-transport.js');
 
 assert.match(network,/health:\s*'\/_mcx\/health'/,'system monitor must use one first-party health endpoint');
 assert.match(app,/function renderSystemMonitor\(/,'topbar status must render a monitoring popover');
 assert.match(app,/monitorForecastItem\(\)/,'forecast health must be part of the monitor');
 assert.match(app,/monitorVigilanceItem\(\)/,'Météo-France Vigilance must be part of the monitor');
 assert.doesNotMatch(app,/monitorMetadataItem\(\)/,'model-health metadata row must be removed from the monitor');
-assert.match(app,/monitorAnalyticsItem\(\)/,'Plausible must be part of the monitor');
+assert.match(app,/monitorAnalyticsItem\(\)/,'internal audience measurement must be part of the monitor');
 assert.match(app,/monitorPwaItem\(\)/,'PWA/cache state must be part of the monitor');
 assert.match(app,/fetchJsonResource\(NETWORK_ENDPOINTS\.firstParty\.health/,'worker probe must stay first-party');
 assert.match(app,/handleSystemMonitorIntent/,'hover/focus must refresh stale monitoring data');

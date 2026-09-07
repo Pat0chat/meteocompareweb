@@ -22,7 +22,7 @@ npm run audit:release
 
 Le serveur de prévisualisation écoute par défaut sur `http://127.0.0.1:4173` et reproduit la résolution des fichiers HTML sans extension (`/meteo/toulouse` → `dist/meteo/toulouse.html`). Un serveur statique basique comme `python3 -m http.server` ne réalise pas cette résolution et peut donc répondre 404 sur ces URL propres, même si le build est correct.
 
-Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre récursivement les fichiers `tests/<fonctionnalité>/<portée>/*.test.mjs`, les exécute dans un ordre stable et retourne un code d'erreur si au moins une suite échoue. Les suites peuvent aussi être filtrées par fonctionnalité, portée ou nom de fichier via `tools/run-tests.mjs`. Avant une release, `npm run audit:release` vérifie en plus la syntaxe de toutes les sources JavaScript, les liens de documentation et les artefacts interdits, exécute toute la suite, construit `dist/` puis contrôle son contenu public. En local, `npm run preview` sert exactement le HTML de production ; le bootstrap analytics détecte que l’hôte n’est pas `meteocompare.app` et n’envoie donc aucun événement réseau. En production Worker, le navigateur n’embarque plus le script Plausible : il envoie uniquement les événements autorisés vers le chemin first-party opaque `/_mcx/e`, et seul le Worker contacte `plausible.io` côté serveur.
+Le build, la prévisualisation et les tests n’installent aucune dépendance tierce : ils utilisent uniquement Node.js (`tools/build-site.mjs`, `tools/preview-site.mjs` et `tools/run-tests.mjs`). `npm run tests` découvre récursivement les fichiers `tests/<fonctionnalité>/<portée>/*.test.mjs`, les exécute dans un ordre stable et retourne un code d'erreur si au moins une suite échoue. Les suites peuvent aussi être filtrées par fonctionnalité, portée ou nom de fichier via `tools/run-tests.mjs`. Avant une release, `npm run audit:release` vérifie en plus la syntaxe de toutes les sources JavaScript, les liens de documentation et les artefacts interdits, exécute toute la suite, construit `dist/` puis contrôle son contenu public. En local, `npm run preview` sert exactement le HTML de production ; le bootstrap analytics détecte que l’hôte n’est pas `meteocompare.app` et n’envoie donc aucun événement réseau. En production Worker, le navigateur envoie uniquement les événements autorisés vers le chemin first-party `/_mcx/e`. Le Worker les valide puis les stocke dans le Durable Object SQLite `AnalyticsStore`; aucun service analytics tiers n’est contacté.
 
 ## Déployer sur Cloudflare Workers — configuration recommandée
 
@@ -36,7 +36,7 @@ Configuration Cloudflare Workers Builds :
 - **Root directory** : vide si le dépôt est déjà à la racine
 - **Build watch paths** : laisser vide, sauf besoin spécifique
 
-Le fichier `wrangler.jsonc` déploie `worker.js` avec le binding statique `ASSETS` vers `./dist`. Ce Worker sert aussi de proxy first-party Plausible sur `/_mcx/*`. Un ancien déploiement Pages purement statique peut encore servir l’application, mais ne fournit pas ce proxy analytics ; il n’est donc plus recommandé pour `meteocompare.app`.
+Le fichier `wrangler.jsonc` déploie `worker.js` avec le binding statique `ASSETS` vers `./dist`. Ce Worker gère aussi le stockage analytics first-party et l’administration privée sur `/_mcx/*` et `/admin`. Un déploiement Pages purement statique peut encore servir l’application, mais ne fournit ni stockage d’audience ni page d’administration ; il n’est donc plus recommandé pour `meteocompare.app`.
 
 ### Référencement intégré
 
@@ -191,9 +191,9 @@ Ils couvrent notamment :
 - `js/domain.js` : calculs météo, accord, scénarios, biais, ERA5, évolution ;
 - `js/storage.js` : réglages/favoris + cache IndexedDB ;
 - `js/i18n.js` : interface multilingue ;
-- `js/analytics-config.js` : configuration de la mesure d’audience Plausible et restriction aux domaines de production ;
-- `js/analytics-schema.js` : contrat partagé des routes, événements et propriétés Plausible autorisés côté navigateur/Worker ;
-- `js/analytics.js` : pageviews expurgées, acquisition UTM/referrer minimisée et événements fonctionnels Plausible ;
+- `js/analytics-config.js` : configuration de la mesure d’audience interne et restriction aux domaines de production ;
+- `js/analytics-schema.js` : contrat partagé des routes, événements et propriétés analytics autorisés côté navigateur/Worker ;
+- `js/analytics.js` : pageviews expurgées, acquisition UTM/referrer minimisée et événements fonctionnels ;
 - `js/app.js` : composition des vues, routeur et interactions, branchés sur le kernel ;
 - `js/seo-cities.mjs` : catalogue contrôlé des villes indexables et helpers des URLs publiques ;
 - `tools/build-site.mjs` : génération du dossier `dist/`, pré-rendu HTML, sitemap, robots et redirections ;
@@ -209,9 +209,9 @@ Ils couvrent notamment :
 
 Aucun secret ni clé API n'est embarqué. Les requêtes météo sont envoyées directement depuis le navigateur vers Open-Meteo. Les villes, réglages, caches, biais et snapshots MeteoCompare restent dans le stockage local du navigateur.
 
-La version web utilise une **mesure d’audience respectueuse** avec Plausible associé à `meteocompare.app`, via un transport first-party minimal propre à MeteoCompare plutôt que le tracker navigateur Plausible. Les pageviews automatiques et les mesures automatiques optionnelles sont désactivés : MeteoCompare déclenche lui-même uniquement les événements autorisés. Les routes SEO sont regroupées avant envoi (`/meteo/toulouse` → `/city`), les paramètres applicatifs et identifiants de ville sont supprimés, et seuls `utm_source`, `utm_medium` et `utm_campaign` sont conservés pour l’attribution des campagnes. Le referrer est réduit à son origine (domaine uniquement) avant transmission. Des propriétés à faible cardinalité décrivent la version de l’application, la langue, le mode navigateur/PWA et certains choix d’affichage ; des événements fonctionnels mesurent recherche/ajout de ville, comparaisons, marine, export, partage, rafraîchissement et installation PWA.
+La version web utilise une **mesure d’audience first-party** propre à MeteoCompare, sans fournisseur analytics tiers. Les pageviews automatiques et les mesures automatiques optionnelles sont désactivés : MeteoCompare déclenche lui-même uniquement les événements autorisés. Les routes SEO sont regroupées avant envoi (`/meteo/toulouse` → `/city`), les paramètres applicatifs et identifiants de ville sont supprimés, et seuls `utm_source`, `utm_medium` et `utm_campaign` sont conservés pour l’attribution des campagnes. Le referrer est réduit à son origine (domaine uniquement) avant transmission. Des propriétés à faible cardinalité décrivent la version de l’application, la langue, le mode navigateur/PWA et certains choix d’affichage ; des événements fonctionnels mesurent recherche/ajout de ville, comparaisons, marine, export, partage, rafraîchissement et installation PWA.
 
-Aucun cookie analytics ni identifiant persistant n’est créé par MeteoCompare. Aucun nom/identifiant de ville, coordonnée, requête de recherche, favori, valeur météo, prévision brute ou historique local n’est envoyé. GPC, DNT et l’opt-out local restent respectés. L’envoi est limité aux domaines de production configurés afin que localhost et les previews ne polluent pas les statistiques. Voir `ANALYTICS.md` pour la liste des événements/propriétés et la configuration recommandée du tableau de bord Plausible.
+Aucun cookie analytics ni identifiant persistant n’est créé par MeteoCompare. Aucun nom/identifiant de ville, coordonnée, requête de recherche, favori, valeur météo, prévision brute ou historique local n’est envoyé. GPC, DNT et l’opt-out local restent respectés. L’envoi est limité aux domaines de production configurés afin que localhost et les previews ne polluent pas les statistiques. Voir `ANALYTICS.md` pour la liste des événements/propriétés, le stockage SQLite et la configuration de `/admin`.
 
 La politique complète est dans `PRIVACY.md`.
 ### Configuration Cloudflare détaillée

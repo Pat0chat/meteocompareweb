@@ -134,14 +134,14 @@ export function analyticsPageProps(route,env=globalThis){
 
 function analyticsEventContext(route,env=globalThis){return {app_version:APP_VERSION,language:safeLanguage(env),display_mode:displayMode(env),navigation:pageNavigationMode(route,env)};}
 
-export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,plausibleImpl=null}={}){
-  const tracker=()=>plausibleImpl||env.plausible;
+export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,transportImpl=null}={}){
+  const tracker=()=>transportImpl||env.meteocompareTrack;
   const status=()=>{
     const configured=Boolean(config?.enabled&&config?.domain&&config?.endpoint);
     const signal=privacySignal(env),optedOut=storageOptOut(env);
     const hostAllowed=configuredHostAllowed(config,env);
     const active=configured&&hostAllowed&&!signal&&!optedOut&&productionProtocol(env)&&typeof tracker()==='function';
-    return {active,configured,hostAllowed,optedOut,privacySignal:signal,provider:config?.provider||'plausible'};
+    return {active,configured,hostAllowed,optedOut,privacySignal:signal,provider:config?.provider||'meteocompare'};
   };
   const send=(name,route,props={})=>{
     const current=status();
@@ -154,8 +154,7 @@ export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,pl
       options.interactive=analyticsEventInteractive(name);
     }
     try{
-      // mcx-events.js exposes a tiny first-party transport with the
-      // same plausible(name, options) surface used by this client.
+      // The first-party transport accepts the sanitized event surface used here.
       options.callback=result=>{try{env.__METEOCOMPARE_ANALYTICS_CONTROL__?.reportDelivery?.(result);}catch{}};
       tracker()(name,options);
       return Promise.resolve(true);

@@ -39,9 +39,9 @@ for(const file of serverJsFiles){const item='./'+rel(file);assert.ok(!shell.incl
 const html=read('index.html'),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 assert.equal(scripts.length,2,'only the first-party metrics transport + MeteoCompare app scripts are expected');
 assert.ok(scripts.every(([_,attrs,body])=>attrs.includes('src=')&&!body.trim()),'all static scripts must be external modules with no inline body');
-const metricsScript=scripts.find(([_,attrs])=>/src="\/?js\/mcx-events\.js"/.test(attrs));
+const metricsScript=scripts.find(([_,attrs])=>/src="\/?js\/analytics-transport\.js"/.test(attrs));
 assert.ok(metricsScript,'external first-party metrics transport must be present');
-const metricsTransport=read('js/mcx-events.js');assert.match(metricsTransport,/autoCapturePageviews:\s*false/);assert.match(metricsTransport,/globalThis\.fetch\(ANALYTICS_CONFIG\.endpoint/);assert.match(metricsTransport,/allowedHosts\.includes\(host\)/);assert.doesNotMatch(metricsTransport,/createElement\(['"]script['"]\)|https:\/\/plausible\.io/);
+const metricsTransport=read('js/analytics-transport.js');assert.match(metricsTransport,/globalThis\.fetch\(ANALYTICS_CONFIG\.endpoint/);assert.match(metricsTransport,/allowedHosts\.includes\(host\)/);assert.doesNotMatch(metricsTransport,/createElement\(['"]script['"]\)|https:\/\//i);
 const appScript=scripts.find(([_,attrs])=>/src="\/?js\/app\.js"/.test(attrs));
 assert.ok(appScript,'application module script must be present');assert.match(appScript[1],/type="module"/);assert.equal(appScript[2].trim(),'','no application inline script expected');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);assert.equal(new Set(ids).size,ids.length,'static HTML IDs must be unique');

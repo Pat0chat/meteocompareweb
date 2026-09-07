@@ -133,19 +133,16 @@ function sanitizePayloadReferrer(raw,allowedHosts){
   return `${url.protocol}//${url.host}/`;
 }
 
-export function sanitizePlausibleProxyPayload(payload,{domain,allowedHosts=[]}={}){
+export function sanitizeAnalyticsIngressPayload(payload,{allowedHosts=[]}={}){
   if(!payload||typeof payload!=='object'||Array.isArray(payload))return {ok:false,error:'INVALID_PAYLOAD'};
-  const name=String(payload.n||'');if(!isAllowedAnalyticsEvent(name))return {ok:false,error:'EVENT_NOT_ALLOWED'};
+  const name=String(payload.name||'');if(!isAllowedAnalyticsEvent(name))return {ok:false,error:'EVENT_NOT_ALLOWED'};
   const hosts=[...new Set((allowedHosts||[]).map(x=>String(x).toLowerCase()).filter(Boolean))];
-  const url=sanitizeCampaignUrl(payload.u,hosts);if(!url)return {ok:false,error:'URL_NOT_ALLOWED'};
-  // Site-specific Plausible trackers may omit or vary `d` across browser/PWA
-  // contexts. The Worker already owns the canonical site domain, so never trust
-  // or require the client value: validate the first-party URL, then impose it.
-  const props=name==='pageview'?sanitizeAnalyticsPageProps(payload.p||{}):sanitizeAnalyticsEventProps(name,payload.p||{});
+  const url=sanitizeCampaignUrl(payload.url,hosts);if(!url)return {ok:false,error:'URL_NOT_ALLOWED'};
+  const props=name==='pageview'?sanitizeAnalyticsPageProps(payload.props||{}):sanitizeAnalyticsEventProps(name,payload.props||{});
   if(props==null)return {ok:false,error:'EVENT_NOT_ALLOWED'};
-  const output={n:name,u:url,d:String(domain)};
-  const referrer=sanitizePayloadReferrer(payload.r,hosts);if(referrer)output.r=referrer;
-  if(Object.keys(props).length)output.p=props;
-  if(name!=='pageview')output.i=analyticsEventInteractive(name);
+  const output={name,url};
+  const referrer=sanitizePayloadReferrer(payload.referrer,hosts);if(referrer)output.referrer=referrer;
+  if(Object.keys(props).length)output.props=props;
+  if(name!=='pageview')output.interactive=analyticsEventInteractive(name);
   return {ok:true,payload:output};
 }

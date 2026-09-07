@@ -25,7 +25,7 @@ L'objectif n'est volontairement **pas** de proxifier tout le trafic. Les gros fl
 | Images radar d'analyse | `js/features/radar.js` → `js/network.js` | `*.rainviewer.com/...png` | direct, optionnel | 15 s ; cache navigateur `force-cache` | abort à la fermeture, HTTP/timeout commun, échec limité au radar |
 | Image radar affichée | `<img>` dynamique | `*.rainviewer.com/...png` | direct, optionnel | cache HTTP navigateur | échec visuel non bloquant pour la météo principale |
 | Fond cartographique | `<img>` tuiles | `tile.openstreetmap.org/{z}/{x}/{y}.png` | direct, optionnel | cache HTTP navigateur | contenu purement visuel ; ne bloque pas les données météo |
-| Événements Plausible | tracker → `/_mcx/e` | `plausible.io/api/event` | first-party | Worker 8 s ; `no-store` | POST seulement, corps max 64 KiB, schéma événement/propriétés validé côté Worker, URL/referrer réassainis, User-Agent + IP Cloudflare relayés explicitement |
+| Événements analytics | navigateur → `/_mcx/e` | Durable Object SQLite `AnalyticsStore` | first-party | Worker 8 s ; `no-store` | POST seulement, corps max 32 KiB, schéma validé côté Worker, URL/referrer assainis, aucune IP/User-Agent brut stocké |
 | Assets applicatifs | navigateur / Service Worker | `meteocompare.app` | first-party | stratégie PWA selon type | navigation/code network-first ; assets immuables cache-first |
 
 ## Règles uniformisées
@@ -76,7 +76,7 @@ Un test de régression vérifie désormais l'alignement entre configuration rés
 
 ## Confidentialité
 
-La politique analytics repose sur une liste blanche partagée `js/analytics-schema.js`, appliquée à la fois dans le navigateur et dans `worker.js`. L'opt-out, GPC et DNT empêchent tout envoi. Le navigateur ne charge aucun script Plausible et POSTe uniquement vers `/_mcx/e`; le Worker relaie ensuite côté serveur. Le proxy ne fait pas confiance au `X-Forwarded-For` fourni par le client lorsque Cloudflare fournit `CF-Connecting-IP`.
+La politique analytics repose sur une liste blanche partagée `js/analytics-schema.js`, appliquée à la fois dans le navigateur et dans `worker.js`. L'opt-out, GPC et DNT empêchent tout envoi. Le navigateur ne charge aucun tracker tiers et POSTe uniquement vers `/_mcx/e`; le Worker valide puis stocke l’événement dans `AnalyticsStore`. `CF-Connecting-IP` et le User-Agent servent uniquement au pseudonyme journalier HMAC et à des catégories agrégées.
 
 ## Choix de non-proxy
 
@@ -99,8 +99,8 @@ Les tests couvrent désormais notamment :
 - bypass `/_mcx/*` du Service Worker ;
 - configuration et réactivation de l'opt-out analytics ;
 - schéma partagé client/Worker, rejet des événements/propriétés arbitraires ;
-- propagation contrôlée User-Agent/IP vers Plausible ;
-- Worker first-party, timeout amont et limite de payload analytics.
+- pseudonymisation journalière HMAC sans stockage de l’IP/User-Agent bruts ;
+- Worker first-party, stockage SQLite et limite de payload analytics.
 
 ## Vigilance Météo-France
 

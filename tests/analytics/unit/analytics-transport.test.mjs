@@ -10,11 +10,11 @@ Object.defineProperty(globalThis,'dispatchEvent',{configurable:true,value:()=>tr
 Object.defineProperty(globalThis,'CustomEvent',{configurable:true,value:class CustomEvent{constructor(type,init={}){this.type=type;this.detail=init.detail;}}});
 Object.defineProperty(globalThis,'fetch',{configurable:true,value:async(url,options)=>{requests.push({url,options});return new Response('{}',{status:202,headers:{'content-type':'application/json'}});}});
 
-await import(`../../../js/mcx-events.js?transport-test=${Date.now()}`);
-assert.equal(typeof globalThis.plausible,'function');
+await import(`../../../js/analytics-transport.js?transport-test=${Date.now()}`);
+assert.equal(typeof globalThis.meteocompareTrack,'function');
 assert.equal(globalThis.__METEOCOMPARE_ANALYTICS_RUNTIME__.state,'loaded');
 
-const delivered=await new Promise(resolve=>globalThis.plausible('pageview',{
+const delivered=await new Promise(resolve=>globalThis.meteocompareTrack('pageview',{
   url:'https://meteocompare.app/city?utm_source=test',
   props:{page_group:'/city',language:'fr'},
   callback:resolve,
@@ -26,12 +26,11 @@ assert.equal(requests[0].options.credentials,'omit');
 assert.equal(requests[0].options.referrerPolicy,'no-referrer');
 assert.equal(requests[0].options.keepalive,true);
 const payload=JSON.parse(requests[0].options.body);
-assert.equal(payload.n,'pageview');
-assert.equal(payload.u,'https://meteocompare.app/city?utm_source=test');
-assert.equal(payload.d,'meteocompare.app');
-assert.equal(payload.r,'https://www.google.com/','external referrer must be reduced to its origin in-browser');
-assert.deepEqual(payload.p,{page_group:'/city',language:'fr'});
-assert.ok(!JSON.stringify(requests[0]).includes('plausible.io'),'browser request must not expose the Plausible upstream');
+assert.equal(payload.name,'pageview');
+assert.equal(payload.url,'https://meteocompare.app/city?utm_source=test');
+assert.equal(payload.referrer,'https://www.google.com/','external referrer must be reduced to its origin in-browser');
+assert.deepEqual(payload.props,{page_group:'/city',language:'fr'});
+assert.ok(!JSON.stringify(requests[0]).includes('third-party.example'),'browser request must stay on the first-party endpoint');
 
 globalThis.__METEOCOMPARE_ANALYTICS_CONTROL__.reportDelivery(delivered);
 assert.equal(globalThis.__METEOCOMPARE_ANALYTICS_RUNTIME__.lastDeliveryStatus,202);
@@ -39,7 +38,7 @@ assert.equal(globalThis.__METEOCOMPARE_ANALYTICS_RUNTIME__.lastDeliveryError,nul
 
 storage.set('meteocompare.web.analytics.optout.v1','1');
 globalThis.__METEOCOMPARE_ANALYTICS_CONTROL__.reconcile();
-const disabled=await new Promise(resolve=>globalThis.plausible('pageview',{url:'https://meteocompare.app/',callback:resolve}));
+const disabled=await new Promise(resolve=>globalThis.meteocompareTrack('pageview',{url:'https://meteocompare.app/',callback:resolve}));
 assert.equal(disabled.error,'disabled');
 assert.equal(requests.length,1,'opt-out must prevent any network request');
 console.log('MeteoCompare first-party analytics browser transport: OK');

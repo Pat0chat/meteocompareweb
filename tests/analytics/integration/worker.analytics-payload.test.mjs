@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { sanitizeAnalyticsIngressPayload } from '../../../js/analytics-schema.js';
+const allowedHosts=['meteocompare.app','www.meteocompare.app'];
+const ok=sanitizeAnalyticsIngressPayload({name:'pageview',url:'https://meteocompare.app/meteo/toulouse?secret=x&utm_source=google',referrer:'https://www.google.com/search?q=secret',props:{page_group:'/city',language:'fr',navigation:'seo',display_mode:'browser'}},{allowedHosts});
+assert.equal(ok.ok,true);
+assert.equal(ok.payload.url,'https://meteocompare.app/city?utm_source=google');
+assert.equal(ok.payload.referrer,'https://www.google.com/');
+assert.equal(JSON.stringify(ok).includes('toulouse'),false);
+assert.equal(JSON.stringify(ok).includes('secret'),false);
+const unknown=sanitizeAnalyticsIngressPayload({name:'Arbitrary Event',url:'https://meteocompare.app/'},{allowedHosts});
+assert.deepEqual(unknown,{ok:false,error:'EVENT_NOT_ALLOWED'});
+const wrong=sanitizeAnalyticsIngressPayload({name:'pageview',url:'https://evil.example/'},{allowedHosts});
+assert.deepEqual(wrong,{ok:false,error:'URL_NOT_ALLOWED'});
+console.log('Internal analytics payload validation: OK');

@@ -5,7 +5,7 @@
 `transport réseau → normalisation → contrats → persistance → domaine → vues`
 
 - `js/api.js` orchestre les appels Open-Meteo, les budgets réseau et les récupérations ciblées. Un lot rejeté pour sélection de modèle est subdivisé jusqu'à isoler les modèles fautifs ; 408/429/5xx et erreurs réseau restent des erreurs globales afin d'éviter une multiplication des requêtes. Il ne porte plus le décodage détaillé des séries.
-- `js/network-config.js` centralise les destinations, chemins first-party et politiques de transport. `js/network.js` applique les invariants communs navigateur (timeout/abort, `credentials: omit`, `no-referrer`, erreurs HTTP/JSON). Les flux Open-Meteo volumineux restent directs ; les métadonnées modèles et Plausible passent par `/_mcx/*`. Voir [`NETWORK.md`](NETWORK.md).
+- `js/network-config.js` centralise les destinations, chemins first-party et politiques de transport. `js/network.js` applique les invariants communs navigateur (timeout/abort, `credentials: omit`, `no-referrer`, erreurs HTTP/JSON). Les flux Open-Meteo volumineux restent directs ; la Vigilance et l’analytics first-party passent par `/_mcx/*`. Voir [`NETWORK.md`](NETWORK.md).
 - `js/data/forecast-normalizer.js` aligne les axes horaires/journaliers, filtre les valeurs impossibles, conserve les métadonnées de run, qualifie la couverture et marque les journées civiles partielles.
 - `js/data/contracts.js` est la frontière de confiance pour les réglages, villes et prévisions. Les IDs de modèles inconnus, coordonnées invalides, séries désalignées ou caches incohérents sont rejetés ou assainis avant le domaine.
 - `js/storage.js` applique les contrats aux lectures, migrations, imports et caches. Les réparations d'intégrité privilégient l'assainissement d'un record récupérable avant sa suppression.
@@ -31,9 +31,9 @@ Les primitives de rendu graphique génériques (`chartScale`, sélection de tick
 
 ## Mesure d'audience web
 
-`js/analytics-schema.js` est la source unique du contrat Plausible : routes agrégées, événements autorisés, propriétés de faible cardinalité et caractère interactif. `js/analytics.js` construit les pageviews/événements à partir de ce contrat ; `js/mcx-events.js` fournit un transport navigateur minimal vers le seul endpoint first-party `/_mcx/e`, gère l'opt-out/réactivation et le dernier état de livraison ; `worker.js` réapplique le même contrat avant de relayer côté serveur vers Plausible. Aucun script Plausible tiers n'est chargé dans le navigateur. Une nouvelle mesure doit donc être déclarée dans ce schéma partagé plutôt que directement dans une vue.
+`js/analytics-schema.js` est la source unique du contrat de mesure d’audience : routes agrégées, événements autorisés et propriétés de faible cardinalité. `js/analytics.js` construit les pageviews/événements ; `js/analytics-transport.js` les envoie uniquement à `/_mcx/e` en respectant opt-out, GPC et DNT ; `worker.js` réapplique le contrat, calcule un pseudonyme journalier HMAC puis stocke l’événement dans le Durable Object SQLite `AnalyticsStore`. Aucun fournisseur analytics tiers n’est utilisé.
 
-Le proxy analytics transmet explicitement le User-Agent et l'IP client fournie par Cloudflare à Plausible, sans accepter un `X-Forwarded-For` client non fiable. Aucune valeur météo, ville, coordonnée ou recherche n'entre dans le contrat.
+Le Worker ne stocke ni IP brute ni User-Agent brut. Ils servent uniquement au pseudonyme journalier et à des catégories agrégées. Aucune valeur météo, ville, coordonnée ou recherche n’entre dans le contrat.
 
 `js/ui/weather-icons.js` contient le système vectoriel météo. Le domaine (`models.js`, `domain.js`) expose uniquement des conditions et métadonnées métier. Les icônes sont statiques par défaut ; l'animation est explicitement demandée par la Home et Today Summary et respecte `prefers-reduced-motion`.
 
@@ -65,7 +65,7 @@ Le flux est : `ville normalisée → résolution département → /_mcx/vigilanc
 
 ## Topbar service monitoring
 
-The Web topbar exposes a passive system monitoring center. `/_mcx/health` checks only the first-party Worker and configuration flags; upstream providers are not synthetically probed. Forecast, Vigilance and Plausible rows reflect the latest real application requests.
+The Web topbar exposes a passive system monitoring center. `/_mcx/health` checks only the first-party Worker and configuration flags; upstream providers are not synthetically probed. Forecast and Vigilance rows reflect the latest real application requests. The private `/admin` page performs explicit service probes on demand.
 
 ## Utilitaires de shell HTML
 

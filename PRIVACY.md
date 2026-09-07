@@ -8,7 +8,7 @@ MeteoCompare ne contient ni publicité, ni tracker publicitaire, ni profilage ut
 
 La **version Android native** conserve son fonctionnement sans analytics MeteoCompare.
 
-La **version web** peut activer une mesure d’audience minimale via Plausible Analytics. Sa finalité est limitée à la mesure de la fréquentation et de la charge du site, au dimensionnement de l’hébergement et au suivi des installations PWA détectées. Ces statistiques ne servent ni à la publicité, ni au profilage, ni au suivi inter-sites. Sur le déploiement public `meteocompare.app`, cette mesure est activée et limitée aux hôtes de production explicitement autorisés ; localhost et les previews ne sont pas comptés.
+La **version web** peut activer une mesure d’audience minimale via mesure d’audience interne MeteoCompare. Sa finalité est limitée à la mesure de la fréquentation et de la charge du site, au dimensionnement de l’hébergement et au suivi des installations PWA détectées. Ces statistiques ne servent ni à la publicité, ni au profilage, ni au suivi inter-sites. Sur le déploiement public `meteocompare.app`, cette mesure est activée et limitée aux hôtes de production explicitement autorisés ; localhost et les previews ne sont pas comptés.
 
 ## 1. Données locales
 
@@ -34,7 +34,7 @@ Politique Open-Meteo : https://open-meteo.com/en/terms#privacy
 
 ## 3. Mesure d’audience minimale de la version web
 
-Lorsqu’elle est activée par l’éditeur du site, MeteoCompare utilise Plausible Analytics associé à `meteocompare.app` via un transport first-party minimal propre à MeteoCompare. Aucun script Plausible n’est chargé dans le navigateur : seuls les pageviews et événements explicitement autorisés sont envoyés à `/_mcx/e`, puis validés et relayés côté serveur par le Worker Cloudflare.
+Lorsqu’elle est activée par l’éditeur du site, MeteoCompare utilise une mesure d’audience entièrement first-party. Seuls les pageviews et événements explicitement autorisés sont envoyés à `/_mcx/e`, puis validés et stockés par le Worker Cloudflare dans un Durable Object SQLite.
 
 ### Finalité
 
@@ -85,7 +85,7 @@ Pour l’attribution d’acquisition :
 
 Les propriétés et événements acceptés sont filtrés par une liste blanche partagée entre le navigateur et le Worker Cloudflare afin qu’un identifiant, une chaîne arbitraire ou un événement forgé ne puisse pas être relayé par `/_mcx/e`. MeteoCompare construit une URL déjà anonymisée et réduit lui-même le referrer externe à son origine ; un referrer interne est supprimé avant l’envoi first-party. Aucun suivi automatique du scroll, de la visibilité des sections, des impressions ou du temps passé n’est activé.
 
-Les événements analytics sont relayés par le Worker Cloudflare de MeteoCompare vers Plausible. Pour préserver le fonctionnement prévu du service derrière ce proxy, le Worker transmet explicitement le User-Agent du navigateur et l’adresse client fournie par Cloudflare comme `X-Forwarded-For`, plutôt que de faire confiance à un header arbitraire fourni par le client. Plausible reçoit donc les métadonnées réseau nécessaires au traitement de la requête relayée. Sa documentation indique que l’IP et le User-Agent servent notamment au calcul des visiteurs uniques, au type d’appareil/navigateur et à la localisation agrégée du visiteur, et que l’IP brute n’est pas stockée dans sa base : https://plausible.io/docs/events-api
+Le Worker utilise l’adresse IP fournie par Cloudflare et le User-Agent uniquement pour calculer un pseudonyme journalier HMAC et des catégories agrégées (pays, type d’appareil, navigateur). L’IP et le User-Agent bruts ne sont jamais stockés. Le pseudonyme change chaque jour et ne sert pas au suivi inter-sites ou au profilage.
 
 ## 4. Cookies, identifiants et signaux de confidentialité
 
@@ -108,15 +108,15 @@ Le compteur `PWA Install Click` mesure uniquement le bouton interne de MeteoComp
 
 « Effacer les données locales » supprime les favoris, réglages, caches, historiques, snapshots, base IndexedDB et préférence locale d’opposition analytics. Le cache technique de la PWA peut être recréé automatiquement par le navigateur.
 
-Les statistiques déjà agrégées chez le fournisseur de mesure d’audience ne font pas partie du stockage local du navigateur.
+Les statistiques agrégées sont conservées côté Worker et ne font pas partie du stockage local du navigateur.
 
 ## 7. Version Android
 
-La version Android native ne reçoit pas cette instrumentation web et conserve la politique de mesure d’audience du projet Android. Elle n’utilise pas le mécanisme Plausible décrit ci-dessus.
+La version Android native ne reçoit pas cette instrumentation web et conserve la politique de mesure d’audience du projet Android.
 
 ## 8. Cadre réglementaire
 
-La minimisation technique de cette intégration ne constitue pas une certification ni une validation de conformité. Le responsable du site doit vérifier la configuration effective du fournisseur de mesure d’audience et les conditions applicables à son déploiement.
+La minimisation technique de cette intégration ne constitue pas une certification ni une validation de conformité. Le responsable du site doit vérifier la configuration effective du dispositif de mesure d’audience et les conditions applicables à son déploiement.
 
 La CNIL prévoit qu’une mesure d’audience peut, dans certains cas, bénéficier d’une exemption de consentement lorsque sa finalité est strictement limitée à la mesure de l’audience et des performances nécessaires au service — ce qui peut inclure l’estimation de la puissance des serveurs — et qu’elle sert à produire uniquement des statistiques anonymes. Elle impose également, selon le dispositif, l’absence de suivi inter-sites ou de réutilisation incompatible et appelle à la vigilance sur les transferts. **L’éligibilité réelle à une exemption dépend donc de la configuration effective du fournisseur au moment du déploiement.**
 
@@ -137,6 +137,6 @@ La vue **Radar pluie** de la page Détails est entièrement optionnelle et ne d�
 - **RainViewer** pour récupérer les images radar des deux dernières heures. Les coordonnées de la localité affichée sont incluses dans la requête d'image afin de centrer le radar. RainViewer reçoit donc ces coordonnées ainsi que les métadonnées réseau habituelles d'une requête HTTPS.
 - **OpenStreetMap** pour afficher le fond cartographique. Les requêtes concernent uniquement les tuiles nécessaires à la zone visible et respectent le cache HTTP du navigateur.
 
-Ces données ne sont pas ajoutées aux événements Plausible. Plausible reçoit uniquement des interactions fonctionnelles à faible cardinalité : ouverture du radar, classe de portée (`near`, `regional` ou `wide`), mode observation/projection, horizon sélectionné, passage plein écran et succès/échec technique d’un recalcul local. Aucun nom de ville, coordonnée ou contenu radar n’est transmis à Plausible.
+Ces données ne sont pas ajoutées aux événements analytics. La mesure interne reçoit uniquement des interactions fonctionnelles à faible cardinalité : ouverture du radar, classe de portée (`near`, `regional` ou `wide`), mode observation/projection, horizon sélectionné, passage plein écran et succès/échec technique d’un recalcul local. Aucun nom de ville, coordonnée ou contenu radar n’est stocké dans la mesure d’audience.
 
 Le radar public RainViewer fournit des observations passées. MeteoCompare peut calculer **localement dans le navigateur** une extrapolation courte durée à partir du déplacement observé sur plusieurs images radar. Ce calcul ne transmet aucune donnée supplémentaire : il estime un mouvement dominant, affiche des zones probabilistes jusqu'à +60 minutes et augmente volontairement l'incertitude avec l'horizon. Il s'agit d'un nowcast d'extrapolation, pas d'une nouvelle donnée future fournie par RainViewer. La synthèse multi-modèles reste affichée séparément pour compléter cette lecture.

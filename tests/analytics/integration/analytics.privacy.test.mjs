@@ -51,8 +51,8 @@ const env={
 assert.equal(sanitizedReferrer(env),'https://www.google.com/');
 assert.equal(sanitizedReferrer({...env,document:{...env.document,referrer:'https://meteocompare.app/meteo/paris?x=1'}}),null);
 
-const plausibleImpl=(name,options={})=>{calls.push({name,options});};
-const client=createAnalyticsClient({config:ANALYTICS_CONFIG,env,plausibleImpl});
+const transportImpl=(name,options={})=>{calls.push({name,options});};
+const client=createAnalyticsClient({config:ANALYTICS_CONFIG,env,transportImpl});
 assert.equal(client.status().active,true);
 assert.equal(client.status().hostAllowed,true);
 
@@ -123,23 +123,17 @@ for(const event of ['PWA Install Click','PWA Installed','PWA Install Prompt Resu
 assert.match(app,/trackCurrentPageView\(state\.route\)/);
 assert.match(app,/data-action="toggle-analytics"/);
 const html=fs.readFileSync(new URL('../../../index.html',import.meta.url),'utf8');
-const metricsTransport=fs.readFileSync(new URL('../../../js/mcx-events.js',import.meta.url),'utf8');
-assert.doesNotMatch(html,/connect-src[^\"]*https:\/\/plausible\.io/,'browser CSP should not connect directly to plausible.io');
-assert.doesNotMatch(html,/script-src[^\"]*https:\/\/plausible\.io/,'browser CSP should not load Plausible as a third-party script');
-assert.match(html,/src="js\/mcx-events\.js"/,'HTML should load the external privacy bootstrap');
+const metricsTransport=fs.readFileSync(new URL('../../../js/analytics-transport.js',import.meta.url),'utf8');
+assert.match(html,/src="js\/analytics-transport\.js"/,'HTML should load the first-party analytics transport');
 assert.doesNotMatch(html,/<script\b(?![^>]*src=)[^>]*>[\s\S]*?<\/script>/i,'HTML should contain no inline executable script');
 assert.match(metricsTransport,/ANALYTICS_CONFIG\.endpoint/);
 assert.match(metricsTransport,/allowedHosts\.includes\(host\)/);
 assert.match(metricsTransport,/globalThis\.navigator\?\.globalPrivacyControl/);
 assert.match(metricsTransport,/ANALYTICS_CONFIG\.optOutStorageKey/);
-assert.match(metricsTransport,/plausible\.init\(\{[\s\S]*autoCapturePageviews:\s*false/);
-assert.match(metricsTransport,/outboundLinks:\s*false/);
-assert.match(metricsTransport,/fileDownloads:\s*false/);
-assert.match(metricsTransport,/formSubmissions:\s*false/);
 assert.match(metricsTransport,/function safeReferrer\(/);
 assert.match(metricsTransport,/referrer\.origin\s*!==\s*origin/);
 assert.match(metricsTransport,/globalThis\.fetch\(ANALYTICS_CONFIG\.endpoint/,'browser analytics must POST only to the first-party endpoint');
-assert.doesNotMatch(metricsTransport,/document\.createElement\(['"]script['"]\)|https:\/\/plausible\.io/,'browser bootstrap must not load or contact Plausible directly');
+assert.doesNotMatch(metricsTransport,/document\.createElement\(['"]script['"]\)|https?:\/\/[^'"]+analytics/i,'browser transport must not load a third-party analytics provider');
 const privacy=fs.readFileSync(new URL('../../../PRIVACY.md',import.meta.url),'utf8');
 assert.match(privacy,/\/city.*\/meteo\/<ville>/);
 assert.match(privacy,/utm_source/);
@@ -160,4 +154,4 @@ assert.match(privacy,/configuration effective du fournisseur/);
 const sw=fs.readFileSync(new URL('../../../sw.js',import.meta.url),'utf8');
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(fs.readFileSync(new URL('../../../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
-console.log('MeteoCompare privacy-first Plausible analytics tests: OK');
+console.log('MeteoCompare privacy-first internal analytics tests: OK');

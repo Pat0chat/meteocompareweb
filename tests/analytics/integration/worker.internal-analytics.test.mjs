@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),'utf8');
+const html=read('index.html'),transport=read('js/analytics-transport.js'),worker=read('worker.js'),network=read('js/network-config.js'),store=read('js/server/analytics-store.js'),wrangler=read('wrangler.jsonc');
+assert.match(html,/src="js\/analytics-transport\.js"/);
+assert.match(worker,/sanitizeAnalyticsIngressPayload/);
+assert.match(worker,/analyticsStub\(env\)/);
+assert.match(worker,/ANALYTICS_HASH_SECRET/);
+assert.match(worker,/ADMIN_SESSION_SECRET/);
+assert.match(worker,/HttpOnly; Secure; SameSite=Strict/);
+assert.match(store,/CREATE TABLE IF NOT EXISTS events/);
+assert.match(store,/COUNT\(DISTINCT/);
+assert.match(wrangler,/"new_sqlite_classes"/);
+assert.match(wrangler,/"class_name": "AnalyticsStore"/);
+assert.match(wrangler,/"\/admin"/);
+assert.match(transport,/globalThis\.fetch\(ANALYTICS_CONFIG\.endpoint/);
+assert.match(read('js/analytics-config.js'),/provider: 'meteocompare'/);
+console.log('MeteoCompare internal analytics + private admin architecture: OK');

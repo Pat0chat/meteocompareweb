@@ -1,6 +1,6 @@
 # Configuration Cloudflare — MeteoCompare
 
-Le projet est préparé pour Cloudflare Workers Builds avec assets statiques, pré-rendu SEO et proxies first-party pour Plausible et la Vigilance officielle Météo-France. La politique réseau complète et les flux volontairement laissés directs sont documentés dans `NETWORK.md`.
+Le projet est préparé pour Cloudflare Workers Builds avec assets statiques, pré-rendu SEO, mesure d’audience first-party, administration privée et proxy Vigilance officielle Météo-France. La politique réseau complète et les flux volontairement laissés directs sont documentés dans `NETWORK.md`.
 
 ## Configuration recommandée — Settings > Build
 
@@ -40,11 +40,11 @@ Le build génère `dist/`. Le fichier `wrangler.jsonc` déclare déjà :
 }
 ```
 
-## Proxy Plausible first-party
+## Analytics first-party et administration
 
-`worker.js` relaie `/_mcx/e` vers l’Events API Plausible. Le navigateur ne charge plus de script Plausible externe ou proxifié : `js/mcx-events.js` construit localement les payloads minimaux et les envoie uniquement au endpoint first-party. Les destinations et timeouts sont centralisés dans `js/network-config.js` et les appels amont du Worker sont bornés. Les autres requêtes sont servies par le binding `ASSETS`. Le Service Worker navigateur contourne explicitement `/_mcx/*` afin que ces réponses dynamiques ne soient jamais figées dans le cache du shell PWA.
+`worker.js` stocke les événements de `/_mcx/e` dans le Durable Object SQLite. Le navigateur ne charge aucun tracker tiers : `js/analytics-transport.js` construit localement les payloads minimaux et les envoie uniquement au endpoint first-party. Les destinations et timeouts sont centralisés dans `js/network-config.js` et les appels amont du Worker sont bornés. Les autres requêtes sont servies par le binding `ASSETS`. Le Service Worker navigateur contourne explicitement `/_mcx/*` afin que ces réponses dynamiques ne soient jamais figées dans le cache du shell PWA.
 
-Ce mécanisme suit le modèle de proxy Cloudflare recommandé par Plausible. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `index.html` et les tests associés.
+Le Durable Object `AnalyticsStore` utilise SQLite et est déclaré dans `wrangler.jsonc`. `/admin` est protégé par une session signée côté Worker. Ne pas renommer ces chemins sans mettre à jour `js/analytics-config.js`, `admin.js` et les tests associés.
 
 ## Google Search Console
 
@@ -71,7 +71,7 @@ Si l'interface affiche `Build output directory` mais PAS `Deploy command`, utili
 - Build watch paths — Include : `*`
 - Build watch paths — Exclude : laisser vide
 
-Dans ce mode Pages, Cloudflare publie directement le contenu de `dist/` et il ne faut pas ajouter `npx wrangler deploy` comme étape de build. **Limitation :** le proxy first-party Plausible défini dans `worker.js` ne sera pas présent dans un déploiement purement statique. Pour la production `meteocompare.app`, privilégier le mode Workers Builds ci-dessus.
+Dans ce mode Pages, Cloudflare publie directement le contenu de `dist/` et il ne faut pas ajouter `npx wrangler deploy` comme étape de build. **Limitation :** le stockage analytics et l’administration définis dans `worker.js` ne seront pas présents dans un déploiement purement statique. Pour la production `meteocompare.app`, privilégier le mode Workers Builds ci-dessus.
 
 ## Vérifications après déploiement
 
@@ -104,4 +104,4 @@ Lors d'une migration depuis 1.16.38, ajouter d'abord `METEOFRANCE_API_KEY`, dép
 
 ### Monitoring endpoint
 
-`GET /_mcx/health` is handled directly by `worker.js`. It is intentionally cheap and uncached, reports whether the Vigilance secret is configured, and never exposes its value or calls Météo-France/Open-Meteo/Plausible.
+`GET /_mcx/health` is handled directly by `worker.js`. It is intentionally cheap and uncached, reports whether the Vigilance secret is configured, and never exposes its value or calls Météo-France/Open-Meteo/MeteoCompare Analytics.
