@@ -5586,3 +5586,197 @@ html[data-theme="dark"] .home-mini-hour { background:linear-gradient(180deg,colo
 /* Date guides: keep temporal landmarks visible above agreement-band fills. */
 .chart-date-guide{stroke:var(--chart-grid-strong);stroke-width:1.25;stroke-dasharray:4 4;opacity:.82;vector-effect:non-scaling-stroke;pointer-events:none}
 
+/* ========================================================================== */
+/* Requested city sidebar + local reliability refinements                     */
+/* ========================================================================== */
+
+/* Keep the forecast-engine action in the navigation rail, between navigation
+   and the page back action, with a compact treatment suited to the sidebar. */
+.detail-sidebar .forecast-engine-compare-slot { width:100%; margin:0; }
+.detail-sidebar .forecast-engine-compare-card {
+  grid-template-columns:32px minmax(0,1fr);
+  gap:9px;
+  min-height:0;
+  padding:10px 11px;
+  border-radius:var(--radius-sm);
+  background:var(--surface);
+  box-shadow:var(--shadow-sm);
+}
+.detail-sidebar .forecast-engine-compare-icon {
+  width:32px;
+  height:32px;
+  border-radius:9px;
+  font-size:1.2rem;
+}
+.detail-sidebar .forecast-engine-overview-copy { gap:3px; }
+.detail-sidebar .forecast-engine-overview-copy > strong {
+  font-size:.80rem;
+  line-height:1.2;
+}
+.detail-sidebar .forecast-engine-overview-copy > small,
+.detail-sidebar .forecast-engine-overview-chevron { display:none; }
+.detail-sidebar .forecast-engine-compare-meta { gap:5px; margin-top:0; }
+.detail-sidebar .forecast-engine-compare-meta b {
+  min-width:0;
+  overflow:hidden;
+  color:var(--muted);
+  font-size:.70rem;
+  font-weight:700;
+  line-height:1.25;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.detail-sidebar .forecast-engine-marks { gap:3px; }
+.detail-sidebar .forecast-engine-marks i { width:10px; height:2px; }
+.detail-sidebar .forecast-engine-marks i.active { width:16px; }
+
+/* Local reliability: fewer outer cards, stronger analytical hierarchy. */
+.bias-overview-panel { padding-bottom:22px; }
+.bias-overview-grid {
+  display:grid;
+  grid-template-columns:minmax(0,.92fr) minmax(420px,1.08fr);
+  gap:24px;
+  align-items:start;
+}
+.bias-performance-block,
+.bias-recent-block { min-width:0; }
+.bias-performance-block .bias-metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.bias-subhead {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:14px;
+  margin:0 0 12px;
+}
+.bias-subhead h3 { margin:0; font-size:.96rem; letter-spacing:-.012em; }
+.bias-subhead p { margin:4px 0 0; color:var(--muted); font-size:.76rem; line-height:1.45; }
+.bias-trend-summary {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;
+  gap:12px;
+  align-items:center;
+  margin-bottom:9px;
+  padding:10px 12px;
+  border-block:1px solid color-mix(in srgb,var(--border) 80%,transparent);
+}
+.bias-trend-summary div span { display:block; color:var(--muted); font-size:.7rem; }
+.bias-trend-summary div strong { display:block; margin-top:2px; font-size:.96rem; font-variant-numeric:tabular-nums; }
+.bias-trend-summary .bias-trend-arrow { color:var(--subtle); font-size:1rem; }
+.bias-trend-summary .pill { justify-self:end; }
+.bias-trend-chart-shell { min-width:0; }
+.bias-trend-chart-shell .chart-legend {
+  margin:0 0 2px;
+  padding:7px 2px 8px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.bias-trend-chart,
+.bias-chart { width:100%; height:auto; }
+.bias-trend-chart { display:block; min-height:220px; }
+.bias-trend-error-line,
+.bias-trend-mae-line {
+  fill:none;
+  vector-effect:non-scaling-stroke;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.bias-trend-error-line {
+  stroke:color-mix(in srgb,var(--muted) 70%,transparent);
+  stroke-width:1.8;
+  opacity:.78;
+}
+.bias-trend-mae-line {
+  stroke:var(--primary);
+  stroke-width:3;
+  filter:drop-shadow(0 1px 1px color-mix(in srgb,var(--primary) 16%,transparent));
+}
+.bias-trend-point {
+  fill:var(--surface);
+  stroke:color-mix(in srgb,var(--muted) 78%,var(--text));
+  stroke-width:1.7;
+  vector-effect:non-scaling-stroke;
+}
+.bias-date-axis { font-size:10px; }
+.bias-interactive-legend > span { display:inline-flex; align-items:center; gap:0; }
+.bias-legend-live {
+  display:none;
+  margin-left:7px;
+  color:var(--text);
+  font-size:.7rem;
+  font-variant-numeric:tabular-nums;
+}
+.bias-legend-live em { font-style:normal; font-weight:780; }
+.hover-chart-shell.is-hovering .bias-legend-live { display:inline; }
+.legend-line.bias-trend-daily {
+  border-top-color:color-mix(in srgb,var(--muted) 72%,transparent);
+  border-top-width:2px;
+}
+.legend-line.bias-trend-rolling { border-top-color:var(--primary); border-top-width:3px; }
+.bias-overview-baseline {
+  margin-top:22px;
+  padding-top:18px;
+  border-top:1px solid var(--border);
+}
+.bias-overview-baseline .bias-subhead { margin-bottom:10px; }
+.bias-overview-baseline .bias-baseline {
+  grid-template-columns:1fr 1fr minmax(240px,1.25fr);
+  gap:0;
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface-2);
+}
+.bias-overview-baseline .bias-baseline > div {
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.bias-overview-baseline .bias-baseline > div + div { border-left:1px solid var(--border); }
+.bias-history-panel { overflow:hidden; }
+.bias-diagnostics-grid {
+  display:grid;
+  grid-template-columns:minmax(0,1.45fr) minmax(260px,.55fr);
+  gap:28px;
+  align-items:start;
+}
+.bias-diagnostics-grid .bias-panel-head { margin-bottom:14px; }
+.bias-reading-compact {
+  min-width:0;
+  padding-left:26px;
+  border-left:1px solid var(--border);
+}
+.bias-reading-compact > p { margin:8px 0 14px; color:var(--muted); line-height:1.5; }
+.bias-reading-compact .bias-reading-note {
+  grid-template-columns:1fr;
+  gap:2px;
+  padding:12px 0 0;
+  border:0;
+  border-top:1px solid var(--border);
+}
+.bias-reading-compact .bias-reading-note strong { margin-top:6px; }
+
+@media (max-width:1120px) {
+  .bias-overview-grid { grid-template-columns:1fr; }
+  .bias-performance-block .bias-metrics-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+@media (max-width:900px) {
+  .bias-performance-block .bias-metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .bias-diagnostics-grid { grid-template-columns:1fr; gap:22px; }
+  .bias-reading-compact { padding:20px 0 0; border-left:0; border-top:1px solid var(--border); }
+  .bias-overview-baseline .bias-baseline { grid-template-columns:1fr 1fr; }
+  .bias-overview-baseline .bias-baseline-result { grid-column:1/-1; border-left:0 !important; border-top:1px solid var(--border) !important; }
+}
+@media (max-width:760px) {
+  .detail-sidebar .forecast-engine-compare-card { padding:10px 12px; }
+  .bias-trend-summary { grid-template-columns:1fr 1fr; gap:8px 12px; }
+  .bias-trend-summary .bias-trend-arrow { display:none; }
+  .bias-trend-summary .pill { grid-column:1/-1; justify-self:start; }
+  .bias-date-axis { font-size:10px; }
+}
+@media (max-width:520px) {
+  .bias-performance-block .bias-metrics-grid { grid-template-columns:1fr; }
+  .bias-overview-baseline .bias-baseline { grid-template-columns:1fr; }
+  .bias-overview-baseline .bias-baseline > div + div { border-left:0; border-top:1px solid var(--border); }
+  .bias-overview-baseline .bias-baseline-result { grid-column:auto; }
+}

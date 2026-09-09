@@ -31,6 +31,16 @@ assert.match(css,/\.evolution-summary \{/,'evolution revision summary must be st
 assert.match(css,/\.evolution-dispersion-band\{fill:color-mix\(in srgb,var\(--primary\) 10%,transparent\)\}/,'historical model spread must use a restrained fill');
 assert.match(css,/\.evolution-dispersion-edge\{[^}]*34%[^}]*stroke-width:1;/,'historical model spread boundaries must remain readable after attenuation');
 assert.match(css,/\.reliability-table-head,\.reliability-rank-row/,'local reliability must use a compact table-like layout');
+assert.match(app,/function renderBiasTrendChart\(samples,variable\)/,'J+1 reliability detail must render a real recent trend chart');
+assert.match(app,/biasDailyAbsoluteError/,'recent trend must expose daily absolute error');
+assert.match(app,/biasRollingMae7d/,'recent trend must expose a 7-day moving average');
+assert.match(app,/data-hover-chart="bias-history"/,'ERA5 history must support chart hover interaction');
+assert.match(app,/data-hover-date-style="FULL_DATE"/,'reliability charts must use full localized dates for hover');
+assert.match(app,/biasFullDateLabel\(samples\[i\]\.date\)/,'ERA5 history axis must render localized real dates instead of MM-DD slices');
+assert.match(app,/class="bias-overview-grid"/,'performance and recent evolution must share one outer panel');
+assert.match(app,/class="bias-diagnostics-grid"/,'distribution and bias reading must share one outer panel');
+assert.match(css,/\.bias-overview-grid \{/,'combined reliability overview must be styled');
+assert.match(css,/\.bias-diagnostics-grid \{/,'combined reliability diagnostics must be styled');
 
 // Simulate the precise ICON-D2 failure mode inside a 7-day multi-model
 // response: GFS is complete for 168 hours, ICON-D2 has only 3 usable hours.

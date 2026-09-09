@@ -33,7 +33,7 @@ for(const [lang,[title,central]] of Object.entries(expected)){
 // Back actions never overlap the topbar. City back is below/sibling of nav; other pages use page-level back.
 assert.doesNotMatch(app,/class="topbar-back"/);
 assert.match(app,/function renderPageBack\(\)/);
-assert.match(app,/<\/nav><\/div><button class="detail-back-button detail-sidebar-back"/);
+assert.match(app,/<\/nav><\/div>\$\{renderForecastEngineCompareAction\(\)\}<button class="detail-back-button detail-sidebar-back"/);
 assert.match(css,/\.page-back-shell\s*\{/);
 assert.match(css,/\.detail-sidebar\s*>\s*\.detail-sidebar-back\s*\{/);
 
