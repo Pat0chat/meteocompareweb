@@ -6,15 +6,25 @@ const read=file=>fs.readFileSync(new URL(`../../../${file}`,import.meta.url),'ut
 const app=read('js/app.js'),css=read('styles.css');
 const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
 
-assert.match(home,/home-mini-condition/,'Each compact hourly slot must expose a condition area');
-assert.match(home,/aggregateConditionMarkup\(point,'tiny'\)/,'Compact timeline must render the aggregate condition with consensus provenance');
+assert.match(home,/home-weather-axis-condition/,'Every hourly x-axis slot must expose its weather condition');
+assert.match(home,/aggregateConditionMarkup\(point,'tiny'\)/,'Hourly conditions must render the aggregate condition with consensus provenance');
 assert.match(home,/conditionInfo\.label/,'Timeline tooltips must include the localized condition label');
-assert.match(css,/\.home-mini-condition\s*\{/);
-assert.match(css,/\.home-mini-condition \.condition-icon \.wx-icon\s*\{[^}]*width:1\.35rem/s);
-assert.match(css,/\.home-mini-hour \{[^}]*grid-template-rows:auto 22px auto auto auto[^}]*padding:5px 3px/s,'Timeline layout must preserve a compact condition row and visible vertical breathing room');
-assert.match(css,/\.home-mini-time \{[^}]*line-height:1;/s,'Timeline hours must keep a compact line box away from the top edge');
-assert.match(css,/\.home-mini-rain \{[^}]*min-height:13px;[^}]*line-height:1;/s,'Timeline accumulation metadata must leave room above the lower edge');
-assert.match(css,/\.home-mini-hour small \{[^}]*line-height:1;/s,'Timeline accumulation values must not consume the restored bottom padding');
+assert.match(home,/home-temperature-line/,'Temperature must be represented by a graph line');
+assert.match(home,/gradientId=`home-temp-gradient-/,'Temperature graph must namespace its heatmap gradient');
+assert.match(home,/<linearGradient id=\"\$\{attr\(gradientId\)\}\"/,'Temperature graph must render the heatmap gradient in SVG');
+assert.match(home,/homeRainTimelineEvents\(points\)/,'Rain must be converted into grouped timeline events');
+assert.match(home,/home-weather-rain-hour/,'Rain signal must expose an aligned hourly probability lane');
+assert.match(home,/homeRainProbabilityValue/,'Rain signal must expose explicit rain probability semantics');
+assert.match(home,/amountLabel=isWetPrecipitation\(amount\)/,'Rain signal must expose conditional amount when rain is possible');
+assert.match(home,/home-weather-timeline-legend/,'The compact timeline must expose a real temperature and rain legend');
+assert.ok(home.indexOf('home-weather-timeline-scroll')<home.indexOf('${legend}</div>'),'The timeline legend must render below the scrollable weather timeline');
+assert.doesNotMatch(home,/home-weather-event-title/,'The redundant rain lane title must stay removed');
+assert.match(css,/\.home-weather-axis-condition\s*\{/);
+assert.match(css,/\.home-weather-axis-condition \.condition-icon \.wx-icon\s*\{[^}]*width:1\.28rem/s);
+assert.match(css,/\.home-temperature-plot\s*\{[^}]*height:92px/s,'Temperature graph must retain enough vertical room to show trend and labels');
+assert.match(css,/\.home-weather-rain-track\s*\{[^}]*display:grid;[^}]*grid-template-columns:repeat\(var\(--home-timeline-cols\),minmax\(0,1fr\)\);[^}]*min-height:40px/s,'Rain signal must remain aligned with the hourly x-axis');
+assert.match(css,/\.home-weather-rain-hour\.is-wet\s*\{[^}]*--rain-wet-top/s,'Rain cells must encode probability through visual intensity');
+assert.match(css,/\.home-temperature-scale>i\s*\{[^}]*linear-gradient\(90deg,#5b6ff9/s,'The legend must expose the shared temperature heat scale');
 
 assert.match(app,/homeCityAddedLoading[\s\S]*type:'loading'/,'Adding a city should provide progress feedback');
 assert.match(app,/homeCityAddedSuccess[\s\S]*type:'success'/,'Adding a city should update its toast on completion');
@@ -28,4 +38,4 @@ for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']){
   for(const key of ['homeCityAddedLoading','homeCityAddedSuccess','homeCityRemoved','forecastConfigToastTitle','forecastEngineChangedToast','refreshIntervalChangedToast','modelSelectionUpdatedDetailed','automaticRefreshPartialToast'])
     assert.equal(hasTranslation(pref,key),true,`${pref}.${key} missing`);
 }
-console.log('Home timeline conditions + contextual action toasts: OK');
+console.log('Home graphical timeline + contextual action toasts: OK');
