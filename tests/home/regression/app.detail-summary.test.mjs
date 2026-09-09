@@ -23,7 +23,7 @@ const specs=app.slice(app.indexOf('function collapsibleCitySpecs'),app.indexOf('
 assert.match(specs,/\['details'/);
 assert.doesNotMatch(specs,/\['today-summary'/);
 assert.doesNotMatch(specs,/\['diagnostics'/);
-assert.match(css,/\.timeline-card\[data-collapsed="true"\] \.timeline-mode\s*\{[^}]*display:none/s);
+assert.match(css,/\.timeline-card\[data-collapsed="true"\] \.timeline-controls\s*\{[^}]*display:none/s);
 assert.doesNotMatch(app,/class="detail-back-row"/);
 assert.match(app,/class="detail-back-button detail-sidebar-back" data-action="back"/);
 assert.match(app,/function renderPageBack\(\)/,'Secondary pages must use a page-level back control');

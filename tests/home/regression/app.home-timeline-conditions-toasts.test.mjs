@@ -16,15 +16,13 @@ assert.match(home,/homeRainTimelineEvents\(points\)/,'Rain must be converted int
 assert.match(home,/home-weather-rain-hour/,'Rain signal must expose an aligned hourly probability lane');
 assert.match(home,/homeRainProbabilityValue/,'Rain signal must expose explicit rain probability semantics');
 assert.match(home,/amountLabel=isWetPrecipitation\(amount\)/,'Rain signal must expose conditional amount when rain is possible');
-assert.match(home,/home-weather-timeline-legend/,'The compact timeline must expose a real temperature and rain legend');
-assert.ok(home.indexOf('home-weather-timeline-scroll')<home.indexOf('${legend}</div>'),'The timeline legend must render below the scrollable weather timeline');
+assert.doesNotMatch(home,/home-weather-timeline-legend/,'The compact home timeline must not retain a redundant legend');
 assert.doesNotMatch(home,/home-weather-event-title/,'The redundant rain lane title must stay removed');
 assert.match(css,/\.home-weather-axis-condition\s*\{/);
 assert.match(css,/\.home-weather-axis-condition \.condition-icon \.wx-icon\s*\{[^}]*width:1\.28rem/s);
 assert.match(css,/\.home-temperature-plot\s*\{[^}]*height:92px/s,'Temperature graph must retain enough vertical room to show trend and labels');
 assert.match(css,/\.home-weather-rain-track\s*\{[^}]*display:grid;[^}]*grid-template-columns:repeat\(var\(--home-timeline-cols\),minmax\(0,1fr\)\);[^}]*min-height:40px/s,'Rain signal must remain aligned with the hourly x-axis');
 assert.match(css,/\.home-weather-rain-hour\.is-wet\s*\{[^}]*--rain-wet-top/s,'Rain cells must encode probability through visual intensity');
-assert.match(css,/\.home-temperature-scale>i\s*\{[^}]*linear-gradient\(90deg,#5b6ff9/s,'The legend must expose the shared temperature heat scale');
 
 assert.match(app,/homeCityAddedLoading[\s\S]*type:'loading'/,'Adding a city should provide progress feedback');
 assert.match(app,/homeCityAddedSuccess[\s\S]*type:'success'/,'Adding a city should update its toast on completion');

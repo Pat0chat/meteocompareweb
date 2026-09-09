@@ -11,6 +11,7 @@ const DETAIL_MODES = new Set(['DAILY','HOURLY']);
 const DETAIL_TABS = new Set(['CONDITIONS','TEMPERATURE','PRECIPITATION','WIND']);
 const CONFIDENCE_METRICS = new Set(['TEMPERATURE','PRECIPITATION_PROBABILITY','PRECIPITATION','CLOUD','WIND','GUST']);
 const TIMELINE_MODES = new Set(['HOURLY','DAILY']);
+const TIMELINE_LAYOUTS = new Set(['COLUMNS','CHRONO']);
 const DENSITIES = new Set(['COMFORTABLE','COMPACT']);
 const CHART_HORIZONS = new Set([24,72,168]);
 const FORECAST_ENGINE_IDS = new Set(FORECAST_ENGINES);
@@ -26,6 +27,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   confidenceMetric: 'TEMPERATURE',
   chartHorizon: 168,
   timelineMode: 'HOURLY',
+  timelineLayout: 'COLUMNS',
   density: 'COMFORTABLE',
   localWeightedConsensus: false,
   forecastEngine: DEFAULT_FORECAST_ENGINE,
@@ -63,6 +65,7 @@ export function normalizeSettings(value={}){
     confidenceMetric: enumValue(source.confidenceMetric,CONFIDENCE_METRICS,DEFAULT_SETTINGS.confidenceMetric),
     chartHorizon: CHART_HORIZONS.has(chartHorizon)?chartHorizon:DEFAULT_SETTINGS.chartHorizon,
     timelineMode: enumValue(source.timelineMode,TIMELINE_MODES,DEFAULT_SETTINGS.timelineMode),
+    timelineLayout: enumValue(source.timelineLayout,TIMELINE_LAYOUTS,DEFAULT_SETTINGS.timelineLayout),
     density: enumValue(source.density,DENSITIES,DEFAULT_SETTINGS.density),
     localWeightedConsensus: source.localWeightedConsensus===true,
     forecastEngine: enumValue(source.forecastEngine,FORECAST_ENGINE_IDS,DEFAULT_SETTINGS.forecastEngine),

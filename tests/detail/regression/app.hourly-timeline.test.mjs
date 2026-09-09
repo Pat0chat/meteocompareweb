@@ -28,4 +28,11 @@ assert.match(renderPoint,/renderMetric\('precipitation-probability'[\s\S]*render
 assert.match(renderPoint,/timeline-metric-label[\s\S]*timelineRainProbabilityShort[\s\S]*timelineRainAmountShort/,'narrow metric rows must expose short labels rather than hiding long descriptions');
 assert.match(renderTimeline,/summaryRainExpectedLabel[\s\S]*windMedianLegend[\s\S]*gusts[\s\S]*timeline-rail-legend/,'the chronology legend must name weighted rain and gusts separately');
 assert.match(renderTimeline,/timeline-rail-legend[\s\S]*summarySpreadLegend[\s\S]*summaryIntervalLegend/,'the chronology legend must explain spread and intervals once globally');
+
+assert.match(app,/class="detail-chrono-view" data-chrono-mode="\$\{attr\(mode\)\}"/,'chronological strip must expose its hourly/daily mode for layout tuning');
+assert.match(styles,/\.detail-chrono-view\[data-chrono-mode="HOURLY"\] \{ --detail-chrono-axis-height:86px; \}/,'24 h condition lane must be taller so localized dates can use two lines');
+assert.match(styles,/\.detail-chrono-axis-hour small \{[^}]*-webkit-line-clamp:2;[^}]*white-space:normal;/,'24 h dates must wrap instead of being ellipsized');
+assert.match(styles,/--detail-chrono-label-width:136px;/,'chronological strip must reserve a wider first column for row labels');
+assert.match(app,/function divergenceIcon\(x\)[\s\S]*renderMetric\('temperature'[\s\S]*renderMetric\('precipitation'[\s\S]*renderMetric\('wind'[\s\S]*render\('PARTLY_CLOUDY'/,'chronological convergence warnings must use distinct weather icons for the affected variables');
+assert.match(app,/detail-chrono-disagreement-icons[\s\S]*reasons\.map\(reason=>[\s\S]*divergenceIcon\(reason\)/,'chronological convergence warnings must render one icon per affected variable');
 console.log('detail hourly timeline: OK');

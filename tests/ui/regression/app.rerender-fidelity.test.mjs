@@ -71,6 +71,8 @@ const bandFragment=html.slice(agreementStart,html.indexOf('id="evolution"',agree
 assert.doesNotMatch(bandFragment,/data-action="why-confidence"/,'Hourly agreement band must not own the explanation action');
 assert.match(html,/data-timeline-mode="HOURLY"/,'Timeline must offer 24h mode');
 assert.match(html,/data-timeline-mode="DAILY"/,'Timeline must offer 7-day mode');
+assert.match(html,/data-timeline-layout="COLUMNS"/,'Timeline must offer the columns layout');
+assert.match(html,/data-timeline-layout="CHRONO"/,'Timeline must offer the chronological strip layout');
 assert.match(html,/class="timeline-full"/,'Full rich timeline must be rendered');
 assert.match(html,/class="timeline-temp-band"/,'Timeline must retain thermal heat bands');
 assert.match(html,/class="timeline-precip-heat"/,'Timeline must retain precipitation heat indicators');
@@ -180,6 +182,12 @@ switched=clickDataset({detailTab:'CONDITIONS'});
 assert.match(switched,/weather-legend/,'Conditions table must expose the weather legend');
 switched=clickDataset({timelineMode:'DAILY'});
 assert.match(switched,/data-timeline-mode="DAILY"[^>]*class=|class="seg-btn active" data-timeline-mode="DAILY"/,'Timeline must be switchable to the 7-day view');
+switched=clickDataset({timelineLayout:'CHRONO'});
+assert.match(switched,/class="detail-chrono-view"/,'Timeline must switch to the extended chronological strip');
+assert.match(switched,/detail-chrono-rain-cell/,'Chronological strip must include rain probability and amount');
+assert.match(switched,/detail-chrono-cloud-cell/,'Chronological strip must include cloud cover');
+assert.match(switched,/detail-chrono-wind-cell/,'Chronological strip must include wind and gusts');
+assert.match(switched,/detail-chrono-agreement-cell/,'Chronological strip must include model convergence');
 
 let sourceBlurred=false;document.activeElement={blur(){sourceBlurred=true;}};
 window.scrollY=2400;document.documentElement.scrollTop=2400;document.body.scrollTop=2400;

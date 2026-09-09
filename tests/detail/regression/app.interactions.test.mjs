@@ -18,7 +18,7 @@ assert.match(app,/\[data-target-compare\]/,'Targeted model comparison must keep 
 assert.match(app,/toggle-target-compare/,'Comparison disclosure must use an explicit controlled accordion');
 assert.match(app,/state\.comparePanelOpen\[key\]=next/,'Comparison disclosure state must be tracked independently');
 assert.match(css,/\.detailed-card\[data-collapsed=\"true\"\] \.detailed-export-actions \.btn/,'Detailed export buttons should hide with the folded card while keeping the collapse control available');
-assert.match(css,/\.timeline-card\[data-collapsed=\"true\"\] \.timeline-mode/,'Timeline 24h/7d controls must hide when folded');
+assert.match(css,/\.timeline-card\[data-collapsed=\"true\"\] \.timeline-controls/,'Timeline 24h/7d controls must hide when folded');
 
 // Model health UI and its dedicated diagnostics disclosure have been removed.
 assert.doesNotMatch(app,/toggle-diagnostics|refresh-model-health|modelHealthMonitor|diagnosticsOpen/);

@@ -10,13 +10,14 @@ assert.deepEqual(normalizeModelIds(['UNKNOWN'], { fallback:false }), []);
 
 const normalized = normalizeSettings({
   enabledModelIds:['GFS','GFS','BAD'], theme:'DARK', language:'ITALIAN', refreshInterval:'MINUTES_30', modelSort:'FINESSE',
-  detailViewMode:'HOURLY', detailTab:'WIND', confidenceMetric:'PRECIPITATION', chartHorizon:'72', timelineMode:'DAILY', density:'COMPACT',
+  detailViewMode:'HOURLY', detailTab:'WIND', confidenceMetric:'PRECIPITATION', chartHorizon:'72', timelineMode:'DAILY', timelineLayout:'CHRONO', density:'COMPACT',
   localWeightedConsensus:true, forecastEngine:'SCENARIOS', collapsedSections:{ good:true, open:false, bad:'yes', ["x".repeat(161)]:true }, extra:'ignored'
 });
 assert.deepEqual(normalized.enabledModelIds, ['GFS']);
 assert.equal(normalized.theme, 'DARK');
 assert.equal(normalized.language, 'ITALIAN');
 assert.equal(normalized.chartHorizon, 72);
+assert.equal(normalized.timelineLayout, 'CHRONO');
 assert.equal(normalized.localWeightedConsensus, true);
 assert.equal(normalized.forecastEngine, 'SCENARIOS');
 assert.deepEqual(normalized.collapsedSections, { good:true, open:false });

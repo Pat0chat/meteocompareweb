@@ -24,8 +24,8 @@ assert.match(css,/\.detail-sidebar-back\s*\{[^}]*width:100%/s);
 assert.match(css,/@media \(max-width:1040px\)[^]*\.detail-nav\s*\{[^}]*display:grid[^}]*overflow:visible/s);
 
 // Timeline selector stays right-aligned and disappears with a collapsed timeline card.
-assert.match(css,/\.timeline-card \.timeline-mode\s*\{[^}]*margin-left:auto/s);
-assert.match(css,/\.timeline-card\[data-collapsed="true"\] \.timeline-mode\s*\{[^}]*display:none/s);
+assert.match(css,/\.timeline-card \.timeline-controls\s*\{[^}]*margin-left:auto/s);
+assert.match(css,/\.timeline-card\[data-collapsed="true"\] \.timeline-controls\s*\{[^}]*display:none/s);
 
 // Targeted model selection rerenders only its controlled inner panel, never the whole detailed card.
 assert.match(app,/function rerenderTargetedComparisonPanel\(\)/);
