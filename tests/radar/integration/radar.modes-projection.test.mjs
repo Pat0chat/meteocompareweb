@@ -49,7 +49,7 @@ assert.match(css,/\.radar-modal-content\[data-radar-mode="projection"\] \.radar-
 assert.match(css,/\.radar-horizon-selector\{/,'projection lead-time selector must have a dedicated compact style');
 assert.match(css,/\.radar-horizon-selector \.seg-btn\.active\{/,'selected horizon must be visually obvious');
 assert.match(css,/\.radar-projection-actions\{/,'projection actions must accommodate the lead selector and recalculation button');
-assert.match(css,/\.radar-recalculate-button\[aria-busy=\"true\"] \.radar-recalculate-icon\{animation:meteo-spin/,'recalculation button must expose a visible busy state');
+assert.match(css,/\.radar-recalculate-button\[aria-busy=\"true\"] \.radar-recalculate-icon\{animation:spin/,'recalculation button must expose a visible busy state');
 assert.match(css,/\.radar-zone-key\.probable i\{[^}]*border:1\.5px dashed var\(--primary\)/s,'probable-area legend must match the dashed uncertainty envelope');
 assert.match(css,/\.radar-zone-key\.forecast i\{[^}]*border:2px solid var\(--primary\)/s,'forecast legend must match the solid projected outline');
 assert.match(css,/\.radar-zone-key\.observed i\{[^}]*border-top:2px dashed var\(--primary\)/s,'observed-trajectory legend must match the dashed observed track');

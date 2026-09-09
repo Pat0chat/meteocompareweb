@@ -12,7 +12,7 @@ assert.doesNotMatch(app,/aboutVisualEyebrow/,'About hero must not render a redun
 for(const step of [1,2,3,4,5,6]) assert.match(app,new RegExp(`about-visual-step-number\\">${step}<`),`About visual step ${step} missing`);
 assert.match(app,/about-visual-engine-grid/,'About must explain the four variable calculation modes visually');
 for(const engine of ['MULTI_CONSENSUS','CALIBRATION','SCENARIOS','ADAPTIVE']) assert.match(app,new RegExp(engine),`${engine} must remain represented in About`);
-assert.match(app,/aboutVisualEngine\$\{key\}Short/,'engine cards must use dedicated pedagogical copy for every calculation mode');
+assert.match(app,/aboutVisualEngine\$\{meta\.key\}Short/,'engine cards must use centralized metadata and dedicated pedagogical copy for every calculation mode');
 assert.match(app,/about-visual-consensus-top/,'hierarchical condition consensus must have its own visual hierarchy');
 assert.match(app,/about-visual-radar-frames/,'radar observation/projection must be represented visually');
 assert.match(app,/about-visual-dashboard/,'decision-support section must use dashboard visuals rather than a person illustration');

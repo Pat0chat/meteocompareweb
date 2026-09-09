@@ -6,7 +6,7 @@ const version=APP_VERSION,versionJs=read('js/version.js'),sw=read('sw.js'),app=r
 assert.match(versionJs,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/APP_VERSION = globalThis\.METEOCOMPARE_APP_VERSION/);
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
-const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
+const home=app.slice(app.indexOf('function homeTimelinePoints'),app.indexOf('function renderCityDetail'));
 assert.match(home,/class="home-hero"/);
 assert.match(home,/home-city-grid/);
 assert.match(home,/home-weather-timeline/);
@@ -16,7 +16,7 @@ assert.match(home,/class="home-weather-timeline-scroll" role="region" tabindex="
 assert.match(home,/class="home-temperature-plot"/,'the timeline must contain a real temperature graph');
 assert.match(home,/class="home-weather-axis"/,'hourly conditions must form the graph x-axis');
 assert.match(home,/class="home-weather-event-lane"/,'weather events must have a dedicated temporal lane');
-assert.match(home,/homeRainTimelineEvents/,'rain events must be grouped as temporal episodes');
+assert.match(home,/groupRainTimelineEvents/,'rain events must be grouped as temporal episodes');
 assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail/);
 assert.match(home,/homeWatchCandidate/);
 assert.match(home,/home-watch-section/);

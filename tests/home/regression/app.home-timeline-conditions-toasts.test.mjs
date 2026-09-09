@@ -4,7 +4,7 @@ import { hasTranslation } from '../../../js/i18n.js';
 
 const read=file=>fs.readFileSync(new URL(`../../../${file}`,import.meta.url),'utf8');
 const app=read('js/app.js'),css=read('styles.css');
-const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
+const home=app.slice(app.indexOf('function homeTimelinePoints'),app.indexOf('function renderCityDetail'));
 
 assert.match(home,/home-weather-axis-condition/,'Every hourly x-axis slot must expose its weather condition');
 assert.match(home,/aggregateConditionMarkup\(point,'tiny'\)/,'Hourly conditions must render the aggregate condition with consensus provenance');
@@ -12,7 +12,7 @@ assert.match(home,/conditionInfo\.label/,'Timeline tooltips must include the loc
 assert.match(home,/home-temperature-line/,'Temperature must be represented by a graph line');
 assert.match(home,/gradientId=`home-temp-gradient-/,'Temperature graph must namespace its heatmap gradient');
 assert.match(home,/<linearGradient id=\"\$\{attr\(gradientId\)\}\"/,'Temperature graph must render the heatmap gradient in SVG');
-assert.match(home,/homeRainTimelineEvents\(points\)/,'Rain must be converted into grouped timeline events');
+assert.match(home,/groupRainTimelineEvents\(points\)/,'Rain must be converted into grouped timeline events');
 assert.match(home,/home-weather-rain-hour/,'Rain signal must expose an aligned hourly probability lane');
 assert.match(home,/homeRainProbabilityValue/,'Rain signal must expose explicit rain probability semantics');
 assert.match(home,/amountLabel=isWetPrecipitation\(amount\)/,'Rain signal must expose conditional amount when rain is possible');

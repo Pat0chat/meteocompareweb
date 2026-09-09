@@ -7,7 +7,7 @@ import { WeatherIconRenderer } from '../../../js/ui/weather-icons.js';
 import { APP_VERSION } from '../../../js/version.js';
 
 const read=p=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),'utf8');
-const version=APP_VERSION,versionJs=read('js/version.js'),app=read('js/app.js'),css=read('styles.css'),html=read('index.html'),sw=read('sw.js');
+const version=APP_VERSION,versionJs=read('js/version.js'),app=read('js/app.js'),css=read('styles.css'),html=read('index.html'),sw=read('sw.js'),timelineUtils=read('js/ui/timeline-utils.js');
 assert.ok(/^\d+\.\d+\.\d+$/.test(version));
 assert.ok(versionJs.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
 assert.ok(sw.includes('APP_VERSION = globalThis.METEOCOMPARE_APP_VERSION'));
@@ -35,7 +35,9 @@ assert.match(css,/\.summary-weather-icon \.wx-icon \{ width:62px; height:62px; \
 assert.match(css,/\.scenario-icon \.wx-icon \{ width:2\.15rem; height:2\.15rem; \}/);
 assert.match(css,/\.timeline-condition \.condition-icon \.wx-icon \{ width:2\.15rem; height:2\.15rem; \}/);
 assert.match(css,/\.forecast-table td \.condition-icon \.wx-icon \{ width:1\.95rem; height:1\.95rem; \}/);
-assert.match(css,/\.home-mini-rain[\s\S]*margin-block:2px 3px/);
+assert.match(timelineUtils,/export function temperatureHeatColor/);
+assert.match(timelineUtils,/export function groupRainTimelineEvents/);
+assert.doesNotMatch(css,/\.home-mini-rain\b/,'obsolete pre-frise rain selector must stay removed');
 assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:day,'normal',true\)/);
 assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:agg,'normal',true\)/);
 

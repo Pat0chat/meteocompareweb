@@ -43,7 +43,8 @@ assert.match(wrangler,/"directory"\s*:\s*"\.\/dist"/);
 assert.match(wrangler,/"not_found_handling"\s*:\s*"404-page"/,'Cloudflare must return a real 404 for unknown clean URLs instead of a soft-404 SPA fallback');
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 assert.match(fs.readFileSync(new URL('../../../cache-version.js',import.meta.url),'utf8'),/METEOCOMPARE_CACHE_VERSION = 'v\d+[-a-z0-9]+'/);
-assert.match(sw,/cache\.put\(request,copy\)/,'navigation cache must preserve each clean URL independently');
+assert.match(sw,/function cacheSuccessfulResponse\(key,response\).*cache\.put\(key,copy\)/,'service-worker cache writes must preserve their explicit request key');
+assert.match(sw,/request\.mode==='navigate'[\s\S]*cacheSuccessfulResponse\(request,response\)/,'navigation cache must preserve each clean URL independently');
 
 execFileSync(process.execPath,['tools/build-site.mjs'],{cwd:root,stdio:'pipe'});
 const cityDir=resolve(root,'dist/meteo');

@@ -7,7 +7,7 @@ assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/);
 const fr=read('js/locales/fr.js');
 assert.doesNotMatch(fr,/"homeModernTitle"/,'The removed Home hero title must not remain in the locale catalogue');
 assert.match(fr,/"homeModernLead":"[^"]*converg[^"]*diverg[^"]*"/i,'The remaining hero copy must carry the multi-model value proposition');
-const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
+const home=app.slice(app.indexOf('function homeTimelinePoints'),app.indexOf('function renderCityDetail'));
 assert.match(home,/home-weather-coherence/);
 assert.doesNotMatch(home,/renderHomeConsensusStrip|home-consensus-rail|home-model-dot/);
 

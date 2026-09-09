@@ -19,6 +19,7 @@ function validCityCoordinates(city){
   if(!Number.isFinite(latitude)||latitude<-90||latitude>90||!Number.isFinite(longitude)||longitude<-180||longitude>180){const error=new Error('INVALID_CITY');error.code='INVALID_CITY';throw error;}
   return {...city,latitude,longitude};
 }
+function marineUrl(city){const u=new URL(MARINE_URL);u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));return u;}
 function marineGridAvailability(raw,city,waveValues=raw?.hourly?.wave_height){
   const gridLat=Number(raw?.latitude),gridLon=Number(raw?.longitude),distanceKm=Number.isFinite(gridLat)&&Number.isFinite(gridLon)?haversineKm(Number(city.latitude),Number(city.longitude),gridLat,gridLon):null,usablePoints=countFinite(waveValues),hasUsableData=usablePoints>=3;
   if(!hasUsableData)return {available:null,reason:'NO_USABLE_WAVE_DATA',distanceKm,usablePoints};
@@ -26,20 +27,18 @@ function marineGridAvailability(raw,city,waveValues=raw?.hourly?.wave_height){
   return {available:distanceKm<=COASTAL_MAX_DISTANCE_KM,reason:distanceKm<=COASTAL_MAX_DISTANCE_KM?'COASTAL_GRID':'GRID_TOO_FAR',distanceKm,usablePoints};
 }
 function capabilityUrlFor(city,model){
-  const u=new URL(MARINE_URL);u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));u.searchParams.set('hourly','wave_height');u.searchParams.set('timezone',city.timezone||'auto');u.searchParams.set('forecast_hours','12');u.searchParams.set('cell_selection','sea');u.searchParams.set('models',model);return u;
+  const u=marineUrl(city);u.searchParams.set('hourly','wave_height');u.searchParams.set('timezone',city.timezone||'auto');u.searchParams.set('forecast_hours','12');u.searchParams.set('cell_selection','sea');u.searchParams.set('models',model);return u;
 }
 
 function urlFor(city){
-  const u=new URL(MARINE_URL);
-  u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));
+  const u=marineUrl(city);
   // Keep the Marine request under 10 variables: daily summaries are derived client-side.
   u.searchParams.set('hourly','wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature,sea_level_height_msl');
   u.searchParams.set('timezone',city.timezone||'auto');u.searchParams.set('forecast_days','7');u.searchParams.set('cell_selection','sea');
   return u;
 }
 function waveUrlFor(city,model){
-  const u=new URL(MARINE_URL);
-  u.searchParams.set('latitude',String(city.latitude));u.searchParams.set('longitude',String(city.longitude));
+  const u=marineUrl(city);
   u.searchParams.set('hourly','wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period');
   u.searchParams.set('timezone',city.timezone||'auto');u.searchParams.set('forecast_days','7');u.searchParams.set('cell_selection','sea');u.searchParams.set('models',model);
   return u;

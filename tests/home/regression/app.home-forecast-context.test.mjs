@@ -4,7 +4,7 @@ import { hasTranslation } from '../../../js/i18n.js';
 
 const read=file=>fs.readFileSync(new URL(`../../../${file}`,import.meta.url),'utf8');
 const app=read('js/app.js'),css=read('styles.css'),build=read('tools/build-site.mjs');
-const home=app.slice(app.indexOf('function homeForecastEngineContext'),app.indexOf('function renderCityDetail'));
+const home=app.slice(app.indexOf('function homeTimelinePoints'),app.indexOf('function renderCityDetail'));
 const meta=app.slice(app.indexOf('function renderHomeForecastMeta'),app.indexOf('function archiveCallLabel'));
 
 assert.match(meta,/selectedForecastModels\(\)/,'Home must expose the selected forecast models');

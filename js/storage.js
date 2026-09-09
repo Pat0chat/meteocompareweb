@@ -253,11 +253,12 @@ async function mapLimited(items,limit,worker){
   const runners=Array.from({length:Math.min(Math.max(1,limit),items.length)},async()=>{while(cursor<items.length){const i=cursor++;out[i]=await worker(items[i],i);}});
   await Promise.all(runners);return out;
 }
+async function pwaCacheNames(){return typeof caches==='undefined'?[]:(await caches.keys()).filter(name=>String(name).startsWith(PWA_CACHE_PREFIX));}
 async function cacheStorageStats(){
   if(typeof caches==='undefined')return {bytes:0,entries:0,caches:[]};
   const result={bytes:0,entries:0,caches:[]};
   try {
-    const names=(await caches.keys()).filter(name=>String(name).startsWith(PWA_CACHE_PREFIX));
+    const names=await pwaCacheNames();
     const rows=await mapLimited(names,3,async name=>{
       const cache=await caches.open(name),requests=await cache.keys();
       const sizes=await mapLimited(requests,6,async req=>{try{const res=await cache.match(req),header=Number(res?.headers?.get?.('content-length'));return Number.isFinite(header)&&header>=0?header:(res?((await res.clone().arrayBuffer()).byteLength||0):0);}catch{return 0;}});
@@ -392,7 +393,7 @@ export async function clearPwaRuntime() {
   let cachesDeleted=0,registrationsUnregistered=0;
   if(typeof caches!=='undefined'){
     try{
-      const names=(await caches.keys()).filter(name=>String(name).startsWith(PWA_CACHE_PREFIX));
+      const names=await pwaCacheNames();
       const results=await Promise.all(names.map(name=>caches.delete(name).catch(()=>false)));
       cachesDeleted=results.filter(Boolean).length;
     }catch{}

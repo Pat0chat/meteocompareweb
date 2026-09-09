@@ -11,5 +11,6 @@ assert.doesNotMatch(app,/function renderInsights\(/,'À retenir is intentionally
 assert.doesNotMatch(app,/insights-section insights-section-wide/,'À retenir markup must not remain');
 assert.doesNotMatch(css,/\.insights-section-wide\s*\{/,'obsolete À retenir styling must be removed');
 assert.match(app,/<\/nav><\/div>\$\{renderForecastEngineCompareAction\(\)\}<button class="detail-back-button detail-sidebar-back"/,'engine comparison belongs in the city sidebar before back');
-assert.match(app,/function homeForecastEngineContext\(cityId\)\{\s*return forecastEngineContext\(cityId\);/,'Home must reuse the same forecast-engine context as City Details');
+assert.doesNotMatch(app,/function homeForecastEngineContext\(/,'Home must not keep a redundant forecast-engine context pass-through');
+assert.match(app,/const engineContext=forecastEngineContext\(city\.id\),now=currentConditions\(f,new Date\(\),engineContext\)/,'Home must reuse the same forecast-engine context as City Details');
 console.log(`MeteoCompare Web ${APP_VERSION} detail-noise cleanup + forecast-engine home context: OK`);

@@ -20,6 +20,7 @@ async function fetchJson(url, timeoutMs=30000, externalSignal=null, category='ot
   return fetchOpenMeteoJson(url,{timeoutMs,signal:externalSignal,category,cacheTtlMs,dedupe:!externalSignal});
 }
 function requireCity(city){const latitude=Number(city?.latitude),longitude=Number(city?.longitude);if(Number.isFinite(latitude)&&latitude>=-90&&latitude<=90&&Number.isFinite(longitude)&&longitude>=-180&&longitude<=180)return {...city,latitude,longitude};const err=new Error('INVALID_CITY');err.code='INVALID_CITY';throw err;}
+function withCityCoordinates(url,city){url.searchParams.set('latitude',String(city.latitude));url.searchParams.set('longitude',String(city.longitude));return url;}
 
 
 export async function searchCities(query, language='fr', signal=null) {
@@ -36,9 +37,7 @@ export async function searchCities(query, language='fr', signal=null) {
 }
 
 function forecastUrl(city, models, forecastDays, forecastHours, includeDaily=true) {
-  const u = new URL(FORECAST_URL);
-  u.searchParams.set('latitude', String(city.latitude));
-  u.searchParams.set('longitude', String(city.longitude));
+  const u = withCityCoordinates(new URL(FORECAST_URL),city);
   u.searchParams.set('models', models.map(m=>m.apiKey).join(','));
   u.searchParams.set('hourly', HOURLY_VARS);
   if (includeDaily) u.searchParams.set('daily', DAILY_VARS);
@@ -126,8 +125,7 @@ export async function fetchForecast(city, enabledModelIds, requestedDays=7) {
 
 export async function fetchClimateNormals(city, startDate, endDate) {
   city=requireCity(city);
-  const u = new URL(ARCHIVE_URL);
-  u.searchParams.set('latitude',String(city.latitude)); u.searchParams.set('longitude',String(city.longitude));
+  const u = withCityCoordinates(new URL(ARCHIVE_URL),city);
   u.searchParams.set('start_date',startDate); u.searchParams.set('end_date',endDate);
   u.searchParams.set('daily','temperature_2m_max,temperature_2m_min'); u.searchParams.set('timezone',city.timezone||'auto');
   u.searchParams.set('models','era5'); u.searchParams.set('temperature_unit','celsius');
@@ -151,8 +149,7 @@ function previousRunHealth(raw,model,single){
   return {expected,minimum,counts,criticalMin,degraded:expected>0&&criticalMin<minimum,hasAny:values.some(Boolean)};
 }
 function previousRunsUrl(city,models,startDate,endDate){
-  const u = new URL(PREVIOUS_RUNS_URL);
-  u.searchParams.set('latitude',String(city.latitude)); u.searchParams.set('longitude',String(city.longitude));
+  const u = withCityCoordinates(new URL(PREVIOUS_RUNS_URL),city);
   u.searchParams.set('models',models.map(m=>m.apiKey).join(','));
   const leadDays=[...new Set(models.flatMap(biasLeadDaysForModel))].sort((a,b)=>a-b);
   const variables=leadDays.flatMap(day=>['temperature_2m','precipitation','wind_speed_10m'].map(base=>`${base}_previous_day${day}`));
@@ -188,8 +185,7 @@ export async function fetchPreviousRuns(city, models, startDate, endDate) {
 
 export async function fetchBiasArchive(city, startDate, endDate) {
   city=requireCity(city);
-  const u = new URL(ARCHIVE_URL);
-  u.searchParams.set('latitude',String(city.latitude)); u.searchParams.set('longitude',String(city.longitude));
+  const u = withCityCoordinates(new URL(ARCHIVE_URL),city);
   u.searchParams.set('start_date',startDate); u.searchParams.set('end_date',endDate);
   u.searchParams.set('daily','temperature_2m_max,precipitation_sum,wind_speed_10m_max');
   // Use one stable reanalysis reference for local forecast skill. The archive API's

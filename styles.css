@@ -628,13 +628,6 @@ html[data-theme="dark"] .forecast-table thead th:first-child { background: #071d
 .forecast-table tbody tr:nth-child(even) td, .forecast-table tbody tr:nth-child(even) th { background-color: color-mix(in srgb, var(--surface-2) 52%, transparent); }
 .forecast-table tbody tr:hover td, .forecast-table tbody tr:hover th { outline: 1px solid color-mix(in srgb, var(--primary) 24%, transparent); outline-offset: -1px; }
 
-@media (max-width: 1320px) {
-  .overview-primary { display: block; }
-  .overview-primary > .section { display: block; }
-  .overview-primary .summary-card { min-height: 0; }
-    .overview-secondary { height: auto; grid-template-rows: none; }
-  .overview-secondary > .section:last-child, .overview-secondary > .section:last-child .section-card { min-height: 0; }
-}
 @media (max-width: 760px) {
   body { background-size: 24px 24px, 24px 24px, auto; }
   .overview-primary .today-grid { grid-template-columns: 1fr 1fr; }
@@ -1057,8 +1050,7 @@ body, html[data-theme="dark"] body { background-image: none; }
 }
 .nav-icon, .btn-icon { display: inline-grid; place-items: center; flex: 0 0 auto; }
 .nav-icon svg, .btn-icon svg, .icon-btn svg { display: block; }
-.btn-icon.spinning svg { animation: meteo-spin .8s linear infinite; }
-@keyframes meteo-spin { to { transform: rotate(360deg); } }
+.btn-icon.spinning svg { animation: spin .8s linear infinite; }
 
 /* Action hierarchy, agreement envelope and model-header polish */
 /* Metric intervals use the metric accent; agreement colours remain confined to the strip below. */
@@ -1760,16 +1752,13 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 .about-method { margin-bottom:14px; }
 .about-method .section-head { margin-bottom:14px; }
 .about-method-flow { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
-.about-method-flow article { display:grid; grid-template-columns:auto 1fr; gap:11px; align-items:start; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--surface-2); }
-.about-method-flow h3 { margin:1px 0 5px; font-size:.84rem; }
-.about-method-flow p { margin:0; color:var(--muted); font-size:.74rem; line-height:1.55; }
+.about-method-flow:not(.about-visual-steps) article { display:grid; grid-template-columns:auto 1fr; gap:11px; align-items:start; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--surface-2); }
+.about-method-flow:not(.about-visual-steps) h3 { margin:1px 0 5px; font-size:.84rem; }
+.about-method-flow:not(.about-visual-steps) p { margin:0; color:var(--muted); font-size:.74rem; line-height:1.55; }
 .about-principle-card { display:flex; flex-direction:column; }
 .about-callout { margin-top:auto; padding:9px 10px; border-left:2px solid var(--primary); border-radius:0 8px 8px 0; background:color-mix(in srgb,var(--primary-soft) 48%,transparent); color:var(--muted); font-size:.7rem; line-height:1.5; }
 .about-callout.warning { border-left-color:var(--medium); background:color-mix(in srgb,var(--medium) 7%,var(--surface)); }
 
-@media(max-width:900px){
-    .about-method-flow { grid-template-columns:1fr; }
-}
 @media(max-width:760px){
   .agreement-chart-wrap .agreement-band-hover .chart { min-width:720px; }
   .agreement-chart-wrap { overflow-x:auto; overflow-y:hidden; }
@@ -2025,7 +2014,7 @@ html[data-theme="dark"] .topbar .bluesky-nav:hover { color:#fff; background:colo
 
 @media(max-width:1050px){.storage-category-grid-simple{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:980px){.about-method-flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:760px){.settings-control-grid, .settings-control-grid-two{grid-template-columns:1fr;justify-content:stretch}.about-method-flow{grid-template-columns:1fr}.storage-kpis-simple{grid-template-columns:1fr}.about-hero-simple{padding:20px}.storage-advanced>summary{align-items:flex-start}.storage-category-grid-simple{grid-template-columns:1fr}}
+@media(max-width:760px){.settings-control-grid, .settings-control-grid-two{grid-template-columns:1fr;justify-content:stretch}.about-method-flow{grid-template-columns:1fr}.storage-kpis-simple{grid-template-columns:1fr}.about-hero-simple{padding:20px}.storage-advanced>summary{align-items:flex-start}}
 @media(max-width:900px){.storage-category-grid-simple{grid-template-columns:1fr}}
 
 /* Global copy rhythm, alignment and positioning */
@@ -3188,8 +3177,6 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
 @media (max-width:760px) {
   .summary-dispersion-grid { grid-template-columns:1fr 1fr; grid-template-rows:none; }
   .summary-dispersion { padding:16px; }
-  .summary-dispersion:nth-child(2n) { border-right:0; }
-  .summary-dispersion:nth-last-child(-n/**/+2) { border-bottom:0; }
   .summary-dispersion-value { font-size:1.20rem; }
   .summary-dispersion-meta { align-items:flex-start; }
 }
@@ -3684,15 +3671,6 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
 .weather-legend span { display:inline-flex; align-items:center; gap:5px; }
 .weather-legend .wx-icon { flex:0 0 auto; width:1.1rem; height:1.1rem; }
 .weather-cell-meta { display:inline-flex; align-items:center; gap:4px; }
-.home-mini-rain {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:3px;
-  min-height:18px;
-  margin-block:2px 3px;
-  padding-inline:2px;
-}
 .summary-solar-chip { display:inline-flex; align-items:center; gap:4px; }
 .evolution-variable-tabs .seg-btn,
 .reliability-toolbar .seg-btn { align-items:center; }
@@ -4905,7 +4883,7 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
 @media(max-width:420px){.about-visual-engine-grid{grid-template-columns:1fr}.about-visual-engine{grid-template-columns:38px minmax(0,1fr);padding:11px 12px}.about-visual-model-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.about-visual-model-grid .about-visual-model:last-child{grid-column:1/-1}.about-visual-consensus-top{grid-template-columns:1fr}.about-visual-consensus-top b{margin:auto}.about-visual-variable-row{grid-template-columns:1fr 1fr}}
 
 /* Radar projection manual recalculation */
-.radar-projection-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.radar-recalculate-button{min-height:38px;white-space:nowrap;padding-inline:11px}.radar-recalculate-icon{display:inline-grid;place-items:center;font-size:1rem;line-height:1}.radar-recalculate-button[aria-busy="true"] .radar-recalculate-icon{animation:meteo-spin .8s linear infinite}
+.radar-projection-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.radar-recalculate-button{min-height:38px;white-space:nowrap;padding-inline:11px}.radar-recalculate-icon{display:inline-grid;place-items:center;font-size:1rem;line-height:1}.radar-recalculate-button[aria-busy="true"] .radar-recalculate-icon{animation:spin .8s linear infinite}
 @media(max-width:720px){.radar-projection-actions{width:100%;display:grid;grid-template-columns:1fr}.radar-recalculate-button{width:100%}}
 
 /* Unified disclosure chevrons -------------------------------------------------
@@ -5297,50 +5275,9 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
   white-space:nowrap;
 }
 
-/* The legacy .about-method-flow article rule is intentionally more specific
-   than the visual-step component. Override it at the component boundary so
-   mobile really becomes a one-column composition instead of keeping a hidden
-   second column off-screen. */
-.about-method-flow.about-visual-steps > .about-visual-step{
-  display:grid;
-  grid-template-columns:minmax(230px,29%) minmax(0,1fr);
-  min-width:0;
-}
-.about-method-flow.about-visual-steps > .about-visual-step > .about-visual-step-copy,
-.about-method-flow.about-visual-steps > .about-visual-step > .about-visual-step-scene{
-  min-width:0;
-  max-width:100%;
-}
-
-@media(max-width:980px){
-  .about-method-flow.about-visual-steps > .about-visual-step{
-    grid-template-columns:minmax(0,1fr);
-  }
-}
-
 @media(max-width:640px){
   .about-visual-page{
     width:100%;
-    max-width:100%;
-  }
-  .about-method-flow.about-visual-steps{
-    display:grid;
-    grid-template-columns:minmax(0,1fr);
-    width:100%;
-    min-width:0;
-  }
-  .about-method-flow.about-visual-steps > .about-visual-step{
-    display:flex;
-    flex-direction:column;
-    width:100%;
-    min-width:0;
-    max-width:100%;
-  }
-  .about-method-flow.about-visual-steps > .about-visual-step > .about-visual-step-copy,
-  .about-method-flow.about-visual-steps > .about-visual-step > .about-visual-step-scene{
-    flex:0 0 auto;
-    width:100%;
-    min-width:0;
     max-width:100%;
   }
   .about-visual-step-copy{
@@ -5792,7 +5729,6 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
   .bias-trend-summary { grid-template-columns:1fr 1fr; gap:8px 12px; }
   .bias-trend-summary .bias-trend-arrow { display:none; }
   .bias-trend-summary .pill { grid-column:1/-1; justify-self:start; }
-  .bias-date-axis { font-size:10px; }
 }
 @media (max-width:520px) {
   .bias-performance-block .bias-metrics-grid { grid-template-columns:1fr; }
