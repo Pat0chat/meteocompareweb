@@ -30,9 +30,16 @@ assert.match(renderTimeline,/summaryRainExpectedLabel[\s\S]*windMedianLegend[\s\
 assert.match(renderTimeline,/timeline-rail-legend[\s\S]*summarySpreadLegend[\s\S]*summaryIntervalLegend/,'the chronology legend must explain spread and intervals once globally');
 
 assert.match(app,/class="detail-chrono-view" data-chrono-mode="\$\{attr\(mode\)\}"/,'chronological strip must expose its hourly/daily mode for layout tuning');
-assert.match(styles,/\.detail-chrono-view\[data-chrono-mode="HOURLY"\] \{ --detail-chrono-axis-height:86px; \}/,'24 h condition lane must be taller so localized dates can use two lines');
-assert.match(styles,/\.detail-chrono-axis-hour small \{[^}]*-webkit-line-clamp:2;[^}]*white-space:normal;/,'24 h dates must wrap instead of being ellipsized');
+assert.match(app,/const dateGroups=\[\];[\s\S]*detail-chrono-date-cell[\s\S]*grid-column:span \$\{group\.span\}/,'chronological strip must group dates in a dedicated top row');
+assert.match(app,/detail-chrono-canvas"><div class="detail-chrono-date">\$\{dates\}<\/div><svg class="detail-chrono-temp-plot"/,'date row must be rendered above temperature, conditions and all metric lanes');
+assert.match(app,/detail-chrono-row-label date[\s\S]*dateColumn[\s\S]*detail-chrono-row-label temp/,'fixed first column must expose a dedicated Date row above Temperature');
+assert.match(styles,/--detail-chrono-date-height:42px;/,'chronological strip must reserve explicit height for the date row');
+assert.match(styles,/grid-template-rows:var\(--detail-chrono-date-height\) var\(--detail-chrono-temp-height\) var\(--detail-chrono-axis-height\)/,'fixed labels must align with the dedicated date lane');
+assert.match(styles,/\.detail-chrono-date \{[^}]*grid-template-columns:repeat\(var\(--detail-chrono-cols\),minmax\(0,1fr\)\);/,'date row must stay synchronized with the chronology columns');
+assert.doesNotMatch(app,/detail-chrono-axis-hour[^`]*<small>/,'condition cells must no longer carry a second date line');
 assert.match(styles,/--detail-chrono-label-width:136px;/,'chronological strip must reserve a wider first column for row labels');
 assert.match(app,/function divergenceIcon\(x\)[\s\S]*renderMetric\('temperature'[\s\S]*renderMetric\('precipitation'[\s\S]*renderMetric\('wind'[\s\S]*render\('PARTLY_CLOUDY'/,'chronological convergence warnings must use distinct weather icons for the affected variables');
 assert.match(app,/detail-chrono-disagreement-icons[\s\S]*reasons\.map\(reason=>[\s\S]*divergenceIcon\(reason\)/,'chronological convergence warnings must render one icon per affected variable');
+assert.match(styles,/\.modal-head > div:first-child \{ flex:1; min-width:0; \}/,'wrapped modal titles must claim the available header width');
+assert.match(styles,/\.modal-head > \.icon-btn \{ flex:0 0 auto; margin-left:auto; \}/,'modal close action must stay pinned to the far right, including Understand convergence');
 console.log('detail hourly timeline: OK');
