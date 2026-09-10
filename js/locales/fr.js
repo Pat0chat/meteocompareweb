@@ -1857,7 +1857,7 @@ export const catalog = Object.freeze({
   'monitorVigilanceNotConfigured':'Clé API non configurée',
   'monitorVigilanceUnavailable':'{count} réponse(s) indisponible(s)',
   'monitorNotChecked':'Pas encore vérifié',
-  'monitorAnalytics':'mesure d’audience interne',
+  'monitorAnalytics':'Mesure d’audience interne',
   'monitorAnalyticsHostDisabled':'Inactif sur cet hôte',
   'monitorAnalyticsError':'Service de mesure indisponible',
   'monitorAnalyticsActive':'Transport first-party actif',
