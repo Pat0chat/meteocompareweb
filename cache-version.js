@@ -1,2 +1,2 @@
 // MeteoCompare Web PWA cache version. Bump whenever runtime/static assets change.
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v167-fixuiinfrise';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v168-improveadminui';

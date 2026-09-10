@@ -118,3 +118,19 @@ Le Worker :
 - renvoie un JSON assaini J/J+1 au client.
 
 Aucun secret Météo-France n'est nécessaire côté Android : seule l'URL publique du Worker MeteoCompare est utilisée.
+
+## 7. Identification Web / Android pour le monitoring
+
+Le Worker comptabilise désormais les appels au proxy Vigilance dans des métriques opérationnelles agrégées, séparées de la mesure d’audience utilisateur. Le site Web envoie automatiquement :
+
+```http
+X-MeteoCompare-Client: web
+```
+
+Pour que les requêtes de l’application Android soient distinguées de façon fiable, ajouter le même en-tête avec la valeur `android` dans le client réseau Android :
+
+```http
+X-MeteoCompare-Client: android
+```
+
+Cette indication sert uniquement à classer le volume de requêtes par plateforme. Le Worker ne stocke ni département demandé, ni ville, ni IP, ni User-Agent brut, ni niveau de Vigilance dans ces métriques. Si aucun marqueur fiable n’est présent, la requête est classée `unknown`.

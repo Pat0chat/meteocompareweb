@@ -110,9 +110,11 @@ Le compteur `PWA Install Click` mesure uniquement le bouton interne de MeteoComp
 
 Les statistiques agrégées sont conservées côté Worker et ne font pas partie du stockage local du navigateur.
 
-## 7. Version Android
+## 7. Version Android et métriques techniques du Worker
 
-La version Android native ne reçoit pas cette instrumentation web et conserve la politique de mesure d’audience du projet Android.
+La version Android native ne reçoit pas l’instrumentation d’audience web et conserve la politique de mesure d’audience du projet Android.
+
+Indépendamment de cette mesure d’audience, le proxy **Vigilance Météo-France** maintient des métriques techniques agrégées de charge : nombre de requêtes, succès/erreurs, utilisation du cache et type de client (`web`, `android` ou `unknown`). Ces métriques ne contiennent pas de ville, département, coordonnées, adresse IP, User-Agent brut, niveau de vigilance ou identifiant visiteur. Le type de client est fourni explicitement par les applications lorsque possible et n’est pas utilisé pour du profilage.
 
 ## 8. Cadre réglementaire
 

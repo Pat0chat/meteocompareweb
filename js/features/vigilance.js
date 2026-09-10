@@ -110,7 +110,7 @@ export async function fetchVigilanceForCity(city,{force=false,includeCoast=false
   if(!force&&cached&&Date.now()-cached.cachedAt<CACHE_TTL_MS)return {...cached,departmentResolution:department};
   const url=new URL(NETWORK_ENDPOINTS.firstParty.vigilance,globalThis.location?.origin||'http://localhost');
   url.searchParams.set('department',department.code);if(includeCoast)url.searchParams.set('coast','1');
-  const data=await fetchJsonResource(url,{timeoutMs:NETWORK_TIMEOUTS_MS.vigilance,signal,cache:'no-store'});
+  const data=await fetchJsonResource(url,{timeoutMs:NETWORK_TIMEOUTS_MS.vigilance,signal,cache:'no-store',headers:{'X-MeteoCompare-Client':'web'}});
   const result={...data,supported:true,departmentCode:department.code,departmentResolution:department,cachedAt:Date.now()};
   vigilanceCache.set(key,result);return result;
 }

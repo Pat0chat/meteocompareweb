@@ -38,3 +38,15 @@ Utiliser des secrets longs et indépendants pour les deux derniers. `ANALYTICS_H
 `npm run cloudflare` lance le Worker avec le Durable Object SQLite local et active le tracking uniquement sur `http://localhost:8787` (ou `127.0.0.1:8787`). Cela permet de générer des pages vues et événements de test puis de les consulter immédiatement dans `/admin`, sans toucher aux statistiques de production. `npm run preview` reste volontairement exclu du tracking.
 
 Les données analytics sont conservées 180 jours au maximum. Le nettoyage de rétention est vérifié au plus une fois par jour par le Durable Object, sans dépendre d’un tirage aléatoire ou du volume de trafic.
+
+## Export et attribution UTM dans l’administration
+
+L’administration permet d’exporter la vue agrégée de la période sélectionnée en **CSV** ou **JSON**. L’export ne donne pas accès aux événements bruts : il reprend uniquement les agrégats déjà exposés par `/_mcx/admin/analytics` ainsi que l’état instantané des services pour le JSON.
+
+Les blocs **Sources UTM**, **Médiums UTM** et **Campagnes UTM** ne sont renseignés que lorsqu’une page vue d’entrée contient respectivement `utm_source`, `utm_medium` ou `utm_campaign`. Un referrer Google, un accès direct ou un lien externe non balisé ne crée volontairement aucune valeur UTM. Des blocs UTM vides sont donc normaux lorsqu’aucune campagne balisée n’a généré de visite pendant la période sélectionnée.
+
+## Métriques opérationnelles du Worker Vigilance
+
+Les appels à `/_mcx/vigilance` alimentent une table opérationnelle distincte des événements d’audience. Elle conserve pendant 180 jours uniquement : date/heure, service (`vigilance`), type de client (`web`, `android`, `unknown`), résultat succès/erreur, statut HTTP et résolution du cache (`hit`, `miss`, `error` ou `none`). Aucun département, ville, coordonnée, IP, User-Agent brut, niveau de vigilance ou identifiant visiteur n’est stocké dans cette table.
+
+Le client Web transmet `X-MeteoCompare-Client: web`. Pour une attribution Android exacte, l’application Android doit transmettre `X-MeteoCompare-Client: android` sur ses appels au Worker. Le Worker conserve un fallback limité pour quelques signatures natives reconnaissables ; les appels non attribuables restent classés `unknown` plutôt que d’être devinés.

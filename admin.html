@@ -12,10 +12,10 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand-block">
-        <div class="brand-mark" aria-hidden="true">MC</div>
+        <img class="brand-mark" src="/assets/icon.png" alt="" aria-hidden="true">
         <div><p class="eyebrow">MeteoCompare</p><h1>Administration</h1><p class="subtitle">Audience first-party & monitoring des services</p></div>
       </div>
-      <div class="header-actions"><span class="private-badge">Accès privé</span><button id="logout" class="ghost" hidden>Déconnexion</button></div>
+      <div class="header-actions"><span id="deployed-version" class="deployment-version" hidden></span><span class="private-badge">Accès privé</span><button id="logout" class="ghost" hidden>Déconnexion</button></div>
     </header>
 
     <section id="login" class="login card">
@@ -38,7 +38,10 @@
     <div id="dashboard" hidden>
       <nav class="toolbar card" aria-label="Période d’analyse">
         <div><span class="toolbar-label">Période</span><div class="ranges"><button data-days="7">7 jours</button><button data-days="30" class="active">30 jours</button><button data-days="90">90 jours</button><button data-days="180">180 jours</button></div></div>
-        <button id="refresh" class="ghost refresh-button"><span aria-hidden="true">↻</span> Actualiser</button>
+        <div class="toolbar-actions">
+          <div class="export-actions" aria-label="Exporter les données"><button id="export-csv" class="ghost export-button" type="button" disabled>CSV</button><button id="export-json" class="ghost export-button" type="button" disabled>JSON</button></div>
+          <button id="refresh" class="ghost refresh-button"><span aria-hidden="true">↻</span> Actualiser</button>
+        </div>
       </nav>
 
       <section class="dashboard-section">
@@ -72,9 +75,6 @@
           <article class="card"><h3>Sources</h3><div id="referrers"></div></article>
           <article class="card"><h3>Pays</h3><div id="countries"></div></article>
           <article class="card span-2"><h3>Interactions</h3><div id="events"></div></article>
-          <article class="card"><h3>Sources UTM</h3><div id="campaign-sources"></div></article>
-          <article class="card"><h3>Médiums UTM</h3><div id="campaign-mediums"></div></article>
-          <article class="card span-2"><h3>Campagnes UTM</h3><div id="campaigns"></div></article>
         </div>
       </section>
 
@@ -89,6 +89,18 @@
           <article class="card"><h3>Thèmes</h3><div id="themes"></div></article>
           <article class="card"><h3>Densité</h3><div id="densities"></div></article>
           <article class="card"><h3>Versions MeteoCompare</h3><div id="app-versions"></div></article>
+        </div>
+      </section>
+
+      <section class="dashboard-section worker-analytics-section">
+        <div class="section-title">
+          <div><p class="eyebrow">Worker</p><h2>Requêtes Vigilance</h2><p class="section-description">Volume first-party du proxy Météo-France, sans ville, département, IP ou User-Agent stocké.</p></div>
+        </div>
+        <div id="vigilance-kpis" class="service-summary worker-kpis"></div>
+        <div class="worker-grid">
+          <article class="card chart-card worker-trend-card"><div class="card-head"><div><p class="card-kicker">Activité</p><h3>Requêtes quotidiennes</h3></div><span class="small-note">Succès / erreurs au survol</span></div><div id="vigilance-trend-chart" class="svg-chart compact-chart"></div></article>
+          <article class="card"><div class="card-head"><div><p class="card-kicker">Origine</p><h3>Client</h3></div></div><div id="vigilance-clients"></div><p class="card-note">Web est identifié explicitement. Pour une attribution Android exacte, l’app doit envoyer <code>X-MeteoCompare-Client: android</code>.</p></article>
+          <article class="card"><div class="card-head"><div><p class="card-kicker">Cache</p><h3>Résolution Worker</h3></div></div><div id="vigilance-cache"></div></article>
         </div>
       </section>
 
