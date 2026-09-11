@@ -12,8 +12,6 @@ assert.match(js,/<svg viewBox="0 0 24 24"/,'attention icons must be SVG rather t
 assert.match(css,/\.attention-item \.attention-icon\{[^}]*display:grid[^}]*place-items:center/,'attention icon wrapper must center SVGs on both axes with a selector stronger than generic span rules');
 assert.match(css,/\.attention-item \.attention-icon svg\{[^}]*width:16px[^}]*height:16px[^}]*margin:auto/,'attention SVG geometry must be fixed and explicitly centered');
 assert.doesNotMatch(css,/\.attention-item strong,\.attention-item span\{display:block\}/,'generic span styling must not override the attention icon layout');
-assert.match(html,/id="export-csv"[^>]*>\s*<span[^>]*>⇩<\/span>\s*CSV<\/button>/,'CSV export must expose the shared icon span');
-assert.match(html,/id="export-json"[^>]*>\s*<span[^>]*>⇩<\/span>\s*JSON<\/button>/,'JSON export must use the same icon span structure as CSV');
 assert.match(css,/\.dimension-tabs\{display:grid;grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/,'all environment dimension tabs must be visible in a wrapping grid');
 assert.doesNotMatch(css,/\.dimension-tabs\{[^}]*overflow-x:auto/,'dimension tabs must not depend on a hidden horizontal scroller');
 assert.match(css,/\.service-history-meta b\{[^}]*overflow-wrap:anywhere/,'long service metadata such as incident text must wrap');

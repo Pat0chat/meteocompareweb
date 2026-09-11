@@ -52,8 +52,8 @@
             <label class="compare-control"><input id="compare-period" type="checkbox"><span>Comparer à la période précédente</span></label>
             <label class="auto-refresh-control"><span>Auto</span><select id="auto-refresh"><option value="0">Désactivé</option><option value="60000">1 min</option><option value="300000">5 min</option><option value="900000">15 min</option></select></label>
             <span id="auto-refresh-status" class="auto-refresh-status"></span>
-            <div class="export-actions" aria-label="Exporter les données"><button id="export-csv" class="ghost export-button" type="button" disabled><span aria-hidden="true">⇩</span> CSV</button><button id="export-json" class="ghost export-button" type="button" disabled><span aria-hidden="true">⇩</span> JSON</button></div>
-            <button id="refresh" class="ghost refresh-button"><span aria-hidden="true">↻</span> Actualiser</button>
+            <div class="export-actions" aria-label="Exporter les données"><button id="export-csv" class="ghost export-button" type="button" disabled>CSV</button><button id="export-json" class="ghost export-button" type="button" disabled>JSON</button></div>
+            <button id="refresh" class="ghost refresh-button">Actualiser</button>
           </div>
         </div>
       </div>
@@ -104,7 +104,7 @@
         <div class="worker-grid">
           <article class="card chart-card worker-trend-card"><div class="card-head"><div><p class="card-kicker">Activité</p><h3>Requêtes quotidiennes</h3></div><div class="chart-legend"><span class="legend-worker"><i></i>Requêtes</span><span class="legend-previous compare-only"><i></i>Période précédente</span></div></div><div id="vigilance-trend-chart" class="svg-chart compact-chart"></div><div id="vigilance-insights" class="chart-insights"></div></article>
           <article class="card"><div class="card-head"><div><p class="card-kicker">Origine</p><h3>Client</h3></div></div><div id="vigilance-clients"></div><p class="card-note">Web est identifié explicitement. Android est exact lorsque l’app envoie <code>X-MeteoCompare-Client: android</code>.</p></article>
-          <article class="card"><div class="card-head"><div><p class="card-kicker">Cache</p><h3>Résolution Worker</h3></div></div><div id="vigilance-cache"></div><div id="vigilance-cache-note" class="technical-note"></div></article>
+          <article class="card"><div class="card-head"><div><p class="card-kicker">Cache</p><h3>Cache edge · Cache partagé · Météo-France</h3></div></div><div id="vigilance-cache"></div><div id="vigilance-cache-note" class="technical-note"></div></article>
         </div>
       </section>
 

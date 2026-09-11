@@ -47,7 +47,7 @@ Les dimensions UTM restent collectées et exportables mais ne sont plus affiché
 
 ## Métriques opérationnelles du Worker Vigilance
 
-Les appels à `/_mcx/vigilance` alimentent une table opérationnelle distincte des événements d’audience. Elle conserve pendant 180 jours uniquement : date/heure, service (`vigilance`), type de client (`web`, `android`, `unknown`), résultat succès/erreur, statut HTTP, résolution du cache (`hit`, `miss`, `error` ou `none`), latence de l’appel Météo-France lorsqu’un appel amont a réellement lieu et âge du cache lorsqu’il peut être déterminé. Aucun département, ville, coordonnée, IP, User-Agent brut, niveau de vigilance ou identifiant visiteur n’est stocké dans cette table.
+Les appels à `/_mcx/vigilance` alimentent une table opérationnelle distincte des événements d’audience. Elle conserve pendant 180 jours uniquement : date/heure, service (`vigilance`), type de client (`web`, `android`, `unknown`), résultat succès/erreur, statut HTTP, résolution du cache (`edge`, `shared`, `upstream`, `error` ou `none` ; les anciennes valeurs `hit`/`miss` restent compatibles), latence de l’appel Météo-France lorsqu’un appel amont a réellement lieu et âge du cache lorsqu’il peut être déterminé. Aucun département, ville, coordonnée, IP, User-Agent brut, niveau de vigilance ou identifiant visiteur n’est stocké dans cette table.
 
 Le client Web transmet `X-MeteoCompare-Client: web`. Pour une attribution Android exacte, l’application Android doit transmettre `X-MeteoCompare-Client: android` sur ses appels au Worker. Le Worker conserve un fallback limité pour quelques signatures natives reconnaissables ; les appels non attribuables restent classés `unknown` plutôt que d’être devinés.
 

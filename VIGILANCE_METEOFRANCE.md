@@ -113,7 +113,9 @@ Le Worker :
 
 - garde `METEOFRANCE_API_KEY` uniquement dans l'environnement serveur ;
 - envoie `apikey: <API_KEY>` à Météo-France ;
-- met la carte nationale en cache edge 5 minutes ;
+- met la carte nationale en cache edge 10 minutes ;
+- consulte un cache partagé global dans le Durable Object `VigilanceCache` lorsque le cache edge est vide ;
+- conserve également ce cache partagé 10 minutes et n’autorise qu’un seul rafraîchissement Météo-France simultané ;
 - extrait le département et éventuellement le littoral ;
 - renvoie un JSON assaini J/J+1 au client.
 
@@ -137,4 +139,4 @@ Cette indication sert uniquement à classer le volume de requêtes par plateform
 
 ## 8. Métriques techniques du proxy
 
-Le suivi opérationnel distingue désormais les requêtes servies depuis le cache (`hit`) des appels réellement effectués vers Météo-France (`miss`). Lorsqu’un appel amont est réalisé, sa latence est enregistrée ; lors d’un cache hit, l’âge de l’objet mis en cache est enregistré si l’en-tête interne de datation est disponible. L’administration peut ainsi afficher appels Météo-France réels, appels réseau évités, efficacité du cache, âge observé du cache et latence amont moyenne, sans ajouter de donnée de localisation ou d’identification utilisateur.
+Le suivi opérationnel distingue désormais trois chemins de résolution : `edge` pour le cache local Cloudflare, `shared` pour le cache partagé `VigilanceCache`, et `upstream` lorsqu’un appel Météo-France est réellement effectué. Les anciennes valeurs `hit`/`miss` restent interprétées pour l’historique. L’administration affiche séparément Cache edge, Cache partagé et Météo-France, et calcule l’efficacité globale uniquement sur les requêtes éligibles au cache. Lorsqu’un appel amont est réalisé, sa latence est enregistrée ; l’âge de la carte est suivi pour les réponses issues des deux niveaux de cache, sans ajouter de donnée de localisation ou d’identification utilisateur.

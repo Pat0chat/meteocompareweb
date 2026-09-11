@@ -21,6 +21,10 @@
       {
         "name": "ANALYTICS",
         "class_name": "AnalyticsStore"
+      },
+      {
+        "name": "VIGILANCE_CACHE",
+        "class_name": "VigilanceCache"
       }
     ]
   },
@@ -29,6 +33,12 @@
       "tag": "analytics-v1",
       "new_sqlite_classes": [
         "AnalyticsStore"
+      ]
+    },
+    {
+      "tag": "vigilance-cache-v1",
+      "new_sqlite_classes": [
+        "VigilanceCache"
       ]
     }
   ],
