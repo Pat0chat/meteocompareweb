@@ -134,3 +134,7 @@ X-MeteoCompare-Client: android
 ```
 
 Cette indication sert uniquement à classer le volume de requêtes par plateforme. Le Worker ne stocke ni département demandé, ni ville, ni IP, ni User-Agent brut, ni niveau de Vigilance dans ces métriques. Si aucun marqueur fiable n’est présent, la requête est classée `unknown`.
+
+## 8. Métriques techniques du proxy
+
+Le suivi opérationnel distingue désormais les requêtes servies depuis le cache (`hit`) des appels réellement effectués vers Météo-France (`miss`). Lorsqu’un appel amont est réalisé, sa latence est enregistrée ; lors d’un cache hit, l’âge de l’objet mis en cache est enregistré si l’en-tête interne de datation est disponible. L’administration peut ainsi afficher appels Météo-France réels, appels réseau évités, efficacité du cache, âge observé du cache et latence amont moyenne, sans ajouter de donnée de localisation ou d’identification utilisateur.

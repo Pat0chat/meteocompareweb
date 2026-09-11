@@ -6,15 +6,35 @@
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
-    "run_worker_first": ["/_mcx/*", "/admin", "/admin/*", "/admin.html", "/admin.js", "/admin.css"],
+    "run_worker_first": [
+      "/_mcx/*",
+      "/admin",
+      "/admin/*",
+      "/admin.html",
+      "/admin.js",
+      "/admin.css"
+    ],
     "not_found_handling": "404-page"
   },
   "durable_objects": {
     "bindings": [
-      { "name": "ANALYTICS", "class_name": "AnalyticsStore" }
+      {
+        "name": "ANALYTICS",
+        "class_name": "AnalyticsStore"
+      }
     ]
   },
   "migrations": [
-    { "tag": "analytics-v1", "new_sqlite_classes": ["AnalyticsStore"] }
-  ]
+    {
+      "tag": "analytics-v1",
+      "new_sqlite_classes": [
+        "AnalyticsStore"
+      ]
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "*/30 * * * *"
+    ]
+  }
 }

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const read=p=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),'utf8');
+const worker=read('worker.js'),sw=read('sw.js'),html=read('admin.html'),js=read('admin.js'),css=read('admin.css'),wrangler=read('wrangler.jsonc'),network=read('js/network-config.js');
+
+for(const path of ['/_mcx/admin/session','/_mcx/admin/login','/_mcx/admin/logout','/_mcx/admin/analytics','/_mcx/admin/status']) assert.ok(worker.includes(path),`missing admin Worker route ${path}`);
+assert.match(worker,/Path=\/; HttpOnly;[^`]*SameSite=Strict/,'admin session cookie must stay HttpOnly and SameSite=Strict');
+assert.match(worker,/secure=isLocalCloudflareRequest\(request\)\?'':' Secure;'/,'admin cookie must be Secure outside local development');
+assert.match(worker,/path==='\/_mcx\/admin\/analytics'[^\n]*requireAdmin/,'analytics endpoint must require a valid admin session');
+assert.match(worker,/noStorePrivateResponse\(response\)/,'private analytics responses must be explicitly non-cacheable server-side');
+assert.match(worker,/path==='\/_mcx\/admin\/status'[^\n]*requireAdmin/,'status endpoint must require a valid admin session');
+assert.match(worker,/content-security-policy[^\n]*default-src 'self'/,'admin HTML must receive a restrictive CSP');
+assert.match(worker,/ADMIN_STATUS_MAX_AGE_SECONDS=900/,'upstream service probes must be centrally throttled for admin refreshes');
+assert.match(worker,/latestRecordedServiceStatus/,'admin status should reuse monitoring snapshots');
+assert.match(wrangler,/"crons"\s*:\s*\[\s*"\*\/30 \* \* \* \*"/,'scheduled monitoring must stay at 30-minute cadence');
+assert.match(sw,/url\.pathname\.startsWith\('\/_mcx\/'\)/,'service worker must bypass dynamic Worker endpoints');
+assert.match(sw,/\['\/admin','\/admin\/','\/admin\.html','\/admin\.js','\/admin\.css'\]/,'service worker must bypass private admin assets');
+assert.match(network,/adminStatus:\s*'\/_mcx\/admin\/status'/,'admin status endpoint must remain centralized in network config');
+assert.doesNotMatch(html+js+css,/(?:METEOFRANCE_API_KEY|ADMIN_SESSION_SECRET|ANALYTICS_HASH_SECRET)\s*=\s*['"][^'"]+['"]/,'admin client assets must not embed Worker secret values');
+assert.doesNotMatch(js,/innerHTML\s*=\s*[^;]*currentStatus/,'raw status objects must not be injected directly into HTML');
+console.log('Admin + Cloudflare Worker + service worker integrity: OK');
