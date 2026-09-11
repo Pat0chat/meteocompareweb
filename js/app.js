@@ -121,6 +121,8 @@ let searchSeq = 0;
 let autoRefreshTimer = null;
 let lastViewTimeKey = null;
 let stickyResizeObserver = null;
+let evolutionTrackResizeObserver = null;
+const evolutionTrackDataCache = new WeakMap();
 let dueRefreshRunning = false;
 let renderQueued = false;
 let renderFrame = 0;
@@ -694,6 +696,7 @@ function renderNow(){
   app.innerHTML=`${renderTopbar()}${renderPageBack()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${preservedRadarBackdrop?'':renderModal()}`;
   if(preservedRadarBackdrop)app.append(preservedRadarBackdrop);
   enhanceCollapsibleCards(app);
+  hydrateEvolutionTracks(app);
   syncStickyOffsets();
   if(!stabilizeLocalScroll(scrollDirective))applyScrollDirective(scrollDirective);
   stabilizeRouteTop(scrollDirective);
@@ -729,6 +732,7 @@ function rerenderCitySection(sectionId){
   const directive=interactionScrollContext||captureScrollContext();
   target.outerHTML=html;
   enhanceCollapsibleCards(app);
+  hydrateEvolutionTracks(app);
   if(!stabilizeLocalScroll(directive))applyScrollDirective(directive);
   return true;
 }
@@ -1394,13 +1398,14 @@ function renderEvolutionSummary(days,meta){
 function renderEvolutionLegend(meta){
   const {t}=i18n();return `<div class="evolution-legend" aria-label="${attr(t('chartLegendAria'))}"><div><span><i class="legend-line evolution-median"></i>${esc(t('evolutionComparableMedian'))}</span><span><i class="legend-area evolution-spread"></i>${esc(t('evolutionComparableSpread'))}</span><span><i class="legend-area evolution-stable-zone"></i>${esc(t('evolutionStableZone',{value:`${fmt(meta.threshold,1)}${meta.unit}`}))}</span></div><p>${esc(t('evolutionDispersionMethod'))}</p></div>`;
 }
-function renderEvolutionTrajectory(e,unit,threshold,minValue=null){
-  const {t}=i18n(),history=[...(e.previous||[])].sort((a,b)=>b.ageHours-a.ageHours).map(p=>({ageHours:p.ageHours,value:p.median,low:p.low,high:p.high,label:`H−${p.ageHours}`}));
-  const points=[...history,{ageHours:0,value:e.currentMedian,low:e.currentLow,high:e.currentHigh,label:t('current')}].filter(p=>Number.isFinite(p.value));
-  if(points.length<2)return `<div class="evolution-no-track">${esc(t('evolutionNoTrack'))}</div>`;
-  const width=470,height=116,pad={l:48,r:12,t:12,b:24},reference=e.currentMedian,thresholdValue=Number.isFinite(threshold)?threshold:0,values=[...points.flatMap(p=>[p.value,p.low,p.high]),reference-thresholdValue,reference+thresholdValue].filter(Number.isFinite),min=Math.min(...values),max=Math.max(...values),span=Math.max(max-min,Math.abs(max||1)*.02,thresholdValue*2,.8),lo=Number.isFinite(minValue)?Math.max(minValue,min-span*.12):min-span*.12,hi=max+span*.12,plotHeight=height-pad.t-pad.b;
+function evolutionTrackHeight(width){return width<420?142:width<680?148:154;}
+function renderEvolutionTrackSvg(data,width=640){
+  const {t}=i18n(),points=(data.points||[]).filter(p=>Number.isFinite(p.value)),unit=data.unit||'',thresholdValue=Number.isFinite(data.threshold)?data.threshold:0,minValue=Number.isFinite(data.minValue)?data.minValue:null;
+  if(points.length<2)return '';
+  width=Math.max(280,Math.round(width||640));
+  const height=evolutionTrackHeight(width),pad={l:52,r:14,t:16,b:29},reference=points[points.length-1]?.value,values=[...points.flatMap(p=>[p.value,p.low,p.high]),reference-thresholdValue,reference+thresholdValue].filter(Number.isFinite),min=Math.min(...values),max=Math.max(...values),span=Math.max(max-min,Math.abs(max||1)*.02,thresholdValue*2,.8),lo=minValue==null?min-span*.12:Math.max(minValue,min-span*.12),hi=max+span*.12,plotHeight=height-pad.t-pad.b;
   const x=i=>pad.l+i*(width-pad.l-pad.r)/Math.max(1,points.length-1),y=v=>pad.t+(hi-v)*plotHeight/(hi-lo),coords=points.map((p,i)=>[x(i),y(p.value)]),path=svgLinePath(coords),tickValues=[lo,(lo+hi)/2,hi];
-  const grid=tickValues.map(v=>`<g><line class="evolution-track-grid" x1="${pad.l}" x2="${width-pad.r}" y1="${y(v)}" y2="${y(v)}"/><text class="evolution-track-axis" x="${pad.l-6}" y="${y(v)+3.5}" text-anchor="end">${esc(fmt(v,1))}</text></g>`).join('');
+  const grid=tickValues.map(v=>`<g><line class="evolution-track-grid" x1="${pad.l}" x2="${width-pad.r}" y1="${y(v)}" y2="${y(v)}"/><text class="evolution-track-axis" x="${pad.l-7}" y="${y(v)+3.5}" text-anchor="end">${esc(fmt(v,1))}</text></g>`).join('');
   const plotTop=pad.t,plotBottom=height-pad.b,clampPlotY=v=>Math.min(plotBottom,Math.max(plotTop,v));
   const rawBandTop=y(reference+thresholdValue),rawBandBottom=y(reference-thresholdValue),bandTop=clampPlotY(rawBandTop),bandBottom=clampPlotY(rawBandBottom),bandY=Math.min(bandTop,bandBottom),bandH=Math.max(1,Math.abs(bandBottom-bandTop));
   const thresholdTopVisible=rawBandTop>=plotTop&&rawBandTop<=plotBottom,thresholdBottomVisible=rawBandBottom>=plotTop&&rawBandBottom<=plotBottom;
@@ -1411,14 +1416,35 @@ function renderEvolutionTrajectory(e,unit,threshold,minValue=null){
   const thresholdBand=thresholdValue>0?`<rect class="evolution-threshold-band" x="${pad.l}" y="${bandY}" width="${width-pad.l-pad.r}" height="${bandH}"/>${thresholdTopLine}${thresholdBottomLine}${thresholdTopLabel}${thresholdBottomLabel}`:'';
   const hasDispersion=points.every(p=>Number.isFinite(p.low)&&Number.isFinite(p.high)),dispersionUpper=hasDispersion?points.map((p,i)=>[x(i),y(p.high)]):[],dispersionLower=hasDispersion?points.map((p,i)=>[x(i),y(p.low)]):[],dispersionPolygon=hasDispersion?`<polygon class="evolution-dispersion-band" points="${[...dispersionUpper,...dispersionLower.slice().reverse()].map(([px,py])=>`${px},${py}`).join(' ')}"/>`:'',dispersionEdges=hasDispersion?`<path class="evolution-dispersion-edge" d="${svgLinePath(dispersionUpper)}"/><path class="evolution-dispersion-edge" d="${svgLinePath(dispersionLower)}"/>`:'';
   const referenceLine=Number.isFinite(reference)?`<line class="evolution-reference-line" x1="${pad.l}" x2="${width-pad.r}" y1="${y(reference)}" y2="${y(reference)}"/>`:'';
-  const nodes=points.map((p,i)=>{const range=evolutionRangeText(p.low,p.high,unit);return `<g><circle class="evolution-track-point ${i===points.length-1?'current':''}" cx="${x(i)}" cy="${y(p.value)}" r="${i===points.length-1?4.5:3.5}"><title>${esc(p.label)} · ${esc(t('evolutionComparableMedian'))} ${fmt(p.value,1)}${unit} · ${esc(t('evolutionSpreadValue',{range}))}</title></circle><text class="evolution-track-label" x="${x(i)}" y="${height-5}" text-anchor="middle">${esc(p.label)}</text></g>`;}).join('');
-  return `<svg class="evolution-track" viewBox="0 0 ${width} ${height}" role="img" aria-label="${attr(t('evolutionTrajectoryAria'))}">${thresholdBand}${dispersionPolygon}${grid}${dispersionEdges}${referenceLine}<line class="evolution-track-y-axis" x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}"/><path class="evolution-track-line" d="${path}"/>${nodes}</svg>`;
+  const nodes=points.map((p,i)=>{const range=evolutionRangeText(p.low,p.high,unit);return `<g><circle class="evolution-track-point ${i===points.length-1?'current':''}" cx="${x(i)}" cy="${y(p.value)}" r="${i===points.length-1?4.5:3.5}"><title>${esc(p.label)} · ${esc(t('evolutionComparableMedian'))} ${fmt(p.value,1)}${unit} · ${esc(t('evolutionSpreadValue',{range}))}</title></circle><text class="evolution-track-label" x="${x(i)}" y="${height-6}" text-anchor="middle">${esc(p.label)}</text></g>`;}).join('');
+  return `<svg class="evolution-track" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${attr(t('evolutionTrajectoryAria'))}">${thresholdBand}${dispersionPolygon}${grid}${dispersionEdges}${referenceLine}<line class="evolution-track-y-axis" x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${height-pad.b}"/><path class="evolution-track-line" d="${path}"/>${nodes}</svg>`;
+}
+function resizeEvolutionTrack(shell,width=null){
+  let data=evolutionTrackDataCache.get(shell);if(!data){try{data=JSON.parse(shell.dataset.evolutionTrack||'{}');evolutionTrackDataCache.set(shell,data);}catch{return;}}
+  const measured=Number(width)||shell.getBoundingClientRect?.().width||shell.clientWidth||640,nextWidth=Math.max(280,Math.round(measured));
+  if(Math.abs(nextWidth-Number(shell.dataset.evolutionRenderWidth||0))<2)return;
+  shell.dataset.evolutionRenderWidth=String(nextWidth);shell.innerHTML=renderEvolutionTrackSvg(data,nextWidth);
+}
+function hydrateEvolutionTracks(root=app){
+  evolutionTrackResizeObserver?.disconnect?.();evolutionTrackResizeObserver=null;
+  const shells=[...(root?.querySelectorAll?.('[data-evolution-track]')||[])];if(!shells.length)return;
+  shells.forEach(shell=>resizeEvolutionTrack(shell));
+  if(typeof ResizeObserver==='undefined')return;
+  evolutionTrackResizeObserver=new ResizeObserver(entries=>entries.forEach(entry=>{const width=entry.contentRect?.width;if(width>0)resizeEvolutionTrack(entry.target,width);}));
+  shells.forEach(shell=>evolutionTrackResizeObserver.observe(shell));
+}
+function renderEvolutionTrajectory(e,unit,threshold,minValue=null){
+  const {t}=i18n(),history=[...(e.previous||[])].sort((a,b)=>b.ageHours-a.ageHours).map(p=>({ageHours:p.ageHours,value:p.median,low:p.low,high:p.high,label:`H−${p.ageHours}`}));
+  const points=[...history,{ageHours:0,value:e.currentMedian,low:e.currentLow,high:e.currentHigh,label:t('current')}].filter(p=>Number.isFinite(p.value));
+  if(points.length<2)return `<div class="evolution-no-track">${esc(t('evolutionNoTrack'))}</div>`;
+  const data={points,unit,threshold:Number.isFinite(threshold)?threshold:0,minValue:Number.isFinite(minValue)?minValue:null};
+  return `<div class="evolution-track-shell" data-evolution-track="${attr(JSON.stringify(data))}">${renderEvolutionTrackSvg(data,640)}</div>`;
 }
 function renderEvolutionSection(report){
   const {t}=i18n();if(!report.days?.length)return `<section class="section" id="evolution"><div class="section-card"><div class="section-head"><div><h2>${esc(t('evolution'))}</h2><p>${esc(t('forecast_evolution_subtitle'))}</p></div></div><div class="banner info">${esc(t('evolutionNoPoints'))}</div></div></section>`;
   const meta=evolutionVariableMeta(),available=Object.keys(meta).filter(v=>report.days.some(d=>d.variables?.[v])),selected=available.includes(state.evolutionVariable)?state.evolutionVariable:available[0];state.evolutionVariable=selected;
   const m=meta[selected],dayRows=report.days.filter(d=>d.variables?.[selected]).slice(0,7).map(day=>({date:day.date,e:day.variables[selected]})),rows=dayRows.map(day=>{const e=day.e,delta=e.medianDelta,sign=delta>0?'+':'',trend=trendText(e.trend,delta,m.unit),spread=evolutionRangeText(e.currentLow,e.currentHigh,m.unit);return `<div class="evolution-row"><div class="evolution-row-date"><strong>${esc(dateLabel(day.date,i18n().locale))}</strong><span>${esc(t('modelsCompared',{count:e.comparedModels}))}</span></div><div class="evolution-row-chart">${renderEvolutionTrajectory(e,m.unit,m.threshold,m.min)}</div><div class="evolution-row-now"><span>${esc(t('current'))}</span><strong>${fmt(e.currentMedian,1)}${m.unit}</strong><small class="evolution-trend ${evolutionTrendClass(e.trend)}">${esc(trend)}</small><span class="evolution-row-spread">${esc(t('evolutionSpreadValue',{range:spread}))}</span></div></div>`;}).join('');
-  return `<section class="section" id="evolution"><div class="section-card evolution-panel"><div class="section-head"><div><h2>${esc(t('evolution'))}</h2><p>${esc(t('forecast_evolution_subtitle'))}</p></div></div><div class="evolution-toolbar"><div class="segmented evolution-variable-tabs" aria-label="${attr(t('evolutionVariableAria'))}">${available.map(v=>`<button class="seg-btn ${selected===v?'active':''}" data-evolution-variable="${attr(v)}">${meta[v].icon} ${esc(meta[v].label)}</button>`).join('')}</div><span class="small">${esc(t('evolutionTimelineHint'))}</span></div>${renderEvolutionSummary(dayRows,m)}${renderEvolutionLegend(m)}<div class="evolution-table-head"><span>${esc(t('day'))}</span><span>${esc(t('evolutionForecastHistory'))}</span><span>${esc(t('current'))}</span></div><div class="evolution-list">${rows}</div></div></section>`;
+  return `<section class="section" id="evolution"><div class="section-card evolution-panel evolution-variable-${attr(selected)}"><div class="section-head"><div><h2>${esc(t('evolution'))}</h2><p>${esc(t('forecast_evolution_subtitle'))}</p></div></div><div class="evolution-toolbar"><div class="segmented evolution-variable-tabs" aria-label="${attr(t('evolutionVariableAria'))}">${available.map(v=>`<button class="seg-btn ${selected===v?'active':''}" data-evolution-variable="${attr(v)}">${meta[v].icon} ${esc(meta[v].label)}</button>`).join('')}</div><span class="small">${esc(t('evolutionTimelineHint'))}</span></div>${renderEvolutionSummary(dayRows,m)}${renderEvolutionLegend(m)}<div class="evolution-table-head"><span>${esc(t('day'))}</span><span>${esc(t('evolutionForecastHistory'))}</span><span>${esc(t('current'))}</span></div><div class="evolution-list">${rows}</div></div></section>`;
 }
 
 function trendText(trend,delta,unit){const {t}=i18n(),sign=delta>0?'+':'',value=`${sign}${fmt(delta,1)}${unit}`;return t({INCREASING:'increasing',DECREASING:'decreasing',STABLE:'stable',VOLATILE:'volatile'}[trend]||'stable',{delta:value});}

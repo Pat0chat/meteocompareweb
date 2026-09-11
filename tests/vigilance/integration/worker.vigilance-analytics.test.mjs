@@ -20,7 +20,9 @@ try{
   await Promise.all(tasks);
   assert.equal(writes.length,1);
   assert.deepEqual({service:writes[0].service,client:writes[0].client,cache_status:writes[0].cache_status,ok:writes[0].ok,status:writes[0].status},{service:'vigilance',client:'android',cache_status:'hit',ok:true,status:200});
+  const forbiddenKeys=['department','city','latitude','longitude','user-agent','userAgent'];
+  for(const key of forbiddenKeys)assert.equal(Object.hasOwn(writes[0],key),false,`operational Vigilance analytics must not persist ${key}`);
   const serialized=JSON.stringify(writes[0]);
-  assert.doesNotMatch(serialized,/department|91|city|latitude|longitude|user-agent|MeteoCompare Android/i,'operational Vigilance analytics must not persist location or raw user agent data');
+  assert.doesNotMatch(serialized,/MeteoCompare Android/i,'operational Vigilance analytics must not persist the raw user agent');
 } finally { globalThis.caches=originalCaches; }
 console.log('Vigilance operational analytics and Web/Android attribution: OK');
