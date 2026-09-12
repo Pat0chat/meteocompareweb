@@ -138,6 +138,7 @@ function analyticsEventContext(route,env=globalThis){return {app_version:APP_VER
 
 export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,transportImpl=null}={}){
   const tracker=()=>transportImpl||env.meteocompareTrack;
+  let lastPageviewFingerprint=null,lastPageviewAt=0;
   const status=()=>{
     const configured=Boolean(config?.enabled&&config?.domain&&config?.endpoint);
     const signal=privacySignal(env),optedOut=storageOptOut(env);
@@ -150,8 +151,15 @@ export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,tr
     if(!current.active)return Promise.resolve(false);
     if(!isAllowedAnalyticsEvent(name))return Promise.resolve(false);
     const options={url:sanitizedAnalyticsUrl(name==='pageview'?route:route||{name:'other'},env.location)};
-    if(name==='pageview')options.props=analyticsPageProps(route,env);
-    else{
+    if(name==='pageview'){
+      options.props=analyticsPageProps(route,env);
+      // Guard only against accidental duplicate dispatches from the same document
+      // lifecycle (for example two routing signals emitted back-to-back). A reload
+      // creates a fresh client and remains a legitimate new page view.
+      const now=Date.now(),fingerprint=`${options.url}|${JSON.stringify(options.props||{})}`;
+      if(fingerprint===lastPageviewFingerprint&&now-lastPageviewAt<1000)return Promise.resolve(false);
+      lastPageviewFingerprint=fingerprint;lastPageviewAt=now;
+    }else{
       const safeProps=sanitizeAnalyticsEventProps(name,{...analyticsEventContext(route,env),...props});if(safeProps&&Object.keys(safeProps).length)options.props=safeProps;
       options.interactive=analyticsEventInteractive(name);
     }
@@ -160,7 +168,10 @@ export function createAnalyticsClient({config=ANALYTICS_CONFIG,env=globalThis,tr
       options.callback=result=>{try{env.__METEOCOMPARE_ANALYTICS_CONTROL__?.reportDelivery?.(result);}catch{}};
       tracker()(name,options);
       return Promise.resolve(true);
-    }catch{return Promise.resolve(false);}
+    }catch{
+      if(name==='pageview'){lastPageviewFingerprint=null;lastPageviewAt=0;}
+      return Promise.resolve(false);
+    }
   };
   return {
     status,

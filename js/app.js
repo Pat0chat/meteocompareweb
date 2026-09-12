@@ -122,6 +122,10 @@ let autoRefreshTimer = null;
 let lastViewTimeKey = null;
 let stickyResizeObserver = null;
 let evolutionTrackResizeObserver = null;
+let evolutionResizeFrame = 0;
+const pendingEvolutionWidths = new Map();
+let chartHoverFrame = 0;
+let pendingChartPointerEvent = null;
 const evolutionTrackDataCache = new WeakMap();
 let dueRefreshRunning = false;
 let renderQueued = false;
@@ -175,6 +179,10 @@ async function registerPwaServiceWorker(){
   }
   catch(err){console.warn('Service worker:',err);}
 }
+function schedulePwaServiceWorkerRegistration(){
+  const register=()=>scheduleIdle(()=>void registerPwaServiceWorker());
+  if(document.readyState==='complete')register();else window.addEventListener('load',register,{once:true});
+}
 
 init();
 
@@ -182,19 +190,19 @@ function init() {
   applyTheme();
   const skipPwaRegistration=consumePwaClearReloadGuard();
   if(skipPwaRegistration)pwaPostClearCleanup=clearPwaRuntime();
-  if (!skipPwaRegistration && 'serviceWorker' in navigator) void registerPwaServiceWorker();
+  if (!skipPwaRegistration && 'serviceWorker' in navigator) schedulePwaServiceWorkerRegistration();
   window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;if(state.route.name==='about')render();else refreshInstallNav();});
   window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;pwaInstalled=true;void trackAnalyticsEvent('PWA Installed',state.route);toast(i18n().t('pwaInstallSuccess'),{type:'success',title:i18n().t('installNav')});if(state.route.name==='about')render();else refreshInstallNav();});
   app.addEventListener('click', handleAppClick);
   app.addEventListener('input', handleAppInput);
   app.addEventListener('toggle', handleDetailsToggle, true);
-  app.addEventListener('pointermove', handleChartPointerMove, {passive:true});
+  app.addEventListener('pointermove', handleChartPointerMoveScheduled, {passive:true});
   app.addEventListener('pointerdown', handleChartPointerMove, {passive:true});
   app.addEventListener('pointerout', handleChartPointerOut, {passive:true});
   app.addEventListener('pointerover', handleSystemMonitorIntent, {passive:true});
   app.addEventListener('focusin', handleSystemMonitorIntent);
   document.addEventListener?.('keydown', handleGlobalKeydown);
-  document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible')refreshDueCities();});
+  document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'){startAutoRefreshTimer();refreshDueCities();}else stopAutoRefreshTimer();});
   if(supportsHistoryRouting){
     try{ history.scrollRestoration='manual'; history.replaceState({...history.state,mcRouteKey:routeKey(state.route),mcScrollY:currentScrollY()},'',location.href); }catch{}
     window.addEventListener('popstate',event=>handleHistoryNavigation(event));
@@ -210,16 +218,34 @@ function init() {
   void trackCurrentPageView(state.route);
   hydrateForecastStorage().finally(()=>{onRouteSettled();refreshDueCities();});
   lastViewTimeKey=viewTimeKey();
+  startAutoRefreshTimer();
+}
+function stopAutoRefreshTimer(){if(autoRefreshTimer){clearInterval(autoRefreshTimer);autoRefreshTimer=null;}}
+function startAutoRefreshTimer(){
+  stopAutoRefreshTimer();if(document.visibilityState==='hidden')return;
   autoRefreshTimer=setInterval(()=>{const nextKey=viewTimeKey();if(lastViewTimeKey!==null&&nextKey!==lastViewTimeKey)render();lastViewTimeKey=nextKey;refreshDueCities();},60_000);
 }
 function viewTimeKey(){const keys=state.cities.map(city=>roundedHourLocal(city.timezone||state.forecasts[city.id]?.city?.timezone||'UTC'));return keys.join('|')||new Date().toISOString().slice(0,13);}
+function yieldToMainThread(){
+  return new Promise(resolve=>{
+    if(globalThis.scheduler?.yield)void globalThis.scheduler.yield().then(resolve,resolve);
+    else setTimeout(resolve,0);
+  });
+}
 async function hydrateForecastStorage(){
-  let changed=false;
-  await Promise.all([...state.cities].map(async city=>{
-    const f=await loadForecastAsync(city.id),stillFavorite=state.cities.some(c=>c.id===city.id);
-    if(!stillFavorite){if(f)deleteCityData(city.id);return;}
-    if(f&&state.forecasts[city.id]!==f){state.forecasts[city.id]=f;changed=true;}
-  }));
+  let changed=false,index=0;const cities=[...state.cities],workers=Math.min(3,cities.length);
+  // Large forecast records are structured-cloned out of IndexedDB. Hydrate a few
+  // at a time and yield between records so a large watchlist cannot monopolize
+  // the main thread immediately after first paint.
+  const tasks=Array.from({length:workers},async()=>{
+    while(index<cities.length){
+      const city=cities[index++],f=await loadForecastAsync(city.id),stillFavorite=state.cities.some(c=>c.id===city.id);
+      if(!stillFavorite){if(f)deleteCityData(city.id);}
+      else if(f&&state.forecasts[city.id]!==f){state.forecasts[city.id]=f;changed=true;}
+      await yieldToMainThread();
+    }
+  });
+  await Promise.all(tasks);
   if(changed)render();
 }
 
@@ -1430,7 +1456,11 @@ function hydrateEvolutionTracks(root=app){
   const shells=[...(root?.querySelectorAll?.('[data-evolution-track]')||[])];if(!shells.length)return;
   shells.forEach(shell=>resizeEvolutionTrack(shell));
   if(typeof ResizeObserver==='undefined')return;
-  evolutionTrackResizeObserver=new ResizeObserver(entries=>entries.forEach(entry=>{const width=entry.contentRect?.width;if(width>0)resizeEvolutionTrack(entry.target,width);}));
+  evolutionTrackResizeObserver=new ResizeObserver(entries=>{
+    for(const entry of entries){const width=entry.contentRect?.width;if(width>0)pendingEvolutionWidths.set(entry.target,width);}
+    if(evolutionResizeFrame)return;
+    evolutionResizeFrame=requestAnimationFrame(()=>{evolutionResizeFrame=0;for(const [target,width] of pendingEvolutionWidths){if(target.isConnected)resizeEvolutionTrack(target,width);}pendingEvolutionWidths.clear();});
+  });
   shells.forEach(shell=>evolutionTrackResizeObserver.observe(shell));
 }
 function renderEvolutionTrajectory(e,unit,threshold,minValue=null){
@@ -1920,6 +1950,10 @@ function chartHoverContext(svg){
     chartHoverDataCache.set(svg,hover);return hover;
   }catch{return null;}
 }
+function handleChartPointerMoveScheduled(e){
+  pendingChartPointerEvent=e;if(chartHoverFrame)return;
+  chartHoverFrame=requestAnimationFrame(()=>{chartHoverFrame=0;const event=pendingChartPointerEvent;pendingChartPointerEvent=null;if(event)handleChartPointerMove(event);});
+}
 function handleChartPointerMove(e){
   const svg=e.target?.closest?.('svg[data-hover-chart]');if(!svg||!app.contains(svg))return;
   const rect=svg.getBoundingClientRect?.();if(!rect?.width)return;
@@ -1949,7 +1983,7 @@ function clearChartHover(svg){
   if(svg?.dataset?.hoverChart==='bias-history'&&hover?.gapEl)hover.gapEl.textContent='—';
 }
 function handleChartPointerOut(e){
-  const svg=e.target?.closest?.('svg[data-hover-chart]');if(!svg||!app.contains(svg)||e.pointerType==='touch')return;if(e.relatedTarget&&svg.contains(e.relatedTarget))return;clearChartHover(svg);
+  const svg=e.target?.closest?.('svg[data-hover-chart]');if(!svg||!app.contains(svg)||e.pointerType==='touch')return;if(e.relatedTarget&&svg.contains(e.relatedTarget))return;if(chartHoverFrame){cancelAnimationFrame(chartHoverFrame);chartHoverFrame=0;}pendingChartPointerEvent=null;clearChartHover(svg);
 }
 
 function handleGlobalKeydown(e){
@@ -2187,7 +2221,10 @@ async function refreshDueCities(){
   if(!state.online||dueRefreshRunning||document.visibilityState==='hidden')return;const minutes=refreshIntervalMinutes();if(minutes===0)return;
   const due=state.cities.filter(city=>{const f=state.forecasts[city.id];return !f||!isForecastFresh(f);});
   if(!due.length)return;dueRefreshRunning=true;const showActivity=routeShowsWeatherActivity();if(showActivity)render();
-  try{for(const city of due)await refreshCity(city.id,false,false);const failed=due.filter(city=>Boolean(state.errors[city.id])).length;if(failed&&state.route.name==='home')toast(i18n().t('automaticRefreshPartialToast',{failed,total:due.length}),{id:'automatic-refresh',type:'warning',title:i18n().t('weatherRefreshTitle'),duration:6500});}finally{dueRefreshRunning=false;if(showActivity)render();}
+  // Match manual refreshAll(): two bounded workers reduce total stale time without
+  // creating an unbounded Open-Meteo burst when many favourites expire together.
+  let index=0;const workers=Math.min(2,due.length);
+  try{await Promise.all(Array.from({length:workers},async()=>{while(index<due.length){const city=due[index++];await refreshCity(city.id,false,false);}}));const failed=due.filter(city=>Boolean(state.errors[city.id])).length;if(failed&&state.route.name==='home')toast(i18n().t('automaticRefreshPartialToast',{failed,total:due.length}),{id:'automatic-refresh',type:'warning',title:i18n().t('weatherRefreshTitle'),duration:6500});}finally{dueRefreshRunning=false;if(showActivity)render();}
 }
 async function refreshAll(force=false,notify=false){
   const cities=[...favoriteCities()];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0,toastId=null;if(notify)toastId=toast(i18n().t('weatherRefreshAllStarted',{count:cities.length}),{id:'weather-refresh-all',type:'loading',title:i18n().t('weatherRefreshTitle')});

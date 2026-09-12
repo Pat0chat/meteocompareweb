@@ -5,7 +5,7 @@ import { webTranslationAudit, hasTranslation } from '../../../js/i18n.js';
 const read=p=>fs.readFileSync(new URL(`../../../${p}`,import.meta.url),'utf8');
 const app=read('js/app.js'),comparison=read('js/features/comparison.js'),css=read('styles.css'),workflow=read('.github/workflows/pages.yml');
 
-assert.match(app,/app\.addEventListener\('pointermove', handleChartPointerMove/,'chart pointer movement is delegated');
+assert.match(app,/app\.addEventListener\('pointermove', handleChartPointerMoveScheduled/,'chart pointer movement is delegated through a frame scheduler');
 assert.match(comparison,/data-hover-chart=\"city\"/,'city charts carry hover datasets');
 assert.match(comparison,/data-hover-chart=\"model\"/,'model charts carry hover datasets');
 assert.match(app,/data-hover-chart=\"agreement-band\"/,'hourly agreement band uses the same interactive hover engine');

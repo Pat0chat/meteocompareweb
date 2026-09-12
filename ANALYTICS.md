@@ -13,6 +13,8 @@ MeteoCompare n’utilise plus de fournisseur analytics tiers. Le navigateur envo
 
 Aucun nom de ville, coordonnée, recherche, favori ou donnée météo n’est enregistré. Aucun cookie de tracking n’est créé. GPC, DNT et l’opt-out local désactivent l’envoi.
 
+Une **page vue** est comptée au chargement initial de l’application puis à chaque changement de route fonctionnelle. Les simples rerenders, rafraîchissements météo, mises à jour du Service Worker ou changements de visibilité ne génèrent pas de page vue. Le client applique aussi une garde d’une seconde contre deux émissions strictement identiques déclenchées accidentellement dans le même document ; un vrai rechargement ou un nouveau lancement PWA reste volontairement une nouvelle page vue.
+
 ## Visiteurs uniques
 
 Le Worker calcule un pseudonyme journalier par HMAC à partir de l’IP, du User-Agent, de la date et de `ANALYTICS_HASH_SECRET`. L’IP et le User-Agent bruts ne sont jamais stockés. Le pseudonyme change chaque jour et ne permet pas de suivre une personne sur la durée.

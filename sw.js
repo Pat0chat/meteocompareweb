@@ -71,8 +71,12 @@ self.addEventListener('fetch', event => {
 
   const isCode=['script','style','manifest','worker'].includes(request.destination);
   if(isCode){
+    // Application code is versioned through APP_VERSION/CACHE_VERSION and already
+    // precached during SW installation. Prefer the local shell immediately so an
+    // installed PWA does not turn every startup into a network waterfall. A new
+    // deployment installs a new cache namespace before taking control.
     event.respondWith(
-      fetch(request).then(response=>cacheSuccessfulResponse(request,response)).catch(()=>cachedOrUnavailable(request))
+      caches.match(request).then(cached=>cached||fetch(request).then(response=>cacheSuccessfulResponse(request,response)).catch(()=>cachedOrUnavailable(request)))
     );
     return;
   }

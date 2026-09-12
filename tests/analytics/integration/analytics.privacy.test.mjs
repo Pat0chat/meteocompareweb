@@ -96,6 +96,14 @@ assert.equal(pageCall.options.props.navigation,'seo');
 assert.equal(pageCall.options.props.compared_models,'2');
 assert.equal('interactive' in pageCall.options,false);
 
+const dedupCalls=[];
+const dedupClient=createAnalyticsClient({config:ANALYTICS_CONFIG,env:{...env,location:{...env.location}},transportImpl:(name,options={})=>dedupCalls.push({name,options})});
+assert.equal(await dedupClient.pageview(route),true);
+assert.equal(await dedupClient.pageview(route),false,'identical pageviews emitted back-to-back in one document must be deduplicated');
+assert.equal(dedupCalls.length,1);
+assert.equal(await dedupClient.pageview({...route,view:{...route.view,tab:'TEMPERATURE'}}),true,'a materially different route view must remain trackable');
+assert.equal(dedupCalls.length,2);
+
 const viewCall=calls[3];
 assert.deepEqual(viewCall.options.props,{app_version:APP_VERSION,language:'fr',display_mode:'browser',navigation:'seo',control:'tab',value:'wind'});
 assert.equal(viewCall.options.interactive,true);

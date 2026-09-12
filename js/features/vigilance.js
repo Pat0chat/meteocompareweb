@@ -2,7 +2,7 @@ import { searchCities } from '../api.js';
 import { fetchJsonResource } from '../network.js';
 import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from '../network-config.js';
 
-const CACHE_TTL_MS=5*60_000;
+const CACHE_TTL_MS=10*60_000;
 const departmentCache=new Map();
 const vigilanceCache=new Map();
 

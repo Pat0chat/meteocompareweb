@@ -28,7 +28,7 @@ assert.match(app,/data-reliability-variable=/,'local reliability must use variab
 assert.match(app,/reliability\.score/,'local reliability compact ranking must expose the local score');
 assert.match(css,/\.evolution-row \{ display:grid/,'evolution rows must be aligned as a desktop analysis matrix');
 assert.match(app,/preserveAspectRatio="xMidYMid meet" role="img" aria-label="\$\{attr\(t\('evolutionTrajectoryAria'\)\)\}"/,'evolution trajectories must preserve their geometry instead of stretching SVG content');
-assert.match(app,/new ResizeObserver\(entries=>entries\.forEach/,'evolution trajectories must rebuild when their container width changes');
+assert.match(app,/new ResizeObserver\(entries=>\{[\s\S]*pendingEvolutionWidths\.set[\s\S]*requestAnimationFrame[\s\S]*resizeEvolutionTrack/,'evolution trajectories must rebuild when their container width changes without layout-thrashing each observer entry');
 assert.match(app,/data-evolution-track=/,'evolution trajectories must retain their source data for responsive reconstruction');
 assert.match(css,/\.evolution-panel\.evolution-variable-temperature \{ --evolution-metric-accent:var\(--temp\); \}/,'temperature evolution must use the temperature accent');
 assert.match(css,/\.evolution-panel\.evolution-variable-precipitation \{ --evolution-metric-accent:var\(--rain\); \}/,'precipitation evolution must use the rain accent');
