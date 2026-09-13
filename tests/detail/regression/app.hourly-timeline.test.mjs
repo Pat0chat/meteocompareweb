@@ -40,6 +40,9 @@ assert.doesNotMatch(app,/detail-chrono-axis-hour[^`]*<small>/,'condition cells m
 assert.match(styles,/--detail-chrono-label-width:136px;/,'chronological strip must reserve a wider first column for row labels');
 assert.match(app,/function divergenceIcon\(x\)[\s\S]*renderMetric\('temperature'[\s\S]*renderMetric\('precipitation'[\s\S]*renderMetric\('wind'[\s\S]*render\('PARTLY_CLOUDY'/,'chronological convergence warnings must use distinct weather icons for the affected variables');
 assert.match(app,/detail-chrono-disagreement-icons[\s\S]*reasons\.map\(reason=>[\s\S]*divergenceIcon\(reason\)/,'chronological convergence warnings must render one icon per affected variable');
+assert.match(app,/detail-chrono-agreement-status[\s\S]*detail-chrono-agreement-bar[\s\S]*detail-chrono-agreement-percent/,'chronological convergence must place divergence icons above the bar and the percentage below it');
+assert.match(styles,/\.detail-chrono-disagreement-icons \{[^}]*display:flex;[^}]*flex-flow:row nowrap;/,'chronological convergence divergence icons must stay on one horizontal flex row');
+assert.match(styles,/\.detail-chrono-agreement-status \{[^}]*order:1;[\s\S]*\.detail-chrono-agreement-bar \{[^}]*order:2;[\s\S]*\.detail-chrono-agreement-percent \{[^}]*order:3;/,'chronological convergence must force icons, bar and percentage into that visual order');
 assert.match(styles,/\.modal-head > div:first-child \{ flex:1; min-width:0; \}/,'wrapped modal titles must claim the available header width');
 assert.match(styles,/\.modal-head > \.icon-btn \{ flex:0 0 auto; margin-left:auto; \}/,'modal close action must stay pinned to the far right, including Understand convergence');
 console.log('detail hourly timeline: OK');
