@@ -1873,4 +1873,20 @@ export const catalog = Object.freeze({
   'monitorRefresh':'Actualiser le monitoring',
   'monitorNoSyntheticProbes':'Les services tiers ne sont pas sondés artificiellement : l’état reflète les derniers appels réels.',
 
+  'graphicView':'Vue graphique',
+  'graphicViewIntro':'Explorer les 7 prochains jours heure par heure',
+  'graphicForecastCentral':'Prévision centrale',
+  'graphicHourlyAccumulation':'Cumul horaire prévu',
+  'graphicWetModels':'Modèles prévoyant de la pluie',
+  'graphicRainAmount':'Cumul',
+  'graphicMeanWind':'Vent moyen des modèles',
+  'graphicWindDirection':'Direction dominante',
+  'graphicNoVigilance':'Aucune vigilance sur la période affichée',
+  'graphicHourlySevenDays':'7 jours · heure par heure',
+  'graphicRainAxis':'Pluie · mm/h',
+  'graphicDispersion':'Dispersion min–max',
+  'graphicRainProbability':'Probabilité de pluie',
+  'graphicExploreAria':'Prévisions météo graphiques sur 7 jours, défilement horizontal',
+  'graphicExploreHint':'Faites défiler horizontalement pour explorer les 7 jours',
+
 });

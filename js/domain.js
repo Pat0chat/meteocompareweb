@@ -407,6 +407,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
   if(!series.length)return [];
 
   const hourly=mode==='HOURLY';
+  const hourlyHorizonHours=Math.max(1,Math.min(24*10,Number(options?.hourlyHorizonHours)||24));
   const rainThreshold=RAIN_THRESHOLD_MM;
   const timezone=forecast.city?.timezone||forecast.timezone||'UTC';
   const axes=hourly?new Map(series.map(([,modelSeries])=>[modelSeries,hourlyAxis(modelSeries,timezone)])):null;
@@ -417,7 +418,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
 
   let selected;
   if(hourly){
-    const anchor=roundedHourEpoch(timezone,now),end=anchor+24*3600000;
+    const anchor=roundedHourEpoch(timezone,now),end=anchor+hourlyHorizonHours*3600000;
     selected=keys.filter(slot=>slot.epochMs>=anchor&&slot.epochMs<end);
   }else{
     const today=cityToday(timezone,now);
@@ -446,11 +447,12 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       const cloudCover=hourly?physicalValue(modelSeries.hourly.cloudCover[index],FORECAST_PHYSICAL_LIMITS.cloudPercent):(conditionComparable?dailyCloudCoverMean(modelSeries,key):null);
       const wind=hourly?physicalValue(modelSeries.hourly.windSpeed10m[index],FORECAST_PHYSICAL_LIMITS.windKmh):(windComparable?physicalValue(modelSeries.daily.windSpeedMax[index],FORECAST_PHYSICAL_LIMITS.windKmh):null);
       const windGust=hourly?physicalValue(modelSeries.hourly.windGusts10m[index],FORECAST_PHYSICAL_LIMITS.gustKmh):(windComparable?physicalValue(modelSeries.daily.windGustsMax[index],FORECAST_PHYSICAL_LIMITS.gustKmh):null);
+      const windDirection=hourly?physicalValue(modelSeries.hourly.windDirection10m?.[index],FORECAST_PHYSICAL_LIMITS.directionDeg):(windComparable?physicalValue(modelSeries.daily.windDirection10mDominant?.[index],FORECAST_PHYSICAL_LIMITS.directionDeg):null);
       const precipTemperature=hourly?temperature:dailyPrecipitationTemperature(modelSeries,key);
       const conditionResult=conditionComparable?(hourly?hourlyCondition(modelSeries,index):dailyCondition(modelSeries,key)):{condition:null,inferred:false};
       const condition=conditionResult.condition,conditionInferred=conditionResult.inferred;
-      if([temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,precipTemperature].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN)){
-        snaps.push({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,precipTemperature,condition,conditionInferred});
+      if([temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,windDirection,precipTemperature].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN)){
+        snaps.push({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,windDirection,precipTemperature,condition,conditionInferred});
       }
     }
 
@@ -476,6 +478,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     const temperatureAgreement=continuousConsensus(tempEntries,weights.temperature||{},.5,3);
     const minAgreement=hourly?null:continuousConsensus(minEntries,weights.temperature||{},.5,3);
     const windAgreement=continuousConsensus(windEntries,weights.wind||{},2,12);
+    const gustAgreement=continuousConsensus(gustEntries,weights.wind||{},3,18);
     const cloudAgreement=continuousConsensus(cloudEntries,{},10,50);
     const precipitationAgreement=precipitationConsensus(precipitationRows,{
       threshold:rainThreshold,localWeights:weights.precipitation||{},
@@ -514,6 +517,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     const clouds=snaps.map(row=>row.cloudCover).filter(Number.isFinite);
     const winds=snaps.map(row=>row.wind).filter(Number.isFinite);
     const gusts=snaps.map(row=>row.windGust).filter(Number.isFinite);
+    const directions=snaps.map(row=>row.windDirection).filter(Number.isFinite),directionVector=directions.reduce((acc,value)=>{const radians=value*Math.PI/180;acc.x+=Math.sin(radians);acc.y+=Math.cos(radians);return acc;},{x:0,y:0}),windDirectionDeg=directions.length?((Math.atan2(directionVector.x,directionVector.y)*180/Math.PI)+360)%360:null;
 
     return {
       mode,key,timestamp:hourly?key:null,epochMs:hourly?epochMs:null,date:hourly?key.slice(0,10):key,
@@ -549,6 +553,11 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       windGustKmh:gustForecast.central,
       windGustMinAcrossModels:gusts.length?Math.min(...gusts):null,
       windGustMaxAcrossModels:gusts.length?Math.max(...gusts):null,
+      windDirectionDeg,
+      temperatureAgreementPercent:temperatureAgreement.convergencePercent,
+      windAgreementPercent:windAgreement.convergencePercent,
+      windGustAgreementPercent:gustAgreement.convergencePercent,
+      conditionAgreementPercent:conditionVote.percent,
       condition,conditionInferred,conditionSource:conditionResolution.conditionSource,
       conditionNativeModelCount:conditionResolution.nativeModelCount,conditionDerivedModelCount:conditionResolution.derivedModelCount,
       modelCount:snaps.length,
@@ -557,6 +566,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       consensusLevel:Number.isFinite(consensusPercent)?(consensusPercent>=75?'HIGH':consensusPercent>=50?'MEDIUM':'LOW'):null,
       divergenceReasons:[...new Set(divergence)],
       forecastEngine:options?.forecastEngine||DEFAULT_FORECAST_ENGINE,
+      modelValues:options?.includeModelValues?snaps.map(({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,wind,windGust,windDirection,condition})=>({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,wind,windGust,windDirection,condition})):undefined,
       engineDetails:{
         temperature:forecastEngineSummary(temperatureForecast),
         tempMin:minForecast?forecastEngineSummary(minForecast):null,

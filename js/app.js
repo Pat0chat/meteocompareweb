@@ -126,6 +126,8 @@ let evolutionResizeFrame = 0;
 const pendingEvolutionWidths = new Map();
 let chartHoverFrame = 0;
 let pendingChartPointerEvent = null;
+let graphicTooltipFrame = 0;
+const graphicTooltipState = { target: null, pinned: false };
 const evolutionTrackDataCache = new WeakMap();
 let dueRefreshRunning = false;
 let renderQueued = false;
@@ -199,8 +201,14 @@ function init() {
   app.addEventListener('pointermove', handleChartPointerMoveScheduled, {passive:true});
   app.addEventListener('pointerdown', handleChartPointerMove, {passive:true});
   app.addEventListener('pointerout', handleChartPointerOut, {passive:true});
+  app.addEventListener('pointerover', handleGraphicTooltipPointerOver, {passive:true});
+  app.addEventListener('pointerout', handleGraphicTooltipPointerOut, {passive:true});
+  app.addEventListener('focusin', handleGraphicTooltipFocusIn);
+  app.addEventListener('focusout', handleGraphicTooltipFocusOut);
+  app.addEventListener('scroll', handleGraphicTooltipScroll, true);
   app.addEventListener('pointerover', handleSystemMonitorIntent, {passive:true});
   app.addEventListener('focusin', handleSystemMonitorIntent);
+  window.addEventListener('resize', handleGraphicTooltipViewportChange, {passive:true});
   document.addEventListener?.('keydown', handleGlobalKeydown);
   document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'){startAutoRefreshTimer();refreshDueCities();}else stopAutoRefreshTimer();});
   if(supportsHistoryRouting){
@@ -252,7 +260,7 @@ async function hydrateForecastStorage(){
 function routeView(query){
   return {
     tab:query.get('tab'), mode:query.get('mode'), metric:query.get('metric'),
-    horizon:Number(query.get('h')), timeline:query.get('timeline'), timelineLayout:query.get('timelineView'),
+    horizon:Number(query.get('h')), timeline:query.get('timeline'), timelineLayout:query.get('timelineView'), graphic:query.get('view')==='graphic',
     compareModels:(query.get('models')||'').split(',').filter(Boolean).map(decodeURIComponent)
   };
 }
@@ -714,12 +722,14 @@ function render(options={}){
 }
 function renderNow(){
   const scrollDirective=pendingScrollDirective;pendingScrollDirective=null;
+  clearGraphicTooltip();
   const existingRadarRoot=state.modal?.type==='radar'?app?.querySelector?.('[data-radar-root]'):null,preservedRadarBackdrop=existingRadarRoot?.closest?.('.modal-backdrop')||null;
   if(preservedRadarBackdrop)preservedRadarBackdrop.remove();
   if(state.modal?.type!=='radar')lazyFeatures.radar?.destroyRadarModal?.();
   const {t}=i18n();syncStorageErrors();syncDocumentMeta();
-  let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='data')content=renderLocalDataPage(); else if(state.route.name==='about')content=renderAbout(); else if(state.route.name==='notfound')content=renderRouteNotFound(); else if(state.route.name==='bias'){if(!lazyFeatures.bias){void loadFeature('bias').then(()=>render());content=renderFeatureLoadingPage('bias');}else content=renderBiasDetailPage(state.route);} else if(state.route.name==='compare'){if(!lazyFeatures.comparison){void loadFeature('comparison').then(()=>{if(state.route.name==='compare')render();});content=renderFeatureLoadingPage('comparison');}else content=renderCityComparisonLazy(state.route);} else content=renderCityDetail(state.route.id);
-  app.innerHTML=`${renderTopbar()}${renderPageBack()}${!state.online?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${preservedRadarBackdrop?'':renderModal()}`;
+  const graphicView=state.route.name==='city'&&state.route.view?.graphic===true;
+  let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='data')content=renderLocalDataPage(); else if(state.route.name==='about')content=renderAbout(); else if(state.route.name==='notfound')content=renderRouteNotFound(); else if(state.route.name==='bias'){if(!lazyFeatures.bias){void loadFeature('bias').then(()=>render());content=renderFeatureLoadingPage('bias');}else content=renderBiasDetailPage(state.route);} else if(state.route.name==='compare'){if(!lazyFeatures.comparison){void loadFeature('comparison').then(()=>{if(state.route.name==='compare')render();});content=renderFeatureLoadingPage('comparison');}else content=renderCityComparisonLazy(state.route);} else content=graphicView?renderGraphicForecastView(state.route.id):renderCityDetail(state.route.id);
+  app.innerHTML=`${graphicView?'':renderTopbar()}${graphicView?'':renderPageBack()}${!state.online&&!graphicView?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${preservedRadarBackdrop?'':renderModal()}`;
   if(preservedRadarBackdrop)app.append(preservedRadarBackdrop);
   enhanceCollapsibleCards(app);
   hydrateEvolutionTracks(app);
@@ -727,6 +737,7 @@ function renderNow(){
   if(!stabilizeLocalScroll(scrollDirective))applyScrollDirective(scrollDirective);
   stabilizeRouteTop(scrollDirective);
   document.body?.classList?.toggle?.('modal-open',Boolean(state.modal));
+  document.body?.classList?.toggle?.('graphic-view-open',graphicView);
   if(state.modal&&!preservedRadarBackdrop){queueMicrotask(()=>{const input=document.querySelector('#city-search');const dialog=document.querySelector('.modal');(input||dialog?.querySelector('button,input,a,[tabindex]:not([tabindex="-1"])'))?.focus?.({preventScroll:true});});}
   if(state.modal?.type==='radar'&&!preservedRadarBackdrop)queueMicrotask(()=>void hydrateRadarModal());
 }
@@ -1214,7 +1225,57 @@ function renderGlobalAgreementCard(f,agg,cityId,profile=localConsensusWeights(ci
 function renderForecastEngineCompareAction(){
   const {t}=i18n(),engine=state.settings.forecastEngine||'MULTI_CONSENSUS';
   const engineMarks=FORECAST_ENGINES.map(item=>`<i class="${item===engine?'active':''}" title="${attr(forecastEngineName(item))}"></i>`).join('');
-  return `<div class="forecast-engine-compare-slot"><button class="forecast-engine-compare-card" data-action="open-engine-comparison"><span class="forecast-engine-compare-icon" aria-hidden="true">Σ</span><span class="forecast-engine-overview-copy"><strong>${esc(t('forecastEngineCompare'))}</strong><small>${esc(t('forecastEngineCompareIntro'))}</small><span class="forecast-engine-compare-meta"><b>${esc(t('forecastEngineActiveLabel',{engine:forecastEngineName(engine)}))}</b><span class="forecast-engine-marks" aria-hidden="true">${engineMarks}</span></span></span><span class="forecast-engine-overview-chevron" aria-hidden="true">${uiIcon('external',16)}</span></button></div>`;
+  return `<div class="forecast-engine-compare-slot"><button class="forecast-engine-compare-card" data-action="open-engine-comparison"><span class="forecast-engine-compare-icon" aria-hidden="true">Σ</span><span class="forecast-engine-overview-copy"><strong>${esc(t('forecastEngineCompare'))}</strong><small>${esc(t('forecastEngineCompareIntro'))}</small><span class="forecast-engine-compare-meta"><b>${esc(t('forecastEngineActiveLabel',{engine:forecastEngineName(engine)}))}</b><span class="forecast-engine-marks" aria-hidden="true">${engineMarks}</span></span></span><span class="forecast-engine-overview-chevron" aria-hidden="true">${uiIcon('external',16)}</span></button></div>${renderGraphicViewAction()}`;
+}
+
+function renderGraphicViewAction(){
+  const {t}=i18n();
+  return `<div class="graphic-view-action-slot"><button class="graphic-view-action" data-action="open-graphic-view"><span class="graphic-view-action-icon" aria-hidden="true">${uiIcon('chart',21)}</span><span><strong>${esc(t('graphicView'))}</strong><small>${esc(t('graphicViewIntro'))}</small></span><span class="graphic-view-action-arrow" aria-hidden="true">${uiIcon('external',16)}</span></button></div>`;
+}
+function graphicTooltipEdgeClass(index,total){return index<3?' edge-left':index>=total-3?' edge-right':'';}
+function graphicIntervalText(detail,unit,digits=1){const interval=detail?.allSourceInterval||detail?.interval;return Number.isFinite(interval?.low)&&Number.isFinite(interval?.high)?`${fmt(interval.low,digits)}–${fmt(interval.high,digits)}${unit}`:'—';}
+function graphicModelName(id){return getModel(id)?.name||id||'—';}
+function graphicTemperatureTooltip(point,id){
+  const {t}=i18n(),ci=localizedConditionInfo(point.condition),agreement=Number.isFinite(point.temperatureAgreementPercent)?`${Math.round(point.temperatureAgreementPercent)} %`:'—';
+  return `<div class="graphic-tooltip graphic-tooltip-temperature graphic-tooltip-source" id="${attr(id)}" role="tooltip"><div class="graphic-tooltip-accent"></div><div class="graphic-tooltip-head"><div><strong>${esc(dateLabel(point.date,i18n().locale))} · ${esc(timeLabel(point.timestamp))}</strong><span>${esc(ci.label)}</span></div>${aggregateConditionMarkup(point,'small')}</div><div class="graphic-tooltip-hero"><strong>${Number.isFinite(point.temperatureC)?`${fmt(point.temperatureC,1)} °C`:'—'}</strong><span>${esc(t('graphicForecastCentral'))}</span></div><dl class="graphic-tooltip-facts"><div><dt>${esc(t('modelRange'))}</dt><dd>${esc(fmtRange(point.temperatureMinAcrossModels,point.temperatureMaxAcrossModels,' °C',1))}</dd></div><div><dt>${esc(t('summaryProbableRange'))}</dt><dd>${esc(graphicIntervalText(point.engineDetails?.temperature,' °C',1))}</dd></div><div><dt>${esc(t('modelConvergence'))}</dt><dd>${esc(agreement)}</dd></div><div><dt>${esc(t('models'))}</dt><dd>${esc(String(point.modelCount||0))}</dd></div></dl></div>`;
+}
+function graphicRainTooltip(point,id){
+  const {t}=i18n(),amount=Number.isFinite(point.precipitationMm)?point.precipitationMm:point.precipitationConditionalMm,prob=Number.isFinite(point.precipitationPercent)?Math.round(point.precipitationPercent):null,rows=(point.modelValues||[]).filter(row=>Number.isFinite(row.precipitation)||Number.isFinite(row.precipitationProbability)).map(row=>`<div class="graphic-model-row"><b>${esc(graphicModelName(row.modelId))}</b><span>${Number.isFinite(row.precipitation)?`${fmt(row.precipitation,1)} mm`:'—'}</span><span>${Number.isFinite(row.precipitationProbability)?`${Math.round(row.precipitationProbability)} %`:'—'}</span></div>`).join('');
+  const agreement=Number.isFinite(point.precipitationOccurrenceAgreementPercent)?`${Math.round(point.precipitationOccurrenceAgreementPercent)} %`:'—';
+  return `<div class="graphic-tooltip graphic-tooltip-rain graphic-tooltip-source" id="${attr(id)}" role="tooltip"><div class="graphic-tooltip-accent"></div><div class="graphic-tooltip-head"><div><strong>${esc(t('precipitation'))}</strong><span>${esc(dateLabel(point.date,i18n().locale))} · ${esc(timeLabel(point.timestamp))}</span></div>${weatherIcons.renderMetric('precipitation',{size:'small'})}</div><div class="graphic-tooltip-hero rain"><strong>${Number.isFinite(amount)?`${fmt(amount,1)} mm`:'—'}</strong><span>${esc(t('graphicHourlyAccumulation'))}</span></div><div class="graphic-probability"><span>${esc(t('timelineRainProbabilityShort'))}</span><b>${prob!=null?`${prob} %`:'—'}</b><i><em style="width:${prob??0}%"></em></i></div><dl class="graphic-tooltip-facts"><div><dt>${esc(t('modelRange'))}</dt><dd>${esc(fmtRange(point.precipitationMinAcrossModelsMm,point.precipitationMaxAcrossModelsMm,' mm',1))}</dd></div><div><dt>${esc(t('rainAgreement'))}</dt><dd>${esc(agreement)}</dd></div><div><dt>${esc(t('graphicWetModels'))}</dt><dd>${esc(`${point.wetModelCount||0} / ${point.precipitationModelCount||point.modelCount||0}`)}</dd></div><div><dt>${esc(t('summaryProbableRange'))}</dt><dd>${esc(graphicIntervalText(point.engineDetails?.precipitation,' mm',1))}</dd></div></dl>${rows?`<div class="graphic-model-table"><div class="graphic-model-row head"><b>${esc(t('models'))}</b><span>${esc(t('graphicRainAmount'))}</span><span>${esc(t('timelineRainProbabilityShort'))}</span></div>${rows}</div>`:''}</div>`;
+}
+function graphicWindTooltip(point,id){
+  const {t}=i18n(),direction=Number.isFinite(point.windDirectionDeg)?`${Math.round(point.windDirectionDeg)}° · ${localizedWindDirection(point.windDirectionDeg)}`:'—',agreement=Number.isFinite(point.windAgreementPercent)?`${Math.round(point.windAgreementPercent)} %`:'—',rows=(point.modelValues||[]).filter(row=>Number.isFinite(row.wind)||Number.isFinite(row.windGust)).map(row=>`<div class="graphic-model-row"><b>${esc(graphicModelName(row.modelId))}</b><span>${Number.isFinite(row.wind)?fmt(row.wind)+' km/h':'—'}</span><span>${Number.isFinite(row.windGust)?fmt(row.windGust)+' km/h':'—'}</span></div>`).join('');
+  return `<div class="graphic-tooltip graphic-tooltip-wind graphic-tooltip-source" id="${attr(id)}" role="tooltip"><div class="graphic-tooltip-accent"></div><div class="graphic-tooltip-head"><div><strong>${esc(t('wind'))}</strong><span>${esc(dateLabel(point.date,i18n().locale))} · ${esc(timeLabel(point.timestamp))}</span></div>${weatherIcons.renderMetric('wind',{size:'small'})}</div><div class="graphic-tooltip-hero wind"><strong>${Number.isFinite(point.windKmh)?`${fmt(point.windKmh)} km/h`:'—'}</strong><span>${esc(t('graphicMeanWind'))}</span></div><dl class="graphic-tooltip-facts"><div><dt>${esc(t('gusts'))}</dt><dd>${Number.isFinite(point.windGustKmh)?`${fmt(point.windGustKmh)} km/h`:'—'}</dd></div><div><dt>${esc(t('graphicWindDirection'))}</dt><dd>${esc(direction)}</dd></div><div><dt>${esc(t('modelRange'))}</dt><dd>${esc(fmtRange(point.windMinAcrossModels,point.windMaxAcrossModels,' km/h',0))}</dd></div><div><dt>${esc(t('modelConvergence'))}</dt><dd>${esc(agreement)}</dd></div></dl>${rows?`<div class="graphic-model-table"><div class="graphic-model-row head"><b>${esc(t('models'))}</b><span>${esc(t('wind'))}</span><span>${esc(t('gusts'))}</span></div>${rows}</div>`:''}</div>`;
+}
+function graphicVigilanceLane(city,data,startMs,endMs,leftPad,step,totalWidth){
+  const {t}=i18n(),phenomena=data&&!data.unavailable?activeVigilancePhenomena(data,2):[],duration=endMs-startMs,rows=phenomena.map(phen=>{const intervals=(phen.intervals||[]).filter(interval=>Number(interval.colorId)>=2&&interval.beginTime&&interval.endTime).map(interval=>{const a=Math.max(startMs,Date.parse(interval.beginTime)),b=Math.min(endMs,Date.parse(interval.endTime));if(!Number.isFinite(a)||!Number.isFinite(b)||b<=a)return '';const x=(a-startMs)/3600000*step,w=Math.max(8,(b-a)/3600000*step),meta=vigilanceLevelMeta(interval.colorId),label=`${vigilancePhenomenonLabel(phen.id)} · ${vigilanceLevelLabel(interval.colorId)} · ${vigilanceDateTime(interval.beginTime,city)} → ${vigilanceDateTime(interval.endTime,city)}`;return `<span class="graphic-vigilance-event vigilance-level-${meta.key}" style="left:${x.toFixed(1)}px;width:${w.toFixed(1)}px" title="${attr(label)}"><i>${vigilancePhenomenonIcon(phen.id)}</i><b>${esc(vigilancePhenomenonLabel(phen.id))}</b><small>${esc(vigilanceDateTime(interval.beginTime,city,{date:false,time:true}))}–${esc(vigilanceDateTime(interval.endTime,city,{date:false,time:true}))}</small></span>`;}).join('');return intervals?`<div class="graphic-vigilance-row">${intervals}</div>`:'';}).filter(Boolean).slice(0,3);
+  if(!rows.length)return `<div class="graphic-vigilance-zone" style="width:${totalWidth}px;grid-template-columns:${leftPad}px minmax(0,1fr)"><div class="graphic-vigilance-label"><strong>${esc(t('vigilanceNav'))}</strong></div><div class="graphic-vigilance-empty"><span>✓</span>${esc(t('graphicNoVigilance'))}</div></div>`;
+  return `<div class="graphic-vigilance-zone" style="width:${totalWidth}px;grid-template-columns:${leftPad}px minmax(0,1fr)"><div class="graphic-vigilance-label"><strong>${esc(t('vigilanceNav'))}</strong></div><div class="graphic-vigilance-rows">${rows.join('')}</div></div>`;
+}
+function renderGraphicForecastView(cityId){
+  const {t,locale}=i18n(),city=state.cities.find(row=>row.id===cityId);if(!city)return `<main class="graphic-view"><div class="graphic-empty"><h1>${esc(t('cityNotFound'))}</h1><button class="btn" data-action="home">${esc(t('back'))}</button></div></main>`;
+  const f=state.forecasts[cityId],loading=state.loading.has(cityId),header=`<header class="graphic-header"><div class="graphic-header-city"><button class="graphic-icon-button" data-action="close-graphic-view" aria-label="${attr(t('back'))}">${uiIcon('back',24)}</button><div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></div><div class="graphic-header-title"><strong>${esc(t('graphicView'))}</strong><span>${esc(t('graphicHourlySevenDays'))}</span></div><button class="graphic-icon-button" data-action="open-graphic-settings" aria-label="${attr(t('settings'))}">${uiIcon('settings',22)}</button></header>`;
+  if(!f)return `<main class="graphic-view">${header}<div class="graphic-loading">${loading?'<div class="loader"></div>':`<button class="btn primary" data-refresh-city="${attr(city.id)}">${esc(t('refresh'))}</button>`}<p>${esc(t(loading?'loading':'dataUnavailable'))}</p></div></main>`;
+  const engineContext=forecastEngineContext(cityId),points=buildTimelinePoints(f,'HOURLY',new Date(),{...normalizeForecastOptions(engineContext),hourlyHorizonHours:168,includeModelValues:true}).slice(0,168);if(!points.length)return `<main class="graphic-view">${header}<div class="graphic-loading"><p>${esc(t('dataUnavailable'))}</p></div></main>`;
+  const step=54,leftPad=96,rightPad=34,totalWidth=Math.round(leftPad+points.length*step+rightPad),chartHeight=620,tempTop=82,tempBottom=350,rainTop=396,rainBottom=548,windTop=404,windBottom=538;
+  const tempValues=points.flatMap(point=>[point.temperatureMinAcrossModels,point.temperatureMaxAcrossModels,point.temperatureC]).filter(Number.isFinite),rawTempMin=tempValues.length?Math.min(...tempValues):0,rawTempMax=tempValues.length?Math.max(...tempValues):30,tempPad=Math.max(2,(rawTempMax-rawTempMin)*.12),tempMin=Math.floor(rawTempMin-tempPad),tempMax=Math.ceil(rawTempMax+tempPad),tempSpan=Math.max(1,tempMax-tempMin),x=index=>leftPad+index*step+step/2,yTemp=value=>tempBottom-(value-tempMin)/tempSpan*(tempBottom-tempTop);
+  const rainMax=Math.max(1,...points.map(point=>Number.isFinite(point.precipitationMm)?point.precipitationMm:Number.isFinite(point.precipitationConditionalMm)?point.precipitationConditionalMm:0)),windMaxRaw=Math.max(10,...points.flatMap(point=>[point.windKmh,point.windGustKmh]).filter(Number.isFinite)),windMax=Math.max(20,Math.ceil(windMaxRaw/10)*10),yWind=value=>windBottom-Math.max(0,Math.min(windMax,value||0))/windMax*(windBottom-windTop);
+  const tempLine=svgPathFromPoints(points.map((point,index)=>Number.isFinite(point.temperatureC)?{x:x(index),y:yTemp(point.temperatureC)}:null)),windLine=svgPathFromPoints(points.map((point,index)=>Number.isFinite(point.windKmh)?{x:x(index),y:yWind(point.windKmh)}:null));
+  const upper=points.map((point,index)=>Number.isFinite(point.temperatureMaxAcrossModels)?[x(index),yTemp(point.temperatureMaxAcrossModels)]:null),lower=points.map((point,index)=>Number.isFinite(point.temperatureMinAcrossModels)?[x(index),yTemp(point.temperatureMinAcrossModels)]:null),bandValid=upper.every(Boolean)&&lower.every(Boolean),bandPath=bandValid?`M ${upper.map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L ')} L ${[...lower].reverse().map(p=>`${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L ')} Z`:'';
+  const tempTicks=Array.from({length:6},(_,i)=>tempMin+(tempMax-tempMin)*i/5).reverse(),grid=tempTicks.map(value=>`<line class="graphic-grid horizontal" x1="${leftPad}" x2="${totalWidth-rightPad}" y1="${yTemp(value)}" y2="${yTemp(value)}"/>`).join('')+points.map((point,index)=>`<line class="graphic-grid vertical ${index%6===0?'major':''}" x1="${x(index)}" x2="${x(index)}" y1="${tempTop-30}" y2="${rainBottom}"/>`).join('');
+  const dayBreaks=points.map((point,index)=>index===0||point.date!==points[index-1].date?`<line class="graphic-day-break" x1="${x(index)-step/2}" x2="${x(index)-step/2}" y1="${tempTop-42}" y2="${rainBottom}"/>`:'').join('');
+  const tint=points.map((point,index)=>{const color=temperatureHeatColor(point.temperatureC);return `<span style="left:${(x(index)-step/2).toFixed(1)}px;width:${step}px;--heat-color:${attr(color)}"></span>`;}).join('');
+  const tempTargets=points.map((point,index)=>{if(!Number.isFinite(point.temperatureC))return '';const px=x(index),py=yTemp(point.temperatureC),id=`graphic-temp-tip-${index}`,edge=graphicTooltipEdgeClass(index,points.length),label=`${dateLabel(point.date,locale)} ${timeLabel(point.timestamp)} · ${t('temperature')} ${fmt(point.temperatureC,1)} °C`;return `<div class="graphic-condition" style="left:${px}px;top:${(Math.max(8,py-55)/chartHeight*100).toFixed(3)}%" title="${attr(localizedConditionInfo(point.condition).label)}">${point.condition?weatherIcons.render(point.condition,{size:'small'}):''}</div><button class="graphic-point graphic-temp-point${edge}" data-graphic-tooltip-target="temperature" style="left:${px}px;top:${(py/chartHeight*100).toFixed(3)}%" aria-label="${attr(label)}" aria-describedby="${attr(id)}" aria-expanded="false"><i></i><span class="graphic-temp-value">${fmt(point.temperatureC)}°</span>${graphicTemperatureTooltip(point,id)}</button>`;}).join('');
+  const rainTargets=points.map((point,index)=>{const amount=Number.isFinite(point.precipitationMm)?point.precipitationMm:Number.isFinite(point.precipitationConditionalMm)?point.precipitationConditionalMm:null;if(!Number.isFinite(amount)&&!Number.isFinite(point.precipitationPercent))return '';const px=x(index),barAmount=Math.max(0,amount||0),height=Math.max(barAmount>0?3:1,(barAmount/rainMax)*(rainBottom-rainTop)),top=rainBottom-height,prob=Math.max(0,Math.min(100,Number(point.precipitationPercent)||0)),id=`graphic-rain-tip-${index}`,edge=graphicTooltipEdgeClass(index,points.length),label=`${dateLabel(point.date,locale)} ${timeLabel(point.timestamp)} · ${t('precipitation')} ${Number.isFinite(amount)?fmt(amount,1)+' mm':'—'} · ${Math.round(prob)} %`;return `<button class="graphic-rain-bar${edge}" data-graphic-tooltip-target="rain" style="left:${px-step*.31}px;top:${(top/chartHeight*100).toFixed(3)}%;width:${Math.max(12,step*.62)}px;height:${(height/chartHeight*100).toFixed(3)}%;--prob:${prob}%" aria-label="${attr(label)}" aria-describedby="${attr(id)}" aria-expanded="false">${barAmount>=.2?`<span>${fmt(barAmount,barAmount<10?1:0)}</span>`:''}${graphicRainTooltip(point,id)}</button>`;}).join('');
+  const windTargets=points.map((point,index)=>{if(!Number.isFinite(point.windKmh))return '';const px=x(index),py=yWind(point.windKmh),id=`graphic-wind-tip-${index}`,edge=graphicTooltipEdgeClass(index,points.length),label=`${dateLabel(point.date,locale)} ${timeLabel(point.timestamp)} · ${t('wind')} ${fmt(point.windKmh)} km/h`;return `<button class="graphic-point graphic-wind-point${edge}" data-graphic-tooltip-target="wind" style="left:${px}px;top:${(py/chartHeight*100).toFixed(3)}%" aria-label="${attr(label)}" aria-describedby="${attr(id)}" aria-expanded="false"><i></i>${graphicWindTooltip(point,id)}</button>`;}).join('');
+  const yLabels=`<div class="graphic-y-axis temp">${tempTicks.map(value=>`<span style="top:${(yTemp(value)/chartHeight*100).toFixed(3)}%">${fmt(value)}°</span>`).join('')}</div><div class="graphic-y-axis rain"><span style="top:${(rainTop/chartHeight*100).toFixed(3)}%">${fmt(rainMax,1)}</span><span style="top:${(rainBottom/chartHeight*100).toFixed(3)}%">0</span><b>${esc(t('graphicRainAxis'))}</b></div><div class="graphic-y-axis wind"><span style="top:${(windTop/chartHeight*100).toFixed(3)}%">${windMax}</span><span style="top:${(windBottom/chartHeight*100).toFixed(3)}%">0</span><b>${esc(t('wind'))}<small>km/h</small></b></div>`;
+  const groups=[];for(let i=0;i<points.length;i++){if(i===0||points[i].date!==points[i-1].date){let end=i;while(end+1<points.length&&points[end+1].date===points[i].date)end++;groups.push({date:points[i].date,start:i,end});i=end;}}
+  const dayStrip=groups.map((group,index)=>{const startX=x(group.start)-step/2,width=(group.end-group.start+1)*step,offset=Math.max(0,startX-leftPad);return `<button class="graphic-day-tab ${index===0?'active':''}" style="width:${width}px" data-graphic-day="${offset.toFixed(0)}"><strong>${esc(dateLabel(group.date,locale))}</strong></button>`;}).join('');
+  const timeAxis=points.map((point,index)=>`<div class="graphic-hour ${point.date!==points[index-1]?.date?'day-start':''}" style="left:${(x(index)-step/2).toFixed(1)}px;width:${step}px"><strong>${esc(timeLabel(point.timestamp))}</strong>${point.date!==points[index-1]?.date?`<small>${esc(dateLabel(point.date,locale))}</small>`:''}</div>`).join('');
+  const startMs=points[0].epochMs,endMs=(points.at(-1).epochMs||startMs)+3600000,vigilance=graphicVigilanceLane(city,vigilanceByCity.get(city.id),startMs,endMs,leftPad,step,totalWidth);
+  const rangeLabel=`${dateLabel(points[0].date,locale)} – ${dateLabel(points.at(-1).date,locale)}`;
+  return `<main class="graphic-view">${header}<div class="graphic-day-strip-shell"><div class="graphic-day-strip" style="padding-left:${leftPad}px;width:${totalWidth}px">${dayStrip}</div><span class="graphic-range-label">${esc(rangeLabel)}</span></div><div class="graphic-legend"><span class="temp"><i></i>${esc(t('temperature'))}</span><span class="spread"><i></i>${esc(t('graphicDispersion'))}</span><span class="wind"><i></i>${esc(t('wind'))}</span><span class="rain"><i></i>${esc(t('precipitation'))}</span><span class="graphic-rain-scale"><b>${esc(t('graphicRainProbability'))}</b><i></i><small>0 %</small><small>50 %</small><small>100 %</small></span></div><div class="graphic-scroll" role="region" tabindex="0" aria-label="${attr(t('graphicExploreAria'))}"><div class="graphic-track" style="width:${totalWidth}px"><section class="graphic-chart" style="width:${totalWidth}px"><div class="graphic-temperature-tint">${tint}</div><svg class="graphic-chart-svg" width="${totalWidth}" height="${chartHeight}" viewBox="0 0 ${totalWidth} ${chartHeight}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="graphicTempBand" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#ff9829" stop-opacity=".34"/><stop offset="100%" stop-color="#ff9829" stop-opacity=".08"/></linearGradient></defs>${grid}${dayBreaks}${bandPath?`<path class="graphic-temp-band" d="${bandPath}"/>`:''}<path class="graphic-temp-line" d="${tempLine}"/><line class="graphic-rain-baseline" x1="${leftPad}" x2="${totalWidth-rightPad}" y1="${rainBottom}" y2="${rainBottom}"/><path class="graphic-wind-line" d="${windLine}"/></svg>${yLabels}${tempTargets}${rainTargets}${windTargets}</section><div class="graphic-time-axis" style="width:${totalWidth}px">${timeAxis}</div>${vigilance}</div></div><div class="graphic-tooltip-layer" data-graphic-tooltip-layer hidden><div class="graphic-floating-tooltip"></div></div><div class="graphic-footer-hint"><span>↔</span>${esc(t('graphicExploreHint'))}</div></main>`;
 }
 
 function renderTodaySummary(f,agg,now,cityId,profile=localConsensusWeights(cityId)){
@@ -1986,7 +2047,60 @@ function handleChartPointerOut(e){
   const svg=e.target?.closest?.('svg[data-hover-chart]');if(!svg||!app.contains(svg)||e.pointerType==='touch')return;if(e.relatedTarget&&svg.contains(e.relatedTarget))return;if(chartHoverFrame){cancelAnimationFrame(chartHoverFrame);chartHoverFrame=0;}pendingChartPointerEvent=null;clearChartHover(svg);
 }
 
+function graphicTooltipTarget(node){const target=node?.closest?.('[data-graphic-tooltip-target]')||null;return target?.dataset?.graphicTooltipTarget!==undefined?target:null;}
+function graphicTooltipLayer(){const layer=app?.querySelector?.('[data-graphic-tooltip-layer]')||null;return layer?.dataset?.graphicTooltipLayer!==undefined?layer:null;}
+function clearGraphicTooltip(){
+  if(graphicTooltipFrame){cancelAnimationFrame(graphicTooltipFrame);graphicTooltipFrame=0;}
+  const previous=graphicTooltipState.target,layer=graphicTooltipLayer();
+  if(previous){previous.classList.remove('tooltip-open','tooltip-pinned');previous.setAttribute('aria-expanded','false');}
+  graphicTooltipState.target=null;graphicTooltipState.pinned=false;
+  if(layer){layer.hidden=true;layer.classList.remove('is-pinned');layer.removeAttribute('data-placement');const floating=layer.querySelector('.graphic-floating-tooltip');if(floating){floating.replaceChildren();floating.removeAttribute('style');floating.className='graphic-floating-tooltip';}}
+}
+function positionGraphicTooltip(){
+  graphicTooltipFrame=0;
+  const target=graphicTooltipState.target,layer=graphicTooltipLayer(),floating=layer?.querySelector?.('.graphic-floating-tooltip');
+  if(!target||!layer||!floating||layer.hidden||!target.isConnected){if(target&&!target.isConnected)clearGraphicTooltip();return;}
+  const rect=target.getBoundingClientRect(),margin=10,gap=12;
+  floating.style.left='0px';floating.style.top='0px';floating.style.visibility='hidden';
+  const box=floating.getBoundingClientRect(),viewportWidth=document.documentElement.clientWidth||window.innerWidth,viewportHeight=document.documentElement.clientHeight||window.innerHeight;
+  let left=rect.left+rect.width/2-box.width/2,leftClamped=Math.max(margin,Math.min(Math.max(margin,viewportWidth-box.width-margin),left));
+  let top=rect.top-box.height-gap,placement='top';
+  if(top<margin){top=rect.bottom+gap;placement='bottom';}
+  if(top+box.height>viewportHeight-margin)top=Math.max(margin,viewportHeight-box.height-margin);
+  const anchorX=Math.max(18,Math.min(box.width-18,rect.left+rect.width/2-leftClamped));
+  floating.style.left=`${leftClamped}px`;floating.style.top=`${top}px`;floating.style.setProperty('--graphic-tooltip-arrow-x',`${anchorX}px`);floating.style.visibility='visible';
+  layer.dataset.placement=placement;
+}
+function scheduleGraphicTooltipPosition(){if(graphicTooltipFrame)return;graphicTooltipFrame=requestAnimationFrame(positionGraphicTooltip);}
+function showGraphicTooltip(target,{pinned=false}={}){
+  if(!target||!app.contains(target))return;
+  if(graphicTooltipState.pinned&&graphicTooltipState.target!==target&&!pinned)return;
+  const source=target.querySelector?.('.graphic-tooltip-source'),layer=graphicTooltipLayer(),floating=layer?.querySelector?.('.graphic-floating-tooltip');if(!source||!layer||!floating)return;
+  if(graphicTooltipState.target&&graphicTooltipState.target!==target){graphicTooltipState.target.classList.remove('tooltip-open','tooltip-pinned');graphicTooltipState.target.setAttribute('aria-expanded','false');}
+  graphicTooltipState.target=target;graphicTooltipState.pinned=Boolean(pinned);target.classList.add('tooltip-open');target.classList.toggle('tooltip-pinned',graphicTooltipState.pinned);target.setAttribute('aria-expanded',String(graphicTooltipState.pinned));
+  const typeClasses=[...source.classList].filter(name=>name.startsWith('graphic-tooltip-')&&name!=='graphic-tooltip-source');
+  floating.className=['graphic-floating-tooltip',...typeClasses].join(' ');
+  floating.innerHTML=`<button type="button" class="graphic-tooltip-close" data-graphic-tooltip-close aria-label="${attr(i18n().t('close'))}">×</button>${source.innerHTML}`;
+  floating.setAttribute('role',graphicTooltipState.pinned?'dialog':'tooltip');floating.setAttribute('aria-modal','false');
+  layer.hidden=false;layer.classList.toggle('is-pinned',graphicTooltipState.pinned);scheduleGraphicTooltipPosition();
+}
+function toggleGraphicTooltipPin(target){
+  if(graphicTooltipState.target===target&&graphicTooltipState.pinned){clearGraphicTooltip();return;}
+  showGraphicTooltip(target,{pinned:true});
+}
+function handleGraphicTooltipPointerOver(e){
+  if(e.pointerType==='touch')return;const target=graphicTooltipTarget(e.target);if(!target||!app.contains(target))return;if(e.relatedTarget&&target.contains(e.relatedTarget))return;if(graphicTooltipState.pinned)return;showGraphicTooltip(target);
+}
+function handleGraphicTooltipPointerOut(e){
+  if(e.pointerType==='touch'||graphicTooltipState.pinned)return;const target=graphicTooltipTarget(e.target);if(!target||target!==graphicTooltipState.target)return;if(e.relatedTarget&&target.contains(e.relatedTarget))return;clearGraphicTooltip();
+}
+function handleGraphicTooltipFocusIn(e){const target=graphicTooltipTarget(e.target);if(!target||graphicTooltipState.pinned)return;showGraphicTooltip(target);}
+function handleGraphicTooltipFocusOut(e){if(graphicTooltipState.pinned)return;const target=graphicTooltipTarget(e.target);if(!target||target!==graphicTooltipState.target)return;if(e.relatedTarget&&target.contains(e.relatedTarget))return;clearGraphicTooltip();}
+function handleGraphicTooltipScroll(){if(graphicTooltipState.target)scheduleGraphicTooltipPosition();}
+function handleGraphicTooltipViewportChange(){if(graphicTooltipState.target)scheduleGraphicTooltipPosition();}
+
 function handleGlobalKeydown(e){
+  if(e.key==='Escape'&&graphicTooltipState.pinned){e.preventDefault();const target=graphicTooltipState.target;clearGraphicTooltip();target?.focus?.();return;}
   if(e.key==='Escape'&&app?.querySelector?.('.topbar-system-monitor.is-open')){e.preventDefault();const monitor=app.querySelector('.topbar-system-monitor.is-open'),trigger=monitor?.querySelector?.('[data-action="toggle-system-monitor"]');closeSystemMonitor();trigger?.focus?.();return;}
   if(e.key==='Escape'&&app?.querySelector?.('.nav-config-menu.is-open')){e.preventDefault();const configMenu=app.querySelector('.nav-config-menu.is-open'),trigger=configMenu?.querySelector?.('[data-action="toggle-config-menu"]');closeConfigMenus();trigger?.focus?.();return;}
   if(e.key==='Escape'&&app?.querySelector?.('.nav-install-menu.is-open')){e.preventDefault();const installMenu=app.querySelector('.nav-install-menu.is-open'),trigger=installMenu?.querySelector?.('[data-action="toggle-install-menu"]');closeInstallMenus();trigger?.focus?.();return;}
@@ -2049,11 +2163,17 @@ function handleAppClick(e){
   if(!e.target.closest?.('.topbar-system-monitor'))closeSystemMonitor();
   const seoLink=e.target.closest?.('a[data-seo-city-link]');
   if(seoLink&&app.contains(seoLink)&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();if(openSeoCityLink(seoLink))return;}
-  const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-timeline-layout],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section],[data-compare-model],[data-export-format],[data-agreement-time],[data-density],[data-city-compare-toggle],[data-evolution-variable],[data-reliability-variable],[data-local-weighting],[data-forecast-engine],[data-engine-chart-variable],[data-engine-detail-date],[data-collapse-section],[data-error-action]');
+  const graphicTooltipClose=e.target.closest?.('[data-graphic-tooltip-close]');
+  if(graphicTooltipClose?.dataset?.graphicTooltipClose!==undefined&&app.contains(graphicTooltipClose)){e.preventDefault?.();e.stopPropagation?.();const focusTarget=graphicTooltipState.target;clearGraphicTooltip();focusTarget?.focus?.();return;}
+  const graphicTarget=graphicTooltipTarget(e.target);
+  if(graphicTarget&&app.contains(graphicTarget)){e.preventDefault?.();toggleGraphicTooltipPin(graphicTarget);return;}
+  if(graphicTooltipState.pinned&&!e.target.closest?.('.graphic-floating-tooltip'))clearGraphicTooltip();
+  const target=e.target.closest?.('[data-action],[data-city-open],[data-city-menu],[data-refresh-city],[data-remove-city],[data-add-city-id],[data-confidence-metric],[data-chart-horizon],[data-detail-mode],[data-detail-tab],[data-timeline-mode],[data-timeline-layout],[data-theme],[data-language],[data-refresh-interval],[data-model-sort],[data-model-toggle],[data-bias-refresh-city],[data-bias-model],[data-scroll-section],[data-compare-model],[data-export-format],[data-agreement-time],[data-density],[data-city-compare-toggle],[data-evolution-variable],[data-reliability-variable],[data-local-weighting],[data-forecast-engine],[data-engine-chart-variable],[data-engine-detail-date],[data-collapse-section],[data-error-action],[data-graphic-day]');
   if(!target||!app.contains(target))return;
   const previousInteractionScroll=interactionScrollContext;interactionScrollContext=captureScrollContext(target);
   try{
   if(target.dataset.errorAction){handleErrorAction(target);return;}
+  if(target.dataset.graphicDay){const scroller=document.querySelector?.('.graphic-scroll');if(scroller){const left=Math.max(0,Number(target.dataset.graphicDay)||0);scroller.scrollTo?.({left,behavior:'smooth'});}return;}
   if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
   if(target.dataset.cityMenu){e.stopPropagation();lastFocusedBeforeModal=document.activeElement;state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
   if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'city'});void refreshCityWithToast(target.dataset.refreshCity);return;}
@@ -2112,7 +2232,7 @@ function handleAction(e){
   else if(action==='toggle-system-monitor'){const menu=e.currentTarget.closest?.('.topbar-system-monitor');if(!menu)return;const opening=!menu.classList.contains('is-open');closeConfigMenus();closeInstallMenus();if(opening){menu.classList.add('is-open');e.currentTarget.setAttribute('aria-expanded','true');void trackAnalyticsEvent('System Monitor Opened',state.route);void probeSystemHealth(false);}else closeSystemMonitor();}
   else if(action==='refresh-system-monitor'){void trackAnalyticsEvent('System Monitor Refreshed',state.route);globalThis.__METEOCOMPARE_ANALYTICS_CONTROL__?.reconcile?.();void probeSystemHealth(true);}
   else if(action==='install-play-store'){closeInstallMenus();void trackAnalyticsEvent('Install Option Selected',state.route,{source:'play_store'});}
-  else if(action==='settings')go('#/settings');
+  else if(action==='settings'||action==='open-graphic-settings')go('#/settings');
   else if(action==='local-data'){state.localDataStats=null;state.localDataError=null;go('#/data');}
   else if(action==='about')go('#/about');
   else if(action==='install-pwa'){closeInstallMenus();void trackAnalyticsEvent('Install Option Selected',state.route,{source:'pwa'});if(!deferredInstallPrompt){toast(pwaInstallGuidance().text);return;}void trackAnalyticsEvent('PWA Install Click',state.route);const promptEvent=deferredInstallPrompt;promptEvent.prompt();promptEvent.userChoice?.then(choice=>{const outcome=choice?.outcome==='accepted'?'accepted':'dismissed';void trackAnalyticsEvent('PWA Install Prompt Result',state.route,{outcome});if(outcome==='accepted'){deferredInstallPrompt=null;}else toast(i18n().t('pwaInstallDismissed'));if(state.route.name==='about')render();else refreshInstallNav();}).catch(()=>toast(pwaInstallGuidance().text));}
@@ -2125,6 +2245,8 @@ function handleAction(e){
   else if(action==='modal-backdrop'&&e.target===e.currentTarget){closeModal();}
   else if(action==='why-confidence'){void trackAnalyticsEvent('Confidence Explanation Opened',state.route);lastFocusedBeforeModal=document.activeElement;state.modal={type:'confidence',cityId:state.route.id};render();}
   else if(action==='open-engine-comparison'){if(state.route.name!=='city'||!state.route.id)return;void trackAnalyticsEvent('Forecast Engine Comparison Opened',state.route);lastFocusedBeforeModal=document.activeElement;state.modal={type:'forecastEngines',cityId:state.route.id,chartVariable:'tempMax',detailDate:null};render();}
+  else if(action==='open-graphic-view'){if(state.route.name!=='city'||!state.route.id)return;const city=state.cities.find(row=>row.id===state.route.id);if(!city)return;void trackAnalyticsEvent('Graphic Forecast Opened',state.route);const q=new URLSearchParams();q.set('view','graphic');go(cityViewUrl(city,q));}
+  else if(action==='close-graphic-view'){if(state.route.name!=='city'||!state.route.id)return;const city=state.cities.find(row=>row.id===state.route.id);if(city)go(cityViewUrl(city));else go('#/');}
   else if(action==='open-radar'){if(!state.online){toast(i18n().t('radarOnlineRequired'),{type:'warning'});return;}if(state.route.name!=='city'||!state.route.id)return;void trackAnalyticsEvent('Rain Radar Opened',state.route);lastFocusedBeforeModal=document.activeElement;state.modal={type:'radar',cityId:state.route.id,radarMode:'observation',radarRange:'near',radarHorizon:30,radarFullscreen:false};render();}
   else if(action==='donate'){void trackAnalyticsEvent('Support Opened',state.route);lastFocusedBeforeModal=document.activeElement;state.modal={type:'donate'};render();}
   else if(action==='activate-marine'){const id=e.currentTarget.dataset.marineCity;void trackAnalyticsEvent('Marine Activated',state.route);state.modal=null;render();if(id)void refreshMarineData(id,true,true);}
