@@ -5917,7 +5917,7 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-header-title { text-align: center; display: grid; gap: 2px; }
 .graphic-header-title strong { font-size: 1.20rem; letter-spacing: -.02em; }
 .graphic-header-title span { color: var(--gv-muted); font-size: .74rem; }
-.graphic-header > .graphic-icon-button:last-child { justify-self: end; }
+.graphic-header-balance { width: 40px; height: 40px; justify-self: end; pointer-events: none; }
 .graphic-icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--gv-border); border-radius: 11px; background: color-mix(in srgb,var(--surface-2) 78%,transparent); color: var(--gv-text); cursor: pointer; }
 .graphic-icon-button:hover { background: var(--surface-3); border-color: color-mix(in srgb,var(--primary) 42%,var(--border)); }
 .graphic-day-strip-shell { position: relative; flex: 0 0 49px; overflow: hidden; border-bottom: 1px solid var(--gv-border); background: color-mix(in srgb,var(--surface) 82%,transparent); }
@@ -5926,7 +5926,8 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-day-tab strong { font-size: .76rem; font-weight: 700; white-space: nowrap; }
 .graphic-day-tab:hover,.graphic-day-tab.active { color: var(--gv-text); background: color-mix(in srgb,var(--primary) 9%,transparent); border-bottom-color: var(--gv-temp); }
 .graphic-range-label { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); padding: 4px 7px; border: 1px solid var(--gv-border); border-radius: 7px; background: color-mix(in srgb,var(--surface-raised) 92%,transparent); color: var(--gv-muted); font-size: .70rem; pointer-events: none; }
-.graphic-legend { flex: 0 0 50px; display: flex; align-items: center; gap: 26px; padding: 0 20px; border-bottom: 1px solid var(--gv-border); background: color-mix(in srgb,var(--surface-2) 76%,transparent); color: var(--gv-muted); font-size: .70rem; }
+.graphic-legend-row { position: relative; min-height: 0; border-top: 1px solid var(--gv-border); border-bottom: 1px solid var(--gv-border); background: color-mix(in srgb,var(--surface-2) 76%,transparent); }
+.graphic-legend { position: sticky; left: 0; width: min(100vw,100%); height: 100%; display: flex; align-items: center; gap: 26px; padding: 0 20px; color: var(--gv-muted); font-size: .70rem; background: color-mix(in srgb,var(--surface-2) 86%,transparent); backdrop-filter: blur(10px); z-index: 18; }
 .graphic-legend > span:not(.graphic-rain-scale) { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .graphic-legend > span > i { display: inline-block; flex: 0 0 auto; }
 .graphic-legend .temp > i { width: 24px; height: 3px; border-radius: 99px; background: var(--gv-temp); box-shadow: 8px 0 0 -1px var(--gv-temp); }
@@ -5940,55 +5941,65 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-rain-scale small { color: var(--gv-muted); font-size: .70rem; }
 .graphic-scroll { flex: 1 1 auto; min-height: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-gutter: stable; background: color-mix(in srgb,var(--surface-2) 34%,var(--bg)); }
 .graphic-scroll:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; box-shadow: none; }
-.graphic-track { height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(300px,1fr) 74px 92px; }
-.graphic-chart { position: relative; min-height: 0; overflow: hidden; background: linear-gradient(180deg,color-mix(in srgb,var(--surface-2) 72%,transparent),color-mix(in srgb,var(--surface) 34%,transparent)); }
+.graphic-track { position: relative; height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(0,1fr) 48px 74px 92px; }
+.graphic-chart { position: relative; min-height: 0; }
+.graphic-plots { display: grid; grid-template-rows: minmax(0,54fr) minmax(0,23fr) minmax(0,23fr); overflow: hidden; background: linear-gradient(180deg,color-mix(in srgb,var(--surface-2) 72%,transparent),color-mix(in srgb,var(--surface) 34%,transparent)); }
+.graphic-plot { position: relative; min-height: 0; overflow: hidden; isolation: isolate; }
+.graphic-plot + .graphic-plot { border-top: 1px solid color-mix(in srgb,var(--border-strong) 78%,transparent); }
+.graphic-plot-rain { background: linear-gradient(180deg,color-mix(in srgb,var(--gv-rain) 3%,var(--surface-2)),color-mix(in srgb,var(--surface) 48%,transparent)); }
+.graphic-plot-wind { background: linear-gradient(180deg,color-mix(in srgb,var(--gv-wind) 3%,var(--surface-2)),color-mix(in srgb,var(--surface) 48%,transparent)); }
 .graphic-chart-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .graphic-temperature-tint { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.graphic-temperature-tint > span { position: absolute; top: 0; height: 59%; opacity: 1; background: linear-gradient(180deg,color-mix(in srgb,var(--heat-color) var(--gv-heat-strong),transparent),color-mix(in srgb,var(--heat-color) var(--gv-heat-soft),transparent) 72%,transparent 100%); box-shadow: inset -1px 0 color-mix(in srgb,var(--heat-color) 5%,transparent); }
+.graphic-temperature-tint > span { position: absolute; top: 0; height: 100%; opacity: 1; background: linear-gradient(180deg,color-mix(in srgb,var(--heat-color) var(--gv-heat-strong),transparent),color-mix(in srgb,var(--heat-color) var(--gv-heat-soft),transparent) 72%,transparent 100%); box-shadow: inset -1px 0 color-mix(in srgb,var(--heat-color) 5%,transparent); }
 .graphic-grid { stroke: color-mix(in srgb,var(--border) 68%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-grid.vertical { stroke-dasharray: 2 5; }
 .graphic-grid.vertical.major { stroke: color-mix(in srgb,var(--border-strong) 74%,transparent); }
 .graphic-grid.horizontal { stroke: color-mix(in srgb,var(--border) 82%,transparent); stroke-dasharray: 2 5; }
+.graphic-grid.horizontal.rain { stroke: color-mix(in srgb,var(--gv-rain) 18%,var(--border)); }
+.graphic-grid.horizontal.wind { stroke: color-mix(in srgb,var(--gv-wind) 18%,var(--border)); }
 .graphic-day-break { stroke: color-mix(in srgb,var(--border-strong) 82%,transparent); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .graphic-temp-band { fill: color-mix(in srgb,var(--gv-temp) 14%,transparent); stroke: color-mix(in srgb,var(--gv-temp) 34%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-temp-line { fill: none; stroke: var(--gv-temp); stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 2px color-mix(in srgb,var(--gv-temp) 28%,transparent)); }
 .graphic-wind-line { fill: none; stroke: var(--gv-wind); stroke-width: 2; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
 .graphic-rain-baseline { stroke: color-mix(in srgb,var(--gv-rain) 44%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-wind-baseline { stroke: color-mix(in srgb,var(--gv-wind) 26%,transparent); stroke-width: 1; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
+.graphic-ruler { position: absolute; top: 0; bottom: 0; width: 1px; z-index: 16; pointer-events: none; background: linear-gradient(180deg,color-mix(in srgb,var(--primary) 24%,transparent),color-mix(in srgb,var(--primary) 92%,transparent) 18%,color-mix(in srgb,var(--primary) 92%,transparent) 82%,color-mix(in srgb,var(--primary) 24%,transparent)); box-shadow: 0 0 0 1px color-mix(in srgb,var(--surface) 30%,transparent),0 0 14px color-mix(in srgb,var(--primary) 22%,transparent); }
+.graphic-ruler[hidden] { display: none; }
+.graphic-ruler::before,.graphic-ruler::after { content: ""; position: absolute; left: 50%; width: 7px; height: 7px; border-radius: 50%; transform: translateX(-50%); background: var(--primary); border: 2px solid var(--surface); box-shadow: 0 0 0 2px color-mix(in srgb,var(--primary) 20%,transparent); }
+.graphic-ruler::before { top: 5px; }
+.graphic-ruler::after { bottom: 5px; }
+.graphic-ruler-badge { position: absolute; left: 8px; top: 8px; min-width: max-content; padding: 4px 7px; border: 1px solid color-mix(in srgb,var(--primary) 38%,var(--border)); border-radius: 7px; background: color-mix(in srgb,var(--surface-raised) 94%,transparent); color: var(--text); font-family: var(--tech-font); font-size: .70rem; font-weight: 750; box-shadow: var(--shadow-2); backdrop-filter: blur(8px); }
+.graphic-ruler.badge-left .graphic-ruler-badge { left: auto; right: 8px; }
 .graphic-y-axis {
   --axis-left: 10px; --axis-color: var(--gv-temp);
   position: absolute; inset: 0; pointer-events: none; z-index: 5; font-family: var(--tech-font); font-size: .70rem; color: var(--gv-muted);
 }
-.graphic-y-axis.temp { --axis-left: 10px; --axis-color: var(--gv-temp); }
-.graphic-y-axis.rain { --axis-left: 10px; --axis-color: var(--gv-rain); }
-.graphic-y-axis.wind { --axis-left: 76px; --axis-color: var(--gv-wind); }
+.graphic-y-axis.temp { --axis-color: var(--gv-temp); }
+.graphic-y-axis.rain { --axis-color: var(--gv-rain); }
+.graphic-y-axis.wind { --axis-color: var(--gv-wind); }
 .graphic-axis-heading {
-  position: absolute; left: var(--axis-left); top: calc(var(--axis-start) - 38px); min-width: 58px; height: 29px; display: flex; align-items: center; gap: 5px;
-  padding: 4px 6px; border: 1px solid color-mix(in srgb,var(--axis-color) 28%,var(--border)); border-radius: 8px;
-  background: color-mix(in srgb,var(--surface-raised) 92%,transparent); color: var(--axis-color); box-shadow: var(--shadow-1); backdrop-filter: blur(8px);
+  position: absolute; left: var(--axis-left); top: 8px; min-width: 86px; height: 30px; display: flex; align-items: center; gap: 6px;
+  padding: 4px 7px; border: 1px solid color-mix(in srgb,var(--axis-color) 30%,var(--border)); border-radius: 9px;
+  background: color-mix(in srgb,var(--surface-raised) 93%,transparent); color: var(--axis-color); box-shadow: var(--shadow-1); backdrop-filter: blur(8px);
 }
-.graphic-y-axis.temp .graphic-axis-heading { min-width: 76px; }
-.graphic-axis-icon { width: 15px; height: 15px; display: grid; place-items: center; flex: 0 0 auto; }
-.graphic-axis-icon .weather-icon,.graphic-axis-icon svg { width: 14px; height: 14px; }
+.graphic-axis-icon { width: 16px; height: 16px; display: grid; place-items: center; flex: 0 0 auto; }
+.graphic-axis-icon .weather-icon,.graphic-axis-icon svg { width: 15px; height: 15px; }
 .graphic-axis-heading > span:last-child { display: grid; line-height: 1.02; }
 .graphic-axis-heading strong { color: var(--text); font-size: .70rem; font-weight: 800; letter-spacing: .01em; }
 .graphic-axis-heading small { margin-top: 2px; color: var(--axis-color); font-size: .70rem; font-weight: 700; }
 .graphic-axis-rail {
-  position: absolute; left: calc(var(--axis-left) + 52px); top: var(--axis-start); bottom: calc(100% - var(--axis-end)); width: 1px;
-  background: linear-gradient(180deg,color-mix(in srgb,var(--axis-color) 75%,transparent),color-mix(in srgb,var(--axis-color) 22%,transparent));
+  position: absolute; left: calc(var(--axis-left) + 78px); top: var(--axis-start); bottom: calc(100% - var(--axis-end)); width: 1px;
+  background: linear-gradient(180deg,color-mix(in srgb,var(--axis-color) 78%,transparent),color-mix(in srgb,var(--axis-color) 24%,transparent));
   box-shadow: 0 0 8px color-mix(in srgb,var(--axis-color) 12%,transparent);
 }
-.graphic-y-axis.temp .graphic-axis-rail { left: calc(var(--axis-left) + 62px); }
 .graphic-axis-tick {
-  position: absolute; left: var(--axis-left); width: 61px; height: 20px; transform: translateY(-50%); display: grid; grid-template-columns: minmax(0,1fr) 8px; align-items: center; gap: 4px;
+  position: absolute; left: var(--axis-left); width: 87px; height: 20px; transform: translateY(-50%); display: grid; grid-template-columns: minmax(0,1fr) 8px; align-items: center; gap: 5px;
 }
-.graphic-y-axis.temp .graphic-axis-tick { width: 71px; grid-template-columns: minmax(0,1fr) 8px; }
 .graphic-axis-tick em {
-  min-width: 0; padding: 2px 4px; border-radius: 5px; background: color-mix(in srgb,var(--surface) 72%,transparent); color: color-mix(in srgb,var(--axis-color) 72%,var(--text));
+  min-width: 0; padding: 2px 5px; border-radius: 5px; background: color-mix(in srgb,var(--surface) 76%,transparent); color: color-mix(in srgb,var(--axis-color) 75%,var(--text));
   font-style: normal; font-weight: 750; text-align: right; white-space: nowrap; text-shadow: 0 1px 0 color-mix(in srgb,var(--surface) 78%,transparent);
 }
 .graphic-axis-tick i { width: 8px; height: 1px; display: block; background: color-mix(in srgb,var(--axis-color) 62%,transparent); }
-.graphic-y-axis.wind .graphic-axis-tick em { color: color-mix(in srgb,var(--gv-wind) 72%,var(--text)); }
 .graphic-condition { position: absolute; z-index: 4; width: 32px; height: 32px; display: grid; place-items: center; transform: translate(-50%,-50%); pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
 .graphic-condition .weather-icon,.graphic-condition svg { width: 28px; height: 28px; }
 .graphic-point { position: absolute; z-index: 8; width: 24px; height: 24px; padding: 0; border: 0; background: transparent; transform: translate(-50%,-50%); cursor: pointer; }
@@ -6104,7 +6115,7 @@ html[data-theme="dark"] .graphic-view { --gv-heat-strong: 26%; --gv-heat-soft: 9
   .graphic-legend { gap: 14px; padding-inline: 12px; overflow: hidden; }
   .graphic-rain-scale { display: none; }
   .graphic-range-label { display: none; }
-  .graphic-track { grid-template-rows: minmax(270px,1fr) 68px 84px; }
+  .graphic-track { grid-template-rows: minmax(0,1fr) 44px 68px 84px; }
   .graphic-footer-hint { justify-content: center; }
 }
 @media (max-width: 620px) {
@@ -6114,14 +6125,15 @@ html[data-theme="dark"] .graphic-view { --gv-heat-strong: 26%; --gv-heat-soft: 9
   .graphic-header-city p { font-size: .70rem; }
   .graphic-icon-button { width: 36px; height: 36px; }
   .graphic-day-strip-shell { flex-basis: 44px; }
-  .graphic-legend { flex-basis: 45px; font-size: .70rem; }
+  .graphic-legend { font-size: .70rem; }
   .graphic-legend .spread { display: none; }
-  .graphic-track { grid-template-rows: minmax(245px,1fr) 64px 76px; }
+  .graphic-track { grid-template-rows: minmax(0,1fr) 40px 64px 76px; }
   .graphic-tooltip { width: min(292px,calc(100vw - 24px)); }
   .graphic-footer-hint { flex-basis: 30px; }
 }
 
 @media (max-width: 620px) {
+  .graphic-plots { grid-template-rows: minmax(0,50fr) minmax(0,25fr) minmax(0,25fr); }
   .graphic-time-axis { grid-template-rows: 32px 32px; }
   .graphic-date-block { gap: 5px; padding-inline: 7px; }
   .graphic-date-block span { display: none; }

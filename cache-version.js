@@ -1,2 +1,2 @@
     // MeteoCompare Web PWA cache version. Bump whenever runtime/static assets change.
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v175-graphic-view-timeline-axes';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v176-graphic-view-stacked-ruler';
