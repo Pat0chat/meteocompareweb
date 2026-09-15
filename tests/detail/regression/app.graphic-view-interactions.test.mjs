@@ -38,7 +38,7 @@ assert.match(css,/\.graphic-y-axis\.wind \{ --axis-color: var\(--gv-wind\); \}/)
 assert.match(css,/\.graphic-axis-heading \{/);
 assert.match(css,/\.graphic-axis-rail \{/);
 assert.match(css,/\.graphic-axis-tick \{/);
-assert.match(css,/--axis-heading-width:\s*122px/);
+assert.doesNotMatch(css,/--axis-heading-width:/);
 assert.match(css,/--axis-rail-offset:\s*132px/);
 
 
@@ -97,13 +97,20 @@ assert.match(app,/chart_normals_legend_temp_min/);
 assert.match(css,/\.graphic-era5-line\.max \{ stroke: var\(--semantic-warning\); \}/);
 assert.match(css,/\.graphic-era5-line\.min \{ stroke: var\(--primary\); \}/);
 
-// Home/detail temperature plots are direct launch surfaces with a shared animated transition into the graphical view.
+// Home/detail temperature plots open the graphic route directly: no cloned-SVG or route animation layer.
 assert.match(app,/class="home-temperature-plot"[^>]*data-action="open-graphic-view"[^>]*data-graphic-city-id/);
 assert.match(app,/class="detail-chrono-temp-plot"[^>]*data-action="open-graphic-view"/);
-assert.match(app,/function openGraphicForecastView\(city,sourceElement=null\)/);
-assert.match(app,/document\.startViewTransition\(\(\)=>go\(targetUrl\)\)/);
-assert.match(css,/\.graphic-plot-temperature \{ view-transition-name: graphic-forecast-source; \}/);
-assert.match(css,/::view-transition-group\(graphic-forecast-source\)/);
+assert.match(app,/function openGraphicForecastView\(city,sourceElement=null\)[\s\S]*go\(cityViewUrl\(city,q\)\);/);
+assert.doesNotMatch(app,/runGraphicForecastTransition|graphicTransitionSourceGeometry|graphicTransitionLayer|graphicRouteTransitionActive|graphicRouteTransitionSeq/);
+assert.doesNotMatch(app,/source\.cloneNode\(true\)/);
+assert.doesNotMatch(app,/document\.startViewTransition/);
+assert.doesNotMatch(css,/::view-transition-group\(|graphic-transition-|graphic-route-enter/);
+assert.doesNotMatch(css,/home-temperature-plot[^}]*transition:|detail-chrono-temp-plot[^}]*transition:/);
+assert.doesNotMatch(css,/home-temperature-plot[^}]*drop-shadow|detail-chrono-temp-plot[^}]*drop-shadow/);
+
+// Legacy in-chart tooltip positioning was removed after the fixed floating tooltip layer replaced it.
+assert.doesNotMatch(app,/graphicTooltipEdgeClass|graphic-tooltip-source/);
+assert.doesNotMatch(css,/\.graphic-tooltip \{|\.graphic-tooltip-source|edge-left|edge-right/);
 
 assert.match(css,/--gv-bg:\s*var\(--bg\)/);
 assert.match(app,/--heat-color:\$\{attr\(color\)\}/);
