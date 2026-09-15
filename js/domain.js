@@ -105,7 +105,8 @@ export function roundedHourLocal(timezone, now=new Date()) {
 
 function localHourFromEpoch(epochMs,timezone){const p=zonedParts(new Date(epochMs),timezone);return `${p.year}-${p.month}-${p.day}T${p.hour}:00`;}
 function roundedHourEpoch(timezone,now=new Date()){const local=roundedHourLocal(timezone,now),ms=zonedLocalTimestampEpoch(local,timezone,now.getTime());return Number.isFinite(ms)?ms:now.getTime();}
-function hourlyAxis(series,timezone){const hourly=series?.hourly||{},ts=hourly.timestamps||[],cached=hourly.timestampEpochMs;let epochs;if(Array.isArray(cached)&&cached.length===ts.length)epochs=cached;else{epochs=zonedTimestampEpochs(ts,timezone);if(Array.isArray(hourly.timestamps))hourly.timestampEpochMs=epochs;}const indexByEpoch=new Map(),rows=[];for(let i=0;i<ts.length;i++){const epochMs=epochs[i];if(!Number.isFinite(epochMs))continue;rows.push({timestamp:ts[i],epochMs,index:i});indexByEpoch.set(epochMs,i);}return {rows,indexByEpoch};}
+const hourlyAxisCache=new WeakMap();
+function hourlyAxis(series,timezone){const hourly=series?.hourly||{},ts=hourly.timestamps||[],cachedAxis=hourlyAxisCache.get(hourly);if(cachedAxis?.timestamps===ts&&cachedAxis.timezone===timezone)return cachedAxis.value;const cached=hourly.timestampEpochMs;let epochs;if(Array.isArray(cached)&&cached.length===ts.length)epochs=cached;else{epochs=zonedTimestampEpochs(ts,timezone);if(Array.isArray(hourly.timestamps))hourly.timestampEpochMs=epochs;}const indexByEpoch=new Map(),rows=[];for(let i=0;i<ts.length;i++){const epochMs=epochs[i];if(!Number.isFinite(epochMs))continue;rows.push({timestamp:ts[i],epochMs,index:i});indexByEpoch.set(epochMs,i);}const value={rows,indexByEpoch};hourlyAxisCache.set(hourly,{timestamps:ts,timezone,value});return value;}
 
 function stats(values) {
   const a=values.filter(Number.isFinite); if(!a.length)return null; const mean=a.reduce((s,v)=>s+v,0)/a.length; const variance=a.reduce((s,v)=>s+(v-mean)**2,0)/a.length;

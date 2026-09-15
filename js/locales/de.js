@@ -1888,5 +1888,7 @@ export const catalog = Object.freeze({
   'graphicRainProbability':'Regenwahrscheinlichkeit',
   'graphicExploreAria':'Grafische 7-Tage-Wettervorhersage mit horizontalem Scrollen',
   'graphicExploreHint':'Horizontal scrollen, um die 7 Tage zu erkunden',
+  'graphicBuildingView':'Grafische Ansicht wird vorbereitet…',
+  'graphicBuildingViewHint':'Die nächsten 7 Tage werden berechnet und aufgebaut.',
 
 });

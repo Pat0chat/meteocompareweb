@@ -10,8 +10,8 @@ const styles=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf
 const renderTimeline=app.slice(app.indexOf('function renderTimeline('),app.indexOf('function renderConfidenceSection('));
 const renderPoint=app.slice(app.indexOf('function timelineMetricRail('),app.indexOf('function timelineEventMarker('));
 assert.match(renderTimeline,/selectRegularTimelinePoints\(analysis,mode==='HOURLY'\?24:7,1\)/,'detail 24 h timeline must render hourly points');
-assert.match(app,/function homeTimelinePoints\(f,forecastOptions,maxPoints=12,now=new Date\(\),stepHours=1\)[\s\S]*selectRegularTimelinePoints\(buildTimelinePoints\(f,'HOURLY'[\s\S]*maxPoints,stepHours\)/,'home mini timeline must expose 12 consecutive hourly points');
-assert.match(app,/disagreementAnalysis\(cityId\)[\s\S]*selectRegularTimelinePoints\(buildTimelinePoints\(f,'HOURLY',new Date\(\),opts\),24,1\)/,'detail disagreement analysis must use the same hourly grid');
+assert.match(app,/function homeTimelinePoints\(f,forecastOptions,maxPoints=12,now=new Date\(\),stepHours=1\)[\s\S]*selectRegularTimelinePoints\(cachedTimelinePoints\(f,'HOURLY'[\s\S]*maxPoints,stepHours\)/,'home mini timeline must expose 12 consecutive hourly points');
+assert.match(app,/disagreementAnalysis\(cityId\)[\s\S]*selectRegularTimelinePoints\(cachedTimelinePoints\(f,'HOURLY',new Date\(\),opts\),24,1\)/,'detail disagreement analysis must use the same hourly grid');
 assert.match(fr,/"next24Regular":"Prochaines 24 heures · repères chaque heure"/);
 assert.doesNotMatch(html,/openmeteo-data-spatial\.b-cdn\.net/,'browser CSP no longer needs a direct metadata CDN connection');
 assert.match(styles,/timeline-ruler, \.timeline-full \{ grid-template-columns: repeat\(var\(--timeline-cols, 8\), minmax\(148px,1fr\)\); \}/,'hourly timeline columns must have enough width for condition labels');

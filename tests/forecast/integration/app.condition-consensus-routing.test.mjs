@@ -19,9 +19,10 @@ assert.match(domain,/const derived=inferCondition\(precipitation,temperature,clo
 assert.doesNotMatch(domain,/weightedVote\(/,'domain condition synthesis must never fall back to the legacy flat categorical vote');
 
 assert.match(app,/now=currentConditions\(f,new Date\(\),engineContext\)[\s\S]*day=cachedAggregateDay\(f,today,engineContext\)/,'Home current/daily condition must come from the domain synthesis paths');
-assert.match(app,/function homeTimelinePoints\(f,forecastOptions,maxPoints=12,now=new Date\(\),stepHours=1\)\{\s*return selectRegularTimelinePoints\(buildTimelinePoints\(f,'HOURLY'/,'Home mini-timeline must consume the hierarchical timeline builder');
+assert.match(app,/function cachedTimelinePoints\(f,mode='HOURLY'[\s\S]*const points=buildTimelinePoints\(f,mode,now,o\)/,'cached timeline points must delegate to the shared hierarchical timeline builder');
+assert.match(app,/function homeTimelinePoints\(f,forecastOptions,maxPoints=12,now=new Date\(\),stepHours=1\)\{\s*return selectRegularTimelinePoints\(cachedTimelinePoints\(f,'HOURLY'/,'Home mini-timeline must consume the cached hierarchical timeline builder');
 assert.match(app,/agg=cachedAggregateDay\(f,today,engineContext\),now=currentConditions\(f,new Date\(\),engineContext\)/,'City Details hero/today summary must use the same current and daily condition synthesis as Home');
-assert.match(app,/hourlyAll=buildTimelinePoints\(f,'HOURLY'[\s\S]*dailyAll=buildTimelinePoints\(f,'DAILY'/,'City Details chronology must use the shared hierarchical timeline builder in both hourly and daily modes');
+assert.match(app,/hourlyAll=cachedTimelinePoints\(f,'HOURLY'[\s\S]*dailyAll=cachedTimelinePoints\(f,'DAILY'/,'City Details chronology must use the shared hierarchical timeline builder in both hourly and daily modes');
 assert.match(app,/matrix=Object\.fromEntries\(FORECAST_ENGINES\.map\(engine=>\[engine,Object\.fromEntries\(dates\.map\(date=>\[date,cachedAggregateDay\(f,date,contexts\[engine\]\)\]\)\)\]\)\)/,'Forecast-engine comparison must obtain conditions through aggregateDay rather than a separate categorical path');
 
 assert.match(app,/condition:dailyCondition\(s,date\)\.condition/,'per-model daily tables may display a model-specific condition and must not be mistaken for the central consensus');

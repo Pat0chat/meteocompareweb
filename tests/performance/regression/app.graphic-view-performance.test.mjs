@@ -32,6 +32,32 @@ assert.doesNotMatch(css,/\.graphic-wind-line \{[^}]*filter:/s);
 assert.doesNotMatch(css,/\.graphic-condition \{[^}]*filter:/s);
 assert.doesNotMatch(css,/\.graphic-legend \{[^}]*backdrop-filter:/s);
 
+
+// Entering the heavy route paints a lightweight loader first, then performs the full build after two frames.
+assert.match(app,/function renderGraphicBuildShell\(city\)/);
+assert.match(app,/function scheduleGraphicDeferredRender\(key\)[\s\S]*requestAnimationFrame\([\s\S]*requestAnimationFrame/);
+assert.match(app,/deferGraphic\?renderGraphicBuildShell\(graphicCity\):renderGraphicForecastView/);
+assert.match(css,/\.graphic-build-shell \{/);
+
+// Timeline consensus work and hourly timestamp indexes are cached across rerenders/views.
+assert.match(app,/timelines:new Map\(\)/);
+assert.match(app,/function cachedTimelinePoints\(f,mode='HOURLY'/);
+assert.match(app,/points=cachedTimelinePoints\(f,'HOURLY',new Date\(\),\{\.\.\.normalizeForecastOptions\(engineContext\),hourlyHorizonHours:168,includeModelValues:true\}\)/);
+const domain=fs.readFileSync(new URL('../../../js/domain.js',import.meta.url),'utf8');
+assert.match(domain,/const hourlyAxisCache=new WeakMap\(\)/);
+assert.match(domain,/cachedAxis\?\.timestamps===ts&&cachedAxis\.timezone===timezone/);
+
+// The heatmap is one composited gradient instead of 168 positioned DOM columns.
+assert.match(app,/heatStops=points\.flatMap/);
+assert.doesNotMatch(app,/const tint=points\.map/);
+assert.match(css,/\.graphic-temperature-tint \{[^}]*background: var\(--graphic-heatmap\);/s);
+
+// The ruler is compositor-friendly and has no decorative endpoint dots/shadow to repaint while tracking the pointer.
+assert.match(app,/ruler\.style\.setProperty\('--graphic-ruler-x'/);
+assert.match(css,/\.graphic-ruler \{[^}]*transform: translate3d\(var\(--graphic-ruler-x,0px\),0,0\);[^}]*will-change: transform;/s);
+assert.doesNotMatch(css,/\.graphic-ruler::before|\.graphic-ruler::after/);
+assert.doesNotMatch(css,/\.graphic-ruler \{[^}]*box-shadow:/s);
+
 // SVG grids are batched into paths instead of hundreds of individual line nodes.
 assert.match(app,/horizontalGrid=\(ticks,y,kind=''\)=>/);
 assert.match(app,/verticalGrid=\(height\)=>/);

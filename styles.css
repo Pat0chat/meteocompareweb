@@ -5901,7 +5901,7 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-view {
   --gv-bg: var(--bg); --gv-bg-2: var(--surface-2); --gv-panel: var(--surface); --gv-panel-2: var(--surface-2); --gv-border: var(--border);
   --gv-text: var(--text); --gv-muted: var(--muted); --gv-subtle: var(--subtle); --gv-temp: var(--temp); --gv-rain: var(--rain); --gv-wind: var(--wind); --gv-gust: var(--medium);
-  --gv-tooltip-bg: color-mix(in srgb,var(--surface-raised) 96%,var(--bg)); --gv-heat-strong: 18%; --gv-heat-soft: 6%;
+  --gv-tooltip-bg: color-mix(in srgb,var(--surface-raised) 96%,var(--bg)); --gv-heat-opacity: .18;
   width: 100%; height: 100dvh; min-height: 540px; display: flex; flex-direction: column; overflow: hidden;
   background: radial-gradient(circle at 35% 0%,color-mix(in srgb,var(--primary) 9%,var(--bg)) 0,var(--bg) 42%,color-mix(in srgb,var(--surface-2) 48%,var(--bg)) 100%); color: var(--gv-text);
 }
@@ -5948,8 +5948,7 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-plot-rain { background: linear-gradient(180deg,color-mix(in srgb,var(--gv-rain) 3%,var(--surface-2)),color-mix(in srgb,var(--surface) 48%,transparent)); }
 .graphic-plot-wind { background: linear-gradient(180deg,color-mix(in srgb,var(--gv-wind) 3%,var(--surface-2)),color-mix(in srgb,var(--surface) 48%,transparent)); }
 .graphic-chart-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.graphic-temperature-tint { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.graphic-temperature-tint > span { position: absolute; top: 0; height: 100%; opacity: 1; background: linear-gradient(180deg,color-mix(in srgb,var(--heat-color) var(--gv-heat-strong),transparent),color-mix(in srgb,var(--heat-color) var(--gv-heat-soft),transparent) 72%,transparent 100%); box-shadow: inset -1px 0 color-mix(in srgb,var(--heat-color) 5%,transparent); }
+.graphic-temperature-tint { position: absolute; inset: 0; pointer-events: none; overflow: hidden; background: var(--graphic-heatmap); opacity: var(--gv-heat-opacity); -webkit-mask-image: linear-gradient(180deg,#000 0%,rgba(0,0,0,.34) 72%,transparent 100%); mask-image: linear-gradient(180deg,#000 0%,rgba(0,0,0,.34) 72%,transparent 100%); }
 .graphic-grid { fill: none; stroke: color-mix(in srgb,var(--border) 68%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-grid.vertical { stroke-dasharray: 2 5; }
 .graphic-grid.vertical.major { stroke: color-mix(in srgb,var(--border-strong) 74%,transparent); }
@@ -5963,11 +5962,8 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-gust-line { fill: none; stroke: var(--gv-gust); stroke-width: 1.9; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; opacity: .92; }
 .graphic-rain-baseline { stroke: color-mix(in srgb,var(--gv-rain) 44%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-wind-baseline { stroke: color-mix(in srgb,var(--gv-wind) 26%,transparent); stroke-width: 1; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
-.graphic-ruler { position: absolute; top: 0; bottom: 0; width: 1px; z-index: 16; pointer-events: none; background: linear-gradient(180deg,color-mix(in srgb,var(--primary) 24%,transparent),color-mix(in srgb,var(--primary) 92%,transparent) 18%,color-mix(in srgb,var(--primary) 92%,transparent) 82%,color-mix(in srgb,var(--primary) 24%,transparent)); box-shadow: 0 0 0 1px color-mix(in srgb,var(--surface) 30%,transparent),0 0 14px color-mix(in srgb,var(--primary) 22%,transparent); }
+.graphic-ruler { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; z-index: 16; pointer-events: none; transform: translate3d(var(--graphic-ruler-x,0px),0,0); will-change: transform; background: linear-gradient(180deg,color-mix(in srgb,var(--primary) 24%,transparent),color-mix(in srgb,var(--primary) 92%,transparent) 18%,color-mix(in srgb,var(--primary) 92%,transparent) 82%,color-mix(in srgb,var(--primary) 24%,transparent)); }
 .graphic-ruler[hidden] { display: none; }
-.graphic-ruler::before,.graphic-ruler::after { content: ""; position: absolute; left: 50%; width: 7px; height: 7px; border-radius: 50%; transform: translateX(-50%); background: var(--primary); border: 2px solid var(--surface); box-shadow: 0 0 0 2px color-mix(in srgb,var(--primary) 20%,transparent); }
-.graphic-ruler::before { top: 5px; }
-.graphic-ruler::after { bottom: 5px; }
 .graphic-ruler-badge { position: absolute; left: 8px; top: 8px; min-width: max-content; padding: 4px 7px; border: 1px solid color-mix(in srgb,var(--primary) 38%,var(--border)); border-radius: 7px; background: color-mix(in srgb,var(--surface-raised) 94%,transparent); color: var(--text); font-family: var(--tech-font); font-size: .70rem; font-weight: 750; box-shadow: var(--shadow-2); }
 .graphic-ruler.badge-left .graphic-ruler-badge { left: auto; right: 8px; }
 .graphic-y-axis {
@@ -6066,10 +6062,19 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-vigilance-event small { margin-left: auto; font-family: var(--tech-font); font-size: .70rem; opacity: .9; }
 .graphic-vigilance-empty { display: flex; align-items: center; gap: 8px; padding-left: 16px; color: var(--good); font-size: .70rem; }
 .graphic-vigilance-empty span { width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; }
+.graphic-build-shell { flex: 1 1 auto; min-height: 0; position: relative; display: grid; place-items: center; overflow: hidden; background: linear-gradient(180deg,color-mix(in srgb,var(--surface-2) 58%,var(--bg)),var(--bg)); }
+.graphic-build-card { position: relative; z-index: 2; width: min(390px,calc(100vw - 32px)); display: grid; justify-items: center; gap: 8px; padding: 22px 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-raised); box-shadow: var(--shadow-2); text-align: center; }
+.graphic-build-card strong { color: var(--text); font-size: .92rem; }
+.graphic-build-card span { color: var(--muted); font-size: .74rem; line-height: 1.45; }
+.graphic-build-preview { position: absolute; inset: 18px 3vw; opacity: .34; pointer-events: none; }
+.graphic-build-preview i { position: absolute; left: 0; right: 0; height: 1px; background: var(--border-strong); }
+.graphic-build-preview i:nth-child(1) { top: 18%; } .graphic-build-preview i:nth-child(2) { top: 45%; } .graphic-build-preview i:nth-child(3) { top: 70%; }
+.graphic-build-preview b,.graphic-build-preview em { position: absolute; left: 8%; right: 8%; height: 22%; border-radius: 50%; border-top: 2px solid var(--temp); transform: skewY(-3deg); }
+.graphic-build-preview b { top: 28%; } .graphic-build-preview em { top: 58%; border-top-color: var(--wind); transform: skewY(2deg); }
 .graphic-loading,.graphic-empty { flex: 1; display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; color: var(--gv-muted); }
 .graphic-loading p,.graphic-empty h1 { margin: 0; }
 
-html[data-theme="dark"] .graphic-view { --gv-heat-strong: 26%; --gv-heat-soft: 9%; }
+html[data-theme="dark"] .graphic-view { --gv-heat-opacity: .26; }
 .graphic-point.tooltip-open > i,.graphic-rain-bar.tooltip-open { filter: brightness(1.12); }
 .graphic-point.tooltip-pinned > i { width: 13px; height: 13px; box-shadow: 0 0 0 6px color-mix(in srgb,var(--primary) 18%,transparent); }
 .graphic-rain-bar.tooltip-pinned { box-shadow: 0 0 0 3px color-mix(in srgb,var(--primary) 22%,transparent),inset 0 0 0 1px color-mix(in srgb,var(--rain) 32%,transparent); z-index: 12; }

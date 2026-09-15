@@ -68,6 +68,9 @@ assert.match(app,/function handleGraphicRulerPointerMoveScheduled\(e\)/);
 assert.match(app,/Math\.round\(\(localX-leftPad-step\/2\)\/step\)/);
 assert.match(css,/\.graphic-ruler \{/);
 assert.match(css,/\.graphic-ruler-badge \{/);
+assert.doesNotMatch(css,/\.graphic-ruler::before|\.graphic-ruler::after/);
+assert.match(css,/\.graphic-ruler \{[^}]*transform: translate3d\(var\(--graphic-ruler-x,0px\),0,0\);/s);
+assert.match(app,/ruler\.style\.setProperty\('--graphic-ruler-x'/);
 
 // Tooltips appear on hover/focus and remain click-persistent, foreground and scrollable.
 assert.match(app,/class="graphic-tooltip-layer" data-graphic-tooltip-layer hidden/);
@@ -113,7 +116,9 @@ assert.doesNotMatch(app,/graphicTooltipEdgeClass|graphic-tooltip-source/);
 assert.doesNotMatch(css,/\.graphic-tooltip \{|\.graphic-tooltip-source|edge-left|edge-right/);
 
 assert.match(css,/--gv-bg:\s*var\(--bg\)/);
-assert.match(app,/--heat-color:\$\{attr\(color\)\}/);
-assert.match(css,/\.graphic-temperature-tint > span[^}]*color-mix\(in srgb,var\(--heat-color\)/s);
+assert.match(app,/heatStops=points\.flatMap/);
+assert.match(app,/--graphic-heatmap:\$\{attr\(`linear-gradient\(90deg,\$\{heatStops\}\)`\)\}/);
+assert.match(css,/\.graphic-temperature-tint \{[^}]*background: var\(--graphic-heatmap\);[^}]*mask-image:/s);
+assert.doesNotMatch(css,/\.graphic-temperature-tint > span/);
 
 console.log('Graphical 7-day view stacked plots, ruler, legend and hover/click tooltip interactions: OK');
