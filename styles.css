@@ -6143,3 +6143,88 @@ html[data-theme="dark"] .graphic-view { --gv-heat-strong: 26%; --gv-heat-soft: 9
   .graphic-date-block { gap: 5px; padding-inline: 7px; }
   .graphic-date-block span { display: none; }
 }
+
+/* Graphic forecast refinements: content-sized axis badges, ERA5 references and chart-to-view transitions. */
+.graphic-axis-heading {
+  width: fit-content;
+  max-width: calc(var(--axis-rail-offset) - 10px);
+  height: auto;
+  min-height: 32px;
+}
+.graphic-axis-heading > span:last-child { width: fit-content; min-width: 0; }
+.graphic-axis-heading strong,
+.graphic-axis-heading small { white-space: nowrap; }
+
+.graphic-era5-line {
+  fill: none;
+  stroke-width: 1.55;
+  stroke-dasharray: 8 6;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  opacity: .9;
+}
+.graphic-era5-line.max { stroke: var(--semantic-warning); }
+.graphic-era5-line.min { stroke: var(--primary); }
+.graphic-legend .era5-max > i,
+.graphic-legend .era5-min > i,
+.graphic-legend .era5-pending > i {
+  width: 25px;
+  height: 0;
+  border-top: 2px dashed currentColor;
+}
+.graphic-legend .era5-max { color: color-mix(in srgb,var(--semantic-warning) 86%,var(--text)); }
+.graphic-legend .era5-min { color: color-mix(in srgb,var(--primary) 82%,var(--text)); }
+.graphic-legend .era5-pending { color: var(--subtle); }
+.graphic-legend .era5-pending > i { opacity: .5; }
+.graphic-legend {
+  gap: 18px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.graphic-legend::-webkit-scrollbar { display: none; }
+.graphic-rain-scale { flex: 0 0 auto; }
+
+.home-temperature-plot[data-action="open-graphic-view"],
+.detail-chrono-temp-plot[data-action="open-graphic-view"] {
+  cursor: zoom-in;
+  transition: filter .18s ease, opacity .18s ease;
+}
+.home-temperature-plot[data-action="open-graphic-view"]:hover,
+.detail-chrono-temp-plot[data-action="open-graphic-view"]:hover {
+  filter: brightness(1.035) saturate(1.04) drop-shadow(0 5px 12px color-mix(in srgb,var(--primary) 13%,transparent));
+}
+.home-temperature-plot[data-action="open-graphic-view"]:focus-visible,
+.detail-chrono-temp-plot[data-action="open-graphic-view"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -3px;
+}
+.graphic-plot-temperature { view-transition-name: graphic-forecast-source; }
+
+@keyframes graphic-route-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.992); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+html.graphic-route-enter .graphic-view { animation: graphic-route-enter .48s cubic-bezier(.22,.8,.2,1) both; }
+
+@keyframes graphic-vt-root-out { to { opacity: .16; filter: blur(2px); } }
+@keyframes graphic-vt-root-in { from { opacity: .15; } to { opacity: 1; } }
+@keyframes graphic-vt-source-old { to { opacity: .32; filter: saturate(.85) blur(1px); } }
+@keyframes graphic-vt-source-new { from { opacity: .24; filter: saturate(.82) blur(1.2px); } to { opacity: 1; filter: saturate(1) blur(0); } }
+html.graphic-view-transitioning::view-transition-old(root) { animation: graphic-vt-root-out .46s cubic-bezier(.22,.8,.2,1) both; }
+html.graphic-view-transitioning::view-transition-new(root) { animation: graphic-vt-root-in .46s cubic-bezier(.22,.8,.2,1) both; }
+::view-transition-group(graphic-forecast-source) {
+  animation-duration: .56s;
+  animation-timing-function: cubic-bezier(.2,.82,.18,1);
+}
+::view-transition-old(graphic-forecast-source) { animation: graphic-vt-source-old .56s cubic-bezier(.2,.82,.18,1) both; }
+::view-transition-new(graphic-forecast-source) { animation: graphic-vt-source-new .56s cubic-bezier(.2,.82,.18,1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  html.graphic-route-enter .graphic-view,
+  html.graphic-view-transitioning::view-transition-old(root),
+  html.graphic-view-transitioning::view-transition-new(root),
+  ::view-transition-group(graphic-forecast-source),
+  ::view-transition-old(graphic-forecast-source),
+  ::view-transition-new(graphic-forecast-source) { animation-duration: .001ms !important; }
+}

@@ -82,6 +82,29 @@ assert.match(css,/\.graphic-tooltip-layer \{ position: fixed; inset: 0; z-index:
 assert.match(css,/\.graphic-floating-tooltip \{[\s\S]*overflow-y: auto;/);
 assert.match(css,/\.graphic-tooltip-layer\.is-pinned \.graphic-floating-tooltip \{ pointer-events: auto; \}/);
 
+
+// Axis headings size themselves to their label/unit instead of reserving a fixed badge width.
+assert.match(css,/\.graphic-axis-heading \{[\s\S]*width: fit-content;[\s\S]*max-width: calc\(var\(--axis-rail-offset\) - 10px\);/);
+
+// The temperature plot overlays 10-year ERA5 thermal max/min references and explains them in the legend.
+assert.match(app,/ensureNormalsLoaded\(cityId\)\?\.normals\|\|null/);
+assert.match(app,/era5MaxLine=svgPathFromPoints/);
+assert.match(app,/era5MinLine=svgPathFromPoints/);
+assert.match(app,/class="graphic-era5-line max"/);
+assert.match(app,/class="graphic-era5-line min"/);
+assert.match(app,/chart_normals_legend_temp_max/);
+assert.match(app,/chart_normals_legend_temp_min/);
+assert.match(css,/\.graphic-era5-line\.max \{ stroke: var\(--semantic-warning\); \}/);
+assert.match(css,/\.graphic-era5-line\.min \{ stroke: var\(--primary\); \}/);
+
+// Home/detail temperature plots are direct launch surfaces with a shared animated transition into the graphical view.
+assert.match(app,/class="home-temperature-plot"[^>]*data-action="open-graphic-view"[^>]*data-graphic-city-id/);
+assert.match(app,/class="detail-chrono-temp-plot"[^>]*data-action="open-graphic-view"/);
+assert.match(app,/function openGraphicForecastView\(city,sourceElement=null\)/);
+assert.match(app,/document\.startViewTransition\(\(\)=>go\(targetUrl\)\)/);
+assert.match(css,/\.graphic-plot-temperature \{ view-transition-name: graphic-forecast-source; \}/);
+assert.match(css,/::view-transition-group\(graphic-forecast-source\)/);
+
 assert.match(css,/--gv-bg:\s*var\(--bg\)/);
 assert.match(app,/--heat-color:\$\{attr\(color\)\}/);
 assert.match(css,/\.graphic-temperature-tint > span[^}]*color-mix\(in srgb,var\(--heat-color\)/s);
