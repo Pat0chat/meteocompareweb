@@ -36,6 +36,16 @@ function formatValue(template, vars={}) {
   if (typeof template !== 'string') return template;
   return template.replace(/\{([a-zA-Z0-9_]+)\}/g,(_,k)=>vars[k] == null ? `{${k}}` : String(vars[k]));
 }
+const numberFormatters = new Map();
+function numberFormatter(locale,precision=null){
+  const key=`${locale}|${precision==null?'auto':precision}`;
+  let formatter=numberFormatters.get(key);
+  if(!formatter){
+    formatter=new Intl.NumberFormat(locale,precision==null?{useGrouping:false,maximumFractionDigits:6}:{useGrouping:false,minimumFractionDigits:precision,maximumFractionDigits:precision});
+    numberFormatters.set(key,formatter);
+  }
+  return formatter;
+}
 function androidFormat(template,args,locale='en-US'){
   if(typeof template!=='string')return template;
   let auto=0;
@@ -46,8 +56,8 @@ function androidFormat(template,args,locale='en-US'){
     if(type==='d')return String(Math.round(Number(value)));
     if(type==='f'){
       const number=Number(value);if(!Number.isFinite(number))return String(value);
-      if(precision!=null){const digits=Number(precision);return new Intl.NumberFormat(locale,{useGrouping:false,minimumFractionDigits:digits,maximumFractionDigits:digits}).format(number);}
-      return new Intl.NumberFormat(locale,{useGrouping:false,maximumFractionDigits:6}).format(number);
+      if(precision!=null){const digits=Number(precision);return numberFormatter(locale,digits).format(number);}
+      return numberFormatter(locale).format(number);
     }
     return String(value);
   });

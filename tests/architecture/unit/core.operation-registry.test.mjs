@@ -3,6 +3,7 @@ import { CacheRegistry, OperationRegistry } from '../../../js/core/cache-registr
 
 const cache = new CacheRegistry();
 assert.ok(cache.numberFormatters instanceof Map);
+assert.ok(cache.dateTimeFormatters instanceof Map);
 assert.ok(cache.forecastViews instanceof WeakMap);
 assert.ok(cache.seriesIndexes instanceof WeakMap);
 assert.ok(cache.chartHoverData instanceof WeakMap);

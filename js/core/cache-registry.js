@@ -2,6 +2,7 @@
 export class CacheRegistry {
   constructor(){
     this.numberFormatters=new Map();
+    this.dateTimeFormatters=new Map();
     this.forecastViews=new WeakMap();
     this.seriesIndexes=new WeakMap();
     this.chartHoverData=new WeakMap();

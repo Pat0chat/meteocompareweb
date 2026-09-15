@@ -29,12 +29,13 @@ const visiting=new Set(),visited=new Set();
 function visit(file,stack=[]){if(visiting.has(file))assert.fail(`cyclic runtime import: ${[...stack,rel(file)].join(' -> ')}`);if(visited.has(file))return;visiting.add(file);for(const next of graph.get(file)||[])visit(next,[...stack,rel(file)]);visiting.delete(file);visited.add(file);}
 for(const file of jsFiles)visit(file);
 
-const sw=read('sw.js'),shellBlock=sw.match(/const SHELL = \[([\s\S]*?)\];/)?.[1]||'';
-const shell=[...shellBlock.matchAll(/['"](\.\/[^'"]+)['"]/g)].map(m=>m[1]);
-assert.ok(shell.length>20,'PWA shell must enumerate runtime assets');
-for(const item of shell){if(item==='./')continue;assert.ok(fs.existsSync(path.join(root,item.slice(2))),`service-worker shell asset missing: ${item}`);}
-for(const file of browserJsFiles){const item='./'+rel(file);assert.ok(shell.includes(item),`browser runtime JS omitted from offline shell: ${item}`);}
-for(const file of serverJsFiles){const item='./'+rel(file);assert.ok(!shell.includes(item),`server-only JS must not be exposed in the offline shell: ${item}`);}
+const sw=read('sw.js'),shellBlock=sw.match(/const SHELL = \[([\s\S]*?)\];/)?.[1]||'',optionalShellBlock=sw.match(/const OPTIONAL_SHELL = \[([\s\S]*?)\];/)?.[1]||'';
+const shell=[...shellBlock.matchAll(/['"](\.\/[^'"]+)['"]/g)].map(m=>m[1]),optionalShell=[...optionalShellBlock.matchAll(/['"](\.\/[^'"]+)['"]/g)].map(m=>m[1]),offlineAssets=[...shell,...optionalShell];
+assert.ok(shell.length>20,'PWA core shell must enumerate startup runtime assets');
+assert.ok(optionalShell.length>=5,'PWA optional shell must stage lazy feature modules');
+for(const item of offlineAssets){if(item==='./')continue;assert.ok(fs.existsSync(path.join(root,item.slice(2))),`service-worker offline asset missing: ${item}`);}
+for(const file of browserJsFiles){const item='./'+rel(file);assert.ok(offlineAssets.includes(item),`browser runtime JS omitted from staged offline shell: ${item}`);}
+for(const file of serverJsFiles){const item='./'+rel(file);assert.ok(!offlineAssets.includes(item),`server-only JS must not be exposed in the offline shell: ${item}`);}
 
 const html=read('index.html'),scripts=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
 assert.equal(scripts.length,2,'only the first-party metrics transport + MeteoCompare app scripts are expected');

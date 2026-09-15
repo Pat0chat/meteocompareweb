@@ -21,6 +21,12 @@ export const RADAR_CELL_COLORS=Object.freeze(['#0ea5e9','#8b5cf6','#f97316','#10
 let metaCache=null;
 let metaCacheAt=0;
 let controller=null;
+const radarTimeFormatters=new Map();
+function radarTimeFormatter(locale,timezone){
+  const key=`${locale}|${timezone}`;let formatter=radarTimeFormatters.get(key);
+  if(!formatter){formatter=new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',timeZone:timezone});radarTimeFormatters.set(key,formatter);}
+  return formatter;
+}
 
 function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
 function clampLat(value){return clamp(Number(value),-85.05112878,85.05112878);}
@@ -30,11 +36,11 @@ function project(lat,lon,z){
   return {x:(Number(lon)+180)/360*n,y:(1-Math.asinh(Math.tan(rad))/Math.PI)/2*n};
 }
 function timeText(epochSeconds,locale='fr-FR',timezone='UTC'){
-  try{return new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',timeZone:timezone}).format(new Date(epochSeconds*1000));}
+  try{return radarTimeFormatter(locale,timezone).format(new Date(epochSeconds*1000));}
   catch{return new Date(epochSeconds*1000).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});}
 }
 function hourText(epochMs,locale='fr-FR',timezone='UTC'){
-  try{return new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',timeZone:timezone}).format(new Date(epochMs));}
+  try{return radarTimeFormatter(locale,timezone).format(new Date(epochMs));}
   catch{return new Date(epochMs).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});}
 }
 function median(values){const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;}

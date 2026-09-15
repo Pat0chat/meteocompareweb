@@ -1,2 +1,2 @@
 // MeteoCompare Web PWA cache version. Bump whenever runtime/static assets change.
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v183-graphic-view-solar-agreement';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v184-release-performance-cleanup';
