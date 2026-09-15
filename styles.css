@@ -5900,7 +5900,7 @@ body.graphic-view-open { overflow: hidden; background: var(--bg); }
 body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-view {
   --gv-bg: var(--bg); --gv-bg-2: var(--surface-2); --gv-panel: var(--surface); --gv-panel-2: var(--surface-2); --gv-border: var(--border);
-  --gv-text: var(--text); --gv-muted: var(--muted); --gv-subtle: var(--subtle); --gv-temp: var(--temp); --gv-rain: var(--rain); --gv-wind: var(--wind);
+  --gv-text: var(--text); --gv-muted: var(--muted); --gv-subtle: var(--subtle); --gv-temp: var(--temp); --gv-rain: var(--rain); --gv-wind: var(--wind); --gv-gust: var(--medium);
   --gv-tooltip-bg: color-mix(in srgb,var(--surface-raised) 96%,var(--bg)); --gv-heat-strong: 18%; --gv-heat-soft: 6%;
   width: 100%; height: 100dvh; min-height: 540px; display: flex; flex-direction: column; overflow: hidden;
   background: radial-gradient(circle at 35% 0%,color-mix(in srgb,var(--primary) 9%,var(--bg)) 0,var(--bg) 42%,color-mix(in srgb,var(--surface-2) 48%,var(--bg)) 100%); color: var(--gv-text);
@@ -5917,7 +5917,10 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-header-title { text-align: center; display: grid; gap: 2px; }
 .graphic-header-title strong { font-size: 1.20rem; letter-spacing: -.02em; }
 .graphic-header-title span { color: var(--gv-muted); font-size: .74rem; }
-.graphic-header-balance { width: 40px; height: 40px; justify-self: end; pointer-events: none; }
+.graphic-header-context { min-width: 0; justify-self: end; display: grid; justify-items: end; gap: 3px; text-align: right; }
+.graphic-header-context > strong { color: var(--text); font-family: var(--tech-font); font-size: .76rem; font-weight: 800; letter-spacing: .01em; white-space: nowrap; }
+.graphic-header-context > span { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; color: var(--gv-muted); font-size: .70rem; white-space: nowrap; }
+.graphic-header-context > span b { color: var(--primary); font-size: .88rem; line-height: 1; }
 .graphic-icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--gv-border); border-radius: 11px; background: color-mix(in srgb,var(--surface-2) 78%,transparent); color: var(--gv-text); cursor: pointer; }
 .graphic-icon-button:hover { background: var(--surface-3); border-color: color-mix(in srgb,var(--primary) 42%,var(--border)); }
 .graphic-day-strip-shell { position: relative; flex: 0 0 49px; overflow: hidden; border-bottom: 1px solid var(--gv-border); background: color-mix(in srgb,var(--surface) 82%,transparent); }
@@ -5932,8 +5935,10 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-legend > span > i { display: inline-block; flex: 0 0 auto; }
 .graphic-legend .temp > i { width: 24px; height: 3px; border-radius: 99px; background: var(--gv-temp); box-shadow: 8px 0 0 -1px var(--gv-temp); }
 .graphic-legend .spread > i { width: 24px; height: 14px; border-radius: 4px; background: linear-gradient(180deg,color-mix(in srgb,var(--gv-temp) 28%,transparent),color-mix(in srgb,var(--gv-temp) 7%,transparent)); border: 1px solid color-mix(in srgb,var(--gv-temp) 24%,var(--border)); }
-.graphic-legend .wind > i { width: 25px; height: 0; border-top: 2px dashed var(--gv-wind); position: relative; }
+.graphic-legend .wind > i { width: 25px; height: 0; border-top: 2px solid var(--gv-wind); position: relative; }
 .graphic-legend .wind > i::after { content: ""; position: absolute; right: 4px; top: -5px; width: 6px; height: 6px; border-radius: 50%; background: var(--gv-wind); }
+.graphic-legend .gust > i { width: 25px; height: 0; border-top: 2px dashed var(--gv-gust); position: relative; }
+.graphic-legend .gust > i::after { content: ""; position: absolute; right: 4px; top: -4px; width: 5px; height: 5px; border-radius: 50%; background: var(--gv-gust); }
 .graphic-legend .rain > i { width: 22px; height: 17px; background: linear-gradient(90deg,color-mix(in srgb,var(--gv-rain) 38%,transparent),var(--gv-rain)); clip-path: polygon(0 100%,0 58%,26% 58%,26% 24%,55% 24%,55% 0,76% 0,76% 45%,100% 45%,100% 100%); }
 .graphic-rain-scale { margin-left: auto; display: grid; grid-template-columns: auto 120px repeat(3,auto); align-items: center; gap: 6px; white-space: nowrap; }
 .graphic-rain-scale b { font-weight: 600; }
@@ -5944,23 +5949,24 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-track { position: relative; height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(0,1fr) 48px 74px 92px; }
 .graphic-chart { position: relative; min-height: 0; }
 .graphic-plots { display: grid; grid-template-rows: minmax(0,54fr) minmax(0,23fr) minmax(0,23fr); overflow: hidden; background: linear-gradient(180deg,color-mix(in srgb,var(--surface-2) 72%,transparent),color-mix(in srgb,var(--surface) 34%,transparent)); }
-.graphic-plot { position: relative; min-height: 0; overflow: hidden; isolation: isolate; }
+.graphic-plot { position: relative; min-height: 0; overflow: hidden; isolation: isolate; contain: layout paint style; }
 .graphic-plot + .graphic-plot { border-top: 1px solid color-mix(in srgb,var(--border-strong) 78%,transparent); }
 .graphic-plot-rain { background: linear-gradient(180deg,color-mix(in srgb,var(--gv-rain) 3%,var(--surface-2)),color-mix(in srgb,var(--surface) 48%,transparent)); }
 .graphic-plot-wind { background: linear-gradient(180deg,color-mix(in srgb,var(--gv-wind) 3%,var(--surface-2)),color-mix(in srgb,var(--surface) 48%,transparent)); }
 .graphic-chart-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .graphic-temperature-tint { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .graphic-temperature-tint > span { position: absolute; top: 0; height: 100%; opacity: 1; background: linear-gradient(180deg,color-mix(in srgb,var(--heat-color) var(--gv-heat-strong),transparent),color-mix(in srgb,var(--heat-color) var(--gv-heat-soft),transparent) 72%,transparent 100%); box-shadow: inset -1px 0 color-mix(in srgb,var(--heat-color) 5%,transparent); }
-.graphic-grid { stroke: color-mix(in srgb,var(--border) 68%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.graphic-grid { fill: none; stroke: color-mix(in srgb,var(--border) 68%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-grid.vertical { stroke-dasharray: 2 5; }
 .graphic-grid.vertical.major { stroke: color-mix(in srgb,var(--border-strong) 74%,transparent); }
 .graphic-grid.horizontal { stroke: color-mix(in srgb,var(--border) 82%,transparent); stroke-dasharray: 2 5; }
 .graphic-grid.horizontal.rain { stroke: color-mix(in srgb,var(--gv-rain) 18%,var(--border)); }
 .graphic-grid.horizontal.wind { stroke: color-mix(in srgb,var(--gv-wind) 18%,var(--border)); }
-.graphic-day-break { stroke: color-mix(in srgb,var(--border-strong) 82%,transparent); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.graphic-day-break { fill: none; stroke: color-mix(in srgb,var(--border-strong) 82%,transparent); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
 .graphic-temp-band { fill: color-mix(in srgb,var(--gv-temp) 14%,transparent); stroke: color-mix(in srgb,var(--gv-temp) 34%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-temp-line { fill: none; stroke: var(--gv-temp); stroke-width: 2.5; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 2px color-mix(in srgb,var(--gv-temp) 28%,transparent)); }
-.graphic-wind-line { fill: none; stroke: var(--gv-wind); stroke-width: 2; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
+.graphic-wind-line { fill: none; stroke: var(--gv-wind); stroke-width: 2.2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 2px color-mix(in srgb,var(--gv-wind) 18%,transparent)); }
+.graphic-gust-line { fill: none; stroke: var(--gv-gust); stroke-width: 1.9; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; opacity: .92; }
 .graphic-rain-baseline { stroke: color-mix(in srgb,var(--gv-rain) 44%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-wind-baseline { stroke: color-mix(in srgb,var(--gv-wind) 26%,transparent); stroke-width: 1; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
 .graphic-ruler { position: absolute; top: 0; bottom: 0; width: 1px; z-index: 16; pointer-events: none; background: linear-gradient(180deg,color-mix(in srgb,var(--primary) 24%,transparent),color-mix(in srgb,var(--primary) 92%,transparent) 18%,color-mix(in srgb,var(--primary) 92%,transparent) 82%,color-mix(in srgb,var(--primary) 24%,transparent)); box-shadow: 0 0 0 1px color-mix(in srgb,var(--surface) 30%,transparent),0 0 14px color-mix(in srgb,var(--primary) 22%,transparent); }
@@ -5971,14 +5977,14 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-ruler-badge { position: absolute; left: 8px; top: 8px; min-width: max-content; padding: 4px 7px; border: 1px solid color-mix(in srgb,var(--primary) 38%,var(--border)); border-radius: 7px; background: color-mix(in srgb,var(--surface-raised) 94%,transparent); color: var(--text); font-family: var(--tech-font); font-size: .70rem; font-weight: 750; box-shadow: var(--shadow-2); backdrop-filter: blur(8px); }
 .graphic-ruler.badge-left .graphic-ruler-badge { left: auto; right: 8px; }
 .graphic-y-axis {
-  --axis-left: 10px; --axis-color: var(--gv-temp);
+  --axis-left: 10px; --axis-heading-width: 122px; --axis-rail-offset: 132px; --axis-color: var(--gv-temp);
   position: absolute; inset: 0; pointer-events: none; z-index: 5; font-family: var(--tech-font); font-size: .70rem; color: var(--gv-muted);
 }
 .graphic-y-axis.temp { --axis-color: var(--gv-temp); }
 .graphic-y-axis.rain { --axis-color: var(--gv-rain); }
 .graphic-y-axis.wind { --axis-color: var(--gv-wind); }
 .graphic-axis-heading {
-  position: absolute; left: var(--axis-left); top: 8px; min-width: 86px; height: 30px; display: flex; align-items: center; gap: 6px;
+  position: absolute; left: var(--axis-left); top: 7px; width: var(--axis-heading-width); height: 32px; display: flex; align-items: center; gap: 6px; box-sizing: border-box; z-index: 4;
   padding: 4px 7px; border: 1px solid color-mix(in srgb,var(--axis-color) 30%,var(--border)); border-radius: 9px;
   background: color-mix(in srgb,var(--surface-raised) 93%,transparent); color: var(--axis-color); box-shadow: var(--shadow-1); backdrop-filter: blur(8px);
 }
@@ -5988,12 +5994,12 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-axis-heading strong { color: var(--text); font-size: .70rem; font-weight: 800; letter-spacing: .01em; }
 .graphic-axis-heading small { margin-top: 2px; color: var(--axis-color); font-size: .70rem; font-weight: 700; }
 .graphic-axis-rail {
-  position: absolute; left: calc(var(--axis-left) + 78px); top: var(--axis-start); bottom: calc(100% - var(--axis-end)); width: 1px;
+  position: absolute; left: calc(var(--axis-left) + var(--axis-rail-offset)); top: var(--axis-start); bottom: calc(100% - var(--axis-end)); width: 1px; z-index: 1;
   background: linear-gradient(180deg,color-mix(in srgb,var(--axis-color) 78%,transparent),color-mix(in srgb,var(--axis-color) 24%,transparent));
   box-shadow: 0 0 8px color-mix(in srgb,var(--axis-color) 12%,transparent);
 }
 .graphic-axis-tick {
-  position: absolute; left: var(--axis-left); width: 87px; height: 20px; transform: translateY(-50%); display: grid; grid-template-columns: minmax(0,1fr) 8px; align-items: center; gap: 5px;
+  position: absolute; left: var(--axis-left); width: calc(var(--axis-rail-offset) + 8px); height: 20px; transform: translateY(-50%); display: grid; grid-template-columns: minmax(0,1fr) 8px; align-items: center; gap: 5px; z-index: 2;
 }
 .graphic-axis-tick em {
   min-width: 0; padding: 2px 5px; border-radius: 5px; background: color-mix(in srgb,var(--surface) 76%,transparent); color: color-mix(in srgb,var(--axis-color) 75%,var(--text));
@@ -6075,8 +6081,6 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-vigilance-event small { margin-left: auto; font-family: var(--tech-font); font-size: .70rem; opacity: .9; }
 .graphic-vigilance-empty { display: flex; align-items: center; gap: 8px; padding-left: 16px; color: var(--good); font-size: .70rem; }
 .graphic-vigilance-empty span { width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; }
-.graphic-footer-hint { flex: 0 0 34px; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 20px; border-top: 1px solid var(--gv-border); background: var(--surface); color: var(--muted); font-size: .70rem; }
-.graphic-footer-hint span { font-size: 1rem; }
 .graphic-loading,.graphic-empty { flex: 1; display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; color: var(--gv-muted); }
 .graphic-loading p,.graphic-empty h1 { margin: 0; }
 
@@ -6112,11 +6116,11 @@ html[data-theme="dark"] .graphic-view { --gv-heat-strong: 26%; --gv-heat-soft: 9
 @media (max-width: 900px) {
   .graphic-header { grid-template-columns: minmax(0,1fr) auto; }
   .graphic-header-title { display: none; }
+  .graphic-header-context { max-width: 46vw; }
   .graphic-legend { gap: 14px; padding-inline: 12px; overflow: hidden; }
   .graphic-rain-scale { display: none; }
   .graphic-range-label { display: none; }
   .graphic-track { grid-template-rows: minmax(0,1fr) 44px 68px 84px; }
-  .graphic-footer-hint { justify-content: center; }
 }
 @media (max-width: 620px) {
   .graphic-view { min-height: 480px; }
@@ -6124,12 +6128,13 @@ html[data-theme="dark"] .graphic-view { --gv-heat-strong: 26%; --gv-heat-soft: 9
   .graphic-header-city h1 { font-size: 1.08rem; }
   .graphic-header-city p { font-size: .70rem; }
   .graphic-icon-button { width: 36px; height: 36px; }
+  .graphic-header-context > span { max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }
+  .graphic-header-context > strong { font-size: .70rem; }
   .graphic-day-strip-shell { flex-basis: 44px; }
   .graphic-legend { font-size: .70rem; }
   .graphic-legend .spread { display: none; }
   .graphic-track { grid-template-rows: minmax(0,1fr) 40px 64px 76px; }
   .graphic-tooltip { width: min(292px,calc(100vw - 24px)); }
-  .graphic-footer-hint { flex-basis: 30px; }
 }
 
 @media (max-width: 620px) {

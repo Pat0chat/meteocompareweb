@@ -19,7 +19,10 @@ assert.doesNotMatch(app,/graphic-day-strip-shell/);
 
 // The graphic header no longer exposes a settings shortcut.
 assert.doesNotMatch(app,/data-action="open-graphic-settings"/);
-assert.match(app,/class="graphic-header-balance"/);
+assert.match(app,/class="graphic-header-context"/);
+assert.match(app,/graphicDateRangeLabel\(points\[0\]\.date,points\.at\(-1\)\.date,locale\)/);
+assert.match(app,/graphicExploreHint/);
+assert.doesNotMatch(app,/graphic-footer-hint/);
 
 // Temperature, rain and wind are three distinct stacked plots with independent scales.
 assert.match(app,/class="graphic-plot graphic-plot-temperature"/);
@@ -35,6 +38,24 @@ assert.match(css,/\.graphic-y-axis\.wind \{ --axis-color: var\(--gv-wind\); \}/)
 assert.match(css,/\.graphic-axis-heading \{/);
 assert.match(css,/\.graphic-axis-rail \{/);
 assert.match(css,/\.graphic-axis-tick \{/);
+assert.match(css,/--axis-heading-width:\s*122px/);
+assert.match(css,/--axis-rail-offset:\s*132px/);
+
+
+// Wind plot includes gusts on the same scale and exposes them in the legend.
+assert.match(app,/gustLine=svgPathFromPoints/);
+assert.match(app,/class="graphic-gust-line" d="\$\{gustLine\}"/);
+assert.match(app,/class="gust"><i><\/i>\$\{esc\(t\('gusts'\)\)\}<\/span>/);
+assert.match(css,/\.graphic-gust-line \{/);
+assert.match(css,/\.graphic-legend \.gust > i \{/);
+
+// Expensive tooltip markup is generated lazily and SVG grids are batched into paths.
+assert.match(app,/const graphicTooltipContentCache = new Map\(\)/);
+assert.match(app,/graphicTooltipContentCache\.set\(id,\{type:'wind',point,html:null\}\)/);
+assert.match(app,/if\(cached\.html==null\)cached\.html=graphicTooltipMarkup/);
+assert.match(app,/horizontalGrid=\(ticks,y,kind=''\)=>/);
+assert.match(app,/verticalGrid=\(height\)=>/);
+assert.match(css,/\.graphic-plot \{[^}]*contain: layout paint style;/s);
 
 // Legend is placed directly below the plot stack, before the time axis.
 assert.match(app,/class="graphic-chart graphic-plots"[\s\S]*class="graphic-legend-row">\$\{legend\}<\/div><div class="graphic-time-axis"/);
