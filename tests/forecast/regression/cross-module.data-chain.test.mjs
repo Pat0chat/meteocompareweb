@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { APP_VERSION } from '../../../js/version.js';
 import {
-  addDays, cityToday, dayConfidence, weightedDayConfidence, zonedLocalTimestampEpoch, zonedTimestampEpochs, currentConditions, hourlyConfidenceBand, buildTimelinePoints, roundedHourLocal
+  addDays, cityToday, dayConfidence, weightedDayConfidence, zonedLocalTimestampEpoch, zonedTimestampEpoch, zonedTimestampEpochs, currentConditions, hourlyConfidenceBand, buildTimelinePoints, roundedHourLocal
 } from '../../../js/domain.js';
 import { normalizeMarine, nearestMarineIndex, detectTideEvents, tideRangeNext24h } from '../../../js/features/marine.js';
 import { buildEvolution } from '../../../js/features/evolution.js';
@@ -16,6 +16,11 @@ import { getModel } from '../../../js/models.js';
 assert.equal(new Date(zonedLocalTimestampEpoch('2026-08-18T12:00','Europe/Paris')).toISOString(),'2026-08-18T10:00:00.000Z');
 assert.equal(new Date(zonedLocalTimestampEpoch('2026-08-18T12:00','Asia/Tokyo')).toISOString(),'2026-08-18T03:00:00.000Z');
 assert.equal(new Date(zonedLocalTimestampEpoch('2026-08-18T12:00','America/New_York')).toISOString(),'2026-08-18T16:00:00.000Z');
+// Astronomical values may arrive either as local Open-Meteo wall time or with an explicit UTC offset.
+// Both representations must resolve to the same absolute instant in Europe/Paris (CEST = UTC+2 here).
+assert.equal(new Date(zonedTimestampEpoch('2026-09-15T07:27','Europe/Paris')).toISOString(),'2026-09-15T05:27:00.000Z');
+assert.equal(new Date(zonedTimestampEpoch('2026-09-15T05:27:00Z','Europe/Paris')).toISOString(),'2026-09-15T05:27:00.000Z');
+assert.equal(new Date(zonedTimestampEpoch('2026-09-15T20:03+02:00','Europe/Paris')).toISOString(),'2026-09-15T18:03:00.000Z');
 
 // Autumn DST fold: the two 02:00 values are distinct consecutive instants.
 const fold=zonedTimestampEpochs(['2026-10-25T01:00','2026-10-25T02:00','2026-10-25T02:00','2026-10-25T03:00'],'Europe/Paris');

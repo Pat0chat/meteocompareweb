@@ -121,4 +121,42 @@ assert.match(app,/--graphic-heatmap:\$\{attr\(`linear-gradient\(90deg,\$\{heatSt
 assert.match(css,/\.graphic-temperature-tint \{[^}]*background: var\(--graphic-heatmap\);[^}]*mask-image:/s);
 assert.doesNotMatch(css,/\.graphic-temperature-tint > span/);
 
+
+// The ruler carries a compact synchronized weather summary for the hovered hour.
+assert.match(app,/data-graphic-ruler-temp=/);
+assert.match(app,/data-graphic-ruler-rain=/);
+assert.match(app,/data-graphic-ruler-wind=/);
+assert.match(app,/data-graphic-ruler-gust=/);
+assert.match(app,/class="graphic-ruler-summary"/);
+assert.match(app,/context\.summary\.temp\.textContent=slot\.temp/);
+assert.match(css,/\.graphic-ruler-summary \{/);
+
+// Day boundaries are reinforced across the full stacked plot, while a subtle solar overlay keeps the temperature heatmap visible.
+assert.match(app,/graphicSolarWindow\(forecast,group\.date,timezone\)/);
+assert.match(app,/graphicDaylightGradient\(f,points,groups,graphicTimezone,\{leftPad,step,totalWidth\}\)/);
+assert.match(app,/epochToX=epoch=>leftPad\+step\/2/);
+assert.match(app,/--graphic-daylight:\$\{attr\(daylightGradient\)\}/);
+assert.match(app,/class="graphic-day-divider-layer"/);
+assert.match(css,/\.graphic-plot::before \{[^}]*background: var\(--graphic-daylight,transparent\);/s);
+assert.match(css,/\.graphic-day-divider \{/);
+assert.match(css,/\.graphic-temperature-tint \{[^}]*z-index: 0;[^}]*background: var\(--graphic-heatmap\);/s);
+
+// Y axes live in a sticky overlay so their headings and ticks remain visible during horizontal exploration.
+assert.match(app,/class="graphic-sticky-axes"/);
+assert.match(css,/\.graphic-sticky-axes \{[^}]*position: sticky;[^}]*left: 0;/s);
+assert.match(css,/\.graphic-sticky-axis-slot \{/);
+
+// An opt-in checkbox exposes agreement as a progressive color band behind the main data.
+assert.match(app,/data-graphic-agreement-toggle/);
+assert.match(app,/graphicAgreementGradientStops\(points,'temperatureAgreementPercent'\)/);
+assert.match(app,/graphicAgreementGradientStops\(points,'windAgreementPercent'\)/);
+assert.match(app,/class="graphic-agreement-path temperature halo"/);
+assert.match(app,/class="graphic-agreement-path temperature core"/);
+assert.match(app,/--agreement-color:\$\{graphicAgreementColor\(point\.precipitationAgreementPercent\)\}/);
+assert.match(app,/classList\?\.toggle\?\.\('show-agreement',state\.graphicAgreementVisible\)/);
+assert.match(css,/\.graphic-view\.show-agreement \.graphic-agreement-path\.halo \{/);
+assert.match(css,/\.graphic-view\.show-agreement \.graphic-agreement-path\.core \{/);
+assert.match(css,/\.graphic-view\.show-agreement \.graphic-rain-bar::after \{/);
+assert.match(css,/\.graphic-agreement-toggle \{/);
+
 console.log('Graphical 7-day view stacked plots, ruler, legend and hover/click tooltip interactions: OK');

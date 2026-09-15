@@ -62,4 +62,18 @@ assert.doesNotMatch(css,/\.graphic-ruler \{[^}]*box-shadow:/s);
 assert.match(app,/horizontalGrid=\(ticks,y,kind=''\)=>/);
 assert.match(app,/verticalGrid=\(height\)=>/);
 
+
+// Solar day/night shading is computed from at most two astronomical transitions per day,
+// aligned directly to the plotted hourly x-axis (including the sticky-axis left padding).
+assert.match(app,/function graphicDaylightGradient\(forecast,points,groups,timezone,/);
+assert.match(app,/epochToX=epoch=>leftPad\+step\/2\+\(\(epoch-firstEpoch\)\/3600000\)\*step/);
+assert.match(app,/for\(const group of groups\)/);
+assert.doesNotMatch(app,/daylightPhases=points\.map/);
+assert.doesNotMatch(app,/graphic-daylight-hour/);
+
+// Agreement rendering samples SVG gradient stops rather than adding a segment node per hour.
+assert.match(app,/function graphicAgreementGradientStops\(points,key,\{sampleEvery=6\}=\{\}\)/);
+assert.match(app,/for\(let i=0;i<points\.length;i\+=Math\.max\(1,sampleEvery\)\)/);
+assert.doesNotMatch(app,/graphic-agreement-segment/);
+
 console.log('Graphic view release performance guards: OK');

@@ -1890,5 +1890,9 @@ export const catalog = Object.freeze({
   'graphicExploreHint':'Scorri orizzontalmente per esplorare i 7 giorni',
   'graphicBuildingView':'Preparazione della vista grafica…',
   'graphicBuildingViewHint':'Calcolo e impaginazione dei prossimi 7 giorni.',
+  'graphicAgreementOverlay':'Mostra accordo',
+  'graphicAgreementOverlayHint':'Mostra dietro ai dati una fascia colorata in base all’accordo tra i modelli',
+  'graphicAgreementDivergence':'Forte divergenza',
+  'graphicAgreementStrong':'Accordo elevato',
 
 });

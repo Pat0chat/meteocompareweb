@@ -18,6 +18,7 @@ export class AppState {
     this.online=Boolean(online);
     this.compareModelIds=[];
     this.comparePanelOpen={};
+    this.graphicAgreementVisible=false;
     this.evolutionVariable='temperature';
     this.reliabilityVariable='TEMPERATURE';
     this.localDataStats=null;

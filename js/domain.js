@@ -92,6 +92,18 @@ export function zonedLocalTimestampEpoch(localTs, timezone, referenceEpochMs=nul
   if(!candidates.length)return NaN;if(candidates.length===1)return candidates[0];
   const ref=Number.isFinite(referenceEpochMs)?referenceEpochMs:null;return ref==null?Math.min(...candidates):candidates.sort((a,b)=>Math.abs(a-ref)-Math.abs(b-ref)||a-b)[0];
 }
+/** Interpret an ISO timestamp that may either be a local wall-clock value (the
+ * default Open-Meteo format when `timezone` is requested) or an absolute value
+ * carrying `Z` / an explicit UTC offset. This keeps astronomical timestamps
+ * correct even when cached/provider data changes representation. */
+export function zonedTimestampEpoch(timestamp, timezone, referenceEpochMs=null){
+  if(typeof timestamp!=='string'||!timestamp.trim())return NaN;
+  const value=timestamp.trim();
+  if(/(?:[zZ]|[+-]\d{2}:?\d{2})$/.test(value)){
+    const absolute=Date.parse(value);return Number.isFinite(absolute)?absolute:NaN;
+  }
+  return zonedLocalTimestampEpoch(value,timezone,referenceEpochMs);
+}
 export function zonedTimestampEpochs(timestamps,timezone){let previous=null;return (timestamps||[]).map(ts=>{const expected=previous==null?null:previous+3600e3,ms=zonedLocalTimestampEpoch(ts,timezone,expected);if(Number.isFinite(ms))previous=ms;return ms;});}
 export function addDays(dateStr, days){ const d=new Date(`${dateStr}T12:00:00Z`); d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10); }
 export function daysBetween(a,b){ return Math.round((localEpoch(b)-localEpoch(a))/86400000); }
