@@ -3967,8 +3967,7 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
 .seo-prerender-copy{margin-bottom:18px}
 .seo-prerender-copy>p{margin:0;max-width:82ch;color:var(--text-muted);line-height:1.65}
 @media(max-width:1050px){.seo-link-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:760px){.city-list-toggle-label{display:none}.city-list-summary{gap:var(--space-2)}.city-list-summary-meta{gap:6px}.seo-directory-heading{padding:7px 6px}}
-@media(max-width:760px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-directory{margin-top:18px}}
+@media(max-width:760px){.city-list-toggle-label{display:none}.city-list-summary{gap:var(--space-2)}.city-list-summary-meta{gap:6px}.seo-directory-heading{padding:7px 6px}.seo-link-grid,.seo-link-grid.compact{grid-template-columns:repeat(2,minmax(0,1fr))}.seo-directory{margin-top:18px}}
 @media(max-width:480px){.seo-link-grid,.seo-link-grid.compact{grid-template-columns:1fr}.seo-city-link{padding:12px 13px}}
 
 /* Rain radar modal */
@@ -5925,7 +5924,11 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--gv-border); border-radius: 11px; background: color-mix(in srgb,var(--surface-2) 78%,transparent); color: var(--gv-text); cursor: pointer; }
 .graphic-icon-button:hover { background: var(--surface-3); border-color: color-mix(in srgb,var(--primary) 42%,var(--border)); }
 .graphic-legend-row { grid-row: 2; grid-column: 1; position: relative; min-height: 0; border-top: 1px solid var(--gv-border); border-bottom: 1px solid var(--gv-border); background: color-mix(in srgb,var(--surface-2) 76%,transparent); }
-.graphic-legend { position: sticky; left: 0; width: min(100vw,100%); height: 100%; display: flex; align-items: center; gap: 26px; padding: 0 20px; color: var(--gv-muted); font-size: .70rem; background: color-mix(in srgb,var(--surface-2) 96%,var(--bg)); z-index: 18; }
+.graphic-legend {
+  position: sticky; left: 0; width: min(100vw,100%); height: 100%; display: flex; align-items: center; gap: 18px; padding: 0 20px;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; color: var(--gv-muted); font-size: .70rem;
+  background: color-mix(in srgb,var(--surface-2) 96%,var(--bg)); z-index: 18;
+}
 .graphic-legend > span:not(.graphic-rain-scale) { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .graphic-legend > span > i { display: inline-block; flex: 0 0 auto; }
 .graphic-legend .temp > i { width: 24px; height: 3px; border-radius: 99px; background: var(--gv-temp); box-shadow: 8px 0 0 -1px var(--gv-temp); }
@@ -5935,7 +5938,7 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-legend .gust > i { width: 25px; height: 0; border-top: 2px dashed var(--gv-gust); position: relative; }
 .graphic-legend .gust > i::after { content: ""; position: absolute; right: 4px; top: -4px; width: 5px; height: 5px; border-radius: 50%; background: var(--gv-gust); }
 .graphic-legend .rain > i { width: 22px; height: 17px; background: linear-gradient(90deg,color-mix(in srgb,var(--gv-rain) 38%,transparent),var(--gv-rain)); clip-path: polygon(0 100%,0 58%,26% 58%,26% 24%,55% 24%,55% 0,76% 0,76% 45%,100% 45%,100% 100%); }
-.graphic-rain-scale { margin-left: auto; display: grid; grid-template-columns: auto 120px repeat(3,auto); align-items: center; gap: 6px; white-space: nowrap; }
+.graphic-rain-scale { margin-left: auto; display: grid; grid-template-columns: auto 120px repeat(3,auto); align-items: center; gap: 6px; white-space: nowrap; flex: 0 0 auto; }
 .graphic-rain-scale b { font-weight: 600; }
 .graphic-rain-scale > i { width: 120px; height: 8px; border: 1px solid color-mix(in srgb,var(--gv-rain) 34%,var(--border)); border-radius: 99px; background: linear-gradient(90deg,color-mix(in srgb,var(--gv-rain) 10%,transparent),color-mix(in srgb,var(--gv-rain) 62%,transparent),var(--gv-rain)); }
 .graphic-rain-scale small { color: var(--gv-muted); font-size: .70rem; }
@@ -6159,9 +6162,6 @@ html[data-theme="dark"] .graphic-view { --gv-heat-opacity: .26; --gv-day-overlay
   .graphic-legend { font-size: .70rem; }
   .graphic-legend .spread { display: none; }
   .graphic-track { grid-template-rows: minmax(0,1fr) 40px 64px 76px; }
-}
-
-@media (max-width: 620px) {
   .graphic-plots,.graphic-sticky-axes { grid-template-rows: minmax(0,50fr) minmax(0,25fr) minmax(0,25fr); }
   .graphic-ruler-summary .wind em { display: none; }
   .graphic-agreement-gradient { display: none; }
@@ -6192,14 +6192,7 @@ html[data-theme="dark"] .graphic-view { --gv-heat-opacity: .26; --gv-day-overlay
 .graphic-legend .era5-min { color: color-mix(in srgb,var(--primary) 82%,var(--text)); }
 .graphic-legend .era5-pending { color: var(--subtle); }
 .graphic-legend .era5-pending > i { opacity: .5; }
-.graphic-legend {
-  gap: 18px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-}
 .graphic-legend::-webkit-scrollbar { display: none; }
-.graphic-rain-scale { flex: 0 0 auto; }
 
 .home-temperature-plot[data-action="open-graphic-view"],
 .detail-chrono-temp-plot[data-action="open-graphic-view"] { cursor: zoom-in; }
