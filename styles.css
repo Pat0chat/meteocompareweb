@@ -5924,6 +5924,8 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-legend .wind > i::after { content: ""; position: absolute; right: 4px; top: -5px; width: 6px; height: 6px; border-radius: 50%; background: var(--gv-wind); }
 .graphic-legend .gust > i { width: 25px; height: 0; border-top: 2px dashed var(--gv-gust); position: relative; }
 .graphic-legend .gust > i::after { content: ""; position: absolute; right: 4px; top: -4px; width: 5px; height: 5px; border-radius: 50%; background: var(--gv-gust); }
+.graphic-legend .wind-direction > i { width: 24px; height: 20px; position: relative; display: grid; place-items: center; border: 1px solid color-mix(in srgb,var(--gv-wind) 28%,var(--border)); border-radius: 999px; background: color-mix(in srgb,var(--gv-wind) 7%,var(--surface)); }
+.graphic-legend .wind-direction > i::before { content: "↑"; color: var(--gv-wind); font-size: .80rem; font-weight: 900; line-height: 1; transform: rotate(45deg); }
 .graphic-legend .rain > i { width: 22px; height: 17px; background: linear-gradient(90deg,color-mix(in srgb,var(--gv-rain) 38%,transparent),var(--gv-rain)); clip-path: polygon(0 100%,0 58%,26% 58%,26% 24%,55% 24%,55% 0,76% 0,76% 45%,100% 45%,100% 100%); }
 .graphic-rain-scale { margin-left: auto; display: grid; grid-template-columns: auto 120px repeat(3,auto); align-items: center; gap: 6px; white-space: nowrap; flex: 0 0 auto; }
 .graphic-rain-scale b { font-weight: 600; }
@@ -5975,6 +5977,13 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-temp-line { fill: none; stroke: var(--gv-temp); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
 .graphic-wind-line { fill: none; stroke: var(--gv-wind); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
 .graphic-gust-line { fill: none; stroke: var(--gv-gust); stroke-width: 1.9; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; opacity: .92; }
+.graphic-wind-direction-strip { position: absolute; left: 0; right: 0; top: 0; height: 40px; z-index: 4; pointer-events: none; border-bottom: 1px solid color-mix(in srgb,var(--gv-wind) 16%,var(--border)); background: linear-gradient(180deg,color-mix(in srgb,var(--gv-wind) 5%,var(--surface-2)),transparent 92%); }
+.graphic-wind-direction { position: absolute; top: 5px; width: 44px; height: 30px; transform: translateX(-50%); display: grid; grid-template-columns: 20px minmax(0,1fr); align-items: center; gap: 3px; color: var(--gv-muted); font-family: var(--tech-font); font-size: .70rem; font-weight: 760; letter-spacing: .01em; white-space: nowrap; }
+.graphic-wind-direction::before { content: "↑"; width: 20px; height: 20px; display: grid; place-items: center; border: 1px solid color-mix(in srgb,var(--gv-wind) 28%,var(--border)); border-radius: 50%; background: color-mix(in srgb,var(--gv-wind) 8%,var(--surface)); color: var(--gv-wind); font-size: .80rem; font-weight: 900; line-height: 1; transform: rotate(var(--graphic-wind-direction,0deg)); transform-origin: 50% 50%; box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--surface) 42%,transparent); }
+.graphic-wind-direction::after { content: attr(data-direction); min-width: 0; overflow: hidden; text-overflow: clip; color: color-mix(in srgb,var(--gv-wind) 62%,var(--text)); }
+.graphic-wind-direction.calm { opacity: .52; }
+.graphic-wind-direction.unavailable::before { content: "·"; transform: none; color: var(--muted); }
+.graphic-wind-direction.unavailable::after { color: var(--subtle); }
 .graphic-rain-baseline { stroke: color-mix(in srgb,var(--gv-rain) 44%,transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .graphic-wind-baseline { stroke: color-mix(in srgb,var(--gv-wind) 26%,transparent); stroke-width: 1; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
 .graphic-ruler { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; z-index: 16; pointer-events: none; transform: translate3d(var(--graphic-ruler-x,0px),0,0); will-change: transform; background: linear-gradient(180deg,color-mix(in srgb,var(--primary) 24%,transparent),color-mix(in srgb,var(--primary) 92%,transparent) 18%,color-mix(in srgb,var(--primary) 92%,transparent) 82%,color-mix(in srgb,var(--primary) 24%,transparent)); }

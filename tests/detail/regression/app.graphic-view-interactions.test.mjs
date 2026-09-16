@@ -49,6 +49,16 @@ assert.match(app,/class="gust"><i><\/i>\$\{esc\(t\('gusts'\)\)\}<\/span>/);
 assert.match(css,/\.graphic-gust-line \{/);
 assert.match(css,/\.graphic-legend \.gust > i \{/);
 
+// Hourly wind direction is rendered as a compact compass strip above the wind curves.
+assert.match(app,/windDirectionTargets=points\.map/);
+assert.match(app,/flowAngle=available\?\(direction\+180\)%360:0/);
+assert.match(app,/class="graphic-wind-direction\$\{calm\?' calm':''\}\$\{available\?'':' unavailable'\}"/);
+assert.match(app,/class="graphic-wind-direction-strip"/);
+assert.match(app,/class="wind-direction"><i><\/i>\$\{esc\(t\('graphicWindOrientation'\)\)\}<\/span>/);
+assert.match(css,/\.graphic-wind-direction-strip \{/);
+assert.match(css,/\.graphic-wind-direction::before \{[^}]*transform: rotate\(var\(--graphic-wind-direction,0deg\)\);/s);
+assert.match(css,/\.graphic-legend \.wind-direction > i \{/);
+
 // Expensive tooltip markup is generated lazily and SVG grids are batched into paths.
 assert.match(app,/const graphicTooltipContentCache = new Map\(\)/);
 assert.match(app,/graphicTooltipContentCache\.set\(id,\{type:'wind',point,html:null\}\)/);

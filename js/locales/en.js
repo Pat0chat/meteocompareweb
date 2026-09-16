@@ -1878,6 +1878,7 @@ export const catalog = Object.freeze({
   'graphicRainAmount':'Amount',
   'graphicMeanWind':'Mean model wind',
   'graphicWindDirection':'Dominant direction',
+  'graphicWindOrientation':'Wind direction',
   'graphicNoVigilance':'No weather warning during the displayed period',
   'graphicHourlySevenDays':'7 days · hourly',
   'graphicRainAxis':'Rain · mm/h',

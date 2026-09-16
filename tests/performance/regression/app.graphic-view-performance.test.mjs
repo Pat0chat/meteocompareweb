@@ -76,4 +76,9 @@ assert.match(app,/function graphicAgreementGradientStops\(points,key,\{sampleEve
 assert.match(app,/for\(let i=0;i<points\.length;i\+=Math\.max\(1,sampleEvery\)\)/);
 assert.doesNotMatch(app,/graphic-agreement-segment/);
 
+// Wind direction adds exactly one lightweight marker per hourly point; the arrow itself is CSS-only.
+assert.match(app,/windDirectionTargets=points\.map/);
+assert.match(css,/\.graphic-wind-direction::before \{/);
+assert.doesNotMatch(app,/windDirectionTargets[\s\S]{0,1200}<svg/);
+
 console.log('Graphic view release performance guards: OK');
