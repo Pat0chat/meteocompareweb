@@ -54,7 +54,7 @@ Pour lancer l'application avec le même Worker et les mêmes bindings que la pro
 npm run cloudflare
 ```
 
-`tools/cloudflare-dev.mjs` prépare les secrets locaux et effectue le build, puis le script npm lance `wrangler dev --local --port 8787 --persist-to .wrangler/state` via le shell natif du système, avec persistance locale dans `.wrangler/state`. Si `.dev.vars` n'existe pas ou s'il manque un secret admin/analytics, la commande génère automatiquement `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` et `ANALYTICS_HASH_SECRET`; le mot de passe local nouvellement créé est affiché dans le terminal. `.dev.vars*` et `.wrangler/` sont ignorés par Git. L’audit de release ignore ces fichiers locaux, mais vérifie qu’ils sont bien exclus par `.gitignore` et qu’aucun secret local n’est présent dans `dist/`.
+`tools/cloudflare-dev.mjs` prépare les secrets locaux et effectue le build, puis le script npm lance `wrangler dev --local --port 8787 --persist-to .wrangler/state` via le shell natif du système, avec persistance locale dans `.wrangler/state`. La commande épingle Wrangler en `4.131.2` au lieu d'utiliser `@latest`, afin qu'une nouvelle publication de Wrangler/Miniflare ne puisse pas casser le serveur local sans validation préalable. Si `.dev.vars` n'existe pas ou s'il manque un secret admin/analytics, la commande génère automatiquement `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` et `ANALYTICS_HASH_SECRET`; le mot de passe local nouvellement créé est affiché dans le terminal. `.dev.vars*` et `.wrangler/` sont ignorés par Git. L’audit de release ignore ces fichiers locaux, mais vérifie qu’ils sont bien exclus par `.gitignore` et qu’aucun secret local n’est présent dans `dist/`.
 
 - application : `http://localhost:8787/`
 - administration : `http://localhost:8787/admin`

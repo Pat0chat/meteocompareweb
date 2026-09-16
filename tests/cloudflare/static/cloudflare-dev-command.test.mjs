@@ -6,9 +6,10 @@ const tool=fs.readFileSync(new URL('../../../tools/cloudflare-dev.mjs',import.me
 const audit=fs.readFileSync(new URL('../../../tools/release-audit.mjs',import.meta.url),'utf8');
 const gitignore=fs.readFileSync(new URL('../../../.gitignore',import.meta.url),'utf8');
 
-assert.match(pkg.scripts.cloudflare,/^node tools\/cloudflare-dev\.mjs && npx --yes wrangler@latest dev/);
+assert.match(pkg.scripts.cloudflare,/^node tools\/cloudflare-dev\.mjs && npx --yes wrangler@4\.131\.2 dev/);
 assert.match(tool,/build-site\.mjs/,'cloudflare command must build dist before starting Wrangler');
-assert.match(pkg.scripts.cloudflare,/wrangler@latest/,'cloudflare command must run Wrangler through npm shell');
+assert.match(pkg.scripts.cloudflare,/wrangler@4\.131\.2/,'cloudflare command must pin the known-good Wrangler version used by local development');
+assert.doesNotMatch(pkg.scripts.cloudflare,/wrangler@latest/,'local development must not silently jump to an unverified Wrangler release');
 assert.match(pkg.scripts.cloudflare,/--local/,'cloudflare command must force local Workers mode');
 assert.match(pkg.scripts.cloudflare,/--port 8787/,'cloudflare command must pin the analytics-aware local port');
 assert.match(pkg.scripts.cloudflare,/--persist-to \.wrangler\/state/,'Durable Object data should survive local restarts');
