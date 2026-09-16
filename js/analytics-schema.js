@@ -70,7 +70,7 @@ export const ANALYTICS_EVENT_DEFINITIONS=Object.freeze({
   'System Monitor Opened':event(),
   'System Monitor Refreshed':event(),
   'Support Opened':event(),
-  'External Link Opened':event({destination:enumRule(['bluesky','meteofrance_vigilance','liberapay','kofi'])}),
+  'External Link Opened':event({destination:enumRule(['meteofrance_vigilance','liberapay','kofi'])}),
 });
 
 function sanitizeRule(value,rule){

@@ -41,7 +41,7 @@ assert.match(about,/about-visual-agreement-grid/);
 assert.match(about,/about-visual-radar-frames/);
 assert.match(about,/about-visual-dashboard/);
 assert.match(about,/about-visual-takeaways/);
-assert.match(about,/about-community/);
+assert.doesNotMatch(about,/about-community|bsky\.app|bluesky/i);
 assert.doesNotMatch(about,/about-install|aboutInstallTitle|aboutInstallBody/);
 assert.match(about,/aboutAgreementCallout/);
 assert.doesNotMatch(about,/help-grid|about-intro-card/);
@@ -50,7 +50,7 @@ assert.match(css,/\.settings-control-grid/);
 assert.match(css,/\.storage-advanced>summary/);
 assert.match(css,/\.about-visual-step/);
 assert.match(css,/\.about-visual-takeaways/);
-assert.match(css,/\.about-community/);
+assert.doesNotMatch(css,/\.about-community|bluesky/i);
 assert.doesNotMatch(css,/\.about-install(?:-grid|-head)?/);
 
 const audit=webTranslationAudit();

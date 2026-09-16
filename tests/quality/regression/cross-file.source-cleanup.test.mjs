@@ -63,7 +63,7 @@ for(const selector of [
   'about-hero-badges','about-step-index','big-value','city-name','evolution-track-guide','footer-line','kpi-label','kpi-note','kpi-value','metric-value','scenario-sub','section-eyebrow','status-row','summary-value-line','tide-range','timeline-date','unit-note',
 ]) assert.doesNotMatch(css,new RegExp(`\\.${selector}\\b`),`dead CSS selector remains: ${selector}`);
 
-assert.equal(fs.existsSync(path.join(root,'assets','bluesky.svg')),false,'obsolete external Bluesky asset must stay removed; the UI uses the inline official mark');
+assert.equal(fs.existsSync(path.join(root,'assets','bluesky.svg')),false,'obsolete Bluesky asset must stay removed');
 
 // Runtime source contains no debug leftovers and every relative module import resolves.
 const runtimeFiles=[];

@@ -1,5 +1,5 @@
 // Single source of truth for runtime network destinations and transport policy.
-// Keep user-initiated navigation links (Play Store, Bluesky, donations, legal links)
+// Keep user-initiated navigation links (Play Store, donations, legal links)
 // outside this file: they are not application data-plane requests.
 export const NETWORK_ENDPOINTS = Object.freeze({
   firstParty: Object.freeze({
