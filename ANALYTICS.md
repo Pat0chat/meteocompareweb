@@ -43,6 +43,8 @@ Les données analytics sont conservées 180 jours au maximum. Le nettoyage de r�
 
 ## Export et attribution UTM dans l’administration
 
+Le tableau de bord propose les périodes **1, 7, 30, 90 et 180 jours**. La période **1 jour** correspond à la journée en cours : tous les agrégats (pages vues, visiteurs, contenus, environnement, interactions et métriques opérationnelles) sont bornés au début de la journée courante. Le graphique horaire est alors limité aux heures déjà écoulées ; lorsque la comparaison est activée, il compare avec la même tranche horaire de la veille afin d’éviter de comparer une journée partielle à une journée complète.
+
 L’administration permet d’exporter la vue agrégée de la période sélectionnée en **CSV** ou **JSON**. L’export ne donne pas accès aux événements bruts : il reprend uniquement les agrégats déjà exposés par `/_mcx/admin/analytics` ainsi que l’état instantané des services pour le JSON.
 
 Les dimensions UTM restent collectées et exportables mais ne sont plus affichées dans l’interface administrateur. Elles ne sont renseignées que lorsqu’une page vue d’entrée contient respectivement `utm_source`, `utm_medium` ou `utm_campaign`. Un referrer Google, un accès direct ou un lien externe non balisé ne crée volontairement aucune valeur UTM. Des blocs UTM vides sont donc normaux lorsqu’aucune campagne balisée n’a généré de visite pendant la période sélectionnée.
