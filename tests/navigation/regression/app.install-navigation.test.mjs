@@ -17,12 +17,14 @@ assert.match(app,/storeBrandIcon\('google-play',24\)/,'Google Play must use its 
 assert.match(app,/storeBrandIcon\('fdroid',25\)/,'F-Droid must use its dedicated brand icon');
 assert.doesNotMatch(app,/data-action="install-play-store"[\s\S]{0,250}uiIcon\('external'/,'Google Play must not fall back to the generic external-link icon');
 assert.match(app,/<strong>F-Droid<\/strong>/);
-assert.match(app,/install-option is-disabled[\s\S]*disabled/,'F-Droid must stay visible but disabled');
+assert.match(app,/href="https:\/\/f-droid\.org\/packages\/com\.meteocompare\.app\/"/,'F-Droid package link must target the canonical application page');
+assert.match(app,/data-action="install-fdroid"/,'F-Droid selection must be tracked');
+assert.doesNotMatch(app,/install-option is-disabled[\s\S]{0,350}<strong>F-Droid<\/strong>/,'F-Droid must be an active install option');
 assert.match(app,/availability\.pwaVisible\?/,'PWA option must be conditional on browser/device capability');
 assert.match(app,/install-opportunity-dot/,'install availability dot must be rendered conditionally');
 assert.match(app,/installAvailable:android\|\|pwaDirect\|\|pwaManual/,'availability dot must reflect Android or PWA installation opportunity');
 assert.match(css,/\.nav-install-menu:hover \.nav-install-popover/,'desktop hover opens the install menu');
 assert.match(css,/\.nav-install-menu\.is-open \.nav-install-popover/,'touch/click can keep the install menu open');
 assert.match(css,/\.install-opportunity-dot[\s\S]*var\(--semantic-danger\)/,'availability dot uses the semantic red status color');
-assert.match(analyticsSchema,/'Install Option Selected':event\(\{source:enumRule\(\['play_store','pwa'\]\)\}\)/,'install source selection is tracked without device or location data');
+assert.match(analyticsSchema,/'Install Option Selected':event\(\{source:enumRule\(\['play_store','fdroid','pwa'\]\)\}\)/,'install source selection is tracked without device or location data');
 console.log('MeteoCompare Web unified installation navigation regression: OK');

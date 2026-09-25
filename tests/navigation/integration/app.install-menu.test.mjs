@@ -10,6 +10,8 @@ assert.match(app,/pwaInstalled\|\|pwaDirect\|\|pwaManual/,'PWA menu visibility m
 assert.match(app,/beforeinstallprompt[\s\S]*refreshInstallNav/,'capturing a PWA prompt must refresh the topbar availability state');
 assert.match(app,/appinstalled[\s\S]*refreshInstallNav/,'install completion must refresh the topbar availability state');
 assert.match(app,/data-action="install-play-store"/);
+assert.match(app,/data-action="install-fdroid"/);
+assert.match(app,/href="https:\/\/f-droid\.org\/packages\/com\.meteocompare\.app\/"/);
 assert.match(app,/data-action="install-pwa"/);
 assert.match(css,/@media \(max-width:860px\)[\s\S]*\.nav-install-popover \{ position:fixed;/,'install menu must remain usable on touch/mobile topbars');
 

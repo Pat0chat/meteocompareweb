@@ -40,7 +40,7 @@ export const ANALYTICS_EVENT_DEFINITIONS=Object.freeze({
   'PWA Install Click':event(),
   'PWA Installed':event({},false),
   'PWA Install Prompt Result':event({outcome:enumRule(['accepted','dismissed'])}),
-  'Install Option Selected':event({source:enumRule(['play_store','pwa'])}),
+  'Install Option Selected':event({source:enumRule(['play_store','fdroid','pwa'])}),
   'City Search Opened':event(),
   'City Added':event({source:enumRule(['search'])}),
   'SEO City Favorite Added':event(),
