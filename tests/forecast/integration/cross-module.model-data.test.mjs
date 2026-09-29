@@ -33,6 +33,12 @@ assert.equal(getModel('ECMWF').resolutionKm,9);
 assert.equal(getModel('ECMWF').nativeStepMinutes,60);
 assert.equal(getModel('ECMWF_AIFS').nativeStepMinutes,360);
 assert.equal(getModel('CMA_GRAPES').nativeStepMinutes,180);
+assert.equal(getModel('JMA_GSM').apiKey,'jma_gsm');
+assert.equal(getModel('JMA_GSM').horizonHours,264);
+assert.equal(getModel('JMA_GSM').nativeStepMinutes,360);
+assert.equal(getModel('NCEP_AIGFS').apiKey,'ncep_aigfs025');
+assert.equal(getModel('NCEP_AIGFS').horizonHours,384);
+assert.equal(getModel('NCEP_AIGFS').nativeStepMinutes,360);
 
 
 // A partial critical variable is enough to mark a series degraded even when

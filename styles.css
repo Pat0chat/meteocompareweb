@@ -6090,13 +6090,24 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-vigilance-label strong { font-size: .7rem; }
 .graphic-vigilance-rows { position: relative; display: grid; grid-template-rows: repeat(3,1fr); min-height: 0; }
 .graphic-vigilance-row { position: relative; min-height: 0; border-bottom: 1px solid color-mix(in srgb,var(--border) 52%,transparent); }
-.graphic-vigilance-event { position: absolute; top: 5px; bottom: 5px; min-width: 24px; display: flex; align-items: center; gap: 6px; overflow: hidden; padding: 0 9px; border: 1px solid currentColor; border-radius: 999px; color: #ffd165; white-space: nowrap; box-shadow: inset 0 0 18px rgba(255,190,37,.06); }
-.graphic-vigilance-event.vigilance-level-orange { color: #ff9a43; background: rgba(232,121,24,.18); }
-.graphic-vigilance-event.vigilance-level-red { color: #ff6b6b; background: rgba(217,56,56,.18); }
-.graphic-vigilance-event i { width: 17px; height: 17px; display: grid; place-items: center; flex: 0 0 auto; }
-.graphic-vigilance-event i svg { width: 16px; height: 16px; }
-.graphic-vigilance-event b { overflow: hidden; text-overflow: ellipsis; font-size: .70rem; }
-.graphic-vigilance-event small { margin-left: auto; font-family: var(--tech-font); font-size: .70rem; opacity: .9; }
+.graphic-vigilance-event {
+  --graphic-vigilance-accent: var(--vigilance-yellow);
+  position:absolute; top:5px; bottom:5px; min-width:24px; overflow:hidden; container-type:inline-size;
+  border:1px solid color-mix(in srgb,var(--graphic-vigilance-accent) 72%,var(--border-strong)); border-radius:999px;
+  background:color-mix(in srgb,var(--graphic-vigilance-accent) 14%,var(--surface));
+  color:color-mix(in srgb,var(--graphic-vigilance-accent) 50%,var(--text));
+  white-space:nowrap; box-shadow:inset 3px 0 0 var(--graphic-vigilance-accent),0 1px 2px color-mix(in srgb,var(--text) 9%,transparent);
+}
+.graphic-vigilance-event.vigilance-level-orange { --graphic-vigilance-accent:var(--vigilance-orange); }
+.graphic-vigilance-event.vigilance-level-red { --graphic-vigilance-accent:var(--vigilance-red); }
+.graphic-vigilance-event-content { width:100%; height:100%; min-width:0; display:flex; align-items:center; gap:6px; overflow:hidden; padding:0 9px; }
+.graphic-vigilance-event-icon { width:18px; height:18px; display:grid; place-items:center; flex:0 0 auto; color:currentColor; }
+.graphic-vigilance-event-icon .wx-icon { width:17px; height:17px; color:currentColor; filter:none; }
+.graphic-vigilance-event-icon .vigilance-fallback-icon { width:17px; height:17px; border-color:currentColor; color:currentColor; font-size:.70rem; }
+.graphic-vigilance-event b { min-width:0; overflow:hidden; text-overflow:ellipsis; color:currentColor; font-size:.70rem; font-weight:800; }
+.graphic-vigilance-event small { margin-left:auto; flex:0 0 auto; color:color-mix(in srgb,currentColor 84%,var(--text)); font-family:var(--tech-font); font-size:.70rem; }
+@container (max-width: 150px) { .graphic-vigilance-event small { display:none; } }
+@container (max-width: 80px) { .graphic-vigilance-event-content { gap:4px; padding-inline:5px; } .graphic-vigilance-event b { font-size:.70rem; } }
 .graphic-vigilance-empty { display: flex; align-items: center; gap: 8px; padding-left: 16px; color: var(--good); font-size: .70rem; }
 .graphic-vigilance-empty span { width: 19px; height: 19px; display: grid; place-items: center; border: 1px solid currentColor; border-radius: 50%; }
 .graphic-build-shell { flex: 1 1 auto; min-height: 0; position: relative; display: grid; place-items: center; overflow: hidden; background: linear-gradient(180deg,color-mix(in srgb,var(--surface-2) 58%,var(--bg)),var(--bg)); }

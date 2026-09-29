@@ -71,6 +71,14 @@ assert.match(css,/\.graphic-plot \{[^}]*contain: layout paint style;/s);
 assert.match(app,/class="graphic-chart graphic-plots"[\s\S]*class="graphic-legend-row">\$\{legend\}<\/div><div class="graphic-time-axis"/);
 assert.match(css,/\.graphic-legend-row \{/);
 
+// Vigilance events remain readable in both themes: provider colors are mixed with theme text/surface colors,
+// their icon inherits the event ink, and compact events shed the time before the phenomenon label.
+assert.match(app,/class="graphic-vigilance-event vigilance-level-\$\{meta\.key\}"[\s\S]*role="img" aria-label=/);
+assert.match(app,/class="graphic-vigilance-event-content"[\s\S]*class="graphic-vigilance-event-icon"/);
+assert.match(css,/\.graphic-vigilance-event \{[\s\S]*--graphic-vigilance-accent: var\(--vigilance-yellow\);[\s\S]*color:color-mix\(in srgb,var\(--graphic-vigilance-accent\) 50%,var\(--text\)\);/);
+assert.match(css,/\.graphic-vigilance-event-icon \.wx-icon \{[^}]*color:currentColor;/s);
+assert.match(css,/@container \(max-width: 150px\) \{ \.graphic-vigilance-event small \{ display:none; \} \}/);
+
 // A vertical ruler follows the pointer and snaps to hourly points.
 assert.match(app,/data-graphic-ruler-track/);
 assert.match(app,/data-graphic-ruler hidden/);

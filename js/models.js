@@ -10,6 +10,8 @@ export const WEATHER_MODELS = [
   { id:'ICON_EU', openDataKey:'dwd_icon_eu', apiKey:'icon_eu', aliases:[], name:'ICON-EU', resolutionKm:7, maxForecastDays:5, horizonHours:120, recoveryRequestHours:120, nativeStepMinutes:60, updateMinutes:180, supportsDay1Bias:true, coverage:'EUROPE', family:'DWD' },
   { id:'ICON_GLOBAL', openDataKey:'dwd_icon', apiKey:'icon_global', aliases:['icon_seamless'], name:'ICON', resolutionKm:11, maxForecastDays:8, horizonHours:180, recoveryRequestHours:180, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'DWD' },
   { id:'GFS', openDataKey:'ncep_gfs013', apiKey:'ncep_gfs_seamless', aliases:['gfs_seamless'], name:'GFS', resolutionKm:13, maxForecastDays:16, horizonHours:384, recoveryRequestHours:384, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'NOAA' },
+  { id:'NCEP_AIGFS', openDataKey:'ncep_aigfs025', apiKey:'ncep_aigfs025', aliases:[], name:'NCEP AIGFS', resolutionKm:25, maxForecastDays:16, horizonHours:384, recoveryRequestHours:384, nativeStepMinutes:360, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'NOAA' },
+  { id:'JMA_GSM', openDataKey:'jma_gsm', apiKey:'jma_gsm', aliases:[], name:'JMA GSM', resolutionKm:55, maxForecastDays:11, horizonHours:264, recoveryRequestHours:264, nativeStepMinutes:360, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'JMA' },
   { id:'ECMWF', openDataKey:'ecmwf_ifs', metadataKey:'ecmwf_ifs', apiKey:'ecmwf_ifs', aliases:[], name:'ECMWF IFS', resolutionKm:9, maxForecastDays:15, horizonHours:360, recoveryRequestHours:360, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'ECMWF' },
   { id:'UKMO_GLOBAL', openDataKey:'ukmo_global_deterministic_10km', apiKey:'ukmo_global_deterministic_10km', aliases:[], name:'UKMO', resolutionKm:10, maxForecastDays:7, horizonHours:168, recoveryRequestHours:168, nativeStepMinutes:60, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'UK Met Office' },
   { id:'ECMWF_AIFS', openDataKey:'ecmwf_aifs025_single', apiKey:'ecmwf_aifs025_single', aliases:[], name:'AIFS', resolutionKm:28, maxForecastDays:15, horizonHours:360, recoveryRequestHours:360, nativeStepMinutes:360, updateMinutes:360, supportsDay1Bias:true, coverage:'GLOBAL', family:'ECMWF' },
@@ -71,7 +73,7 @@ export const CONSENSUS_GROUPS = Object.freeze({
   ARPEGE_EUROPE:'MF_ARPEGE', ARPEGE_WORLD:'MF_ARPEGE',
   ICON_D2:'DWD_ICON', ICON_EU:'DWD_ICON', ICON_GLOBAL:'DWD_ICON',
   ECMWF:'ECMWF_GLOBAL', ECMWF_AIFS:'ECMWF_GLOBAL',
-  GFS:'NOAA_GFS', HRRR_CONUS:'NOAA_HRRR',
+  GFS:'NOAA_GFS', NCEP_AIGFS:'NOAA_GFS', HRRR_CONUS:'NOAA_HRRR', JMA_GSM:'JMA_GSM',
   METNO_NORDIC:'METNO_NORDIC', KNMI_HARMONIE_EU:'UWC_HARMONIE', DMI_HARMONIE_EU:'UWC_HARMONIE', METEOSWISS_ICON_CH2:'DWD_ICON',
   UKMO_GLOBAL:'UKMO_GLOBAL', GEM_GLOBAL:'ECCC_GEM', BOM_ACCESS:'BOM_ACCESS', CMA_GRAPES:'CMA_GRAPES'
 });
