@@ -37,6 +37,9 @@ assert.match(app, /immediate:true/, 'route transitions must render immediately i
 assert.match(app, /focusRouteLandmark/, 'new routes must move focus to the new page landmark without scrolling');
 assert.match(app, /requestAnimationFrame\(\(\)=>\{pin\(\);requestAnimationFrame\(pin\);\}\)/, 'route-top reset must survive delayed browser focus/fragment restoration');
 assert.match(app, /history\.replaceState\(\{\.\.\.history\.state,mcRouteKey:key,mcScrollY:y\}/, 'route entries must persist their scroll position for Back/Forward restoration');
+assert.match(app, /HISTORY_SCROLL_SAVE_DELAY_MS = 450/, 'scroll snapshots must be debounced before touching the History API');
+assert.match(app, /scheduleHistoryScrollSnapshot[\s\S]*rememberCurrentRouteScroll\(\)[\s\S]*setTimeout/, 'scroll events must update the in-memory route snapshot and defer History writes');
+assert.doesNotMatch(app, /historyScrollRaf=requestAnimationFrame/, 'scrolling must not call history.replaceState once per animation frame');
 assert.match(app, /captureScrollContext\(target=null\)/, 'same-view controls must capture a stable viewport context before rerendering');
 assert.match(app, /type:'selector',selector,top:target\.getBoundingClientRect\(\)\.top/, 'interactive controls must preserve their exact viewport coordinate across rerenders');
 assert.match(app, /type:'anchor',id:section\.id/, 'section anchors must remain as a fallback for controls without a stable selector');

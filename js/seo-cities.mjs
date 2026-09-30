@@ -81,9 +81,9 @@ const rows = [
   ['sete','Sète','Occitanie','Hérault',43.4028,3.6977]
 ];
 
-export const SEO_CITIES = Object.freeze(rows.map(([slug,name,region,department,latitude,longitude],index)=>Object.freeze({
+export const SEO_CITIES = Object.freeze(rows.map(([slug,name,region,department,latitude,longitude])=>Object.freeze({
   id:`seo:${slug}`, slug, name, region, department, admin1:region, country:'France', latitude, longitude,
-  timezone:'Europe/Paris', marineEnabled:false, seoRank:index+1
+  timezone:'Europe/Paris', marineEnabled:false
 })));
 
 const bySlug=new Map(SEO_CITIES.map(city=>[city.slug,city]));
@@ -120,9 +120,4 @@ export function cityPublicPath(city){
     if(city?.admin1||city?.region)params.set('admin1',String(city.admin1||city.region));
   }
   return `/meteo/${encodeURIComponent(slug)}${params.size?`?${params.toString()}`:''}`;
-}
-export function nearbySeoCities(city,limit=6){
-  if(!city)return [];
-  const matched=matchSeoCity(city),source=matched||city;
-  return SEO_CITIES.filter(candidate=>candidate.id!==matched?.id).map(candidate=>({city:candidate,distance:distanceSq(source,candidate)})).sort((a,b)=>a.distance-b.distance||a.city.seoRank-b.city.seoRank).slice(0,Math.max(0,limit)).map(row=>row.city);
 }

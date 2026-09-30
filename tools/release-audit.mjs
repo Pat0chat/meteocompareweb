@@ -37,6 +37,14 @@ function run(command,args,label,{quiet=false}={}){
 
 function assert(condition,message){if(!condition)throw new Error(message);}
 
+async function mapLimited(items,limit,task){
+  let index=0;
+  const workers=Array.from({length:Math.min(Math.max(1,limit),items.length)},async()=>{
+    while(index<items.length){const item=items[index++];await task(item);}
+  });
+  await Promise.all(workers);
+}
+
 function relativeModuleSpecifiers(source){
   const specs=[];
   for(const match of String(source).matchAll(/(?:import|export)\s+(?:[^'\"]*?\s+from\s+)?['\"]([^'\"]+)['\"]/g))if(match[1].startsWith('.'))specs.push(match[1]);
@@ -84,7 +92,7 @@ async function auditRuntimeAssets(){
 async function auditSource(){
   const files=await walk(root,{exclude:new Set(['.git','dist','release','.wrangler','node_modules','.dev.vars'])});
   const scripts=files.filter(file=>['.js','.mjs'].includes(extname(file)));
-  for(const file of scripts)await run(process.execPath,['--check',file],`Syntax check ${slash(relative(root,file))}`,{quiet:true});
+  await mapLimited(scripts,8,file=>run(process.execPath,['--check',file],`Syntax check ${slash(relative(root,file))}`,{quiet:true}));
 
   const forbidden=files.filter(file=>{
     const rel=slash(relative(root,file)),name=rel.split('/').at(-1);

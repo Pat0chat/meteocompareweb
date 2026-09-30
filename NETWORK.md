@@ -26,7 +26,7 @@ L'objectif n'est volontairement **pas** de proxifier tout le trafic. Les gros fl
 | Image radar affichée | `<img>` dynamique | `*.rainviewer.com/...png` | direct, optionnel | cache HTTP navigateur | échec visuel non bloquant pour la météo principale |
 | Fond cartographique | `<img>` tuiles | `tile.openstreetmap.org/{z}/{x}/{y}.png` | direct, optionnel | cache HTTP navigateur | contenu purement visuel ; ne bloque pas les données météo |
 | Événements analytics | navigateur → `/_mcx/e` | Durable Object SQLite `AnalyticsStore` | first-party | Worker 8 s ; `no-store` | POST seulement, corps max 32 KiB, schéma validé côté Worker, URL/referrer assainis, aucune IP/User-Agent brut stocké |
-| Assets applicatifs | navigateur / Service Worker | `meteocompare.app` | first-party | stratégie PWA selon type | navigation/code network-first ; assets immuables cache-first |
+| Assets applicatifs | navigateur / Service Worker | `meteocompare.app` | first-party | stratégie PWA selon type | navigation network-first ; code versionné/précaché cache-first ; autres assets cache-first |
 
 ## Règles uniformisées
 

@@ -16,9 +16,6 @@ export function isWithinPhysicalLimits(value, limits) {
     && (!Number.isFinite(limits?.max) || value <= limits.max);
 }
 
-export function physicalOrNull(value, limits) {
-  return isWithinPhysicalLimits(value, limits) ? value : null;
-}
 
 export function sanitizeNumericArray(value, limits, { integer = false } = {}) {
   if (!Array.isArray(value)) return { values: null, rejected: 0, finite: 0 };

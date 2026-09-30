@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { SEO_CITIES, cityPublicPath, nearbySeoCities } from '../../../js/seo-cities.mjs';
+import { SEO_CITIES, cityPublicPath } from '../../../js/seo-cities.mjs';
 import { APP_VERSION } from '../../../js/version.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../../..');
@@ -20,7 +20,6 @@ assert.equal(SEO_CITIES.length,80,'initial SEO catalog should stay intentionally
 assert.equal(new Set(SEO_CITIES.map(city=>city.slug)).size,SEO_CITIES.length,'SEO city slugs must be unique');
 assert.equal(new Set(SEO_CITIES.map(city=>city.id)).size,SEO_CITIES.length,'SEO city ids must be unique');
 assert.equal(cityPublicPath(SEO_CITIES.find(city=>city.slug==='toulouse')),'/meteo/toulouse');
-assert.equal(nearbySeoCities(SEO_CITIES.find(city=>city.slug==='toulouse'),6).length,6);
 
 assert.match(index,/name="robots" content="index,follow,max-image-preview:large"/);
 assert.match(index,/rel="canonical" href="https:\/\/meteocompare\.app\/"/);
@@ -31,6 +30,7 @@ assert.match(app,/legacyCity=requested\.match/,'legacy hash city links must rema
 assert.doesNotMatch(app,/renderSeoCityDirectory|data-seo-city-link|openSeoCityLink/,'home must not reintroduce the removed city directory UI');
 assert.match(app,/renderSeoDetailTitleContext\(city\)/,'indexed city context must remain present inside the hydrated detail title');
 assert.doesNotMatch(app,/renderSeoNearby/,'city details must not reintroduce the removed nearby-city UI');
+assert.doesNotMatch(read('js/seo-cities.mjs'),/nearbySeoCities|seoRank/,'removed nearby-city UI must leave no dead SEO ranking/helper code');
 assert.match(app,/seoTransient/,'direct SEO routes must not silently become favorites');
 assert.match(app,/seoCity\|\|state\.route\.name==='home'\?'index,follow,max-image-preview:large':'noindex,follow'/,'only catalogued city routes should be indexable at runtime');
 assert.match(build,/GOOGLE_SITE_VERIFICATION/,'build must support Search Console URL-prefix verification when configured');

@@ -57,7 +57,7 @@ Le build génère un catalogue contrôlé de pages indexables pour les grandes v
 ...
 ```
 
-Chaque page contient dès la réponse HTML un `title`, une description, un H1, un canonical, du contenu stable propre à la ville et des liens internes vers des villes proches. JavaScript hydrate ensuite la page avec les prévisions actualisées. Les anciennes routes `#/city/...` restent acceptées pour les liens existants.
+Chaque page contient dès la réponse HTML un `title`, une description, un H1, un canonical et du contenu stable propre à la ville. JavaScript hydrate ensuite la page avec les prévisions actualisées. Les anciennes routes `#/city/...` restent acceptées pour les liens existants.
 
 `dist/sitemap.xml` et `dist/robots.txt` sont générés automatiquement. La procédure Google Search Console est détaillée dans `SEO.md`.
 
@@ -81,7 +81,7 @@ Le service worker :
 
 - met en cache le shell statique pour rouvrir l'interface hors connexion ;
 - ne met **jamais** en cache les réponses Open-Meteo, afin de ne pas réinjecter un ancien run ;
-- utilise une stratégie network-first pour la navigation et le code afin qu'un nouveau déploiement ne reste pas bloqué derrière une ancienne version du cache.
+- utilise une stratégie network-first pour les navigations et cache-first pour le code versionné/précaché ; un nouveau déploiement installe un nouvel espace de cache avant de prendre le contrôle.
 
 ## Fonctionnalités météo conservées
 

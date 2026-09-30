@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { SEO_CITIES, slugifyCityName, seoCityBySlug, seoCityById, matchSeoCity, cityPublicPath, nearbySeoCities } from '../../../js/seo-cities.mjs';
+import { SEO_CITIES, slugifyCityName, seoCityBySlug, seoCityById, matchSeoCity, cityPublicPath } from '../../../js/seo-cities.mjs';
 
 assert.ok(SEO_CITIES.length>=40,'SEO city catalog should remain broad enough for static discovery');
 assert.equal(Object.isFrozen(SEO_CITIES),true);
@@ -25,10 +25,5 @@ assert.equal(customQuery.get('name'),'Saint Test');
 assert.equal(customQuery.get('lat'),'1.00000');
 assert.equal(customQuery.get('lon'),'2.00000');
 assert.equal(customQuery.get('tz'),'UTC');
-const nearby=nearbySeoCities(paris,6);
-assert.equal(nearby.length,6);
-assert.equal(new Set(nearby.map(city=>city.id)).size,6);
-assert.ok(nearby.every(city=>city.id!==paris.id));
-assert.deepEqual(nearbySeoCities(paris,0),[]);
 
 console.log('SEO city matching, slugs and public routes: OK');

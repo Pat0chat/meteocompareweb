@@ -17,7 +17,7 @@
         <img class="brand-mark" src="/assets/icon.png" alt="" aria-hidden="true">
         <div><p class="eyebrow">MeteoCompare</p><h1>Administration</h1><p class="subtitle">Audience first-party & exploitation opérationnelle</p></div>
       </div>
-      <div class="header-actions"><span id="deployed-version" class="deployment-version" hidden></span><span class="private-badge">Accès privé</span><button id="logout" class="ghost" hidden>Déconnexion</button></div>
+      <div class="header-actions"><span id="deployed-version" class="deployment-version" hidden></span><span class="private-badge">Accès privé</span><button id="logout" class="ghost" type="button" hidden>Déconnexion</button></div>
     </header>
 
     <section id="login" class="login card">
@@ -48,13 +48,13 @@
           <a href="#services-monitoring" data-section-link="services-monitoring">Services</a>
         </nav>
         <div class="toolbar" aria-label="Contrôles du tableau de bord">
-          <div class="toolbar-cluster"><span class="toolbar-label">Période</span><div class="ranges"><button data-days="1">1 jour</button><button data-days="7">7 jours</button><button data-days="30" class="active">30 jours</button><button data-days="90">90 jours</button><button data-days="180">180 jours</button></div></div>
+          <div class="toolbar-cluster"><span class="toolbar-label">Période</span><div class="ranges"><button type="button" data-days="1">1 jour</button><button type="button" data-days="7">7 jours</button><button type="button" data-days="30" class="active">30 jours</button><button type="button" data-days="90">90 jours</button><button type="button" data-days="180">180 jours</button></div></div>
           <div class="toolbar-actions">
             <label class="compare-control"><input id="compare-period" type="checkbox"><span>Comparer à la période précédente</span></label>
             <label class="auto-refresh-control"><span>Auto</span><select id="auto-refresh"><option value="0">Désactivé</option><option value="60000">1 min</option><option value="300000">5 min</option><option value="900000">15 min</option></select></label>
             <span id="auto-refresh-status" class="auto-refresh-status"></span>
             <div class="export-actions" aria-label="Exporter les données"><button id="export-csv" class="ghost export-button" type="button" disabled>CSV</button><button id="export-json" class="ghost export-button" type="button" disabled>JSON</button></div>
-            <button id="refresh" class="ghost refresh-button">Actualiser</button>
+            <button id="refresh" class="ghost refresh-button" type="button">Actualiser</button>
           </div>
         </div>
       </div>
@@ -127,7 +127,7 @@
         <div class="section-title compact"><div><p class="eyebrow">Usage</p><h2>Fonctions et environnement</h2><p class="section-description">Ce que les visiteurs font dans l’application et dans quel contexte.</p></div></div>
         <div class="usage-grid">
           <article class="card interactions-card"><div class="card-head"><div><p class="card-kicker">Fonctions</p><h3>Interactions</h3></div><span class="small-note">Regroupées par usage</span></div><div id="interaction-groups"></div><details class="raw-events"><summary>Voir les événements détaillés</summary><div id="events"></div></details></article>
-          <article class="card environment-card"><div class="card-head"><div><p class="card-kicker">Contexte</p><h3>Usage de l’application</h3></div></div><div class="dimension-tabs" role="tablist" aria-label="Dimensions d’environnement"><button data-dimension="browsers" class="active" role="tab">Navigateurs</button><button data-dimension="operatingSystems" role="tab">Systèmes</button><button data-dimension="languages" role="tab">Langues</button><button data-dimension="displayModes" role="tab">Affichage</button><button data-dimension="navigationModes" role="tab">Navigation</button><button data-dimension="themes" role="tab">Thèmes</button><button data-dimension="densities" role="tab">Densité</button><button data-dimension="appVersions" role="tab">Versions MeteoCompare</button></div><div id="environment-list"></div></article>
+          <article class="card environment-card"><div class="card-head"><div><p class="card-kicker">Contexte</p><h3>Usage de l’application</h3></div></div><div class="dimension-tabs" role="tablist" aria-label="Dimensions d’environnement"><button type="button" data-dimension="browsers" class="active" role="tab">Navigateurs</button><button type="button" data-dimension="operatingSystems" role="tab">Systèmes</button><button type="button" data-dimension="languages" role="tab">Langues</button><button type="button" data-dimension="displayModes" role="tab">Affichage</button><button type="button" data-dimension="navigationModes" role="tab">Navigation</button><button type="button" data-dimension="themes" role="tab">Thèmes</button><button type="button" data-dimension="densities" role="tab">Densité</button><button type="button" data-dimension="appVersions" role="tab">Versions MeteoCompare</button></div><div id="environment-list"></div></article>
         </div>
       </section>
 

@@ -168,7 +168,8 @@ const {numberFormatters,dateTimeFormatters,forecastViews:forecastViewCache,serie
 const localConsensusProfileCache=new WeakMap();
 let pendingScrollDirective = null;
 let interactionScrollContext = null;
-let historyScrollRaf = 0;
+let historyScrollTimer = 0;
+const HISTORY_SCROLL_SAVE_DELAY_MS = 450;
 let routeTransitionToken = 0;
 let localScrollStabilizationToken = 0;
 const supportsHistoryRouting = typeof history?.pushState === 'function' && typeof history?.replaceState === 'function';
@@ -239,7 +240,7 @@ function init() {
   document.addEventListener?.('keydown', handleGlobalKeydown);
   document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'){startAutoRefreshTimer();void refreshUserMessages().finally(()=>scheduleUserMessagesTimer());refreshDueCities();}else{stopAutoRefreshTimer();stopUserMessagesTimer();}});
   if(supportsHistoryRouting){
-    try{ history.scrollRestoration='manual'; history.replaceState({...history.state,mcRouteKey:routeKey(state.route),mcScrollY:currentScrollY()},'',location.href); }catch{}
+    try{history.scrollRestoration='manual';replaceCurrentHistoryEntry();}catch{}
     window.addEventListener('popstate',event=>handleHistoryNavigation(event));
     window.addEventListener('scroll',scheduleHistoryScrollSnapshot,{passive:true});
   }else{
@@ -353,7 +354,7 @@ function syncCityViewUrl(){
   if(state.compareModelIds.length)q.set('models',state.compareModelIds.join(','));
   const url=cityViewUrl(city,q);
   state.route={...state.route,slug:matchSeoCity(city)?.slug||slugifyCityName(city.name),view:{tab:state.settings.detailTab,mode:state.settings.detailViewMode,metric:state.settings.confidenceMetric,horizon:Number(state.settings.chartHorizon),timeline:state.settings.timelineMode,timelineLayout:state.settings.timelineLayout,compareModels:[...state.compareModelIds]}};
-  if(supportsHistoryRouting){try{history.replaceState({...history.state,mcRouteKey:routeKey(state.route),mcScrollY:currentScrollY()},'',url);}catch{}}else if(location.href!==url)location.assign?.(url);
+  if(supportsHistoryRouting)replaceCurrentHistoryEntry(url);else if(location.href!==url)location.assign?.(url);
 }
 
 function currentScrollY(){return Number(window.scrollY ?? document.documentElement?.scrollTop ?? 0)||0;}
@@ -437,13 +438,25 @@ function rerenderForecastEngineModalPreservingView(focusSelector=null){
   render({scroll:{type:'absolute',y:view.pageY},immediate:true});
   restoreForecastEngineModalView(view,focusSelector);
 }
+function replaceCurrentHistoryEntry(url=location.href,key=routeKey(state.route),y=currentScrollY()){
+  if(!supportsHistoryRouting)return false;
+  const stateY=Number(history.state?.mcScrollY),sameState=history.state?.mcRouteKey===key&&Number.isFinite(stateY)&&Math.abs(stateY-y)<1;
+  let sameUrl=false;try{sameUrl=new URL(String(url||location.href),location.href).href===location.href;}catch{}
+  if(sameState&&sameUrl)return false;
+  try{history.replaceState({...history.state,mcRouteKey:key,mcScrollY:y},'',url);return true;}catch{return false;}
+}
+function rememberCurrentRouteScroll(){
+  const y=currentScrollY(),key=routeKey(state.route);routeScrollPositions.set(key,y);return {y,key};
+}
 function saveCurrentRouteScroll(){
-  const y=currentScrollY(),key=routeKey(state.route);routeScrollPositions.set(key,y);
-  if(supportsHistoryRouting){try{history.replaceState({...history.state,mcRouteKey:key,mcScrollY:y},'',location.href);}catch{}}
+  if(historyScrollTimer){clearTimeout(historyScrollTimer);historyScrollTimer=0;}
+  const {y,key}=rememberCurrentRouteScroll();replaceCurrentHistoryEntry(location.href,key,y);
 }
 function scheduleHistoryScrollSnapshot(){
-  if(!supportsHistoryRouting||historyScrollRaf)return;
-  historyScrollRaf=requestAnimationFrame(()=>{historyScrollRaf=0;saveCurrentRouteScroll();});
+  if(!supportsHistoryRouting)return;
+  rememberCurrentRouteScroll();
+  if(historyScrollTimer)clearTimeout(historyScrollTimer);
+  historyScrollTimer=setTimeout(()=>{historyScrollTimer=0;saveCurrentRouteScroll();},HISTORY_SCROLL_SAVE_DELAY_MS);
 }
 function applyRouteFromLocation(scrollY=0,options={}){
   state.route=parseRoute();applyRouteViewState(state.route);state.modal=null;cancelCitySearch();
@@ -457,10 +470,10 @@ function applyRouteFromLocation(scrollY=0,options={}){
   onRouteSettled();
 }
 function handleHistoryNavigation(event){
-  localScrollStabilizationToken++;
+  localScrollStabilizationToken++;rememberCurrentRouteScroll();
   const route=parseRoute(),key=routeKey(route),saved=Number(event?.state?.mcScrollY);
   state.route=route;applyRouteViewState(route);state.modal=null;cancelCitySearch();
-  const fallback=routeScrollPositions.get(key),y=Number.isFinite(saved)?saved:(Number.isFinite(fallback)?fallback:0);
+  const fallback=routeScrollPositions.get(key),y=Number.isFinite(fallback)?fallback:(Number.isFinite(saved)?saved:0);
   render({scroll:{type:'absolute',y},immediate:true});void trackCurrentPageView(state.route);onRouteSettled();
 }
 function go(path){

@@ -8,8 +8,6 @@ function values(raw, baseKey, model, single, allowShared=false) {
   for (const key of keys) if (Array.isArray(raw?.[key])) return raw[key];
   return null;
 }
-function numberList(value, predicate=Number.isFinite) { return Array.isArray(value) ? value.map(x => predicate(x) ? x : null) : null; }
-function intList(value, predicate=Number.isFinite) { return Array.isArray(value) ? value.map(x => Number.isInteger(x) && predicate(x) ? x : null) : null; }
 function boundedList(value, limits, integer=false) { return sanitizeNumericArray(value, limits, { integer }); }
 function strings(value) { return Array.isArray(value) ? value.map(x => typeof x === 'string' ? x : null) : null; }
 function alignIndices(indices, vals) { return indices.map(i=>vals?.[i] ?? null); }

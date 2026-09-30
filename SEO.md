@@ -65,11 +65,11 @@ Le build génère :
 
 ## P5 — contenu des pages ville
 
-Chaque page contient une présentation géographique stable, une explication de la comparaison multi-modèles, de la convergence/dispersion, une méthode de lecture de MeteoCompare et des liens vers des villes proches. Le catalogue initial est volontairement limité à 80 villes pour éviter de créer massivement des pages faibles ou quasi dupliquées.
+Chaque page contient une présentation géographique stable, une explication de la comparaison multi-modèles, de la convergence/dispersion et une méthode de lecture de MeteoCompare. Le catalogue initial est volontairement limité à 80 villes pour éviter de créer massivement des pages faibles ou quasi dupliquées.
 
-## P6 — maillage interne
+## P6 — découverte des pages
 
-La page d’accueil expose des liens HTML vers les principales pages ville. Chaque page ville lie également plusieurs villes proches. Ces liens sont de vrais `<a href>` et restent donc explorables indépendamment du routeur JavaScript.
+Les pages ville indexables sont déclarées dans `sitemap.xml` et disposent chacune d’une URL canonique propre. Les anciennes listes de villes intégrées à l’accueil et aux pages détail ont été retirées afin de conserver une interface compacte et pertinente pour les utilisateurs hors de France.
 
 ## Vérification avant déploiement
 

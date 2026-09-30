@@ -143,7 +143,7 @@ button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visibl
 ::selection { background: color-mix(in srgb, var(--primary) 24%, transparent); }
 
 .app-shell { min-height: 100vh; }
-.page { width: min(var(--content-max), 100%); margin: 0 auto; padding: 0 28px 72px; }
+.page { width: min(var(--content-max), 100%); margin: 0 auto; }
 
 .topbar {
   position: sticky; top: 0; z-index: 30;
@@ -1274,7 +1274,6 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
 .target-compare-title { min-height: 44px; margin: 0 6px 5px; align-items: flex-start; }
 .target-compare-title > div:first-child { display: grid; gap: 2px; }
 .target-compare-title strong { font-size: .8rem; }
-.target-compare-title span { color: var(--muted); font-size: .7rem; }
 .chart-mini-stat { display: grid; gap: 1px; justify-items: end; text-align: right; }
 .chart-mini-stat span { font-size: .7rem; text-transform: uppercase; letter-spacing: .04em; }
 .chart-mini-stat b { font-size: .74rem; font-variant-numeric: tabular-nums; }
@@ -4900,8 +4899,7 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
 .collapsible-card:not([data-collapsed="true"]) .collapse-card-btn .mc-disclosure-chevron { transform:rotate(180deg); }
 .collapsible-card[data-collapsed="true"] .collapse-card-btn .mc-disclosure-chevron { transform:rotate(0deg); }
 
-/* Keep the action hit-area comfortable while the visible control matches the
-   28 px city-list reference. */
+/* Keep a comfortable action hit-area around the compact disclosure control. */
 .collapse-card-btn {
   width:34px;
   height:34px;
