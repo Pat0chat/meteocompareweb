@@ -13,11 +13,12 @@ import { ApplicationKernel } from './core/application-kernel.js';
 import { weatherIcons } from './ui/weather-icons.js';
 import { chartScale, chartTickIndices, chartMetricUnit, chartMetricDigits, svgLinePath } from './ui/chart-utils.js';
 import { escapeHtml as esc, escapeAttribute as attr } from './ui/html.js';
-import { SEO_CITIES, seoCityBySlug, matchSeoCity, cityPublicPath, nearbySeoCities, slugifyCityName } from './seo-cities.mjs';
+import { seoCityBySlug, matchSeoCity, cityPublicPath, slugifyCityName } from './seo-cities.mjs';
 import { FORECAST_ENGINES } from './forecast-engines.js';
 import { isWetPrecipitation } from './consensus.js';
 import { temperatureHeatColor, groupRainTimelineEvents, svgPathFromPoints } from './ui/timeline-utils.js';
 import { fetchVigilanceForCity, isVigilanceSupportedCity, vigilanceMaxLevel, activeVigilancePhenomena, VIGILANCE_LEVELS, VIGILANCE_PHENOMENA } from './features/vigilance.js';
+import { fetchUserMessages, loadCachedUserMessages, visibleUserMessages, dismissUserMessage, userMessagesVisibilityKey } from './user-messages.js';
 
 const APP_ROOT_URL=new URL('../',import.meta.url);
 const SCENARIO_DISPLAY_LIMIT=3;
@@ -149,6 +150,12 @@ let documentMetaSignature = null;
 let deferredInstallPrompt = null;
 const vigilanceByCity=new Map();
 const vigilanceLoading=new Set();
+let userMessages=loadCachedUserMessages();
+let userMessagesRefreshPromise=null;
+let userMessagesCheckedAt=0;
+let userMessagesTimer=null;
+let lastUserMessagesVisibilityKey=userMessagesVisibilityKey(userMessages);
+const USER_MESSAGES_REFRESH_MS=5*60_000;
 const SYSTEM_MONITOR_TTL_MS=60_000;
 const systemMonitorWorker={state:'idle',checkedAt:0,latencyMs:null,data:null,error:null};
 let systemMonitorProbe=null;
@@ -230,7 +237,7 @@ function init() {
   app.addEventListener('focusin', handleSystemMonitorIntent);
   window.addEventListener('resize', handleGraphicTooltipViewportChange, {passive:true});
   document.addEventListener?.('keydown', handleGlobalKeydown);
-  document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'){startAutoRefreshTimer();refreshDueCities();}else stopAutoRefreshTimer();});
+  document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'){startAutoRefreshTimer();void refreshUserMessages().finally(()=>scheduleUserMessagesTimer());refreshDueCities();}else{stopAutoRefreshTimer();stopUserMessagesTimer();}});
   if(supportsHistoryRouting){
     try{ history.scrollRestoration='manual'; history.replaceState({...history.state,mcRouteKey:routeKey(state.route),mcScrollY:currentScrollY()},'',location.href); }catch{}
     window.addEventListener('popstate',event=>handleHistoryNavigation(event));
@@ -238,11 +245,12 @@ function init() {
   }else{
     window.addEventListener('hashchange',()=>{state.route=parseRoute();applyRouteViewState(state.route);state.modal=null;cancelCitySearch();const saved=routeScrollPositions.get(routeKey(state.route));render({scroll:{type:'absolute',y:state.route.name==='bias'?0:(Number.isFinite(saved)?saved:0)}});void trackCurrentPageView(state.route);onRouteSettled();});
   }
-  window.addEventListener('online',()=>{state.online=true;render();void probeSystemHealth(true);toast(i18n().t('connectionRestored'),{id:'network-status',type:'success',title:i18n().t('connectionStatus')});refreshDueCities();});
+  window.addEventListener('online',()=>{state.online=true;render();void refreshUserMessages({force:true}).finally(()=>scheduleUserMessagesTimer());void probeSystemHealth(true);toast(i18n().t('connectionRestored'),{id:'network-status',type:'success',title:i18n().t('connectionStatus')});refreshDueCities();});
   window.addEventListener('offline',()=>{state.online=false;Object.assign(systemMonitorWorker,{state:'idle',checkedAt:Date.now(),latencyMs:null,data:null,error:null});render();toast(i18n().t('connectionLost'),{id:'network-status',type:'warning',title:i18n().t('connectionStatus'),duration:6500});});
   window.addEventListener('meteocompare:analytics-runtime',()=>refreshSystemMonitorDom());
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(state.settings.theme==='SYSTEM')applyTheme();});
   render({scroll:{type:'absolute',y:0}});
+  scheduleInitialUserMessagesRefresh();
   void trackCurrentPageView(state.route);
   hydrateForecastStorage().finally(()=>{onRouteSettled();refreshDueCities();});
   lastViewTimeKey=viewTimeKey();
@@ -742,6 +750,29 @@ function cachedTimelinePoints(f,mode='HOURLY',now=new Date(),options=null){
 function cachedEvolution(f,snapshots){const c=viewCache(f);if(!lazyFeatures.evolution){void loadFeature('evolution').then(()=>{if(state.route.name==='city'&&state.forecasts[state.route.id]===f)rerenderCitySectionOrPage('evolution');});return c.evolutionReport||{days:[]};}if(c.evolutionSource!==snapshots){c.evolutionSource=snapshots;c.evolutionReport=lazyFeatures.evolution.buildEvolution(f,snapshots);}return c.evolutionReport||{days:[]};}
 function cachedBiases(f,biasSource,today){const c=viewCache(f);if(!lazyFeatures.bias){void loadFeature('bias').then(()=>{if((state.route.name==='city'||state.route.name==='bias')&&state.forecasts[state.route.id]===f)render();});return c.biasReport||{};}if(c.biasSource!==biasSource||c.biasToday!==today){c.biasSource=biasSource;c.biasToday=today;c.biasReport=lazyFeatures.bias.computeBiases(biasSource,today);}return c.biasReport||{};}
 
+function renderUserMessages({compact=false}={}){
+  const {t}=i18n(),visible=visibleUserMessages(userMessages),rows=compact?visible.slice(0,1):visible;if(!rows.length)return '';
+  const icon=type=>type==='success'?uiIcon('check',18):type==='warning'||type==='critical'?uiIcon('alert',18):uiIcon('info',18);
+  const cards=rows.map(row=>`<article class="user-message user-message-${attr(row.type)}" data-user-message-id="${attr(row.id)}"><span class="user-message-icon" aria-hidden="true">${icon(row.type)}</span><div class="user-message-copy"><strong>${esc(row.title)}</strong><p>${esc(row.message)}</p>${row.link?`<a class="user-message-link" href="${attr(row.link.url)}" target="_blank" rel="noopener noreferrer">${esc(row.link.label)} ${uiIcon('external',14)}</a>`:''}</div>${row.dismissible?`<button class="user-message-dismiss" type="button" data-action="dismiss-user-message" data-message-id="${attr(row.id)}" data-message-revision="${row.revision}" aria-label="${attr(t('userMessageDismiss'))}" title="${attr(t('userMessageDismiss'))}">×</button>`:''}</article>`).join('');
+  return `<div class="user-messages-shell${compact?' is-compact':''}"><section class="user-messages-region" aria-labelledby="user-messages-title" aria-live="polite"><div class="user-messages-head"><span aria-hidden="true">${uiIcon('info',18)}</span><h2 id="user-messages-title">${esc(t('userMessagesTitle'))}</h2></div><div class="user-messages-list">${cards}</div></section></div>`;
+}
+async function refreshUserMessages({force=false}={}){
+  if(!state.online)return userMessages;
+  if(userMessagesRefreshPromise)return userMessagesRefreshPromise;
+  const now=Date.now();if(!force&&now-userMessagesCheckedAt<USER_MESSAGES_REFRESH_MS)return userMessages;userMessagesCheckedAt=now;
+  userMessagesRefreshPromise=(async()=>{try{const next=await fetchUserMessages(),before=userMessagesVisibilityKey(userMessages),after=userMessagesVisibilityKey(next);userMessages=next;lastUserMessagesVisibilityKey=after;if(before!==after)render();return userMessages;}catch(error){console.warn('User messages:',error);return userMessages;}finally{userMessagesRefreshPromise=null;}})();
+  return userMessagesRefreshPromise;
+}
+function stopUserMessagesTimer(){if(userMessagesTimer){clearTimeout(userMessagesTimer);userMessagesTimer=null;}}
+function scheduleUserMessagesTimer(delay=60_000){
+  stopUserMessagesTimer();if(document.visibilityState==='hidden')return;
+  userMessagesTimer=setTimeout(async()=>{userMessagesTimer=null;const key=userMessagesVisibilityKey(userMessages);if(key!==lastUserMessagesVisibilityKey){lastUserMessagesVisibilityKey=key;render();}await refreshUserMessages();scheduleUserMessagesTimer(60_000);},Math.max(1000,delay));
+}
+function scheduleInitialUserMessagesRefresh(){
+  const run=()=>{setTimeout(()=>{void refreshUserMessages({force:true}).finally(()=>scheduleUserMessagesTimer(60_000));},1000);};
+  if(document.readyState==='complete')run();else window.addEventListener('load',run,{once:true});
+}
+
 function applyTheme(){
   let dark=state.settings.theme==='DARK'||(state.settings.theme==='SYSTEM'&&window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme=dark?'dark':'light'; document.documentElement.dataset.density=state.settings.density==='COMPACT'?'compact':'comfortable'; document.documentElement.lang=languageCode(state.settings.language); syncDocumentMeta();
@@ -783,7 +814,8 @@ function renderNow(){
   if(!graphicView&&graphicDeferredRenderKey)resetGraphicDeferredRender();
   let deferGraphic=false;if(graphicView&&graphicCity&&state.forecasts[graphicCity.id]){if(graphicDeferredRenderKey!==graphicKey){resetGraphicDeferredRender();graphicDeferredRenderKey=graphicKey;scheduleGraphicDeferredRender(graphicKey);}deferGraphic=!graphicDeferredRenderReady;}
   let content=''; if(state.route.name==='home')content=renderHome(); else if(state.route.name==='settings')content=renderSettings(); else if(state.route.name==='data')content=renderLocalDataPage(); else if(state.route.name==='about')content=renderAbout(); else if(state.route.name==='notfound')content=renderRouteNotFound(); else if(state.route.name==='bias'){if(!lazyFeatures.bias){void loadFeature('bias').then(()=>render());content=renderFeatureLoadingPage('bias');}else content=renderBiasDetailPage(state.route);} else if(state.route.name==='compare'){if(!lazyFeatures.comparison){void loadFeature('comparison').then(()=>{if(state.route.name==='compare')render();});content=renderFeatureLoadingPage('comparison');}else content=renderCityComparisonLazy(state.route);} else content=graphicView?(deferGraphic?renderGraphicBuildShell(graphicCity):renderGraphicForecastView(state.route.id)):renderCityDetail(state.route.id);
-  app.innerHTML=`${graphicView?'':renderTopbar()}${graphicView?'':renderPageBack()}${!state.online&&!graphicView?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${preservedRadarBackdrop?'':renderModal()}`;
+  const globalMessages=state.route.name==='home'?'':renderUserMessages({compact:graphicView});
+  app.innerHTML=`${graphicView?'':renderTopbar()}${graphicView?'':renderPageBack()}${!state.online&&!graphicView?`<div class="page"><div class="banner warn" role="status">📡 ${esc(t('offline'))}</div></div>`:''}${content}${globalMessages}${preservedRadarBackdrop?'':renderModal()}`;
   if(preservedRadarBackdrop)app.append(preservedRadarBackdrop);
   enhanceCollapsibleCards(app);
   hydrateEvolutionTracks(app);
@@ -1050,18 +1082,6 @@ function renderHomeWatchlist(){
   const {t}=i18n(),now=new Date(),items=favoriteCities().map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,forecastEngineContext(city.id),now):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
   return `<aside class="home-watch-section" aria-label="${esc(t('homeWatchTitle'))}"><p class="home-watch-lead">${esc(t('homeWatchLead'))}</p>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-action="open-watch-city" data-city-id="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</aside>`;
 }
-function cityListCollapseKey(kind){return kind==='popular'?'ui:seo-popular-cities':kind==='nearby'?'ui:seo-nearby-cities':null;}
-function cityListCollapsed(kind){const key=cityListCollapseKey(kind);if(!key)return true;const stored=state.settings.collapsedSections?.[key];return typeof stored==='boolean'?stored:true;}
-function setCityListCollapsed(kind,collapsed){const key=cityListCollapseKey(kind);if(!key)return;state.settings.collapsedSections={...(state.settings.collapsedSections||{}),[key]:Boolean(collapsed)};persistSettings();}
-function cityListSummaryMeta(kind,count){const {t}=i18n(),collapsed=cityListCollapsed(kind);return `<span class="city-list-summary-meta"><span class="city-list-count">${esc(t('cityListCount',{count}))}</span><span class="city-list-toggle-label">${esc(t(collapsed?'showCityList':'hideCityList'))}</span><span class="city-list-chevron mc-disclosure-chevron" aria-hidden="true"></span></span>`;}
-function renderSeoCityDirectory(){
-  const {t}=i18n(),cities=SEO_CITIES.slice(0,24),collapsed=cityListCollapsed('popular');
-  return `<details class="seo-directory city-list-disclosure" data-city-list="popular" ${collapsed?'':'open'} aria-labelledby="seo-popular-cities"><summary class="home-section-heading home-column-heading seo-directory-heading city-list-summary" title="${attr(t(collapsed?'showCityList':'hideCityList'))}"><div><span class="home-section-kicker">${esc(t('seoPopularKicker'))}</span><h2 id="seo-popular-cities">${esc(t('seoPopularCities'))}</h2></div>${cityListSummaryMeta('popular',cities.length)}</summary><div class="section-card seo-directory-card"><p class="seo-directory-intro">${esc(t('seoPopularCitiesIntro'))}</p><div class="seo-link-grid">${cities.map(city=>`<a class="seo-city-link" data-seo-city-link="${attr(city.slug)}" href="${attr(cityPublicPath(city))}"><strong>${esc(city.name)}</strong><span>${esc(city.department||city.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></div></details>`;
-}
-function renderSeoNearby(city){
-  const {t}=i18n(),base=matchSeoCity(city)||city,nearby=nearbySeoCities(base,6);if(!nearby.length)return '';const collapsed=cityListCollapsed('nearby');
-  return `<details class="section section-card seo-nearby-section city-list-disclosure" data-city-list="nearby" ${collapsed?'':'open'} aria-labelledby="seo-nearby-title"><summary class="section-head city-list-summary" title="${attr(t(collapsed?'showCityList':'hideCityList'))}"><div><h2 id="seo-nearby-title">${esc(t('seoNearbyTitle'))}</h2><p>${esc(t('seoNearbyIntro',{city:city.name}))}</p></div>${cityListSummaryMeta('nearby',nearby.length)}</summary><div class="seo-link-grid compact">${nearby.map(item=>`<a class="seo-city-link" data-seo-city-link="${attr(item.slug)}" href="${attr(cityPublicPath(item))}"><strong>${esc(item.name)}</strong><span>${esc(item.department||item.region)}</span><span aria-hidden="true">→</span></a>`).join('')}</div></details>`;
-}
 function renderSeoDetailTitleContext(city){
   const {t}=i18n(),seo=matchSeoCity(city);if(!seo)return '';
   return `<div class="detail-seo-context"><strong>${esc(t('seoCityContextTitle',{city:seo.name}))}</strong><span>${esc(t('seoCityContextLead',{city:seo.name}))} ${esc(t('seoCityContextLocation',{city:seo.name,department:seo.department,region:seo.region}))}</span></div>`;
@@ -1133,7 +1153,7 @@ function renderHome(){
   const {t}=i18n(),favorites=favoriteCities(),cards=favorites.map(renderCityCard).join(''),busy=state.loading.size,hasCities=favorites.length>0;
   const heroActions=`<div class="home-hero-actions"><button class="btn primary" data-action="open-add-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('addCity'))}</button>${favorites.length>=2?`<button class="btn tonal" data-action="open-city-compare">${esc(t('compareCities'))}</button>`:''}<button class="btn tonal" data-action="refresh-all" ${busy?'disabled':''}><span class="btn-icon ${busy?'spinning':''}">${uiIcon('refresh')}</span>${esc(t('refresh'))}</button></div>`;
   const columnHeading=(kicker,title)=>`<div class="home-section-heading home-column-heading"><div><span class="home-section-kicker">${esc(kicker)}</span><h2>${esc(title)}</h2></div></div>`;
-  return `<main class="page home-page"><section class="home-hero"><div class="home-hero-main"><div class="home-hero-copy"><h1 class="home-hero-kicker">${esc(t('homeModernKicker'))}</h1><p>${esc(t('homeModernLead'))}</p>${renderHomeForecastMeta(favorites)}${heroActions}</div>${renderForecastExpertiseDisclaimer()}</div></section>${renderHomeVigilance()}${hasCities?`<div class="home-dashboard"><section class="home-cities-section">${columnHeading(t('homeFavoritesKicker'),t('cities'))}<div class="home-city-grid" aria-label="${esc(t('cities'))}">${cards}</div></section><div class="home-watch-column">${columnHeading(t('homeWatchKicker'),t('homeWatchTitle'))}${renderHomeWatchlist()}</div></div>`:`<section class="empty-state home-empty"><div class="big home-empty-logo-wrap"><img class="home-empty-logo" src="${attr(appAssetUrl('assets/icon.png'))}" alt="" aria-hidden="true"></div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}${renderSeoCityDirectory()}</main>`;
+  return `<main class="page home-page"><section class="home-hero"><div class="home-hero-main"><div class="home-hero-copy"><h1 class="home-hero-kicker">${esc(t('homeModernKicker'))}</h1><p>${esc(t('homeModernLead'))}</p>${renderHomeForecastMeta(favorites)}${heroActions}</div>${renderForecastExpertiseDisclaimer()}</div></section>${renderHomeVigilance()}${renderUserMessages()}${hasCities?`<div class="home-dashboard"><section class="home-cities-section">${columnHeading(t('homeFavoritesKicker'),t('cities'))}<div class="home-city-grid" aria-label="${esc(t('cities'))}">${cards}</div></section><div class="home-watch-column">${columnHeading(t('homeWatchKicker'),t('homeWatchTitle'))}${renderHomeWatchlist()}</div></div>`:`<section class="empty-state home-empty"><div class="big home-empty-logo-wrap"><img class="home-empty-logo" src="${attr(appAssetUrl('assets/icon.png'))}" alt="" aria-hidden="true"></div><h2>${esc(t('emptyTitle'))}</h2><p>${esc(t('emptyBody'))}</p><button class="btn primary" data-action="open-add-city">＋ ${esc(t('addCity'))}</button></section>`}</main>`;
 }
 
 function renderCityCard(city){
@@ -1212,7 +1232,7 @@ function renderCityDetail(cityId){
   if(!f)return `<main class="page"><section class="detail-hero"><div class="detail-title"><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></section>${renderCityErrors(cityId)}<div class="section-card">${loading?'<div class="loader"></div> '+esc(t('loading')):`<button class="btn primary" data-refresh-city="${attr(city.id)}">↻ ${esc(t('refresh'))}</button>`}</div></main>`;
   const today=cityToday(f.city.timezone),engineContext=forecastEngineContext(cityId),consensusProfile=engineContext.profile,agg=cachedAggregateDay(f,today,engineContext),now=currentConditions(f,new Date(),engineContext),scenarios=cachedScenarios(f),evolution=cachedEvolution(f,state.evolution[cityId]||[]),biasSource=state.bias[cityId]||{forecasts:[],observations:[]},biases=cachedBiases(f,biasSource,today),modelCount=Object.keys(f.seriesByModel).length;
   const health=forecastHealth(f),healthDetail=`${health.detail}${loading?` · ${t('updatingSuffix')}`:''}`;
-  return `<main class="page detail-page"><section class="detail-hero professional-hero"><div class="detail-hero-primary"><div class="detail-weather-mark" aria-hidden="true">${weatherIcons.render(now.condition||agg.condition,{size:'large'})}</div><div class="detail-title"><div class="eyebrow">${esc(t('multiModelForecast'))}</div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></div><div class="detail-hero-actions"><button class="btn tonal detail-refresh-action" data-refresh-city="${attr(city.id)}" ${loading?'disabled':''}><span class="btn-icon ${loading?'spinning':''}">${uiIcon('refresh')}</span>${esc(t(loading?'refreshing':'refreshWeather'))}</button><button class="btn tonal radar-hero-action" data-action="open-radar"><span class="btn-icon radar-button-icon" aria-hidden="true">◉</span>${esc(t('rainRadar'))}</button>${city.marineEnabled?`<button class="btn tonal detail-refresh-action marine-hero-refresh" data-action="refresh-marine" data-marine-city="${attr(city.id)}" ${state.marineLoading.has(city.id)?'disabled':''}><span class="btn-icon ${state.marineLoading.has(city.id)?'spinning':''}">${uiIcon('refresh')}</span>${esc(state.marineLoading.has(city.id)?t('marineLoading'):t('refreshMarine'))}</button>`:''}<button class="btn subtle" data-action="copy-link">${esc(t('shareView'))}</button></div><div class="detail-hero-support"><div class="detail-hero-support-meta"><div class="hero-meta"><span class="data-health ${health.class}"><i></i>${esc(health.label)}</span><span>${esc(healthDetail)}</span><span>${esc(t('availableModelsCount',{models:modelCountLabel(modelCount)}))}</span><span>${esc(f.city.timezone||'UTC')}</span></div>${city.seoTransient?`<button class="btn tonal detail-favorite-action" data-action="favorite-route-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('seoAddFavorite'))}</button>`:''}</div><div class="detail-hero-support-context">${renderSeoDetailTitleContext(city)}</div></div></section>${renderCityErrors(cityId)}<div class="detail-workspace"><aside class="detail-sidebar" aria-label="${esc(t('navForecast'))}"><div class="sidebar-card"><div class="sidebar-title">${esc(t('overview'))}</div><nav class="detail-nav" aria-label="${esc(t('forecastSections'))}"><button data-scroll-section="today-summary">${esc(t('today'))}</button>${isVigilanceSupportedCity(city)?`<button data-scroll-section="vigilance">${esc(t('vigilanceNav'))}</button>`:''}<button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button>${city.marineEnabled?`<button data-scroll-section="marine">${esc(t('marineTitle'))}</button>`:''}</nav></div>${renderForecastEngineCompareAction()}<button class="detail-back-button detail-sidebar-back" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></aside><div class="detail-main"><div class="overview-layout"><div class="overview-primary">${renderTodaySummary(f,agg,now,city.id,consensusProfile)}</div><div class="overview-secondary">${renderGlobalAgreementCard(f,agg,city.id,consensusProfile)}${renderScenarios(scenarios)}</div></div>${renderVigilanceSection(city)}${renderTimeline(f,engineContext)}${renderConfidenceSection(f,cityId,engineContext)}${renderEvolutionSection(evolution)}${renderReliabilitySection(city,biases)}${renderDetailedComparison(f,biases)}${renderMarineSection(city)}${renderSeoNearby(city)}<div class="small source-note">${esc(t('source'))}</div></div></div></main>`;
+  return `<main class="page detail-page"><section class="detail-hero professional-hero"><div class="detail-hero-primary"><div class="detail-weather-mark" aria-hidden="true">${weatherIcons.render(now.condition||agg.condition,{size:'large'})}</div><div class="detail-title"><div class="eyebrow">${esc(t('multiModelForecast'))}</div><h1>${esc(city.name)}</h1><p>${esc(placeLine(city))}</p></div></div><div class="detail-hero-actions"><button class="btn tonal detail-refresh-action" data-refresh-city="${attr(city.id)}" ${loading?'disabled':''}><span class="btn-icon ${loading?'spinning':''}">${uiIcon('refresh')}</span>${esc(t(loading?'refreshing':'refreshWeather'))}</button><button class="btn tonal radar-hero-action" data-action="open-radar"><span class="btn-icon radar-button-icon" aria-hidden="true">◉</span>${esc(t('rainRadar'))}</button>${city.marineEnabled?`<button class="btn tonal detail-refresh-action marine-hero-refresh" data-action="refresh-marine" data-marine-city="${attr(city.id)}" ${state.marineLoading.has(city.id)?'disabled':''}><span class="btn-icon ${state.marineLoading.has(city.id)?'spinning':''}">${uiIcon('refresh')}</span>${esc(state.marineLoading.has(city.id)?t('marineLoading'):t('refreshMarine'))}</button>`:''}<button class="btn subtle" data-action="copy-link">${esc(t('shareView'))}</button></div><div class="detail-hero-support"><div class="detail-hero-support-meta"><div class="hero-meta"><span class="data-health ${health.class}"><i></i>${esc(health.label)}</span><span>${esc(healthDetail)}</span><span>${esc(t('availableModelsCount',{models:modelCountLabel(modelCount)}))}</span><span>${esc(f.city.timezone||'UTC')}</span></div>${city.seoTransient?`<button class="btn tonal detail-favorite-action" data-action="favorite-route-city"><span class="btn-icon">${uiIcon('plus')}</span>${esc(t('seoAddFavorite'))}</button>`:''}</div><div class="detail-hero-support-context">${renderSeoDetailTitleContext(city)}</div></div></section>${renderCityErrors(cityId)}<div class="detail-workspace"><aside class="detail-sidebar" aria-label="${esc(t('navForecast'))}"><div class="sidebar-card"><div class="sidebar-title">${esc(t('overview'))}</div><nav class="detail-nav" aria-label="${esc(t('forecastSections'))}"><button data-scroll-section="today-summary">${esc(t('today'))}</button>${isVigilanceSupportedCity(city)?`<button data-scroll-section="vigilance">${esc(t('vigilanceNav'))}</button>`:''}<button data-scroll-section="timeline">${esc(t('forecastTimeline'))}</button><button data-scroll-section="agreement">${esc(t('confidenceBand'))}</button><button data-scroll-section="evolution">${esc(t('evolution'))}</button><button data-scroll-section="reliability">${esc(t('reliability'))}</button><button data-scroll-section="details">${esc(t('detailedComparison'))}</button>${city.marineEnabled?`<button data-scroll-section="marine">${esc(t('marineTitle'))}</button>`:''}</nav></div>${renderForecastEngineCompareAction()}<button class="detail-back-button detail-sidebar-back" data-action="back"><span class="detail-back-icon">${uiIcon('back',18)}</span><span>${esc(t('back'))}</span></button></aside><div class="detail-main"><div class="overview-layout"><div class="overview-primary">${renderTodaySummary(f,agg,now,city.id,consensusProfile)}</div><div class="overview-secondary">${renderGlobalAgreementCard(f,agg,city.id,consensusProfile)}${renderScenarios(scenarios)}</div></div>${renderVigilanceSection(city)}${renderTimeline(f,engineContext)}${renderConfidenceSection(f,cityId,engineContext)}${renderEvolutionSection(evolution)}${renderReliabilitySection(city,biases)}${renderDetailedComparison(f,biases)}${renderMarineSection(city)}<div class="small source-note">${esc(t('source'))}</div></div></div></main>`;
 }
 
 
@@ -2246,8 +2266,6 @@ function handleGlobalKeydown(e){
 }
 
 function handleDetailsToggle(e){
-  const cityListDetails=e.target?.closest?.('details[data-city-list]');
-  if(cityListDetails){setCityListCollapsed(cityListDetails.dataset.cityList,!cityListDetails.open);const summary=cityListDetails.querySelector?.('summary'),label=summary?.querySelector?.('.city-list-toggle-label'),copy=i18n().t(cityListDetails.open?'hideCityList':'showCityList');if(summary)summary.title=copy;if(label)label.textContent=copy;return;}
   const storageDetails=e.target?.closest?.('details[data-storage-advanced],details[data-storage-privacy-details],details[data-storage-cache-details]');
   if(storageDetails){
     if(storageDetails.hasAttribute('data-storage-advanced'))state.localDataUi.advancedOpen=storageDetails.open;
@@ -2281,20 +2299,11 @@ function refreshSettingsHistoryRows(){
 function routeShowsWeatherActivity(){return ['home','city','compare','bias'].includes(state.route.name);}
 function isGraphicForecastRoute(){return state.route.name==='city'&&state.route.view?.graphic===true;}
 
-function openSeoCityLink(link){
-  const slug=slugifyCityName(link?.dataset?.seoCityLink||''),catalog=seoCityBySlug(slug);if(!catalog)return false;
-  const existing=state.cities.find(city=>matchSeoCity(city)?.slug===catalog.slug);
-  if(!existing){state.cities=[...state.cities,{...catalog,seoTransient:true}];routingCities=[...state.cities];}
-  go(link.getAttribute('href')||cityPublicPath(catalog));
-  return true;
-}
 function handleAppClick(e){
   const analyticsLink=e.target.closest?.('[data-analytics-link]');if(analyticsLink&&app.contains(analyticsLink))void trackAnalyticsEvent('External Link Opened',state.route,{destination:analyticsLink.dataset.analyticsLink});
   if(!e.target.closest?.('.nav-install-menu'))closeInstallMenus();
   if(!e.target.closest?.('.nav-config-menu'))closeConfigMenus();
   if(!e.target.closest?.('.topbar-system-monitor'))closeSystemMonitor();
-  const seoLink=e.target.closest?.('a[data-seo-city-link]');
-  if(seoLink&&app.contains(seoLink)&&e.button===0&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();if(openSeoCityLink(seoLink))return;}
   const graphicTarget=graphicTooltipTarget(e.target);
   if(graphicTarget&&app.contains(graphicTarget)){e.preventDefault?.();openGraphicTooltip(graphicTarget);return;}
   if(graphicTooltipState.pinned&&!e.target.closest?.('.graphic-floating-tooltip'))clearGraphicTooltip();
@@ -2360,6 +2369,7 @@ function handleAction(e){
   const action=e.currentTarget.dataset.action;
   if(action==='back')history.length>1?history.back():go('#/');
   else if(action==='home')go('#/');
+  else if(action==='dismiss-user-message'){const id=e.currentTarget.dataset.messageId,revision=Number(e.currentTarget.dataset.messageRevision)||1;if(id){dismissUserMessage(id,revision);lastUserMessagesVisibilityKey=userMessagesVisibilityKey(userMessages);void trackAnalyticsEvent('User Message Dismissed',state.route,{message_id:id});render();}}
   else if(action==='favorite-route-city'){const city=promoteRouteCity();if(city){void trackAnalyticsEvent('SEO City Favorite Added',state.route);toast(i18n().t('seoFavoriteAdded',{city:city.name}),{type:'success'});render();void checkMarineCapability(city.id);}}
   else if(action==='quick-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}
   else if(action==='open-watch-city'){const id=e.currentTarget.dataset.cityId;if(id)go(`#/city/${encodeURIComponent(id)}`);}

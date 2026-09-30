@@ -5,7 +5,8 @@ import { sanitizeAnalyticsIngressPayload } from './js/analytics-schema.js';
 import { injectBaseHref } from './js/server/html-shell.js';
 import { VIGILANCE_DEPARTMENT_PATTERN, normalizeMeteoFranceApiKey, meteoFranceUpstreamError, vigilanceUnavailablePayload, vigilanceDepartmentPayload } from './js/server/vigilance-shared.js';
 import { AnalyticsStore } from './js/server/analytics-store.js';
-export { AnalyticsStore };
+import { UserMessageStore } from './js/server/user-message-store.js';
+export { AnalyticsStore, UserMessageStore };
 export class VigilanceCache{
   constructor(ctx,env){this.ctx=ctx;this.env=env;this.refreshPromise=null;}
   async current(){return await this.ctx.storage.get('carte');}
@@ -26,7 +27,7 @@ export class VigilanceCache{
   }
 }
 
-const EVENT_PATH=ANALYTICS_CONFIG.endpoint,VIGILANCE_PATH=NETWORK_ENDPOINTS.firstParty.vigilance,HEALTH_PATH=NETWORK_ENDPOINTS.firstParty.health;
+const EVENT_PATH=ANALYTICS_CONFIG.endpoint,VIGILANCE_PATH=NETWORK_ENDPOINTS.firstParty.vigilance,HEALTH_PATH=NETWORK_ENDPOINTS.firstParty.health,MESSAGES_PATH=NETWORK_ENDPOINTS.firstParty.messages;
 const METEOFRANCE_VIGILANCE_URL=NETWORK_ENDPOINTS.meteoFrance.vigilanceCarte,VIGILANCE_EDGE_CACHE_TTL_SECONDS=600,VIGILANCE_SHARED_CACHE_TTL_SECONDS=600,ANALYTICS_MAX_BODY_BYTES=32*1024,ADMIN_COOKIE='mcx_admin';
 function jsonResponse(payload,status=200,headers={}){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','x-content-type-options':'nosniff','referrer-policy':'no-referrer',...headers}});}
 function methodNotAllowed(allow){return new Response('Method Not Allowed',{status:405,headers:{allow,'cache-control':'no-store'}});}
@@ -36,6 +37,7 @@ function meteoFranceApiKey(env){return normalizeMeteoFranceApiKey(env?.METEOFRAN
 function vigilanceUnavailable(error,{configured=true,status=200}={}){return jsonResponse(vigilanceUnavailablePayload(error,{configured}),status,{'cache-control':'no-store','x-meteocompare-vigilance':'unavailable'});}
 async function fetchMeteoFranceVigilance(env){const apiKey=meteoFranceApiKey(env);if(!apiKey){const error=new Error('METEOFRANCE_NOT_CONFIGURED');error.code='METEOFRANCE_NOT_CONFIGURED';throw error;}const upstream=await fetchUpstream(METEOFRANCE_VIGILANCE_URL,{method:'GET',headers:{Accept:'*/*',apikey:apiKey},redirect:'follow'});if(!upstream.ok)throw meteoFranceUpstreamError(upstream.status);return upstream;}
 function analyticsStub(env){if(!env?.ANALYTICS)return null;return env.ANALYTICS.getByName?env.ANALYTICS.getByName('global'):env.ANALYTICS.get(env.ANALYTICS.idFromName('global'));}
+function userMessagesStub(env){const binding=env?.USER_MESSAGES;if(!binding)return null;return binding.getByName?binding.getByName('global'):binding.get(binding.idFromName('global'));}
 function vigilanceClient(request){
   const explicit=String(request.headers.get('x-meteocompare-client')||'').trim().toLowerCase();
   if(explicit==='web'||explicit==='android')return explicit;
@@ -75,8 +77,24 @@ export async function proxyVigilance(request,env,ctx){
   const started=Date.now();let result;try{result=await getVigilanceCarte(request,env,ctx);}catch(error){const response=vigilanceUnavailable(error,{configured:error?.code!=='METEOFRANCE_NOT_CONFIGURED'});trackWorkerRequest(env,ctx,{service:'vigilance',client,cacheStatus:'error',ok:false,status:response.status,upstreamMs:Date.now()-started});return headOrBody(request,response);}
   const response=jsonResponse(vigilanceDepartmentPayload(result.data,department,includeCoast),200,{'cache-control':'public, max-age=120','x-meteocompare-vigilance':'official'});trackWorkerRequest(env,ctx,{service:'vigilance',client,cacheStatus:result.cacheStatus,ok:true,status:200,upstreamMs:result.upstreamMs,cacheAgeSeconds:result.cacheAgeSeconds});return headOrBody(request,response);
 }
+
+async function publicUserMessages(request,env){
+  if(!['GET','HEAD'].includes(request.method))return methodNotAllowed('GET, HEAD');
+  const stub=userMessagesStub(env);if(!stub)return headOrBody(request,jsonResponse({generatedAt:new Date().toISOString(),messages:[]},200,{'cache-control':'public, max-age=60'}));
+  const response=await stub.fetch('https://user-messages.internal/public',{method:request.method});
+  return headOrBody(request,response);
+}
+async function adminUserMessages(request,env,path){
+  if(!await requireAdmin(request,env))return jsonResponse({error:'UNAUTHORIZED'},401,{'cache-control':'no-store'});
+  const stub=userMessagesStub(env);if(!stub)return jsonResponse({error:'USER_MESSAGES_STORAGE_NOT_CONFIGURED'},503,{'cache-control':'no-store'});
+  const suffix=path.slice('/_mcx/admin/messages'.length),target=`https://user-messages.internal/messages${suffix}`;
+  const init={method:request.method,headers:{'content-type':'application/json'}};
+  if(['POST','PUT'].includes(request.method))init.body=await request.text();
+  return noStorePrivateResponse(await stub.fetch(target,init));
+}
+
 function isLocalCloudflareRequest(request){try{const url=new URL(request.url),local=ANALYTICS_CONFIG.localDevelopment||{};return url.protocol==='http:'&&(local.hosts||[]).includes(url.hostname.toLowerCase())&&String(url.port||'')===String(local.port||'');}catch{return false;}}
-export function proxySystemHealth(request,env){if(!['GET','HEAD'].includes(request.method))return methodNotAllowed('GET, HEAD');return headOrBody(request,jsonResponse({ok:true,service:'meteocompare-worker',version:APP_VERSION,checkedAt:new Date().toISOString(),capabilities:{forecastProxy:false,vigilanceProxy:true,vigilanceConfigured:Boolean(meteoFranceApiKey(env)),vigilanceSharedCache:Boolean(env?.VIGILANCE_CACHE),analyticsStorage:Boolean(env?.ANALYTICS),analyticsHashing:Boolean(env?.ANALYTICS_HASH_SECRET),admin:Boolean(env?.ADMIN_PASSWORD&&env?.ADMIN_SESSION_SECRET)}},200,{'cache-control':'no-store','x-meteocompare-health':'ok'}));}
+export function proxySystemHealth(request,env){if(!['GET','HEAD'].includes(request.method))return methodNotAllowed('GET, HEAD');return headOrBody(request,jsonResponse({ok:true,service:'meteocompare-worker',version:APP_VERSION,checkedAt:new Date().toISOString(),capabilities:{forecastProxy:false,vigilanceProxy:true,vigilanceConfigured:Boolean(meteoFranceApiKey(env)),vigilanceSharedCache:Boolean(env?.VIGILANCE_CACHE),userMessagesStorage:Boolean(env?.USER_MESSAGES),analyticsStorage:Boolean(env?.ANALYTICS),analyticsHashing:Boolean(env?.ANALYTICS_HASH_SECRET),admin:Boolean(env?.ADMIN_PASSWORD&&env?.ADMIN_SESSION_SECRET)}},200,{'cache-control':'no-store','x-meteocompare-health':'ok'}));}
 function botUserAgent(ua){return /bot|spider|crawler|headless|preview|slurp|bingpreview/i.test(ua||'');}
 function deviceFromUa(ua){if(/ipad|tablet/i.test(ua))return 'tablet';if(/mobile|iphone|android/i.test(ua))return 'mobile';return 'desktop';}
 function browserFromUa(ua){if(/edg\//i.test(ua))return 'edge';if(/firefox\//i.test(ua))return 'firefox';if(/chrome\//i.test(ua))return 'chrome';if(/safari\//i.test(ua))return 'safari';return 'other';}
@@ -129,11 +147,13 @@ export default {async fetch(request,env,ctx){const url=new URL(request.url),path
   if(path===EVENT_PATH)return storeAnalyticsEvent(request,env);
   if(path===VIGILANCE_PATH)return proxyVigilance(request,env,ctx);
   if(path===HEALTH_PATH)return proxySystemHealth(request,env);
+  if(path===MESSAGES_PATH)return publicUserMessages(request,env);
   if(path==='/_mcx/admin/session'){if(!['GET','HEAD'].includes(request.method))return methodNotAllowed('GET, HEAD');return headOrBody(request,jsonResponse({authenticated:await verifySession(request,env),configured:adminConfigured(env)},200,{'cache-control':'no-store'}));}
   if(path==='/_mcx/admin/login')return adminLogin(request,env);
   if(path==='/_mcx/admin/logout')return adminLogout(request);
   if(path==='/_mcx/admin/analytics'){if(!['GET','HEAD'].includes(request.method))return methodNotAllowed('GET, HEAD');if(!await requireAdmin(request,env))return jsonResponse({error:'UNAUTHORIZED'},401,{'cache-control':'no-store'});const days=Math.max(1,Math.min(180,Number(url.searchParams.get('days'))||30));const response=await analyticsStub(env).fetch(`https://analytics.internal/summary?days=${days}`);return headOrBody(request,noStorePrivateResponse(response));}
   if(path==='/_mcx/admin/status'){if(!['GET','HEAD'].includes(request.method))return methodNotAllowed('GET, HEAD');if(!await requireAdmin(request,env))return jsonResponse({error:'UNAUTHORIZED'},401);return headOrBody(request,jsonResponse(await adminStatus(env),200,{'cache-control':'no-store'}));}
+  if(path==='/_mcx/admin/messages'||path.startsWith('/_mcx/admin/messages/'))return adminUserMessages(request,env,path);
   if(path.startsWith('/_mcx/'))return new Response('Not Found',{status:404,headers:{'cache-control':'no-store'}});
   if(path==='/admin')return serveAdminPage(request,env);
   if(path==='/admin/')return Response.redirect(new URL('/admin',request.url),308);

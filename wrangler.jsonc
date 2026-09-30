@@ -25,6 +25,10 @@
       {
         "name": "VIGILANCE_CACHE",
         "class_name": "VigilanceCache"
+      },
+      {
+        "name": "USER_MESSAGES",
+        "class_name": "UserMessageStore"
       }
     ]
   },
@@ -39,6 +43,12 @@
       "tag": "vigilance-cache-v1",
       "new_sqlite_classes": [
         "VigilanceCache"
+      ]
+    },
+    {
+      "tag": "user-messages-v1",
+      "new_sqlite_classes": [
+        "UserMessageStore"
       ]
     }
   ],

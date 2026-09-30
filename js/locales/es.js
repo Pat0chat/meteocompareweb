@@ -1869,6 +1869,9 @@ export const catalog = Object.freeze({
   'monitorRefresh':'Actualizar monitorización',
   'monitorNoSyntheticProbes':'Los servicios de terceros no se sondean artificialmente: el estado refleja las últimas solicitudes reales.',
 
+  'userMessagesTitle':'Información',
+  'userMessageDismiss':'Ocultar este mensaje',
+
   'graphicView':'Vista gráfica',
   'graphicViewIntro':'Explora los próximos 7 días hora a hora',
   'graphicForecastCentral':'Previsión central',

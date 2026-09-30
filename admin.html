@@ -41,6 +41,7 @@
       <div class="admin-controls card">
         <nav class="section-nav" aria-label="Sections de l’administration">
           <a href="#overview" data-section-link="overview" class="active">Vue d’ensemble</a>
+          <a href="#messages-management" data-section-link="messages-management">Messages</a>
           <a href="#audience" data-section-link="audience">Audience</a>
           <a href="#usage" data-section-link="usage">Usage</a>
           <a href="#vigilance" data-section-link="vigilance">Vigilance</a>
@@ -67,6 +68,38 @@
         <div class="overview-grid">
           <article class="card attention-card"><div class="card-head"><div><p class="card-kicker">Priorités</p><h3>À surveiller</h3></div><span id="attention-count" class="attention-count"></span></div><div id="attention-panel"></div></article>
           <article id="period-facts" class="period-facts card"></article>
+        </div>
+      </section>
+
+      <section id="messages-management" class="dashboard-section messages-management section-anchor">
+        <div class="section-title compact"><div><p class="eyebrow">Communication</p><h2>Messages utilisateurs</h2><p class="section-description">Publiez des informations visibles sur le site et dans la PWA. Les dates sont optionnelles : sans début le message est immédiat, sans fin il reste actif jusqu’à désactivation.</p></div></div>
+        <div class="message-admin-grid">
+          <article class="card message-editor-card">
+            <div class="card-head"><div><p class="card-kicker">Édition</p><h3 id="message-editor-title">Nouveau message</h3></div><span class="small-note">Web + PWA</span></div>
+            <form id="user-message-form" class="message-form">
+              <input id="message-id" type="hidden">
+              <div class="message-form-grid">
+                <label>Type<select id="message-type"><option value="info">Information</option><option value="success">Succès</option><option value="warning">Avertissement</option><option value="critical">Critique</option></select></label>
+                <label>Titre<input id="message-title" type="text" maxlength="120" required placeholder="Maintenance programmée"></label>
+                <label class="span-2">Message<textarea id="message-body" rows="4" maxlength="1200" required placeholder="Certaines prévisions peuvent être temporairement indisponibles."></textarea></label>
+                <label>Début<input id="message-start" type="datetime-local"></label>
+                <label>Fin<input id="message-end" type="datetime-local"></label>
+                <label>Libellé du lien<input id="message-link-label" type="text" maxlength="80" placeholder="En savoir plus"></label>
+                <label>URL du lien<input id="message-link-url" type="url" maxlength="500" placeholder="https://…"></label>
+              </div>
+              <div class="message-options">
+                <label><input id="message-enabled" type="checkbox" checked><span>Activé</span></label>
+                <label><input id="message-dismissible" type="checkbox" checked><span>Peut être masqué</span></label>
+              </div>
+              <div id="message-preview" class="message-preview" aria-live="polite"></div>
+              <p id="message-form-status" class="form-status" role="status"></p>
+              <div class="message-form-actions"><button id="message-save" type="submit">Publier</button><button id="message-cancel" type="button" class="ghost" hidden>Annuler la modification</button></div>
+            </form>
+          </article>
+          <article class="card message-list-card">
+            <div class="card-head"><div><p class="card-kicker">Diffusion</p><h3>Messages configurés</h3></div><span id="message-count" class="small-note"></span></div>
+            <div id="user-message-list" class="admin-message-list"></div>
+          </article>
         </div>
       </section>
 

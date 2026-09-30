@@ -6,6 +6,7 @@ export const NETWORK_ENDPOINTS = Object.freeze({
     vigilance: '/_mcx/vigilance',
     analyticsEvent: '/_mcx/e',
     health: '/_mcx/health',
+    messages: '/_mcx/messages',
     adminSession: '/_mcx/admin/session',
     adminLogin: '/_mcx/admin/login',
     adminLogout: '/_mcx/admin/logout',

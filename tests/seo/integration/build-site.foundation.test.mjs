@@ -28,11 +28,9 @@ assert.match(app,/<h1 class="home-hero-kicker">\$\{esc\(t\('homeModernKicker'\)\
 assert.match(app,/cleanCityRoute\(pathname,query\)/,'runtime must parse clean city paths');
 assert.match(app,/\^\\\/meteo\\\/\(\[\^\/\]\+\)/,'clean /meteo/{slug} route must remain explicit');
 assert.match(app,/legacyCity=requested\.match/,'legacy hash city links must remain compatible');
-assert.match(app,/renderSeoCityDirectory\(\)/,'home must expose crawlable city links');
-assert.match(app,/data-seo-city-link/,'SEO city links must remain crawlable while supporting in-app routing');
-assert.match(app,/openSeoCityLink\(link\)/,'SEO city links must be intercepted by the application router');
+assert.doesNotMatch(app,/renderSeoCityDirectory|data-seo-city-link|openSeoCityLink/,'home must not reintroduce the removed city directory UI');
 assert.match(app,/renderSeoDetailTitleContext\(city\)/,'indexed city context must remain present inside the hydrated detail title');
-assert.match(app,/renderSeoNearby\(city\)/,'city details must expose nearby internal links');
+assert.doesNotMatch(app,/renderSeoNearby/,'city details must not reintroduce the removed nearby-city UI');
 assert.match(app,/seoTransient/,'direct SEO routes must not silently become favorites');
 assert.match(app,/seoCity\|\|state\.route\.name==='home'\?'index,follow,max-image-preview:large':'noindex,follow'/,'only catalogued city routes should be indexable at runtime');
 assert.match(build,/GOOGLE_SITE_VERIFICATION/,'build must support Search Console URL-prefix verification when configured');
@@ -60,7 +58,7 @@ assert.match(toulouse,/<title>Météo Toulouse : comparaison des modèles mété
 assert.match(toulouse,/rel="canonical" href="https:\/\/meteocompare\.app\/meteo\/toulouse"/);
 assert.match(toulouse,/<h1>Météo Toulouse : comparaison des modèles météo<\/h1>/);
 assert.match(toulouse,/Convergence et dispersion des modèles à Toulouse/);
-assert.match(toulouse,/href="\/meteo\/montauban"/,'pre-rendered city page must include nearby internal links');
+assert.doesNotMatch(toulouse,/seo-nearby-section|city-list-summary/,'pre-rendered city page must remain free of the removed nearby-city block');
 
 const sitemap=read('dist/sitemap.xml');
 const urls=[...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match=>match[1]);
