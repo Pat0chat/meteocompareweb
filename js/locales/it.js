@@ -552,6 +552,7 @@ export const catalog = Object.freeze({
   "today":"Oggi",
   "temperature":"Temperatura",
   "pressureMsl":"Pressione MSL",
+  "pressureShort":"Pressione",
   "pressureMslDescription":"Pressione atmosferica ridotta al livello medio del mare",
   "precipitation":"Precipitazioni",
   "wind":"Vento",

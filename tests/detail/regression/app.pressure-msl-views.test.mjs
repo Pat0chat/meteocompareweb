@@ -39,6 +39,7 @@ assert.match(icons,/pressure:'<g class="wx-metric-stroke wx-pressure-gauge"/,'pr
 for(const [index,locale] of locales.entries()){
   assert.match(locale,/"pressureMsl"\s*:/,`locale ${index} must translate the MSL pressure label`);
   assert.match(locale,/"pressureMslDescription"\s*:/,`locale ${index} must translate the MSL pressure description`);
+  assert.match(locale,/"pressureShort"\s*:/,`locale ${index} must translate the compact pressure label`);
 }
 
 console.log('MSL pressure hourly/daily chronology, ChartView, i18n and unit rendering: OK');
