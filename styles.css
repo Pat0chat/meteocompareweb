@@ -446,7 +446,7 @@ html[data-theme="dark"] body {
 .timeline-condition { min-height:54px; display:grid; align-content:center; justify-items:center; gap:4px; font-size:.7rem; color:var(--muted); text-align:center; }
 .timeline-temp-band { min-height:54px;  display:grid; place-items:center; align-content:center; padding:5px 3px; margin:4px -3px 8px; background: linear-gradient(180deg, color-mix(in srgb, var(--heat-top, var(--heat, var(--surface-3))) 54%, var(--surface)), color-mix(in srgb, var(--heat-bottom, var(--heat, var(--surface-3))) 54%, var(--surface))); border:1px solid color-mix(in srgb,var(--heat,var(--border)) 40%,var(--border)); }
 .timeline-temp-band strong { font-size:1rem; }.timeline-temp-band small { font-size:.7rem; opacity:.76; }
-.timeline-precip-heat {  display:grid; place-items:center; margin-top:-2px; }
+.timeline-precip-heat { display:inline-grid; place-items:center; }
 .timeline-precip-heat i { width:var(--rain-size,6px); height:var(--rain-size,6px); border-radius:50%; background:var(--rain); opacity:var(--rain-opacity,.75); box-shadow:0 0 0 2px color-mix(in srgb,var(--rain) 12%,transparent); }
 .timeline-metric { display:grid; grid-template-columns:19px minmax(0,1fr) auto; align-items:center; gap:2px 5px; padding:5px 2px; border-top:1px solid color-mix(in srgb,var(--border) 72%,transparent); }
 .timeline-metric-icon { grid-column:1; grid-row:1; font-size:.84rem; }.timeline-metric strong { font-size:.74rem; }.timeline-metric small { color:var(--muted); font-size:.7rem; }
@@ -2218,12 +2218,17 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
 /* Clarity and data-density polish */
 .hero-meta .data-health { font-family: inherit; font-weight: 760; }
 .hero-meta .data-health i { flex: 0 0 auto; }
-/* Timeline rain marker: give the dot breathing room above the following separator. */
+/* Timeline precipitation marker belongs to the precipitation probability row. */
 .timeline-precip-heat {
-  height: 22px;
-  margin: 2px 0 5px;
-  align-items: center;
+  width: 15px;
+  height: 15px;
+  margin: 0 0 0 3px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 15px;
+  vertical-align: middle;
 }
+.timeline-precip-heat.empty { visibility: hidden; }
 .timeline-rain-metric small {
   color: color-mix(in srgb, var(--rain) 78%, var(--muted));
   font-weight: 650;
@@ -2289,6 +2294,43 @@ html[data-density="compact"] .detail-workspace { gap:14px; }
   text-overflow: clip;
 }
 .timeline-metric > span { align-self: center; }
+
+/* Pressure needs its own compact stack: long localized labels and values such as
+   29.92 inHg must never compete for the same horizontal line. */
+.timeline-pressure-metric {
+  height: 76px;
+  min-height: 76px;
+  grid-template-columns: 19px minmax(0,1fr);
+  grid-template-rows: 16px 18px 10px 16px;
+  align-content: center;
+}
+.timeline-pressure-metric .timeline-metric-icon { grid-column:1; grid-row:1 / 3; align-self:center; }
+.timeline-pressure-metric .timeline-metric-label {
+  grid-column:2;
+  grid-row:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.timeline-pressure-metric strong {
+  grid-column:2;
+  grid-row:2;
+  justify-self:start;
+  font-size:.76rem;
+}
+.timeline-pressure-metric .timeline-dispersion-rail { grid-column:1 / -1; grid-row:3; }
+.timeline-pressure-metric small {
+  grid-column:1 / -1;
+  grid-row:4;
+  overflow:hidden;
+  font-size:.70rem;
+  text-overflow:clip;
+}
+.timeline-rain-probability-metric .timeline-metric-label {
+  display:flex;
+  align-items:center;
+  min-width:0;
+  overflow:hidden;
+}
 
 .timeline-rain-metric { --timeline-rail-accent: var(--rain); }
 .timeline-cloud-metric { --timeline-rail-accent: #718096; }
@@ -5706,7 +5748,7 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
   --detail-chrono-label-width:136px;
   --detail-chrono-date-height:42px;
   --detail-chrono-temp-height:118px;
-  --detail-chrono-pressure-height:58px;
+  --detail-chrono-pressure-height:64px;
   --detail-chrono-axis-height:70px;
   --detail-chrono-rain-height:62px;
   --detail-chrono-cloud-height:52px;
@@ -5772,11 +5814,32 @@ html[data-theme="dark"] .detail-chrono-temp-area { opacity:.22; }
 .detail-chrono-axis-hour strong { max-width:100%; overflow:hidden; color:var(--text); font-size:var(--type-meta); line-height:1.1; font-variant-numeric:tabular-nums; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; }
 
 .detail-chrono-pressure { height:var(--detail-chrono-pressure-height); background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 3%,var(--surface)),color-mix(in srgb,var(--surface-2) 20%,var(--surface))); }
-.detail-chrono-pressure-cell { min-width:0; display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-rows:auto auto; align-content:center; gap:1px 4px; padding:5px 6px; }
-.detail-chrono-pressure-cell > span { grid-row:1 / 3; color:var(--primary); }
-.detail-chrono-pressure-cell > span .wx-icon { width:.96rem; height:.96rem; }
-.detail-chrono-pressure-cell strong { overflow:hidden; color:var(--text); font-size:.70rem; font-variant-numeric:tabular-nums; text-overflow:ellipsis; white-space:nowrap; }
-.detail-chrono-pressure-cell small { overflow:hidden; color:var(--muted); font-size:.70rem; font-variant-numeric:tabular-nums; text-overflow:ellipsis; white-space:nowrap; }
+.detail-chrono-pressure-cell {
+  min-width:0;
+  display:grid;
+  grid-template-rows:auto auto;
+  place-items:center;
+  align-content:center;
+  gap:2px;
+  padding:5px 4px;
+  text-align:center;
+}
+.detail-chrono-pressure-cell strong {
+  max-width:100%;
+  color:var(--text);
+  font-size:.70rem;
+  font-variant-numeric:tabular-nums;
+  line-height:1.15;
+  white-space:nowrap;
+}
+.detail-chrono-pressure-cell small {
+  max-width:100%;
+  color:var(--muted);
+  font-size:.70rem;
+  font-variant-numeric:tabular-nums;
+  line-height:1.08;
+  white-space:normal;
+}
 .detail-chrono-rain { height:var(--detail-chrono-rain-height); background:linear-gradient(180deg,color-mix(in srgb,var(--rain) 3%,transparent),transparent); }
 .detail-chrono-rain-cell { position:relative; min-width:0; display:grid; place-items:center; align-content:center; gap:3px; padding:4px 3px; background:linear-gradient(180deg,color-mix(in srgb,var(--rain) var(--rain-strength),transparent),transparent 92%); }
 .detail-chrono-rain-cell.is-wet { color:var(--text); background:linear-gradient(180deg,color-mix(in srgb,var(--rain) var(--rain-strength),var(--surface)),color-mix(in srgb,var(--rain) 6%,var(--surface))); }

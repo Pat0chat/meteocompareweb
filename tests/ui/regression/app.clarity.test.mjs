@@ -14,7 +14,7 @@ assert.match(app,/insightsMetricProbability/);
 assert.match(app,/maxProbabilityTitle/);
 assert.match(app,/dailyRainProbabilityLegend/);
 assert.doesNotMatch(app,/function renderInsights\(/,'the redundant À retenir block must stay removed');
-assert.match(css,/\.timeline-precip-heat \{[\s\S]*height: 22px;[\s\S]*margin: 2px 0 5px;/);
+assert.match(css,/\.timeline-precip-heat \{[\s\S]*width: 15px;[\s\S]*height: 15px;[\s\S]*margin: 0 0 0 3px;[\s\S]*display: inline-grid;/,'precipitation heat marker must stay inline with the precipitation probability row');
 assert.match(css,/:where\(\.table-wrap table\) tbody tr > \* \{[\s\S]*height: 64px;/);
 assert.match(css,/\.forecast-table tbody tr > \* \{ height: 78px; \}/);
 for(const lang of ['fr','en','es','de','it']){
