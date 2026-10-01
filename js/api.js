@@ -8,11 +8,11 @@ import { NETWORK_ENDPOINTS } from './network-config.js';
 const { forecast:FORECAST_URL, geocoding:GEOCODING_URL, archive:ARCHIVE_URL, previousRuns:PREVIOUS_RUNS_URL } = NETWORK_ENDPOINTS.openMeteo;
 
 const HOURLY_VARS = [
-  'temperature_2m','precipitation','precipitation_probability','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
+  'temperature_2m','pressure_msl','precipitation','precipitation_probability','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
   'wind_speed_10m','wind_direction_10m','wind_gusts_10m','weather_code'
 ].join(',');
 const DAILY_VARS = [
-  'temperature_2m_max','temperature_2m_min','precipitation_sum','precipitation_probability_max',
+  'temperature_2m_max','temperature_2m_min','pressure_msl_mean','pressure_msl_min','pressure_msl_max','precipitation_sum','precipitation_probability_max',
   'wind_speed_10m_max','wind_gusts_10m_max','wind_direction_10m_dominant','weather_code','sunrise','sunset'
 ].join(',');
 

@@ -108,13 +108,16 @@ export function normalizeCities(values){
 }
 
 const HOURLY_KEYS = ['temperature2m','precipitation','precipitationProbability','cloudCover','windSpeed10m','windDirection10m','windGusts10m','weatherCode'];
+const OPTIONAL_HOURLY_KEYS = ['pressureMsl'];
 const DAILY_KEYS = ['tempMax','tempMin','precipitationSum','precipitationProbabilityMax','windSpeedMax','windGustsMax','windDirection10mDominant','weatherCode','sunrise','sunset'];
+const OPTIONAL_DAILY_KEYS = ['pressureMslMean','pressureMslMin','pressureMslMax'];
 
 function arrayAligned(value,length){ return Array.isArray(value)&&value.length===length; }
 function arrayValuesValid(value,predicate){if(!Array.isArray(value))return false;for(let i=0;i<value.length;i++){const item=value[i];if(item!==null&&!predicate(item))return false;}return true;}
 const within=limits=>value=>isWithinPhysicalLimits(value,limits);
 const integerWithin=limits=>value=>Number.isInteger(value)&&isWithinPhysicalLimits(value,limits);
 const temperature=within(FORECAST_PHYSICAL_LIMITS.temperatureC);
+const pressure=within(FORECAST_PHYSICAL_LIMITS.pressureMslHpa);
 const hourlyPrecipitation=within(FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm);
 const dailyPrecipitation=within(FORECAST_PHYSICAL_LIMITS.precipitationDailyMm);
 const wind=within(FORECAST_PHYSICAL_LIMITS.windKmh);
@@ -138,7 +141,9 @@ export function forecastSeriesIssues(series){
   if(dailyLength<0||!datesValid(daily.dates))issues.push('DAILY_AXIS_INVALID');
   if(hourlyLength>=0){
     for(const key of HOURLY_KEYS)if(!arrayAligned(hourly[key],hourlyLength))issues.push(`HOURLY_${key}_MISALIGNED`);
+    for(const key of OPTIONAL_HOURLY_KEYS)if(hourly[key]!=null&&!arrayAligned(hourly[key],hourlyLength))issues.push(`HOURLY_${key}_MISALIGNED`);
     if(arrayAligned(hourly.temperature2m,hourlyLength)&&!arrayValuesValid(hourly.temperature2m,temperature))issues.push('HOURLY_temperature2m_INVALID');
+    if(arrayAligned(hourly.pressureMsl,hourlyLength)&&!arrayValuesValid(hourly.pressureMsl,pressure))issues.push('HOURLY_pressureMsl_INVALID');
     if(arrayAligned(hourly.precipitation,hourlyLength)&&!arrayValuesValid(hourly.precipitation,hourlyPrecipitation))issues.push('HOURLY_precipitation_INVALID');
     if(arrayAligned(hourly.windSpeed10m,hourlyLength)&&!arrayValuesValid(hourly.windSpeed10m,wind))issues.push('HOURLY_windSpeed10m_INVALID');
     if(arrayAligned(hourly.windGusts10m,hourlyLength)&&!arrayValuesValid(hourly.windGusts10m,gust))issues.push('HOURLY_windGusts10m_INVALID');
@@ -153,7 +158,9 @@ export function forecastSeriesIssues(series){
   }
   if(dailyLength>=0){
     for(const key of DAILY_KEYS)if(!arrayAligned(daily[key],dailyLength))issues.push(`DAILY_${key}_MISALIGNED`);
+    for(const key of OPTIONAL_DAILY_KEYS)if(daily[key]!=null&&!arrayAligned(daily[key],dailyLength))issues.push(`DAILY_${key}_MISALIGNED`);
     for(const key of ['tempMax','tempMin'])if(arrayAligned(daily[key],dailyLength)&&!arrayValuesValid(daily[key],temperature))issues.push(`DAILY_${key}_INVALID`);
+    for(const key of OPTIONAL_DAILY_KEYS)if(arrayAligned(daily[key],dailyLength)&&!arrayValuesValid(daily[key],pressure))issues.push(`DAILY_${key}_INVALID`);
     if(arrayAligned(daily.tempMax,dailyLength)&&arrayAligned(daily.tempMin,dailyLength))for(let i=0;i<dailyLength;i++)if(Number.isFinite(daily.tempMax[i])&&Number.isFinite(daily.tempMin[i])&&daily.tempMax[i]<daily.tempMin[i]){issues.push('DAILY_TEMPERATURE_PAIR_INVALID');break;}
     if(arrayAligned(daily.precipitationSum,dailyLength)&&!arrayValuesValid(daily.precipitationSum,dailyPrecipitation))issues.push('DAILY_precipitationSum_INVALID');
     if(arrayAligned(daily.windSpeedMax,dailyLength)&&!arrayValuesValid(daily.windSpeedMax,wind))issues.push('DAILY_windSpeedMax_INVALID');
@@ -166,6 +173,7 @@ export function forecastSeriesIssues(series){
     if(completeness!=null){
       if(!completeness||typeof completeness!=='object')issues.push('DAILY_COMPLETENESS_INVALID');
       else for(const key of ['temperature','precipitation','wind','condition'])if(!arrayAligned(completeness[key],dailyLength))issues.push(`DAILY_COMPLETENESS_${key}_MISALIGNED`);
+      if(completeness&&completeness.pressure!=null&&!arrayAligned(completeness.pressure,dailyLength))issues.push('DAILY_COMPLETENESS_pressure_MISALIGNED');
     }
   }
   return issues;

@@ -57,6 +57,7 @@ function seriesCoverage(series) {
     precipitation:finiteCoverage(timestamps,hourly?.precipitation),
     wind:finiteCoverage(timestamps,hourly?.windSpeed10m),
     conditions:finiteCoverage(timestamps,hourly?.weatherCode),
+    pressure:finiteCoverage(timestamps,hourly?.pressureMsl),
   };
   let firstTimestamp=null,lastTimestamp=null,count=0;
   for(let i=0;i<timestamps.length;i++){
@@ -107,10 +108,11 @@ function metricCompleteness(axis,values,current=false){
 export function sanitizeIncompleteFutureDaily(series) {
   const hourly=series?.hourly,daily=series?.daily;if(!hourly?.timestamps?.length||!daily?.dates?.length)return series;
   const currentDate=hourly.timestamps.find(ts=>typeof ts==='string'&&ts)?.slice(0,10)||daily.dates[0]||null;
-  const completeness={temperature:[],precipitation:[],wind:[],condition:[]};
+  const completeness={temperature:[],pressure:[],precipitation:[],wind:[],condition:[]};
   for(let index=0;index<daily.dates.length;index++){
     const date=daily.dates[index],axis=civilDayAxis(hourly.timestamps,date),current=date===currentDate;
     completeness.temperature[index]=metricCompleteness(axis,hourly.temperature2m,current);
+    completeness.pressure[index]=metricCompleteness(axis,hourly.pressureMsl,current);
     completeness.precipitation[index]=metricCompleteness(axis,hourly.precipitation,current);
     completeness.wind[index]=metricCompleteness(axis,hourly.windSpeed10m,current);
     completeness.condition[index]=metricCompleteness(axis,hourly.weatherCode,current);
@@ -157,6 +159,7 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
         timestamps:[...hourlyTime],
         timestampEpochMs:[...hourlyEpochs],
         temperature2m:alignIndices(hourlyIndices,tempH),
+        pressureMsl:alignIndices(hourlyIndices,read(hourlyRaw,'pressure_msl',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
         precipitation:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation',FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm)),
         precipitationProbability:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation_probability',FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent,true)),
         cloudCover:alignIndices(hourlyIndices,cloudCover(hourlyRaw,model,single)),
@@ -169,6 +172,9 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
         dates:[...dailyTime],
         tempMax,
         tempMin,
+        pressureMslMean:alignIndices(dailyIndices,read(dailyRaw,'pressure_msl_mean',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
+        pressureMslMin:alignIndices(dailyIndices,read(dailyRaw,'pressure_msl_min',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
+        pressureMslMax:alignIndices(dailyIndices,read(dailyRaw,'pressure_msl_max',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
         precipitationSum:alignIndices(dailyIndices,read(dailyRaw,'precipitation_sum',FORECAST_PHYSICAL_LIMITS.precipitationDailyMm)),
         precipitationProbabilityMax:alignIndices(dailyIndices,read(dailyRaw,'precipitation_probability_max',FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent,true)),
         windSpeedMax:alignIndices(dailyIndices,read(dailyRaw,'wind_speed_10m_max',FORECAST_PHYSICAL_LIMITS.windKmh)),

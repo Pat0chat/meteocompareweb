@@ -1,5 +1,6 @@
 export const FORECAST_PHYSICAL_LIMITS = Object.freeze({
   temperatureC: Object.freeze({ min: -100, max: 65 }),
+  pressureMslHpa: Object.freeze({ min: 800, max: 1100 }),
   precipitationHourlyMm: Object.freeze({ min: 0, max: 300 }),
   precipitationDailyMm: Object.freeze({ min: 0, max: 1000 }),
   precipitationProbabilityPercent: Object.freeze({ min: 0, max: 100 }),

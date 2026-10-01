@@ -34,7 +34,7 @@ assert.match(app,/const dateGroups=\[\];[\s\S]*detail-chrono-date-cell[\s\S]*gri
 assert.match(app,/detail-chrono-canvas"><div class="detail-chrono-date">\$\{dates\}<\/div><svg class="detail-chrono-temp-plot"/,'date row must be rendered above temperature, conditions and all metric lanes');
 assert.match(app,/detail-chrono-row-label date[\s\S]*dateColumn[\s\S]*detail-chrono-row-label temp/,'fixed first column must expose a dedicated Date row above Temperature');
 assert.match(styles,/--detail-chrono-date-height:42px;/,'chronological strip must reserve explicit height for the date row');
-assert.match(styles,/grid-template-rows:var\(--detail-chrono-date-height\) var\(--detail-chrono-temp-height\) var\(--detail-chrono-axis-height\)/,'fixed labels must align with the dedicated date lane');
+assert.match(styles,/grid-template-rows:var\(--detail-chrono-date-height\) var\(--detail-chrono-temp-height\) var\(--detail-chrono-pressure-height\) var\(--detail-chrono-axis-height\)/,'fixed labels must align with the dedicated date lane');
 assert.match(styles,/\.detail-chrono-date \{[^}]*grid-template-columns:repeat\(var\(--detail-chrono-cols\),minmax\(0,1fr\)\);/,'date row must stay synchronized with the chronology columns');
 assert.doesNotMatch(app,/detail-chrono-axis-hour[^`]*<small>/,'condition cells must no longer carry a second date line');
 assert.match(styles,/--detail-chrono-label-width:136px;/,'chronological strip must reserve a wider first column for row labels');

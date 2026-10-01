@@ -74,6 +74,7 @@ function dailyTemperatureValues(series,index){
 function engineQualityBounds(variable){
   if(variable==='temperature')return {qualityMin:FORECAST_PHYSICAL_LIMITS.temperatureC.min,qualityMax:FORECAST_PHYSICAL_LIMITS.temperatureC.max};
   if(variable==='wind')return {qualityMin:FORECAST_PHYSICAL_LIMITS.windKmh.min,qualityMax:FORECAST_PHYSICAL_LIMITS.windKmh.max};
+  if(variable==='pressure')return {qualityMin:FORECAST_PHYSICAL_LIMITS.pressureMslHpa.min,qualityMax:FORECAST_PHYSICAL_LIMITS.pressureMslHpa.max};
   if(variable==='condition')return {qualityMin:FORECAST_PHYSICAL_LIMITS.cloudPercent.min,qualityMax:FORECAST_PHYSICAL_LIMITS.cloudPercent.max};
   return {};
 }
@@ -449,6 +450,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       if(index<0)continue;
       const tempComparable=hourly||dailyMetricComparable(modelSeries,index,'temperature');
       const precipComparable=hourly||dailyMetricComparable(modelSeries,index,'precipitation');
+      const pressureComparable=hourly||dailyMetricComparable(modelSeries,index,'pressure');
       const windComparable=hourly||dailyMetricComparable(modelSeries,index,'wind');
       const conditionComparable=hourly||dailyMetricComparable(modelSeries,index,'condition');
       const dailyTemperatures=hourly?null:dailyTemperatureValues(modelSeries,index);
@@ -457,6 +459,9 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       const tempMax=hourly?null:(tempComparable?dailyTemperatures.max:null);
       const precipitation=hourly?physicalValue(modelSeries.hourly.precipitation[index],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm):(precipComparable?physicalValue(modelSeries.daily.precipitationSum[index],FORECAST_PHYSICAL_LIMITS.precipitationDailyMm):null);
       const precipitationProbability=hourly?physicalValue(modelSeries.hourly.precipitationProbability[index],FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent):(precipComparable?physicalValue(modelSeries.daily.precipitationProbabilityMax[index],FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent):null);
+      const pressure=hourly?physicalValue(modelSeries.hourly.pressureMsl?.[index],FORECAST_PHYSICAL_LIMITS.pressureMslHpa):(pressureComparable?physicalValue(modelSeries.daily.pressureMslMean?.[index],FORECAST_PHYSICAL_LIMITS.pressureMslHpa):null);
+      const pressureMin=hourly?null:(pressureComparable?physicalValue(modelSeries.daily.pressureMslMin?.[index],FORECAST_PHYSICAL_LIMITS.pressureMslHpa):null);
+      const pressureMax=hourly?null:(pressureComparable?physicalValue(modelSeries.daily.pressureMslMax?.[index],FORECAST_PHYSICAL_LIMITS.pressureMslHpa):null);
       const cloudCover=hourly?physicalValue(modelSeries.hourly.cloudCover[index],FORECAST_PHYSICAL_LIMITS.cloudPercent):(conditionComparable?dailyCloudCoverMean(modelSeries,key):null);
       const wind=hourly?physicalValue(modelSeries.hourly.windSpeed10m[index],FORECAST_PHYSICAL_LIMITS.windKmh):(windComparable?physicalValue(modelSeries.daily.windSpeedMax[index],FORECAST_PHYSICAL_LIMITS.windKmh):null);
       const windGust=hourly?physicalValue(modelSeries.hourly.windGusts10m[index],FORECAST_PHYSICAL_LIMITS.gustKmh):(windComparable?physicalValue(modelSeries.daily.windGustsMax[index],FORECAST_PHYSICAL_LIMITS.gustKmh):null);
@@ -464,13 +469,16 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       const precipTemperature=hourly?temperature:dailyPrecipitationTemperature(modelSeries,key);
       const conditionResult=conditionComparable?(hourly?hourlyCondition(modelSeries,index):dailyCondition(modelSeries,key)):{condition:null,inferred:false};
       const condition=conditionResult.condition,conditionInferred=conditionResult.inferred;
-      if([temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,windDirection,precipTemperature].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN)){
-        snaps.push({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,cloudCover,wind,windGust,windDirection,precipTemperature,condition,conditionInferred});
+      if([temperature,tempMin,tempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,cloudCover,wind,windGust,windDirection,precipTemperature].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN)){
+        snaps.push({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,cloudCover,wind,windGust,windDirection,precipTemperature,condition,conditionInferred});
       }
     }
 
     const tempEntries=snaps.map(row=>({modelId:row.modelId,value:hourly?row.temperature:row.tempMax}));
     const minEntries=hourly?[]:snaps.map(row=>({modelId:row.modelId,value:row.tempMin}));
+    const pressureEntries=snaps.map(row=>({modelId:row.modelId,value:row.pressure}));
+    const pressureMinEntries=hourly?[]:snaps.map(row=>({modelId:row.modelId,value:row.pressureMin}));
+    const pressureMaxEntries=hourly?[]:snaps.map(row=>({modelId:row.modelId,value:row.pressureMax}));
     const windEntries=snaps.map(row=>({modelId:row.modelId,value:row.wind}));
     const gustEntries=snaps.map(row=>({modelId:row.modelId,value:row.windGust}));
     const cloudEntries=snaps.map(row=>({modelId:row.modelId,value:row.cloudCover}));
@@ -478,6 +486,9 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
 
     const temperatureForecast=forecastEngineContinuous(tempEntries,engineConfig(options,'temperature',.5,3,hourly?{calibration:{}}:{leadDay:calibrationLeadDay}));
     const minForecast=hourly?null:forecastEngineContinuous(minEntries,engineConfig(options,'temperature',.5,3,{calibration:{}}));
+    const pressureForecast=forecastEngineContinuous(pressureEntries,engineConfig(options,'pressure',.5,8,{calibration:{}}));
+    const pressureMinForecast=hourly?null:forecastEngineContinuous(pressureMinEntries,engineConfig(options,'pressure',.5,8,{calibration:{}}));
+    const pressureMaxForecast=hourly?null:forecastEngineContinuous(pressureMaxEntries,engineConfig(options,'pressure',.5,8,{calibration:{}}));
     const windForecast=forecastEngineContinuous(windEntries,engineConfig(options,'wind',2,12,hourly?{min:0,calibration:{}}:{min:0,leadDay:calibrationLeadDay}));
     const gustForecast=forecastEngineContinuous(gustEntries,engineConfig(options,'wind',2,12,{min:0,calibration:{}}));
     const cloudForecast=forecastEngineContinuous(cloudEntries,engineConfig(options,'condition',10,50,{min:0,max:100}));
@@ -490,6 +501,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     // It describes the spread of the raw model families; only the central forecast uses the engine.
     const temperatureAgreement=continuousConsensus(tempEntries,weights.temperature||{},.5,3);
     const minAgreement=hourly?null:continuousConsensus(minEntries,weights.temperature||{},.5,3);
+    const pressureAgreement=continuousConsensus(pressureEntries,{},.5,8);
     const windAgreement=continuousConsensus(windEntries,weights.wind||{},2,12);
     const gustAgreement=continuousConsensus(gustEntries,weights.wind||{},3,18);
     const cloudAgreement=continuousConsensus(cloudEntries,{},10,50);
@@ -527,6 +539,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     const precipitationAmounts=snaps.map(row=>row.precipitation).filter(Number.isFinite);
     const precipitationExpectedAmounts=snaps.map(row=>Number.isFinite(row.precipitation)?(Number.isFinite(row.precipitationProbability)?row.precipitation*(row.precipitationProbability/100):row.precipitation):null).filter(Number.isFinite);
     const probabilities=snaps.map(row=>row.precipitationProbability).filter(Number.isFinite);
+    const pressures=snaps.map(row=>row.pressure).filter(Number.isFinite);
     const clouds=snaps.map(row=>row.cloudCover).filter(Number.isFinite);
     const winds=snaps.map(row=>row.wind).filter(Number.isFinite);
     const gusts=snaps.map(row=>row.windGust).filter(Number.isFinite);
@@ -557,6 +570,12 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       precipitationExpectedMaxAcrossModelsMm:precipitationExpectedAmounts.length?Math.max(...precipitationExpectedAmounts):null,
       precipitationProbabilityMin:probabilities.length?Math.min(...probabilities):null,
       precipitationProbabilityMax:probabilities.length?Math.max(...probabilities):null,
+      pressureMslHpa:pressureForecast.central,
+      pressureMslMinHpa:hourly?null:pressureMinForecast?.central??null,
+      pressureMslMaxHpa:hourly?null:pressureMaxForecast?.central??null,
+      pressureMslMinAcrossModels:pressures.length?Math.min(...pressures):null,
+      pressureMslMaxAcrossModels:pressures.length?Math.max(...pressures):null,
+      pressureAgreementPercent:pressureAgreement.convergencePercent,
       cloudCoverPercent:Number.isFinite(cloudForecast.central)?Math.round(cloudForecast.central):null,
       cloudCoverMinAcrossModels:clouds.length?Math.min(...clouds):null,
       cloudCoverMaxAcrossModels:clouds.length?Math.max(...clouds):null,
@@ -579,11 +598,14 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       consensusLevel:Number.isFinite(consensusPercent)?(consensusPercent>=75?'HIGH':consensusPercent>=50?'MEDIUM':'LOW'):null,
       divergenceReasons:[...new Set(divergence)],
       forecastEngine:options?.forecastEngine||DEFAULT_FORECAST_ENGINE,
-      modelValues:options?.includeModelValues?snaps.map(({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,wind,windGust,windDirection,condition})=>({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,wind,windGust,windDirection,condition})):undefined,
+      modelValues:options?.includeModelValues?snaps.map(({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,wind,windGust,windDirection,condition})=>({modelId,temperature,tempMin,tempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,wind,windGust,windDirection,condition})):undefined,
       engineDetails:{
         temperature:forecastEngineSummary(temperatureForecast),
         tempMin:minForecast?forecastEngineSummary(minForecast):null,
         precipitation:forecastEngineSummary(precipitationForecast),
+        pressure:forecastEngineSummary(pressureForecast),
+        pressureMin:pressureMinForecast?forecastEngineSummary(pressureMinForecast):null,
+        pressureMax:pressureMaxForecast?forecastEngineSummary(pressureMaxForecast):null,
         cloud:forecastEngineSummary(cloudForecast),
         wind:forecastEngineSummary(windForecast),
         gust:forecastEngineSummary(gustForecast),

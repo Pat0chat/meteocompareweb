@@ -20,8 +20,9 @@ const analysisTime=new Date(now.getTime()+10*60_000);
 const raw={timezone:'UTC',hourly:{time:timestamps},daily:{time:[date]}};
 
 for(const [index,model] of models.entries()){
-  const suffix=model.apiKey,temperature=17+index*1.4,rain=index===3?.8:index===2?.25:0,probability=15+index*22,wind=12+index*4;
+  const suffix=model.apiKey,temperature=17+index*1.4,pressure=1008+index*3,rain=index===3?.8:index===2?.25:0,probability=15+index*22,wind=12+index*4;
   raw.hourly[`temperature_2m_${suffix}`]=timestamps.map((_,hour)=>temperature+Math.sin(hour/24*Math.PI*2)*5);
+  raw.hourly[`pressure_msl_${suffix}`]=timestamps.map((_,hour)=>pressure+Math.sin(hour/24*Math.PI*2)*4);
   raw.hourly[`precipitation_${suffix}`]=timestamps.map((_,hour)=>hour>=10&&hour<=14?rain:0);
   raw.hourly[`precipitation_probability_${suffix}`]=timestamps.map((_,hour)=>hour>=10&&hour<=14?probability:5);
   raw.hourly[`cloud_cover_${suffix}`]=timestamps.map((_,hour)=>hour>=10&&hour<=14?55+index*10:20+index*5);
@@ -31,6 +32,9 @@ for(const [index,model] of models.entries()){
   raw.hourly[`weather_code_${suffix}`]=timestamps.map((_,hour)=>hour>=10&&hour<=14&&index>=2?61:index===3?3:2);
   raw.daily[`temperature_2m_max_${suffix}`]=[temperature+5];
   raw.daily[`temperature_2m_min_${suffix}`]=[temperature-3];
+  raw.daily[`pressure_msl_mean_${suffix}`]=[pressure];
+  raw.daily[`pressure_msl_min_${suffix}`]=[pressure-4];
+  raw.daily[`pressure_msl_max_${suffix}`]=[pressure+4];
   raw.daily[`precipitation_sum_${suffix}`]=[rain*5];
   raw.daily[`precipitation_probability_max_${suffix}`]=[probability];
   raw.daily[`wind_speed_10m_max_${suffix}`]=[wind];
@@ -60,6 +64,7 @@ for(const forecastEngine of FORECAST_ENGINES){
   assert.ok(Number.isFinite(day.tempMin)&&Number.isFinite(day.tempMax)&&day.tempMin<=day.tempMax,`${forecastEngine}: daily temperature range must stay coherent`);
   assert.ok(Number.isFinite(day.precip)&&day.precip>=0,`${forecastEngine}: daily precipitation must stay non-negative`);
   assert.equal(timeline.length,24,`${forecastEngine}: the complete normalized hourly axis must reach the chronology`);
+  assert.ok(timeline.every(point=>Number.isFinite(point.pressureMslHpa)&&point.pressureMslHpa>=800&&point.pressureMslHpa<=1100),`${forecastEngine}: MSL pressure must survive provider normalization and engine selection`);
   assert.ok(timeline.every(point=>point.modelCount===models.length&&point.familyCount>=2),`${forecastEngine}: model/family evidence must survive the pipeline`);
   assert.ok(scenarios.length>=1&&scenarios.length<=3,`${forecastEngine}: 12 h scenarios must remain bounded`);
 

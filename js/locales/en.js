@@ -551,6 +551,8 @@ export const catalog = Object.freeze({
   "offline":"Offline — showing local cache.",
   "today":"Today",
   "temperature":"Temperature",
+  "pressureMsl":"MSL pressure",
+  "pressureMslDescription":"Atmospheric pressure reduced to mean sea level",
   "precipitation":"Precipitation",
   "wind":"Wind",
   "gusts":"Gusts",
