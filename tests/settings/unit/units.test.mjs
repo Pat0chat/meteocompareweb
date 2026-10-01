@@ -50,7 +50,7 @@ assert.equal(chartMetricUnitFor('WIND','IMPERIAL'),'mph');
 const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
 assert.match(app,/data-unit-system="\$\{id\}"/,'Settings must expose the unit system selector');
 assert.match(app,/state\.settings\.unitSystem=target\.dataset\.unitSystem/,'unit selection must persist through the central settings state');
-assert.match(app,/measurement\('length',e\.value\)/,'marine tide rows must respect the selected unit system');
+assert.match(app,/measurement\('length',e\.value,\{digits:2\}\)/,'marine tide rows must respect the selected unit system and preserve tide precision');
 assert.match(app,/modelResolutionLabel\(m\.resolutionKm\)/,'model resolution must use the selected distance unit');
 assert.match(app,/chartDisplayUnit\(metric\)/,'chart units must follow the selected unit system');
 

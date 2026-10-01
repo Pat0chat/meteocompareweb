@@ -3,6 +3,7 @@ import { isWetPrecipitation } from '../consensus.js';
 import { fetchBlobResource, fetchJsonResource } from '../network.js';
 import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from '../network-config.js';
 import { escapeHtml as esc } from '../ui/html.js';
+import { convertUnitValue, isImperial, unitDigits, unitSymbol } from '../units.js';
 const RADAR_META_URL=NETWORK_ENDPOINTS.radar.metadata;
 const OSM_TILE_URL=NETWORK_ENDPOINTS.radar.osmTileTemplate;
 const RADAR_META_TTL_MS=5*60_000;
@@ -21,6 +22,11 @@ export const RADAR_CELL_COLORS=Object.freeze(['#0ea5e9','#8b5cf6','#f97316','#10
 let metaCache=null;
 let metaCacheAt=0;
 let controller=null;
+function fallbackMeasurement(kind,value,unitSystem,locale,{compact=false}={}){
+  const converted=convertUnitValue(kind,value,unitSystem);if(!Number.isFinite(converted))return '—';
+  let digits=unitDigits(kind,unitSystem,{compact});if(kind==='precipitation'&&isImperial(unitSystem)&&Math.abs(converted)>0&&Math.abs(converted)<.01)digits=3;
+  return `${converted.toLocaleString(locale,{minimumFractionDigits:digits,maximumFractionDigits:digits})} ${unitSymbol(kind,unitSystem)}`;
+}
 const radarTimeFormatters=new Map();
 function radarTimeFormatter(locale,timezone){
   const key=`${locale}|${timezone}`;let formatter=radarTimeFormatters.get(key);
@@ -314,9 +320,9 @@ function applyRadarGeometry(image,rangeConfig){
   image.style.transform='translate(-50%,-50%)';
 }
 
-function renderForecast(container,forecast,{t,locale,forecastOptions=null,formatPrecipitation=value=>Number.isFinite(value)?`${value.toLocaleString(locale,{maximumFractionDigits:1})} mm`:'—'}){
-  const hours=radarForecastHours(forecast,Date.now(),4,forecastOptions||{}),timezone=forecast?.city?.timezone||forecast?.timezone||'UTC',trend=radarForecastTrend(hours),trendKey={approaching:'radarTrendApproaching',leaving:'radarTrendLeaving',persistent:'radarTrendPersistent',quiet:'radarTrendQuiet',uncertain:'radarTrendUncertain'}[trend];
-  const cards=hours.map(row=>`<div class="radar-forecast-hour"><span>${esc(hourText(row.epochMs,locale,timezone))}</span><strong>${Number.isFinite(row.probabilityPercent)?Math.round(row.probabilityPercent)+' %':'—'}</strong><small>${Number.isFinite(row.amountMm)?formatPrecipitation(row.amountMm):'—'} · ${row.modelCount} ${esc(t(row.modelCount===1?'modelSingular':'models'))}</small></div>`).join('');
+function renderForecast(container,forecast,{t,locale,forecastOptions=null,formatPrecipitation=null,unitSystem='METRIC'}){
+  const formatAmount=formatPrecipitation||((value)=>fallbackMeasurement('precipitation',value,unitSystem,locale)),hours=radarForecastHours(forecast,Date.now(),4,forecastOptions||{}),timezone=forecast?.city?.timezone||forecast?.timezone||'UTC',trend=radarForecastTrend(hours),trendKey={approaching:'radarTrendApproaching',leaving:'radarTrendLeaving',persistent:'radarTrendPersistent',quiet:'radarTrendQuiet',uncertain:'radarTrendUncertain'}[trend];
+  const cards=hours.map(row=>`<div class="radar-forecast-hour"><span>${esc(hourText(row.epochMs,locale,timezone))}</span><strong>${Number.isFinite(row.probabilityPercent)?Math.round(row.probabilityPercent)+' %':'—'}</strong><small>${Number.isFinite(row.amountMm)?formatAmount(row.amountMm):'—'} · ${row.modelCount} ${esc(t(row.modelCount===1?'modelSingular':'models'))}</small></div>`).join('');
   container.innerHTML=`<div class="radar-trend ${trend}"><span class="radar-trend-dot" aria-hidden="true"></span><div><strong>${esc(t(trendKey))}</strong><small>${esc(t('radarTrendModelNote'))}</small></div></div>${hours.length?`<div class="radar-forecast-hours">${cards}</div>`:`<div class="radar-empty-small">${esc(t('radarForecastUnavailable'))}</div>`}`;
 }
 
@@ -436,17 +442,17 @@ function cleanup(){
 
 export function destroyRadarModal(){cleanup();}
 
-export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',formatPrecipitation=null,formatWind=null,initialMode='observation',initialRange='near',initialHorizon=30,initialFullscreen=false,onRangeChange=null,onModeChange=null,onHorizonChange=null,onFullscreenChange=null,onRecalculate=null}){
+export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',unitSystem='METRIC',formatPrecipitation=null,formatWind=null,initialMode='observation',initialRange='near',initialHorizon=30,initialFullscreen=false,onRangeChange=null,onModeChange=null,onHorizonChange=null,onFullscreenChange=null,onRecalculate=null}){
   cleanup();if(!root||!city)return;
   const abortController=new AbortController(),mode=['observation','projection'].includes(initialMode)?initialMode:'observation',range=initialRange in RADAR_RANGE_CONFIG?initialRange:'near',horizon=RADAR_PROJECTION_HORIZONS.includes(Number(initialHorizon))?Number(initialHorizon):30,fullscreen=Boolean(initialFullscreen);
-  controller={root,city,forecast,t,locale,formatPrecipitation:formatPrecipitation||((value)=>Number.isFinite(value)?`${value.toLocaleString(locale,{maximumFractionDigits:1})} mm`:'—'),formatWind:formatWind||((value)=>Number.isFinite(value)?`${Math.round(value)} km/h`:'—'),index:0,range,mode,horizon,fullscreen,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false,recalculateBusy:false,identityRegistry:[],nextCellId:1,coverageRanges:new Set(),coverageBusy:new Set()};root.dataset.radarMode=mode;root.dataset.radarHorizon=String(horizon);root.dataset.radarFullscreen=String(fullscreen);
+  controller={root,city,forecast,t,locale,formatPrecipitation:formatPrecipitation||((value)=>fallbackMeasurement('precipitation',value,unitSystem,locale)),formatWind:formatWind||((value)=>fallbackMeasurement('wind',value,unitSystem,locale,{compact:true})),index:0,range,mode,horizon,fullscreen,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false,recalculateBusy:false,identityRegistry:[],nextCellId:1,coverageRanges:new Set(),coverageBusy:new Set()};root.dataset.radarMode=mode;root.dataset.radarHorizon=String(horizon);root.dataset.radarFullscreen=String(fullscreen);
   root.querySelectorAll('[data-radar-mode]').forEach(button=>{const active=button.dataset.radarMode===mode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   root.querySelectorAll('[data-radar-horizon]').forEach(button=>{const active=Number(button.dataset.radarHorizon)===horizon;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   const modal=root.closest?.('.radar-modal'),fullscreenButton=modal?.querySelector?.('[data-radar-fullscreen]');
   const syncFullscreen=(repaint=true)=>{if(!controller)return;modal?.classList?.toggle('is-fullscreen',controller.fullscreen);root.dataset.radarFullscreen=String(controller.fullscreen);if(fullscreenButton){fullscreenButton.setAttribute('aria-pressed',String(controller.fullscreen));fullscreenButton.setAttribute('aria-label',t(controller.fullscreen?'radarExitFullscreen':'radarEnterFullscreen'));fullscreenButton.title=t(controller.fullscreen?'radarExitFullscreen':'radarEnterFullscreen');}if(repaint)requestAnimationFrame(()=>{if(!controller)return;paintBase();paintFrame();});};
   const status=root.querySelector('[data-radar-status]'),stage=root.querySelector('[data-radar-stage]'),radarImage=root.querySelector('[data-radar-image]'),timeLabel=root.querySelector('[data-radar-time]'),slider=root.querySelector('[data-radar-slider]'),play=root.querySelector('[data-radar-play]'),forecastRoot=root.querySelector('[data-radar-forecast]');
-  if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale,forecastOptions,formatPrecipitation:controller.formatPrecipitation});
+  if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale,forecastOptions,formatPrecipitation:controller.formatPrecipitation,unitSystem});
   if(!stage||!radarImage)return;
   const paintBase=()=>{const rangeConfig=RADAR_RANGE_CONFIG[controller?.range]||RADAR_RANGE_CONFIG.near;renderBaseTiles(stage,city,rangeConfig.mapZoom);applyRadarGeometry(radarImage,rangeConfig);paintNowcast();};syncFullscreen(false);paintBase();
   if(typeof ResizeObserver!=='undefined'){controller.resizeObserver=new ResizeObserver(paintBase);controller.resizeObserver.observe(stage);}

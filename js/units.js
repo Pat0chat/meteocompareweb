@@ -68,8 +68,12 @@ export function chartMetricKind(metric){
 export function convertChartMetric(metric,value,unitSystem){
   const kind=chartMetricKind(metric);return kind?convertUnitValue(kind,value,unitSystem):value;
 }
+export function convertChartMetricDelta(metric,value,unitSystem){
+  const kind=chartMetricKind(metric);if(kind==='temperature')return convertUnitValue('temperatureDelta',value,unitSystem);return kind?convertUnitValue(kind,value,unitSystem):value;
+}
+const PERCENT_CHART_METRICS = new Set(['PRECIPITATION_PROBABILITY','CLOUD','AGREEMENT']);
 export function chartMetricUnitFor(metric,unitSystem){
-  const kind=chartMetricKind(metric);return kind?unitSymbol(kind,unitSystem):'%';
+  const kind=chartMetricKind(metric);if(kind)return unitSymbol(kind,unitSystem);return PERCENT_CHART_METRICS.has(metric)?'%':'';
 }
 export function chartMetricDigitsFor(metric,unitSystem){
   const kind=chartMetricKind(metric);return kind?unitDigits(kind,unitSystem,{compact:true}):0;
