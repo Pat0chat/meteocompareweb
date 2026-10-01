@@ -251,3 +251,7 @@ The city Details view can now use one of four forecast engines: **Multi-consensu
 ## Vigilance Météo-France
 
 La Home et la page détails peuvent afficher la Vigilance officielle Météo-France (jaune/orange/rouge) sans l'intégrer au consensus météo. L'accès API passe exclusivement par le Worker Cloudflare et nécessite le secret `METEOFRANCE_API_KEY`. La procédure de souscription, de stockage du secret et de preview local est détaillée dans `VIGILANCE_METEOFRANCE.md`.
+
+## Unités
+
+Les réglages proposent des unités d’affichage **Métrique / Impérial** globales sur le Web et la PWA, sans modifier les unités canoniques utilisées pour les calculs météo.

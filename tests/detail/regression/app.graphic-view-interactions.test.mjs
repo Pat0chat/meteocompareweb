@@ -7,7 +7,7 @@ const css=fs.readFileSync(new URL('../../../styles.css',import.meta.url),'utf8')
 assert.match(app,/data-graphic-tooltip-target="temperature"/);
 assert.match(app,/data-graphic-tooltip-target="rain"/);
 assert.match(app,/data-graphic-tooltip-target="wind"/);
-assert.match(app,/<span class="graphic-temp-value">\$\{fmt\(point\.temperatureC\)\}°<\/span>/);
+assert.match(app,/<span class="graphic-temp-value">\$\{fmt\(unitValue\('temperature',point\.temperatureC\)\)\}°<\/span>/);
 assert.doesNotMatch(app,/index%6===0\?`<span class="graphic-temp-value">/);
 
 // Dates live in their own row under the hourly timeline; hourly cells only show the hour.

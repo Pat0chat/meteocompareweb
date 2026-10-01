@@ -22,7 +22,7 @@ assert.match(engineComparison,/data-engine-chart-variable/,'comparison must expo
 assert.match(engineComparison,/cloudCoverage/,'cloud cover must be selectable and present in the comparison');
 assert.equal((engineComparison.match(/renderForecastEngineLineChart\(dates,matrix,selected,chartConfig\)/g)||[]).length,1,'comparison must render one selected-variable chart at a time');
 assert.match(engineComparison,/forecast-engine-snapshot/,'comparison must start with an actionable divergence snapshot');
-assert.match(engineComparison,/forecast-engine-chart-interval \$\{kind\}/,'selected engine ranges must be rendered on the chart');
+assert.match(engineComparison,/forecast-engine-chart-interval \$\{barKind\}/,'selected engine ranges must be rendered on the chart');
 assert.match(engineComparison,/all-sources',30/,'chart must expose the broad all-source spread');
 assert.match(engineComparison,/retained',10/,'chart must expose the narrower retained engine range');
 assert.match(engineComparison,/data-engine-detail-date/,'the divergence timeline must select the detailed day');

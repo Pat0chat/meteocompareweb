@@ -44,7 +44,7 @@ assert.match(app,/biasDailyAbsoluteError/,'recent trend must expose daily absolu
 assert.match(app,/biasRollingMae7d/,'recent trend must expose a 7-day moving average');
 assert.match(app,/data-hover-chart="bias-history"/,'ERA5 history must support chart hover interaction');
 assert.match(app,/data-hover-date-style="FULL_DATE"/,'reliability charts must use full localized dates for hover');
-assert.match(app,/biasFullDateLabel\(samples\[i\]\.date\)/,'ERA5 history axis must render localized real dates instead of MM-DD slices');
+assert.match(app,/biasFullDateLabel\(displaySamples\[i\]\.date\)/,'ERA5 history axis must render localized real dates instead of MM-DD slices');
 assert.match(app,/class="bias-overview-grid"/,'performance and recent evolution must share one outer panel');
 assert.match(app,/class="bias-diagnostics-grid"/,'distribution and bias reading must share one outer panel');
 assert.match(css,/\.bias-overview-grid \{/,'combined reliability overview must be styled');

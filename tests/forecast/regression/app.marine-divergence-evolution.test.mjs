@@ -25,9 +25,9 @@ assert.match(css,/\.forecast-engine-chart-divergence-bg\.low[\s\S]*var\(--good\)
 assert.match(css,/\.forecast-engine-chart-divergence-bg\.medium[\s\S]*var\(--medium\)/,'medium divergence graph background must use the warning semantic tone');
 assert.match(css,/\.forecast-engine-chart-divergence-bg\.high[\s\S]*var\(--low\)/,'high divergence graph background must use the danger semantic tone');
 
-assert.match(app,/temperature:\{label:t\('temperature'\),unit:' °C',threshold:\.5[\s\S]*?icon:/,'temperature evolution must expose its ±0.5 °C stability threshold');
-assert.match(app,/precipitation:\{label:t\('precipitation'\),unit:' mm',threshold:1[\s\S]*?icon:/,'precipitation evolution must expose its ±1 mm stability threshold');
-assert.match(app,/wind:\{label:t\('wind'\),unit:' km\/h',threshold:3[\s\S]*?icon:/,'wind evolution must expose its ±3 km/h stability threshold');
+assert.match(app,/temperature:\{label:t\('temperature'\),unit:` \${unitLabel\('temperature'\)}`,kind:'temperature',deltaKind:'temperatureDelta',threshold:unitValue\('temperatureDelta',\.5\)[\s\S]*?icon:/,'temperature evolution must expose its converted stability threshold');
+assert.match(app,/precipitation:\{label:t\('precipitation'\),unit:` \${unitLabel\('precipitation'\)}`,kind:'precipitation',deltaKind:'precipitation',threshold:unitValue\('precipitation',1\)[\s\S]*?icon:/,'precipitation evolution must expose its converted stability threshold');
+assert.match(app,/wind:\{label:t\('wind'\),unit:` \${unitLabel\('wind'\)}`,kind:'wind',deltaKind:'wind',threshold:unitValue\('wind',3\)[\s\S]*?icon:/,'wind evolution must expose its converted stability threshold');
 assert.match(app,/evolution-threshold-band/,'evolution mini charts must render a threshold band');
 assert.match(app,/evolution-threshold-line/,'evolution mini charts must render visible threshold boundaries');
 assert.match(app,/evolution-track-y-axis/,'evolution mini charts must render a y axis');

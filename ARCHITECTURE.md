@@ -56,7 +56,7 @@ Le Worker ne stocke ni IP brute ni User-Agent brut. Ils servent uniquement au ps
 
 Raw model-agreement metrics deliberately stay outside this boundary: `dayConfidence()` and disagreement diagnostics continue to describe source-model convergence rather than the output of a chosen post-processor.
 
-## Frontière Vigilance officielle
+## Vigilance officielle
 
 `js/features/vigilance.js` est la frontière navigateur de la Vigilance Météo-France. Cette donnée de sécurité est volontairement indépendante du moteur de prévision et de `consensus.js` : elle ne modifie aucun poids de modèle, aucune condition consensus ni aucun scénario 12 h.
 
@@ -70,3 +70,7 @@ The Web topbar exposes a passive system monitoring center. `/_mcx/health` checks
 ## Utilitaires de shell HTML
 
 `js/server/html-shell.js` centralise l’injection sûre de `<base>` utilisée par le build SEO, le serveur de preview et le Worker pour les routes imbriquées. Une modification de la résolution des assets ne doit pas recopier de regex dans plusieurs runtimes.
+
+## Unités d’affichage
+
+Les données météo, seuils, calculs de consensus et historiques persistés restent dans leurs unités métriques canoniques. `js/units.js` constitue la frontière de présentation : `settings.unitSystem` sélectionne `METRIC` (par défaut) ou `IMPERIAL`, puis les valeurs visibles sont converties au rendu. Les calculs restent ainsi stables et le changement d’unité est instantané sur le Web comme dans la PWA, sans nouvelle récupération des prévisions.
