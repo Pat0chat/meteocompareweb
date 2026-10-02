@@ -9,7 +9,7 @@ const section=scenarios.slice(scenarios.indexOf('function renderScenarios('));
 
 assert.match(renderer,/visible\.map\(\(s,index\)=>/,'the first ranked scenario must be identifiable as the main scenario');
 assert.match(renderer,/scenario-primary-badge/);
-assert.match(renderer,/scenarioTimingMarkup\(s\)/,'wet scenarios must expose an early/middle/late timing ribbon');
+assert.match(renderer,/scenarioTimingMarkup\(s,\{dayMode\}\)/,'wet scenarios must expose an early/middle/late timing ribbon in both 12 h and daily modes');
 assert.match(renderer,/scenario-weight-track/,'family support must have a compact visual rail');
 assert.match(renderer,/--scenario-share:\$\{share\}%/);
 assert.match(renderer,/scenarioFamilyWeightCompact/,'compact scenario rows must label their percentage as weight');

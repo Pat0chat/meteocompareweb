@@ -6266,3 +6266,18 @@ body.graphic-view-open .user-messages-shell.is-compact .user-message { padding:8
 body.graphic-view-open .user-messages-shell.is-compact .user-message-icon { width:28px; height:28px; border-radius:8px; }
 body.graphic-view-open .user-messages-shell.is-compact .user-message-copy p { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 @media(max-width:700px){.user-messages-shell{padding-inline:20px;margin:18px auto 24px}.user-message{grid-template-columns:30px minmax(0,1fr) auto;padding:10px}.user-message-icon{width:28px;height:28px}.user-messages-region{padding:9px}body.graphic-view-open .user-messages-shell.is-compact{right:9px;bottom:max(9px,env(safe-area-inset-bottom));width:calc(100% - 18px)}}
+
+/* Scenario horizon switch: selector lives below the heading so the title keeps
+   its full width. J+1 through J+4 reuse the same three-card presentation as 12 h. */
+.scenario-section-head { flex-direction:column; align-items:stretch; gap:9px; }
+.scenario-section-copy { min-width:0; width:100%; }
+.scenario-mode-selector { flex:0 0 auto; align-self:flex-start; }
+.scenario-day-selected { min-width:0; }
+.scenario-day-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:0 1px 7px; }
+.scenario-day-head strong { min-width:0; color:var(--text); font-size:.80rem; line-height:1.3; text-transform:capitalize; }
+.scenario-day-head span { flex:0 0 auto; color:var(--muted); font-size:var(--type-micro); line-height:1.3; }
+.scenario-empty { padding:8px 1px; color:var(--muted); }
+@media(max-width:560px){
+  .scenario-mode-selector { width:100%; }
+  .scenario-mode-selector .seg-btn { flex:1 1 0; }
+}

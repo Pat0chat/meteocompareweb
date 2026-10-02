@@ -655,6 +655,68 @@ export function buildScenarios(forecast,maxScenarios=3){
   return out.slice(0,limit);
 }
 
+
+function dailyScenarioTiming(series,date){
+  const wetHours=[];
+  const hourly=series?.hourly||{};
+  for(let i=0;i<(hourly.timestamps||[]).length;i++){
+    const timestamp=hourly.timestamps[i];
+    if(typeof timestamp!=='string'||timestamp.slice(0,10)!==date)continue;
+    const precipitation=physicalValue(hourly.precipitation?.[i],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm),condition=fromWmoCode(physicalValue(hourly.weatherCode?.[i],FORECAST_PHYSICAL_LIMITS.weatherCode));
+    if(!isWetPrecipitation(precipitation)&&!WET.has(condition))continue;
+    const hour=Number(timestamp.slice(11,13));
+    if(Number.isFinite(hour))wetHours.push(hour);
+  }
+  if(!wetHours.length)return 'NONE';
+  const segments=new Set(wetHours.map(hour=>hour<8?'EARLY':hour<16?'MIDDLE':'LATE'));
+  if(segments.size===3)return 'THROUGHOUT';
+  const sorted=[...wetHours].sort((a,b)=>a-b),medianHour=sorted[Math.floor(sorted.length/2)];
+  return medianHour<8?'EARLY':medianHour<16?'MIDDLE':'LATE';
+}
+function dailyScenarioKind({condition,precipitation,cloud}){
+  if(condition===CONDITION.THUNDERSTORM)return 'THUNDERSTORM';
+  if(condition===CONDITION.FREEZING_RAIN)return 'FREEZING_RAIN';
+  if([CONDITION.SNOW,CONDITION.SNOW_SHOWERS].includes(condition))return 'SNOW';
+  if(condition===CONDITION.RAIN||Number.isFinite(precipitation)&&precipitation>=2)return 'RAIN';
+  if([CONDITION.DRIZZLE,CONDITION.RAIN_SHOWERS].includes(condition)||isWetPrecipitation(precipitation))return 'SHOWERS';
+  if(Number.isFinite(cloud))return cloud<30?'CLEAR':cloud<70?'VARIABLE_SKY':'OVERCAST';
+  if([CONDITION.OVERCAST,CONDITION.FOG].includes(condition))return 'OVERCAST';
+  if(condition===CONDITION.PARTLY_CLOUDY)return 'VARIABLE_SKY';
+  if([CONDITION.CLEAR,CONDITION.MAINLY_CLEAR].includes(condition))return 'CLEAR';
+  return 'DRY_UNSPECIFIED';
+}
+function groupDailyScenarioModels(models,maxScenarios=3){
+  if(!models.length)return [];
+  const groups=new Map();
+  for(const x of models){const key=x.kind+'|'+x.timing;groups.set(key,[...(groups.get(key)||[]),x]);}
+  const importance={THUNDERSTORM:8,FREEZING_RAIN:7,SNOW:6,RAIN:5,SHOWERS:4,OVERCAST:3,VARIABLE_SKY:2,CLEAR:1,DRY_UNSPECIFIED:0,OTHER:-1};
+  const scenarioBalance=familyBalancedWeights(models.map(x=>x.modelId)),totalVoteWeight=Object.values(scenarioBalance.weights).reduce((a,b)=>a+b,0)||1;
+  const out=[...groups].map(([key,arr])=>{
+    const [kind,timing]=key.split('|'),voteWeight=arr.reduce((sum,x)=>sum+(scenarioBalance.weights[x.modelId]||0),0),familyCount=new Set(arr.map(x=>consensusGroupFor(x.modelId))).size;
+    return {kind,timing,modelIds:arr.map(x=>x.modelId),modelCount:arr.length,totalModelCount:models.length,familyCount,totalFamilyCount:scenarioBalance.familyCount,voteWeight,voteSharePercent:Math.round(voteWeight*100/totalVoteWeight),tempMin:minFinite(arr.map(x=>x.tempMin)),tempMax:maxFinite(arr.map(x=>x.tempMax)),precipMin:minFinite(arr.map(x=>x.precipTotal)),precipMax:maxFinite(arr.map(x=>x.precipTotal)),cloudMin:minFinite(arr.map(x=>x.cloudMedian)),cloudMax:maxFinite(arr.map(x=>x.cloudMedian)),gustMin:minFinite(arr.map(x=>x.gustMax)),gustMax:maxFinite(arr.map(x=>x.gustMax))};
+  }).sort((a,b)=>b.voteWeight-a.voteWeight||(importance[b.kind]-importance[a.kind]));
+  const limit=Number.isFinite(maxScenarios)?Math.max(0,Math.trunc(maxScenarios)):out.length;
+  return out.slice(0,limit);
+}
+/** Dominant coherent scenarios for future calendar days. Values stay in canonical metric units. */
+export function buildDailyScenarios(forecast,maxDays=6,maxScenariosPerDay=3,now=new Date()){
+  const timezone=forecast.city?.timezone||forecast.timezone||'UTC',today=cityToday(timezone,now),allDates=[...new Set(Object.values(forecast.seriesByModel||{}).flatMap(series=>series?.daily?.dates||[]))].filter(date=>typeof date==='string'&&date>today).sort().slice(0,Math.max(0,Math.trunc(maxDays)));
+  const days=[];
+  for(const date of allDates){
+    const models=[];
+    for(const [modelId,series] of Object.entries(forecast.seriesByModel||{})){
+      const index=series?.daily?.dates?.indexOf(date)??-1;if(index<0)continue;
+      const temperatures=dailyTemperatureValues(series,index),precipitation=physicalValue(series.daily.precipitationSum?.[index],FORECAST_PHYSICAL_LIMITS.precipitationDailyMm),cloud=dailyCloudCoverMean(series,date),gust=physicalValue(series.daily.windGustsMax?.[index],FORECAST_PHYSICAL_LIMITS.gustKmh),condition=dailyCondition(series,date).condition;
+      if(!condition&&![temperatures.min,temperatures.max,precipitation,cloud,gust].some(Number.isFinite))continue;
+      const kind=dailyScenarioKind({condition,precipitation,cloud}),timing=['RAIN','SHOWERS','SNOW','FREEZING_RAIN','THUNDERSTORM'].includes(kind)?dailyScenarioTiming(series,date):'NONE';
+      models.push({modelId,kind,timing,tempMin:temperatures.min,tempMax:temperatures.max,precipTotal:precipitation,cloudMedian:cloud,gustMax:gust});
+    }
+    const scenarios=groupDailyScenarioModels(models,Number.POSITIVE_INFINITY);
+    if(scenarios.length)days.push({date,scenarios:scenarios.slice(0,Math.max(0,Math.trunc(maxScenariosPerDay))),scenarioCount:scenarios.length,modelCount:models.length});
+  }
+  return days;
+}
+
 export function aggregateNormals(raw,startDate,endDate){
   const t=raw?.daily?.time||[],max=raw?.daily?.temperature_2m_max||[],min=raw?.daily?.temperature_2m_min||[];const expected=daysBetween(startDate,endDate)+1;const validDates=new Set();const years=new Set();const acc=new Map();let pairs=0;
   t.forEach((date,i)=>{if(typeof date!=='string'||date<startDate||date>endDate)return;validDates.add(date);years.add(date.slice(0,4));const a=max[i],b=min[i];if(!Number.isFinite(a)||!Number.isFinite(b))return;pairs++;const key=date.slice(5);const x=acc.get(key)||{sumMax:0,sumMin:0,n:0};x.sumMax+=a;x.sumMin+=b;x.n++;acc.set(key,x);});

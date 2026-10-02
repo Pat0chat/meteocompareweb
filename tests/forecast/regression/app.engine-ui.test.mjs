@@ -13,7 +13,7 @@ assert.match(app,/aboutVisualEnginesKicker/);
 assert.match(app,/about-visual-engine-grid/);
 assert.match(app,/aboutVisualEngine\$\{meta\.key\}Short/);
 assert.match(app,/<\/nav><\/div>\$\{renderForecastEngineCompareAction\(\)\}<button class="detail-back-button detail-sidebar-back"/);
-assert.match(app,/renderGlobalAgreementCard\(f,agg,city\.id,consensusProfile\)\}\$\{renderScenarios\(scenarios\)/);
+assert.match(app,/renderGlobalAgreementCard\(f,agg,city\.id,consensusProfile\)\}\$\{renderScenarios\(scenarios,dailyScenarios,cityId,today\)/);
 assert.doesNotMatch(app,/forecast-engine-hero-action/);
 assert.doesNotMatch(app,/function renderInsights\(/);
 assert.match(css,/\.about-visual-engine-grid/);
