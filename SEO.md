@@ -34,6 +34,8 @@ Le catalogue SEO est dans `js/seo-cities.mjs`. Les villes cataloguées utilisent
 ```text
 https://meteocompare.app/meteo/toulouse
 https://meteocompare.app/meteo/paris
+https://meteocompare.app/meteo/tokyo
+https://meteocompare.app/meteo/new-york
 ```
 
 Les routes historiques `#/city/{id}` restent prises en charge. Lorsqu’une ville cataloguée est ouverte directement, elle est chargée sans être ajoutée automatiquement aux favoris ; l’utilisateur peut l’ajouter explicitement.
@@ -65,7 +67,16 @@ Le build génère :
 
 ## P5 — contenu des pages ville
 
-Chaque page contient une présentation géographique stable, une explication de la comparaison multi-modèles, de la convergence/dispersion et une méthode de lecture de MeteoCompare. Le catalogue initial est volontairement limité à 80 villes pour éviter de créer massivement des pages faibles ou quasi dupliquées.
+Chaque page contient une présentation géographique stable, une explication de la comparaison multi-modèles, de la convergence/dispersion et une méthode de lecture de MeteoCompare.
+
+Le catalogue contient désormais :
+
+- les **80 villes françaises** historiques ;
+- le **Top 100 mondial des destinations urbaines Euromonitor International 2025**, utilisé comme signal stable de forte demande internationale. Paris (#1) et Nice (#53) étant déjà présentes dans le catalogue français, le total est de **178 villes uniques**.
+
+Ce choix est volontairement borné : il ne prétend pas être un classement universel des requêtes météo, qui n'est pas publié de manière exhaustive. Il permet en revanche de couvrir les principaux pôles internationaux sans générer des milliers de pages faibles. La source de référence du classement international est : `https://www.euromonitor.com/article/top-100-city-destinations-index-2025-driving-growth-and-innovation`.
+
+Les entrées internationales stockent un code pays ISO, une région, des coordonnées de centre-ville et un fuseau IANA. Les noms de pays sont localisés au runtime avec `Intl.DisplayNames` afin que le contexte géographique reste cohérent dans les cinq langues de l'application.
 
 ## P6 — découverte des pages
 
@@ -82,9 +93,10 @@ Contrôler ensuite au minimum :
 ```text
 dist/index.html
 dist/meteo/toulouse.html
+dist/meteo/tokyo.html
 dist/sitemap.xml
 dist/robots.txt
 dist/_redirects
 ```
 
-Après déploiement, vérifier que `https://meteocompare.app/meteo/toulouse` renvoie directement le HTML de Toulouse et non uniquement le shell générique.
+Après déploiement, vérifier que `https://meteocompare.app/meteo/toulouse` et `https://meteocompare.app/meteo/tokyo` renvoient directement leur HTML pré-rendu et non uniquement le shell générique.

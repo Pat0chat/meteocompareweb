@@ -1376,7 +1376,7 @@ export const catalog = Object.freeze({
   "seoCityNotFoundBody":"This city is not yet available among the indexed weather pages. Search for it to open its forecast.",
   "seoCityContextTitle":"Compare weather models for {city}",
   "seoCityContextLead":"MeteoCompare compares several forecasts to make agreement and differences between models visible.",
-  "seoCityContextLocation":"This page covers {city}, in {department} ({region}). Updated temperature, rain and wind forecasts are loaded directly in the app.",
+  "seoCityContextLocation":"Location: {location}. Updated temperature, rain and wind forecasts are loaded directly in the app.",
   "seoCityContextModels":"For {city}, start with the summary, then review the timeline, convergence, spread and run-to-run evolution. Local historical reliability remains separate from current model agreement.",
   "apiBillingNote":"The provider may count several units for requests covering many variables or long periods.",
   "enabled":"Enabled",

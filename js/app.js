@@ -1112,9 +1112,17 @@ function renderHomeWatchlist(){
   const {t}=i18n(),now=new Date(),items=favoriteCities().map(city=>{const f=state.forecasts[city.id];return f?homeWatchCandidate(city,f,forecastEngineContext(city.id),now):null;}).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,4);
   return `<aside class="home-watch-section" aria-label="${esc(t('homeWatchTitle'))}"><p class="home-watch-lead">${esc(t('homeWatchLead'))}</p>${items.length?`<div class="home-watch-grid">${items.map(item=>`<button class="home-watch-item ${item.tone}" data-action="open-watch-city" data-city-id="${attr(item.city.id)}"><span class="home-watch-icon">${item.icon}</span><span><strong>${esc(item.city.name)}</strong><small>${esc(item.body)}</small></span><span class="home-watch-arrow">→</span></button>`).join('')}</div>`:`<div class="home-watch-clear"><span>✓</span><div><strong>${esc(t('homeWatchClearTitle'))}</strong><p>${esc(t('homeWatchClearBody'))}</p></div></div>`}</aside>`;
 }
+function localizedCountryName(city){
+  const code=String(city?.countryCode||'').trim().toUpperCase();if(!code)return String(city?.country||'').trim();
+  try{return new Intl.DisplayNames([i18n().locale],{type:'region'}).of(code)||String(city?.country||'').trim();}catch{return String(city?.country||'').trim();}
+}
+function seoCityLocationLabel(city){
+  const cityKey=slugifyCityName(city?.name||''),parts=[city?.department,city?.region||city?.admin1,localizedCountryName(city)].map(value=>String(value||'').trim()).filter(value=>value&&slugifyCityName(value)!==cityKey);
+  return [...new Set(parts)].join(' · ');
+}
 function renderSeoDetailTitleContext(city){
   const {t}=i18n(),seo=matchSeoCity(city);if(!seo)return '';
-  return `<div class="detail-seo-context"><strong>${esc(t('seoCityContextTitle',{city:seo.name}))}</strong><span>${esc(t('seoCityContextLead',{city:seo.name}))} ${esc(t('seoCityContextLocation',{city:seo.name,department:seo.department,region:seo.region}))}</span></div>`;
+  return `<div class="detail-seo-context"><strong>${esc(t('seoCityContextTitle',{city:seo.name}))}</strong><span>${esc(t('seoCityContextLead',{city:seo.name}))} ${esc(t('seoCityContextLocation',{city:seo.name,location:seoCityLocationLabel(seo)}))}</span></div>`;
 }
 
 function vigilanceLevelMeta(level){return VIGILANCE_LEVELS[Math.max(1,Math.min(4,Number(level)||1))]||VIGILANCE_LEVELS[1];}

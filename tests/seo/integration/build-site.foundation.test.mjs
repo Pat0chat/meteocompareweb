@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { SEO_CITIES, cityPublicPath } from '../../../js/seo-cities.mjs';
+import { SEO_CITIES, SEO_GLOBAL_CITIES, cityPublicPath } from '../../../js/seo-cities.mjs';
 import { APP_VERSION } from '../../../js/version.js';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../../..');
@@ -16,10 +16,12 @@ const sw=read('sw.js');
 const wrangler=read('wrangler.jsonc');
 
 assert.match(APP_VERSION,/^\d+\.\d+\.\d+$/,'application version must come from the centralized semantic version');
-assert.equal(SEO_CITIES.length,80,'initial SEO catalog should stay intentionally controlled');
+assert.equal(SEO_CITIES.length,178,'SEO catalog should contain 80 French cities plus the global Top 100 with Paris/Nice deduplicated');
+assert.equal(SEO_GLOBAL_CITIES.length,100,'global SEO catalog should preserve the complete Top 100 international destination set');
 assert.equal(new Set(SEO_CITIES.map(city=>city.slug)).size,SEO_CITIES.length,'SEO city slugs must be unique');
 assert.equal(new Set(SEO_CITIES.map(city=>city.id)).size,SEO_CITIES.length,'SEO city ids must be unique');
 assert.equal(cityPublicPath(SEO_CITIES.find(city=>city.slug==='toulouse')),'/meteo/toulouse');
+assert.equal(cityPublicPath(SEO_CITIES.find(city=>city.slug==='tokyo')),'/meteo/tokyo');
 
 assert.match(index,/name="robots" content="index,follow,max-image-preview:large"/);
 assert.match(index,/rel="canonical" href="https:\/\/meteocompare\.app\/"/);
@@ -60,10 +62,22 @@ assert.match(toulouse,/<h1>Météo Toulouse : comparaison des modèles météo<\
 assert.match(toulouse,/Convergence et dispersion des modèles à Toulouse/);
 assert.doesNotMatch(toulouse,/seo-nearby-section|city-list-summary/,'pre-rendered city page must remain free of the removed nearby-city block');
 
+const tokyo=read('dist/meteo/tokyo.html');
+assert.match(tokyo,/<title>Météo Tokyo : comparaison des modèles météo \| MeteoCompare<\/title>/);
+assert.match(tokyo,/rel="canonical" href="https:\/\/meteocompare\.app\/meteo\/tokyo"/);
+assert.match(tokyo,/<h1>Météo Tokyo : comparaison des modèles météo<\/h1>/);
+assert.match(tokyo,/>Japon<\/p>/,'international pre-render should expose a localized country instead of French department copy');
+assert.doesNotMatch(tokyo,/dans le département|France<\/p>/,'international pre-render must not leak France-specific location wording');
+
 const sitemap=read('dist/sitemap.xml');
 const urls=[...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match=>match[1]);
 assert.equal(urls.length,SEO_CITIES.length+1,'sitemap must contain home plus every indexed city');
 assert.ok(urls.includes('https://meteocompare.app/meteo/toulouse'));
+assert.ok(urls.includes('https://meteocompare.app/meteo/tokyo'));
+assert.ok(urls.includes('https://meteocompare.app/meteo/new-york'));
+assert.ok(urls.includes('https://meteocompare.app/meteo/sydney'));
+assert.ok(urls.includes('https://meteocompare.app/meteo/cairo'));
+assert.ok(urls.includes('https://meteocompare.app/meteo/buenos-aires'));
 assert.equal(new Set(urls).size,urls.length,'sitemap URLs must be unique');
 assert.equal(read('dist/robots.txt'),'User-agent: *\nAllow: /\n\nSitemap: https://meteocompare.app/sitemap.xml\n');
 assert.match(read('dist/_redirects'),/\/meteo\/:slug\/ \/meteo\/:slug 301/);
