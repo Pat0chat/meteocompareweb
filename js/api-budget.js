@@ -2,6 +2,7 @@ import { fetchJsonResource } from './network.js';
 const USAGE_KEY='meteocompare.web.api-usage.v1';
 const inFlight=new Map();
 const memoryCache=new Map();
+const MEMORY_CACHE_MAX_ENTRIES=48;
 const LIMITS={minute:120,hour:1000,day:5000}; // local runaway guards, intentionally below provider free-tier limits
 const PROVIDER_LIMITS={minute:600,hour:5000,day:10000,month:300000};
 
@@ -18,15 +19,20 @@ function prune(value,k){
   const categories=value.categories||{};for(const key of Object.keys(categories))if(!key.startsWith(k.month))delete categories[key];value.categories=categories;return value;
 }
 function countBucket(value,key){return Number(value?.buckets?.[key]?.count)||0;}
-function increment(category,url){
-  const now=Date.now(),k=keys(now),value=prune(safeRead(),k);value.buckets||={};value.categories||={};
+function consumeBudget(category,url){
+  const now=Date.now(),k=keys(now),value=prune(safeRead(),k);
+  if(countBucket(value,k.minute)>=LIMITS.minute||countBucket(value,k.hour)>=LIMITS.hour||countBucket(value,k.day)>=LIMITS.day){const err=new Error('LOCAL_API_BUDGET_EXCEEDED');err.code='LOCAL_API_BUDGET_EXCEEDED';throw err;}
+  value.buckets||={};value.categories||={};
   for(const key of [k.minute,k.hour,k.day,k.month]){value.buckets[key]||={count:0};value.buckets[key].count++;}
   value.categories[k.day]||={};value.categories[k.day][category]=(Number(value.categories[k.day][category])||0)+1;
   value.total=(Number(value.total)||0)+1;value.lastAt=now;value.lastHost=new URL(String(url)).host;safeWrite(value);return value;
 }
-function assertBudget(){
-  const value=safeRead(),k=keys();
-  if(countBucket(value,k.minute)>=LIMITS.minute||countBucket(value,k.hour)>=LIMITS.hour||countBucket(value,k.day)>=LIMITS.day){const err=new Error('LOCAL_API_BUDGET_EXCEEDED');err.code='LOCAL_API_BUDGET_EXCEEDED';throw err;}
+function pruneMemoryCache(now=Date.now()){
+  for(const [key,entry] of memoryCache){if(!entry||entry.expiresAt<=now)memoryCache.delete(key);}
+  while(memoryCache.size>=MEMORY_CACHE_MAX_ENTRIES)memoryCache.delete(memoryCache.keys().next().value);
+}
+function remember(key,value,ttlMs){
+  if(!(ttlMs>0))return;const now=Date.now();pruneMemoryCache(now);memoryCache.set(key,{expiresAt:now+ttlMs,value});
 }
 export function apiUsageSnapshot(){
   const value=safeRead(),k=keys();return {minute:countBucket(value,k.minute),hour:countBucket(value,k.hour),day:countBucket(value,k.day),month:countBucket(value,k.month),categories:value.categories?.[k.day]||{},lastAt:value.lastAt||null,limits:{...LIMITS},providerLimits:{...PROVIDER_LIMITS}};
@@ -35,16 +41,16 @@ export function resetApiUsage(){try{localStorage.removeItem(USAGE_KEY);}catch{}}
 
 export async function fetchOpenMeteoJson(url,{timeoutMs=30000,signal=null,category='other',cacheTtlMs=0,dedupe=true}={}){
   const key=String(url),now=Date.now(),cached=memoryCache.get(key);
-  if(cacheTtlMs>0&&cached&&now-cached.at<cacheTtlMs)return cached.value;
+  if(cacheTtlMs>0&&cached&&cached.expiresAt>now)return cached.value;
+  if(cached&&cached.expiresAt<=now)memoryCache.delete(key);
   if(dedupe&&!signal&&inFlight.has(key))return inFlight.get(key);
   const run=(async()=>{
-    assertBudget();
+    consumeBudget(category,url);
     const controller=new AbortController(),abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener?.('abort',abort,{once:true});
     const timer=setTimeout(()=>controller.abort(),timeoutMs);
     try{
-      increment(category,url);
       const json=await fetchJsonResource(url,{signal:controller.signal,timeoutMs:0});if(json?.error){const err=new Error(json.reason||'Open-Meteo error');err.code='OPEN_METEO_ERROR';err.reason=json.reason||'';throw err;}
-      if(cacheTtlMs>0)memoryCache.set(key,{at:Date.now(),value:json});return json;
+      remember(key,json,cacheTtlMs);return json;
     }finally{clearTimeout(timer);signal?.removeEventListener?.('abort',abort);}
   })();
   if(dedupe&&!signal)inFlight.set(key,run);

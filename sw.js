@@ -10,11 +10,12 @@ const SHELL = [
   './', './index.html', './styles.css', './app-version.js', './cache-version.js', './manifest.webmanifest', './manifest.fr.webmanifest', './manifest.en.webmanifest', './manifest.es.webmanifest', './manifest.de.webmanifest', './manifest.it.webmanifest',
   './favicon.ico', './assets/icon.png', './assets/icon-512.png',
   './js/version.js', './js/units.js', './js/network-config.js', './js/network.js', './js/user-messages.js', './js/seo-cities.mjs', './js/models.js', './js/consensus.js', './js/forecast-engines.js', './js/storage.js', './js/data/contracts.js', './js/data/forecast-quality.js', './js/data/forecast-normalizer.js', './js/api-budget.js', './js/api.js', './js/domain.js', './js/i18n.js', './js/errors.js', './js/analytics-config.js', './js/analytics-schema.js', './js/analytics-transport.js', './js/analytics.js', './js/core/app-state.js', './js/core/cache-registry.js', './js/core/feature-registry.js', './js/core/local-analysis-store.js', './js/core/application-kernel.js', './js/ui/weather-icons.js', './js/ui/chart-utils.js', './js/ui/timeline-utils.js', './js/ui/html.js', './js/app.js',
-  './js/locales/fr.js', './js/locales/en.js', './js/locales/es.js', './js/locales/de.js', './js/locales/it.js',
+  './js/locales/fr.js',
   './js/features/vigilance.js'
 ];
 const OPTIONAL_SHELL = [
-  './js/features/bias.js', './js/features/evolution.js', './js/features/comparison.js', './js/features/marine.js', './js/features/radar.js'
+  './js/features/bias.js', './js/features/evolution.js', './js/features/comparison.js', './js/features/marine.js', './js/features/radar.js',
+  './js/locales/en.js', './js/locales/es.js', './js/locales/de.js', './js/locales/it.js'
 ];
 
 self.addEventListener('install', event => {

@@ -1,2 +1,2 @@
 // MeteoCompare Web PWA cache version. Bump whenever runtime/static assets change.
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v204-scenario-horizons4';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v205-performance-audit';

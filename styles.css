@@ -323,8 +323,14 @@ tr.current td:first-child { background: color-mix(in srgb, var(--primary) 6%, va
 .hidden { display: none !important; }
 .search-hint { padding: 8px 2px 2px; }
 
-/* Defer expensive work on repeated home cards only. Settings stays fully laid out: estimated intrinsic heights on a long interactive form cause visible scroll jumps when a section is activated or rerendered. */
-.detail-workspace .section { content-visibility: visible; contain: none; }
+/* Keep the above-the-fold forecast fully laid out, but let the browser skip layout/paint
+   for heavy detail sections until they approach the viewport. Per-section intrinsic sizes
+   preserve anchor geometry on first load; `auto` lets Chromium remember real sizes later. */
+.detail-main > #agreement { content-visibility:auto; contain-intrinsic-size:auto 560px; }
+.detail-main > #evolution { content-visibility:auto; contain-intrinsic-size:auto 760px; }
+.detail-main > #reliability { content-visibility:auto; contain-intrinsic-size:auto 620px; }
+.detail-main > #details { content-visibility:auto; contain-intrinsic-size:auto 960px; }
+.detail-main > #marine { content-visibility:auto; contain-intrinsic-size:auto 1000px; }
 
 @media (max-width: 860px) {
   .page, .topbar-inner { padding-left: 18px; padding-right: 18px; }

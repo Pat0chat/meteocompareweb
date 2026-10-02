@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 
 class MemoryStorage {
-  constructor(){this.map=new Map();}
-  getItem(k){return this.map.has(String(k))?this.map.get(String(k)):null;}
-  setItem(k,v){this.map.set(String(k),String(v));}
+  constructor(){this.map=new Map();this.reads=0;this.writes=0;}
+  getItem(k){this.reads++;return this.map.has(String(k))?this.map.get(String(k)):null;}
+  setItem(k,v){this.writes++;this.map.set(String(k),String(v));}
   removeItem(k){this.map.delete(String(k));}
 }
 globalThis.localStorage=new MemoryStorage();
@@ -20,9 +20,12 @@ globalThis.fetch=async url=>{
 
 const api=await import(`../../../js/api-budget.js?unit=${Date.now()}`);
 api.resetApiUsage();
+localStorage.reads=0;localStorage.writes=0;
 const first=await api.fetchOpenMeteoJson('https://api.open-meteo.com/v1/forecast?x=1',{category:'forecast'});
 assert.equal(first.ok,true);
 assert.equal(calls,1);
+assert.equal(localStorage.reads,1,'a network attempt should parse the API usage ledger only once');
+assert.equal(localStorage.writes,1,'a network attempt should persist the API usage ledger once');
 let snapshot=api.apiUsageSnapshot();
 assert.equal(snapshot.minute,1);
 assert.equal(snapshot.categories.forecast,1);
@@ -31,8 +34,11 @@ assert.equal(snapshot.providerLimits.month,300000);
 const cached=await api.fetchOpenMeteoJson('https://api.open-meteo.com/v1/forecast?x=1',{category:'forecast',cacheTtlMs:60_000});
 // First request did not request caching, so this one performs a fetch and seeds the cache.
 assert.equal(calls,2);
+const readsBeforeCacheHit=localStorage.reads,writesBeforeCacheHit=localStorage.writes;
 const cachedAgain=await api.fetchOpenMeteoJson('https://api.open-meteo.com/v1/forecast?x=1',{category:'forecast',cacheTtlMs:60_000});
 assert.equal(calls,2,'fresh memory cache must avoid network and usage increments');
+assert.equal(localStorage.reads,readsBeforeCacheHit,'fresh memory cache must not touch synchronous localStorage');
+assert.equal(localStorage.writes,writesBeforeCacheHit,'fresh memory cache must not touch synchronous localStorage');
 assert.deepEqual(cachedAgain,cached);
 
 const p1=api.fetchOpenMeteoJson('https://api.open-meteo.com/v1/slow',{category:'forecast'});

@@ -6,6 +6,7 @@ import { FORECAST_PHYSICAL_LIMITS, isWithinPhysicalLimits, evidenceLevelForFamil
 const zonedFormatters = new Map();
 const timezoneValidity = new Map();
 const dateLabelFormatters = new Map();
+const relativeTimeFormatters = new Map();
 function zonedFormatter(tz){
   let f=zonedFormatters.get(tz);
   if(!f){f=new Intl.DateTimeFormat('en-CA',{ timeZone:tz, year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23' });zonedFormatters.set(tz,f);}
@@ -731,7 +732,7 @@ export function timeLabel(localTs){return typeof localTs==='string'&&localTs.inc
 export function relativeAge(iso,locale='fr-FR'){
   if(!iso)return '';
   const parsed=Date.parse(iso);if(!Number.isFinite(parsed))return '';
-  const ms=Date.now()-parsed,rtf=new Intl.RelativeTimeFormat(locale,{numeric:'auto'});
+  const ms=Date.now()-parsed;let rtf=relativeTimeFormatters.get(locale);if(!rtf){rtf=new Intl.RelativeTimeFormat(locale,{numeric:'auto'});relativeTimeFormatters.set(locale,rtf);}
   const abs=Math.abs(ms);
   if(abs<60_000)return rtf.format(0,'second');
   if(abs<3_600_000)return rtf.format(-Math.round(ms/60_000),'minute');
