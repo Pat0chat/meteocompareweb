@@ -1176,6 +1176,7 @@ export const catalog = Object.freeze({
   "supportBodyDetailed":"MeteoCompare es gratuito, de código abierto, sin anuncios ni perfilado. Puedes apoyar el desarrollo y la incorporación de nuevos modelos.",
   "donationLiberapay":"Contribución recurrente adaptada a proyectos libres.",
   "donationKofi":"Donación puntual o apoyo mensual.",
+  "donationGithub":"Apoya el desarrollo a través de GitHub Sponsors.",
   "donationDisclaimer":"Las donaciones no otorgan privilegios: la aplicación y el código son idénticos para todo el mundo.",
   "pwaInstallFirefoxWindows":"En Firefox para Windows, usa el botón de aplicación web de la barra de direcciones.",
   "legendValueAt":"Valor a {when}",

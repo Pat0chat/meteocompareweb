@@ -23,8 +23,8 @@ assert.match(app,/function renderAbout\(/,'about page renderer exists');
 assert.match(app,/data-action="about"/,'About is exposed in the main navigation');
 assert.match(app,/data-action="donate"/,'Support is exposed in the main navigation');
 assert.match(app,/play\.google\.com\/store\/apps\/details\?id=com\.meteocompare\.app/,'topbar install menu links to the Android Play Store app');
-for (const host of ['liberapay.com/Pat0chat','ko-fi.com/pat0chat']) assert.ok(app.includes(host),`support overlay includes ${host}`);
-assert.doesNotMatch(app,/github\.com\/sponsors\/Pat0chat|GitHub Sponsors|donationGithub/,'GitHub Sponsors must no longer appear among support options');
+for (const host of ['liberapay.com/Pat0chat','ko-fi.com/pat0chat','github.com/sponsors/Pat0chat']) assert.ok(app.includes(host),`support overlay includes ${host}`);
+assert.match(app,/data-analytics-link="github-sponsors"[\s\S]*GitHub Sponsors[\s\S]*donationGithub/,'GitHub Sponsors is exposed as a translated donation option with analytics tracking');
 assert.doesNotMatch(app,/bsky\.app|meteocompare\.bsky\.social|blueskyIcon|bluesky-nav|about-community/,'runtime must not expose the removed Bluesky links or UI');
 assert.doesNotMatch(css,/bluesky|about-community/,'styles must not retain Bluesky/About-community rules');
 assert.doesNotMatch(app,/class=\"section-card about-install\"|about-install-grid/,'About must not duplicate installation controls already present in the topbar');
@@ -48,7 +48,7 @@ assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA ca
 // New strings remain complete in all supported languages.
 const audit=webTranslationAudit();
 for(const lang of ['fr','en','es','de','it']) assert.deepEqual(audit[lang],[],`missing web translations in ${lang}`);
-for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']) for(const key of ['aboutTitle','helpTitle','pwaTitle','installPwa','legendHowToRead','supportBodyDetailed','donationDisclaimer']) assert.ok(hasTranslation(pref,key),`${key} missing in ${pref}`);
+for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']) for(const key of ['aboutTitle','helpTitle','pwaTitle','installPwa','legendHowToRead','supportBodyDetailed','donationGithub','donationDisclaimer']) assert.ok(hasTranslation(pref,key),`${key} missing in ${pref}`);
 
 assert.match(workflow,/(?:npm run tests|pwa-about-legends\.mjs|tests\/\*\.mjs)/,'GitHub Pages workflow runs the PWA/About/legends regression suite');
 console.log('MeteoCompare Web PWA + About + legend semantics tests: OK');
