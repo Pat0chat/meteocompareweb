@@ -64,7 +64,7 @@ const batched={timezone:'Europe/Paris',hourly:{time:batchedTimes,
 const fallbackTimes=batchedTimes.slice(0,48),fallback={timezone:'Europe/Paris',hourly:{time:fallbackTimes,
   temperature_2m:fallbackTimes.map((_,i)=>20+i/20),precipitation:fallbackTimes.map(()=>0),wind_speed_10m:fallbackTimes.map(()=>10),weather_code:fallbackTimes.map(()=>1)
 }};
-const urls=[];globalThis.fetch=async url=>{urls.push(String(url));return {ok:true,json:async()=>urls.length===1?batched:fallback};};
+const urls=[];globalThis.fetch=async url=>{if(new URL(String(url)).searchParams.get('hourly')==='uv_index')return {ok:true,json:async()=>({})};urls.push(String(url));return {ok:true,json:async()=>urls.length===1?batched:fallback};};
 const f=await fetchForecast(city,['ICON_D2','GFS'],7);
 assert.equal(urls.length,2,'a short ICON-D2 batched series should trigger one recovery request');
 assert.match(urls[0],/forecast_hours=168/,'the main 7-day request must expose 168 rolling hourly slots');

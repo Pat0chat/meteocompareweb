@@ -42,7 +42,7 @@ for(const [model,temp] of modelValues){
 
 resetApiUsage();
 let forecastUrl='';
-globalThis.fetch=async url=>{forecastUrl=String(url);return new Response(JSON.stringify(raw),{status:200,headers:{'content-type':'application/json'}});};
+globalThis.fetch=async url=>{if(new URL(String(url)).searchParams.has('models'))forecastUrl=String(url);return new Response(JSON.stringify(raw),{status:200,headers:{'content-type':'application/json'}});};
 const forecast=await fetchForecast(city,['GFS','ECMWF','ECMWF_AIFS'],1);
 assert.match(forecastUrl,/models=(?:[^&]*%2C)*ecmwf_ifs(?:%2C|&)/,'forecast request must use the IFS HRES 9 km Open-Meteo key');
 assert.doesNotMatch(forecastUrl,/ecmwf_ifs025/,'the old 25 km key must never be requested by the active forecast path');

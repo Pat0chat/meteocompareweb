@@ -89,6 +89,7 @@ Le service worker :
 - favoris : recherche, ajout, retrait et affichage multi-ville ;
 - comparaison multi-modèles et sélection fine des modèles disponibles ;
 - résumé journalier, conditions actuelles, lever/coucher du soleil ;
+- indice UV Open-Meteo (prévision « best match » indépendante du consensus) : jauge du maximum journalier sur la Home et Today Summary, valeur par échéance dans les colonnes, la frise et la vue graphique ; absence de données signalée par « — » ; réutilisation UV pendant 3 h (et seulement le même jour local), avec déduplication des requêtes simultanées et attente de 15 min après un échec UV ;
 - heatmap 12 h et scénarios multi-modèles ;
 - chronologie riche avec modes 24 h / 7 jours, repères réguliers, bande thermique, signal pluie, nébulosité, vent/rafales, accord et variables en désaccord ;
 - accord global dans une card dédiée, avec « Pourquoi cet accord ? » et accès direct à la comparaison des moteurs ;

@@ -1,5 +1,13 @@
 // Final FR runtime catalogue. Keep one source value per key; historical overrides are intentionally flattened.
 export const catalog = Object.freeze({
+  "uvIndex":"Indice UV",
+  "uvDailyMax":"UV max aujourd’hui",
+  "uvRiskLow":"Faible",
+  "uvRiskModerate":"Modéré",
+  "uvRiskHigh":"Élevé",
+  "uvRiskVeryHigh":"Très élevé",
+  "uvRiskExtreme":"Extrême",
+  "uvRiskUnavailable":"Non disponible",
   "app_name":"MeteoCompare",
   "nav_back":"Retour",
   "action_refresh":"Actualiser",

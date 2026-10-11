@@ -102,7 +102,7 @@ for(const m of recoveryModels){
   recovery.hourly[suffix('wind_speed_10m',m)]=modelArray(60,limit,()=>15);
   recovery.hourly[suffix('weather_code',m)]=modelArray(60,limit,()=>1);
 }
-const urls=[];globalThis.fetch=async url=>({ok:true,json:async()=>{urls.push(String(url));return urls.length===1?main:recovery;}});
+const urls=[];globalThis.fetch=async url=>({ok:true,json:async()=>{if(new URL(String(url)).searchParams.get('hourly')==='uv_index')return {};urls.push(String(url));return urls.length===1?main:recovery;}});
 const recovered=await fetchForecast(city,WEATHER_MODELS.map(m=>m.id),7);
 assert.equal(urls.length,2,'all suspicious models should share one recovery request');
 for(const id of ['AROME_FRANCE_HD','ICON_D2','METNO_NORDIC']){
@@ -120,7 +120,7 @@ assert.match(urls[1],/forecast_hours=60/,'recovery window must match the longest
 const regionalCity={...city,id:'nyc',name:'New York',latitude:40.7,longitude:-74,timezone:'America/New_York'};
 const t=hours(168),gfs=getModel('GFS'),gfsOnly={timezone:'America/New_York',hourly:{time:t}};
 for(const base of ['temperature_2m','precipitation','wind_speed_10m','weather_code'])gfsOnly.hourly[suffix(base,gfs)]=modelArray(168,168,i=>base==='weather_code'?1:base==='precipitation'?0:15+i/100);
-let outsideCalls=0;globalThis.fetch=async()=>({ok:true,json:async()=>{outsideCalls++;return gfsOnly;}});
+let outsideCalls=0;globalThis.fetch=async url=>({ok:true,json:async()=>{if(new URL(String(url)).searchParams.get('hourly')==='uv_index')return {};outsideCalls++;return gfsOnly;}});
 const outside=await fetchForecast(regionalCity,['ICON_D2','GFS'],7);
 assert.equal(outsideCalls,1,'fully unavailable regional models must not be retried');
 assert.equal(outside.errors.ICON_D2,'MODEL_UNAVAILABLE');

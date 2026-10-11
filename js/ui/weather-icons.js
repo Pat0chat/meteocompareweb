@@ -77,6 +77,7 @@ const OPTICAL_OFFSETS={
 };
 
 const METRICS={
+  uv:'<g class="wx-metric-stroke"><circle cx="24" cy="24" r="9"/><path d="M24 3.5v8M24 36.5v8M3.5 24h8M36.5 24h8M9.5 9.5l5.7 5.7M32.8 32.8l5.7 5.7M38.5 9.5l-5.7 5.7M15.2 32.8l-5.7 5.7"/></g><path class="wx-metric-highlight" d="M20 20a5.6 5.6 0 0 1 7.5 0"/>',
   temperature:'<path class="wx-metric-stroke" d="M27 28.2V10a7 7 0 0 0-14 0v18.2a10 10 0 1 0 14 0Z"/><path class="wx-metric-soft" d="M20 8.5v24"/><circle class="wx-metric-fill" cx="20" cy="34.5" r="4.8"/><path class="wx-metric-highlight" d="M17.2 9.4c0-1.9 1.1-3.2 2.8-3.2"/>',
   precipitation:'<path class="wx-metric-stroke" d="M24 4.5S12.5 17.1 12.5 27.1a11.5 11.5 0 0 0 23 0C35.5 17.1 24 4.5 24 4.5Z"/><path class="wx-metric-highlight" d="M17.7 27.7c.8 3 2.9 4.7 6 5.2"/>',
   'precipitation-probability':'<path class="wx-metric-stroke wx-probability-drop" d="M24 4.5S12.5 17.1 12.5 27.1a11.5 11.5 0 0 0 23 0C35.5 17.1 24 4.5 24 4.5Z"/><g class="wx-metric-stroke wx-metric-percent"><circle cx="20" cy="23" r="1.8"/><circle cx="28" cy="31" r="1.8"/><path d="m29.2 21.8-10.4 10.4"/></g>',

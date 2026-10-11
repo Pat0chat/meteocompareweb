@@ -3482,8 +3482,6 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
 }
 .summary-dispersion:nth-child(2n) { border-right:0; }
 .summary-dispersion:nth-last-child(-n/**/+2) { border-bottom:0; }
-.summary-dispersion:nth-last-child(3):nth-child(odd),
-.summary-dispersion:nth-last-child(2) { border-bottom:1px solid var(--border); }
 .summary-dispersion:last-child:nth-child(odd) { grid-column:1 / -1; border-right:0; border-bottom:0; }
 
 .timeline-ruler {
@@ -6286,4 +6284,90 @@ body.graphic-view-open .user-messages-shell.is-compact .user-message-copy p { di
 @media(max-width:560px){
   .scenario-mode-selector { width:100%; }
   .scenario-mode-selector .seg-btn { flex:1 1 0; }
+}
+
+/* The condition label is now followed by an UV badge; preserve its two-line wrapping. */
+.timeline-condition > span:nth-child(2) { display:-webkit-box; width:100%; max-width:100%; min-height:2.5em; line-height:1.25; white-space:normal; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+
+/* --------------------------------------------------------------------------
+   UV index: Open-Meteo best-match forecast (not a multi-model agreement).
+   The same severity scale is used in the home and detail displays.
+   -------------------------------------------------------------------------- */
+.uv-gauge {
+  margin: 12px 0 2px;
+  padding: 11px 13px 9px;
+  border: 1px solid color-mix(in srgb,var(--border) 82%,transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb,var(--surface-2) 48%,var(--surface));
+  min-width: 0;
+}
+.uv-gauge-header { display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 10px; margin-bottom:9px; }
+.uv-gauge-header > span { color:var(--muted); font-size:.76rem; font-weight:650; }
+.uv-gauge-header > strong { margin-left:auto; font-size:1.20rem; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
+.uv-gauge-header > small { color:var(--uv-color,var(--muted)); font-size:.74rem; font-weight:700; }
+.uv-gauge-track { position:relative; height:9px; border-radius:999px; background:linear-gradient(to right,#289768 0% 26%,#e2b63b 27% 51%,#ef873d 53% 67%,#d44755 73% 90%,#8544af 100%); }
+.uv-gauge-track > i { position:absolute; left:var(--uv-progress,0%); top:50%; width:13px; height:13px; border:2px solid var(--surface); border-radius:50%; background:var(--uv-color,#289768); box-shadow:0 0 0 1px color-mix(in srgb,var(--text) 32%,transparent); transform:translate(-50%,-50%); }
+.uv-gauge-track.uv-unavailable { background:var(--surface-3); }
+.uv-gauge-track.uv-unavailable > i { display:none; }
+.uv-gauge-ticks { display:flex; justify-content:space-between; color:var(--muted); font-size:.70rem; margin-top:5px; font-variant-numeric:tabular-nums; }
+
+.uv-level-low { --uv-color:#248f69; }
+.uv-level-moderate { --uv-color:#a3810e; }
+.uv-level-high { --uv-color:#cb702b; }
+.uv-level-very-high { --uv-color:#c63d4c; }
+.uv-level-extreme { --uv-color:#8544af; }
+.uv-level-unavailable { --uv-color:var(--muted); }
+.uv-inline { display:inline-flex; align-items:center; justify-content:center; gap:3px; padding:2px 5px; border:1px solid color-mix(in srgb,var(--uv-color) 28%,var(--border)); border-radius:6px; background:color-mix(in srgb,var(--uv-color) 9%,var(--surface)); color:var(--uv-color); font-size:.70rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.uv-inline > span { font-size:.70rem; font-weight:750; letter-spacing:.02em; }
+.uv-inline > strong { font-weight:850; }
+.timeline-condition { height:106px; min-height:106px; grid-template-rows:auto auto auto; align-content:center; }
+.timeline-uv { display:flex; justify-content:center; min-height:18px; }
+.detail-chrono-view { --detail-chrono-axis-height:99px; }
+.detail-chrono-view[data-chrono-mode="HOURLY"] { --detail-chrono-axis-height:99px; }
+.detail-chrono-axis-hour { grid-template-rows:31px minmax(0,auto) auto; gap:4px; }
+.detail-chrono-axis-hour .uv-inline { font-size:.70rem; }
+/* Chronology axis labels use --text on <strong>; UV must keep its pill level color. */
+.detail-chrono-axis-hour .uv-inline > strong { display:inline; max-width:none; overflow:visible; color:inherit; white-space:nowrap; -webkit-line-clamp:unset; }
+/* The UV band has its own height: the plot and its axis are shifted below it
+   so the first weather icons and hottest temperature points are not obscured. */
+.graphic-temp-data { position:absolute; inset:30px 0 0; overflow:hidden; }
+.graphic-sticky-axis-slot:first-child .graphic-y-axis.temp { top:30px; }
+/* A fixed UV band above the temperature curves, one badge per hourly slot. */
+.graphic-uv-strip { position:absolute; inset:0 0 auto; height:30px; z-index:5; pointer-events:none; border-bottom:1px solid color-mix(in srgb,var(--border-strong) 46%,transparent); background:linear-gradient(180deg,color-mix(in srgb,var(--surface-2) 96%,transparent),color-mix(in srgb,var(--surface-2) 82%,transparent)); }
+.graphic-uv-slot { position:absolute; top:5px; transform:translateX(-50%); display:flex; justify-content:center; }
+.graphic-uv-slot .uv-inline { padding:2px 3px; font-size:.70rem; }
+.graphic-uv-slot .uv-inline > span { font-size:.70rem; }
+/* The Today Summary UV metric occupies a normal dispersion tile. The
+   stand-alone home-card gauge keeps its original framing and padding. */
+.summary-dispersion.metric-uv { --dispersion-accent:var(--uv-color); }
+.summary-metric-icon.uv {
+  width:38px;
+  height:38px;
+  flex:0 0 38px;
+  border:1px solid color-mix(in srgb,var(--dispersion-accent) 18%,var(--border));
+  color:var(--dispersion-accent);
+  background:color-mix(in srgb,var(--dispersion-accent) 8%,var(--surface));
+}
+.summary-uv-card .summary-dispersion-title .tile-hint { color:var(--uv-color); font-weight:700; }
+.summary-uv-card .summary-dispersion-value { color:var(--text); }
+.summary-uv-card .uv-gauge-embedded {
+  margin:0;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.summary-uv-visual { padding-top:4px; min-height:66px; }
+.summary-uv-card .uv-gauge-track { margin:11px 8% 0; }
+.summary-uv-card .uv-gauge-ticks { margin:13px 8% 0; font-family:var(--tech-font); }
+.summary-uv-source {
+  margin-top:auto;
+  padding-top:9px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:.70rem;
+  line-height:1.4;
+}
+@media (max-width: 640px) {
+  .uv-gauge:not(.uv-gauge-embedded) { padding:10px; }
 }

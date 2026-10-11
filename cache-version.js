@@ -1,2 +1,2 @@
 // MeteoCompare Web PWA cache version. Bump whenever runtime/static assets change.
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v206-github-sponsors';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v210-uv-summary-grid';

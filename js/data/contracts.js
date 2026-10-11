@@ -2,6 +2,7 @@ import { DEFAULT_MODEL_IDS, REFRESH_INTERVALS, WEATHER_MODELS } from '../models.
 import { DEFAULT_FORECAST_ENGINE, FORECAST_ENGINES } from '../forecast-engines.js';
 import { FORECAST_PHYSICAL_LIMITS, isWithinPhysicalLimits } from './forecast-quality.js';
 import { DEFAULT_UNIT_SYSTEM, normalizeUnitSystem } from '../units.js';
+import { normalizeUvForecast } from '../uv.js';
 
 const KNOWN_MODEL_IDS = new Set(WEATHER_MODELS.map(model => model.id));
 const REFRESH_IDS = new Set(REFRESH_INTERVALS.map(row => row.id));
@@ -216,6 +217,10 @@ export function normalizeForecastPayload(payload,{cityId=null}={}){
   const timezone=validTimezone(payload.timezone)||city.timezone||'UTC';
   return {
     ...payload,
+    uv:normalizeUvForecast(payload.uv),
+    uvFetchedAt:typeof payload.uvFetchedAt==='string'&&Number.isFinite(Date.parse(payload.uvFetchedAt))?payload.uvFetchedAt:null,
+    uvRequestKey:typeof payload.uvRequestKey==='string'?payload.uvRequestKey:null,
+    uvForecastDays:Number.isInteger(payload.uvForecastDays)&&payload.uvForecastDays>=1&&payload.uvForecastDays<=16?payload.uvForecastDays:null,
     city:{...city,timezone:validTimezone(city.timezone)||timezone},
     timezone,
     seriesByModel,

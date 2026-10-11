@@ -99,7 +99,8 @@ try{
   assert.equal(partial.seriesByModel.BOM_ACCESS,undefined);
   assert.equal(partial.errors.BOM_ACCESS,'HTTP_400');
   assert.deepEqual(partial.requestedModelIds,['GFS','BOM_ACCESS']);
-  assert.equal(networkCalls.length,3,'fallback should make the failed batch plus one request per isolated model');
+  assert.equal(networkCalls.filter(models=>models.length).length,3,'fallback should make the failed batch plus one request per isolated model');
+  assert.equal(networkCalls.filter(models=>!models.length).length,1,'UV best-match is fetched independently from model recovery');
 }finally{globalThis.fetch=priorFetch;}
 
 console.log(`MeteoCompare Web ${APP_VERSION} stability contracts: OK`);

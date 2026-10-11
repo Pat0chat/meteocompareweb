@@ -3,6 +3,8 @@ import { normalizeBatchedForecast, hourlySeriesHealth } from './data/forecast-no
 import { normalizeCity, normalizeForecastPayload } from './data/contracts.js';
 export { normalizeBatchedForecast, hourlySeriesHealth, sanitizeIncompleteFutureDaily } from './data/forecast-normalizer.js';
 import { fetchOpenMeteoJson } from './api-budget.js';
+import { normalizeUvForecast } from './uv.js';
+import { getUvForecastCached } from './uv-cache.js';
 import { NETWORK_ENDPOINTS } from './network-config.js';
 
 const { forecast:FORECAST_URL, geocoding:GEOCODING_URL, archive:ARCHIVE_URL, previousRuns:PREVIOUS_RUNS_URL } = NETWORK_ENDPOINTS.openMeteo;
@@ -52,6 +54,18 @@ function forecastUrl(city, models, forecastDays, forecastHours, includeDaily=tru
   return u;
 }
 
+async function fetchUvForecast(city, forecastDays) {
+  // Best-match UV is deliberately fetched separately: regional weather models
+  // do not uniformly expose UV and must not be discarded for that reason.
+  const url=withCityCoordinates(new URL(FORECAST_URL),city);
+  url.searchParams.set('hourly','uv_index');
+  url.searchParams.set('daily','uv_index_max');
+  url.searchParams.set('timezone',city.timezone||'auto');
+  url.searchParams.set('forecast_days',String(forecastDays));
+  url.searchParams.set('forecast_hours',String(forecastDays*24));
+  return normalizeUvForecast(await fetchJson(url,30000,null,'forecast'));
+}
+
 function modelRecoveryHours(model, requestedHours) {
   return Math.max(1, Math.min(requestedHours, model.recoveryRequestHours || model.horizonHours || model.maxForecastDays*24));
 }
@@ -80,7 +94,7 @@ function mergeForecastParts(city,models,parts,isolatedErrors={}){
   const normalized=normalizeForecastPayload(merged,{cityId:city.id});if(!normalized){const error=new Error('NORMALIZED_FORECAST_CONTRACT_FAILED');error.code='NORMALIZED_FORECAST_CONTRACT_FAILED';throw error;}return normalized;
 }
 
-export async function fetchForecast(city, enabledModelIds, requestedDays=7) {
+export async function fetchForecast(city, enabledModelIds, requestedDays=7, previousForecast=null) {
   city=requireCity(city);city=normalizeCity(city);if(!city){const err=new Error('INVALID_CITY');err.code='INVALID_CITY';throw err;}
   const models = selectedModels(enabledModelIds);
   if (!models.length) { const err=new Error('NO_MODELS_ENABLED'); err.code='NO_MODELS_ENABLED'; throw err; }
@@ -120,6 +134,10 @@ export async function fetchForecast(city, enabledModelIds, requestedDays=7) {
     const health=hourlySeriesHealth(normalized.seriesByModel[model.id],model,requestHours);meta.hourlyHealth=health;
     if(health.degraded)meta.dataWarning='PARTIAL_HOURLY_SERIES';else delete meta.dataWarning;
   }
+  // Request UV only after a usable weather forecast exists. Cache it separately
+  // from the model refresh cadence, including across reloads via the persisted forecast.
+  const uvEntry=await getUvForecastCached(city,maxDays,previousForecast,fetchUvForecast);
+  if(uvEntry)Object.assign(normalized,uvEntry);
   return normalized;
 }
 

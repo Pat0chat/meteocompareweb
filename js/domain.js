@@ -1,3 +1,4 @@
+import { uvForTimestamp, uvMaxForDate } from './uv.js';
 import { CONDITION, CONDITION_INFO, consensusGroupFor } from './models.js';
 import { continuousConsensus, precipitationConsensus, weatherConditionConsensus, familyBalancedWeights, RAIN_THRESHOLD_MM, isWetPrecipitation } from './consensus.js';
 import { DEFAULT_FORECAST_ENGINE, forecastEngineContinuous, forecastEnginePrecipitation, forecastEngineSummary } from './forecast-engines.js';
@@ -548,6 +549,7 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
 
     return {
       mode,key,timestamp:hourly?key:null,epochMs:hourly?epochMs:null,date:hourly?key.slice(0,10):key,
+      uvIndex:hourly?uvForTimestamp(forecast,key):uvMaxForDate(forecast,key),
       temperatureC:hourly?temperatureForecast.central:null,
       tempMinC:hourly?null:minForecast?.central??null,
       tempMaxC:hourly?null:temperatureForecast.central,
