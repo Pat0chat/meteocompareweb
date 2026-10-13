@@ -43,7 +43,7 @@ assert.match(api,/hourly','uv_index'/);
 assert.match(api,/daily','uv_index_max'/);
 assert.match(api,/getUvForecastCached\(city,maxDays,previousForecast,fetchUvForecast\)/);
 assert.match(app,/renderUvGauge\(uvMaxForDate\(f,today\)\)/);
-assert.match(app,/renderTodayUvCard\(uvMaxForDate\(f,agg\.date\)\)/);
+assert.match(app,/renderTodaySunCard\(uvMaxForDate\(f,agg\.date\),agg,f\.city\?\.timezone\)/);
 assert.match(app,/timeline-uv">\$\{renderUvInline\(p\.uvIndex\)\}/);
 assert.match(app,/\$\{renderUvInline\(point\.uvIndex\)\}/);
 assert.match(css,/\.uv-gauge-track/);

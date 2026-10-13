@@ -38,8 +38,8 @@ assert.match(css,/\.forecast-table td \.condition-icon \.wx-icon \{ width:1\.95r
 assert.match(timelineUtils,/export function temperatureHeatColor/);
 assert.match(timelineUtils,/export function groupRainTimelineEvents/);
 assert.doesNotMatch(css,/\.home-mini-rain\b/,'obsolete pre-frise rain selector must stay removed');
-assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:day,'normal',true\)/);
-assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:agg,'normal',true\)/);
+assert.match(app,/aggregateConditionMarkup\(\{\.\.\.\(\(now\.condition\?now:day\)\),night:isNightAt\(f,localNowTimestamp\(f\.city\?\.timezone\)\)\},'normal',true\)/);
+assert.match(app,/aggregateConditionMarkup\(\{\.\.\.\(\(now\.condition\?now:agg\)\),night:isNightAt\(f,localNowTimestamp\(f\.city\?\.timezone\)\)\},'normal',true\)/);
 
 // Architecture regression: patch release must retain the 1.12 composition and async safety contracts.
 assert.match(app,/new ApplicationKernel\(/);

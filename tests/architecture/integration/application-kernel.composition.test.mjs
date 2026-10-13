@@ -31,9 +31,9 @@ for(const condition of ['CLEAR','MAINLY_CLEAR','PARTLY_CLOUDY','OVERCAST','FOG',
 assert.match(icons.render('RAIN',{animated:true}),/wx-animated/);
 assert.doesNotMatch(icons.render('RAIN'),/wx-animated/);
 assert.match(icons.renderMetric('wind'),/wx-metric-wind/);
-assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:day,'normal',true\)/,'Home aggregate icon must request animation');
-assert.match(app,/aggregateConditionMarkup\(now\.condition\?now:agg,'normal',true\)/,'Today Summary aggregate icon must request animation');
-assert.match(app,/weatherIcons\.render\(now\.condition\|\|agg\.condition,\{size:'large'\}\)/,'detail hero must use the shared vector icon system');
+assert.match(app,/aggregateConditionMarkup\(\{\.\.\.\(\(now\.condition\?now:day\)\),night:isNightAt\(f,localNowTimestamp\(f\.city\?\.timezone\)\)\},'normal',true\)/,'Home aggregate icon must request animation');
+assert.match(app,/aggregateConditionMarkup\(\{\.\.\.\(\(now\.condition\?now:agg\)\),night:isNightAt\(f,localNowTimestamp\(f\.city\?\.timezone\)\)\},'normal',true\)/,'Today Summary aggregate icon must request animation');
+assert.match(app,/weatherIcons\.render\(now\.condition\|\|agg\.condition,\{size:'large',night:isNightAt\(f,localNowTimestamp\(f\.city\?\.timezone\)\)\}\)/,'detail hero must use the shared vector icon system');
 assert.match(css,/\.wx-icon\s*\{/);
 assert.match(css,/\.wx-animated \.wx-rays/);
 assert.match(css,/@keyframes wx-rain-fall/);

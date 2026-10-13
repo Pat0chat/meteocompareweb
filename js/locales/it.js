@@ -1,5 +1,7 @@
 // Final IT runtime catalogue. Keep one source value per key; historical overrides are intentionally flattened.
 export const catalog = Object.freeze({
+  "sunSection":"Sole",
+  "daylightDuration":"Durata del giorno",
   "uvIndex":"Indice UV",
   "uvDailyMax":"UV massimo di oggi",
   "uvRiskLow":"Basso",

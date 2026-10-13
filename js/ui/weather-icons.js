@@ -12,6 +12,11 @@ const SUN=`<g class="wx-sun">
   <path class="wx-sun-shine" d="M14.2 12.3c1.2-1.3 2.7-2 4.5-2.1"/>
 </g>`;
 
+const MOON=`<g class="wx-moon">
+  <path class="wx-moon-body" d="M27.5 4.7a15.4 15.4 0 1 0 16 21.6A15.2 15.2 0 0 1 27.5 4.7Z"/>
+  <path class="wx-moon-shine" d="M13.6 28.5a12 12 0 0 0 15.7 8.2"/>
+</g>`;
+
 const CLOUD=`<g class="wx-cloud wx-cloud-main">
   <path class="wx-cloud-shadow" d="M12.9 36.4h22.7c5 0 8.8-3.5 8.8-8.1 0-4.4-3.3-7.7-7.6-8.1C35.4 14.8 30.7 11 25 11c-6.1 0-11.1 4.4-12.2 10.1C8.2 21.7 5 24.9 5 29c0 4.2 3.4 7.4 7.9 7.4Z"/>
   <path class="wx-cloud-body" d="M12.9 34.9h22.7c4.3 0 7.5-2.9 7.5-6.7 0-3.9-3.2-6.7-7.2-6.7h-1.3C33.7 16.2 29.7 12.7 25 12.7c-5.5 0-9.9 4.2-10.3 9.6a8 8 0 0 0-2.1-.3c-3.7 0-6.6 2.8-6.6 6.4 0 3.7 2.9 6.5 6.9 6.5Z"/>
@@ -88,21 +93,22 @@ const METRICS={
   pressure:'<g class="wx-metric-stroke wx-pressure-gauge"><circle cx="24" cy="24" r="16"/><path d="M14 31a11 11 0 0 1 20 0M24 11v4M14.8 15.2l2.8 2.8M33.2 15.2 30.4 18M24 25l7-7"/><circle class="wx-metric-fill" cx="24" cy="25" r="2.4"/></g>',
   gust:'<g class="wx-metric-stroke wx-gust-lines"><path d="M6 13h27"/><path d="m28 7 7 6-7 6"/><path d="M6 25h35"/><path d="m35 19 7 6-7 6"/><path d="M6 37h24"/><path d="m25 31 7 6-7 6"/></g>',
   sunrise:'<g class="wx-metric-stroke"><path d="M6.5 35.5h35"/><path d="M12.8 29.5a11.2 11.2 0 0 1 22.4 0"/><path d="M24 6.5v7.2M9.8 17.8l5.2 3M38.2 17.8l-5.2 3"/></g><path class="wx-metric-highlight" d="M19.4 24.4a6.6 6.6 0 0 1 9.2 0"/>',
+  daylight:'<g class="wx-metric-stroke"><circle cx="24" cy="24" r="17"/><path d="M24 13v11l7 5"/></g>',
   sunset:'<g class="wx-metric-stroke"><path d="M6.5 35.5h35"/><path d="M12.8 29.5a11.2 11.2 0 0 1 22.4 0"/><path d="M24 6.5v7.2M9.8 17.8l5.2 3M38.2 17.8l-5.2 3"/></g><path class="wx-metric-stroke" d="M24 18v8m-4-4 4 4 4-4"/>'
 };
 
-function body(condition){
+function body(condition,night=false){
   switch(condition){
-    case 'CLEAR': return SUN;
-    case 'MAINLY_CLEAR': return SUN+SMALL_CLOUD;
-    case 'PARTLY_CLOUDY': return SUN+CLOUD;
+    case 'CLEAR': return night?MOON:SUN;
+    case 'MAINLY_CLEAR': return (night?MOON:SUN)+SMALL_CLOUD;
+    case 'PARTLY_CLOUDY': return (night?MOON:SUN)+CLOUD;
     case 'OVERCAST': return CLOUD;
     case 'FOG': return CLOUD+FOG;
     case 'DRIZZLE': return CLOUD+DRIZZLE;
     case 'RAIN': return CLOUD+RAIN;
-    case 'RAIN_SHOWERS': return SUN+CLOUD+RAIN;
+    case 'RAIN_SHOWERS': return (night?MOON:SUN)+CLOUD+RAIN;
     case 'SNOW': return CLOUD+SNOW;
-    case 'SNOW_SHOWERS': return SUN+CLOUD+SNOW;
+    case 'SNOW_SHOWERS': return (night?MOON:SUN)+CLOUD+SNOW;
     case 'FREEZING_RAIN': return CLOUD+RAIN+ICE;
     case 'THUNDERSTORM': return CLOUD+BOLT+RAIN;
     default: return QUESTION;
@@ -110,18 +116,18 @@ function body(condition){
 }
 
 function cssToken(condition){return String(condition||'UNKNOWN').toLowerCase().replaceAll('_','-');}
-function artwork(condition){
+function artwork(condition,night=false){
   const key=Object.hasOwn(OPTICAL_OFFSETS,condition)?condition:'UNKNOWN';
-  const [x,y]=OPTICAL_OFFSETS[key];
+  const [x,y]=night&&key==='CLEAR'?[0,0]:OPTICAL_OFFSETS[key];
   const transform=(x||y)?` transform="translate(${x} ${y})"`:'';
-  return `<g class="wx-artwork wx-artwork-${cssToken(key)}" data-center="optical"${transform}>${body(key)}</g>`;
+  return `<g class="wx-artwork wx-artwork-${cssToken(key)}" data-center="optical"${transform}>${body(key,night)}</g>`;
 }
 
 export class WeatherIconRenderer {
-  render(condition,{size='normal',animated=false,className=''}={}){
+  render(condition,{size='normal',animated=false,className='',night=false}={}){
     const key=Object.hasOwn(OPTICAL_OFFSETS,condition)?condition:'UNKNOWN';
-    const classes=['wx-icon',`wx-${cssToken(key)}`,`wx-size-${size}`,animated?'wx-animated':'',className].filter(Boolean).join(' ');
-    return `<svg class="${classes}" ${SVG_ATTR}>${artwork(key)}</svg>`;
+    const classes=['wx-icon',`wx-${cssToken(key)}`,night?'wx-night':'',`wx-size-${size}`,animated?'wx-animated':'',className].filter(Boolean).join(' ');
+    return `<svg class="${classes}" ${SVG_ATTR}>${artwork(key,night)}</svg>`;
   }
 
   renderMetric(kind,{size='small',className=''}={}){

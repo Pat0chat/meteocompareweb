@@ -6371,3 +6371,17 @@ body.graphic-view-open .user-messages-shell.is-compact .user-message-copy p { di
 @media (max-width: 640px) {
   .uv-gauge:not(.uv-gauge-embedded) { padding:10px; }
 }
+
+/* Solar tile: same visual vocabulary as the other Today Summary facts. */
+.summary-sun-uv-label { color:var(--muted); font-size:.76rem; font-weight:650; margin:6px 8% 0; }
+.summary-sun-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin-top:12px; border-top:1px solid var(--border); padding:11px 0 2px; }
+.summary-sun-fact { display:flex; flex-direction:column; gap:6px; min-width:0; padding:0 7px; text-align:center; }
+.summary-sun-fact + .summary-sun-fact { border-left:1px solid var(--border); }
+.summary-sun-fact-label { display:flex; align-items:center; justify-content:center; gap:5px; color:var(--muted); font-size:.70rem; line-height:1.2; }
+.summary-sun-fact-label .wx-icon { flex:0 0 auto; }
+.summary-sun-fact strong { color:var(--text); font-size:.92rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.summary-uv-card .summary-uv-source { margin-top:9px; }
+@media (max-width:420px){ .summary-sun-fact { padding:0 3px; } .summary-sun-fact-label { font-size:.70rem; gap:2px; } .summary-sun-fact-label .wx-icon { width:13px; height:13px; } }
+/* Night variants share the same shapes; replace the daylight sun with a moon. */
+.wx-moon-body { fill:color-mix(in srgb,#b2c4ec 83%,var(--surface)); stroke:color-mix(in srgb,#7188bd 78%,var(--text)); stroke-width:1.7; stroke-linejoin:round; }
+.wx-moon-shine { fill:none; stroke:color-mix(in srgb,#f7fbff 88%,#a6bee2); stroke-width:1.6; opacity:.85; stroke-linecap:round; }
