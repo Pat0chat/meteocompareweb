@@ -6385,3 +6385,6 @@ body.graphic-view-open .user-messages-shell.is-compact .user-message-copy p { di
 /* Night variants share the same shapes; replace the daylight sun with a moon. */
 .wx-moon-body { fill:color-mix(in srgb,#b2c4ec 83%,var(--surface)); stroke:color-mix(in srgb,#7188bd 78%,var(--text)); stroke-width:1.7; stroke-linejoin:round; }
 .wx-moon-shine { fill:none; stroke:color-mix(in srgb,#f7fbff 88%,#a6bee2); stroke-width:1.6; opacity:.85; stroke-linecap:round; }
+
+/* Give AM/PM labels extra room without reducing text below the UI readability floor. */
+html[data-clock="h12"] .home-weather-timeline { --home-timeline-step:82px; }

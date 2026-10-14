@@ -256,3 +256,7 @@ La Home et la page détails peuvent afficher la Vigilance officielle Météo-Fra
 ## Unités
 
 Les réglages proposent des unités d’affichage **Métrique / Impérial** globales sur le Web et la PWA, sans modifier les unités canoniques utilisées pour les calculs météo.
+
+## Format horaire
+
+Dans **Réglages → Interface → Format horaire**, choisir **24 h** (valeur par défaut) ou **12 h (AM/PM)**. Le choix est enregistré localement, reste indépendant de la langue (FR/EN/ES/DE/IT), et s'applique aux heures de toutes les vues, y compris la carte d'accueil, le résumé du jour (lever/coucher), la chronologie, les graphiques, la comparaison, les tableaux, la vigilance et le radar. Les heures des prévisions continuent d'être interprétées dans le fuseau de la localité, et ce réglage ne provoque aucune requête météo supplémentaire.

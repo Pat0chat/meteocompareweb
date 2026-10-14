@@ -4,6 +4,7 @@ import { fetchBlobResource, fetchJsonResource } from '../network.js';
 import { NETWORK_ENDPOINTS, NETWORK_TIMEOUTS_MS } from '../network-config.js';
 import { escapeHtml as esc } from '../ui/html.js';
 import { convertUnitValue, isImperial, unitDigits, unitSymbol } from '../units.js';
+import { formatInstantClock } from '../ui/solar.js';
 const RADAR_META_URL=NETWORK_ENDPOINTS.radar.metadata;
 const OSM_TILE_URL=NETWORK_ENDPOINTS.radar.osmTileTemplate;
 const RADAR_META_TTL_MS=5*60_000;
@@ -27,12 +28,6 @@ function fallbackMeasurement(kind,value,unitSystem,locale,{compact=false}={}){
   let digits=unitDigits(kind,unitSystem,{compact});if(kind==='precipitation'&&isImperial(unitSystem)&&Math.abs(converted)>0&&Math.abs(converted)<.01)digits=3;
   return `${converted.toLocaleString(locale,{minimumFractionDigits:digits,maximumFractionDigits:digits})} ${unitSymbol(kind,unitSystem)}`;
 }
-const radarTimeFormatters=new Map();
-function radarTimeFormatter(locale,timezone){
-  const key=`${locale}|${timezone}`;let formatter=radarTimeFormatters.get(key);
-  if(!formatter){formatter=new Intl.DateTimeFormat(locale,{hour:'2-digit',minute:'2-digit',timeZone:timezone});radarTimeFormatters.set(key,formatter);}
-  return formatter;
-}
 
 function clamp(value,min,max){return Math.max(min,Math.min(max,value));}
 function clampLat(value){return clamp(Number(value),-85.05112878,85.05112878);}
@@ -41,14 +36,8 @@ function project(lat,lon,z){
   const n=2**z*256,latitude=clampLat(lat),rad=latitude*Math.PI/180;
   return {x:(Number(lon)+180)/360*n,y:(1-Math.asinh(Math.tan(rad))/Math.PI)/2*n};
 }
-function timeText(epochSeconds,locale='fr-FR',timezone='UTC'){
-  try{return radarTimeFormatter(locale,timezone).format(new Date(epochSeconds*1000));}
-  catch{return new Date(epochSeconds*1000).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});}
-}
-function hourText(epochMs,locale='fr-FR',timezone='UTC'){
-  try{return radarTimeFormatter(locale,timezone).format(new Date(epochMs));}
-  catch{return new Date(epochMs).toLocaleTimeString(locale,{hour:'2-digit',minute:'2-digit'});}
-}
+function timeText(epochSeconds,locale='fr-FR',timezone='UTC',timeFormat='H24'){return formatInstantClock(epochSeconds*1000,timezone,timeFormat);}
+function hourText(epochMs,locale='fr-FR',timezone='UTC',timeFormat='H24'){return formatInstantClock(epochMs,timezone,timeFormat);}
 function median(values){const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:(a[m-1]+a[m])/2;}
 function mean(values){const a=values.filter(Number.isFinite);return a.length?a.reduce((sum,v)=>sum+v,0)/a.length:null;}
 function maskCount(mask){let count=0;for(const value of mask)if(value)count++;return count;}
@@ -320,9 +309,9 @@ function applyRadarGeometry(image,rangeConfig){
   image.style.transform='translate(-50%,-50%)';
 }
 
-function renderForecast(container,forecast,{t,locale,forecastOptions=null,formatPrecipitation=null,unitSystem='METRIC'}){
+function renderForecast(container,forecast,{t,locale,forecastOptions=null,formatPrecipitation=null,unitSystem='METRIC',timeFormat='H24'}){
   const formatAmount=formatPrecipitation||((value)=>fallbackMeasurement('precipitation',value,unitSystem,locale)),hours=radarForecastHours(forecast,Date.now(),4,forecastOptions||{}),timezone=forecast?.city?.timezone||forecast?.timezone||'UTC',trend=radarForecastTrend(hours),trendKey={approaching:'radarTrendApproaching',leaving:'radarTrendLeaving',persistent:'radarTrendPersistent',quiet:'radarTrendQuiet',uncertain:'radarTrendUncertain'}[trend];
-  const cards=hours.map(row=>`<div class="radar-forecast-hour"><span>${esc(hourText(row.epochMs,locale,timezone))}</span><strong>${Number.isFinite(row.probabilityPercent)?Math.round(row.probabilityPercent)+' %':'—'}</strong><small>${Number.isFinite(row.amountMm)?formatAmount(row.amountMm):'—'} · ${row.modelCount} ${esc(t(row.modelCount===1?'modelSingular':'models'))}</small></div>`).join('');
+  const cards=hours.map(row=>`<div class="radar-forecast-hour"><span>${esc(hourText(row.epochMs,locale,timezone,timeFormat))}</span><strong>${Number.isFinite(row.probabilityPercent)?Math.round(row.probabilityPercent)+' %':'—'}</strong><small>${Number.isFinite(row.amountMm)?formatAmount(row.amountMm):'—'} · ${row.modelCount} ${esc(t(row.modelCount===1?'modelSingular':'models'))}</small></div>`).join('');
   container.innerHTML=`<div class="radar-trend ${trend}"><span class="radar-trend-dot" aria-hidden="true"></span><div><strong>${esc(t(trendKey))}</strong><small>${esc(t('radarTrendModelNote'))}</small></div></div>${hours.length?`<div class="radar-forecast-hours">${cards}</div>`:`<div class="radar-empty-small">${esc(t('radarForecastUnavailable'))}</div>`}`;
 }
 
@@ -442,25 +431,25 @@ function cleanup(){
 
 export function destroyRadarModal(){cleanup();}
 
-export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',unitSystem='METRIC',formatPrecipitation=null,formatWind=null,initialMode='observation',initialRange='near',initialHorizon=30,initialFullscreen=false,onRangeChange=null,onModeChange=null,onHorizonChange=null,onFullscreenChange=null,onRecalculate=null}){
+export async function mountRadarModal({root,city,forecast,forecastOptions=null,t,locale='fr-FR',unitSystem='METRIC',timeFormat='H24',formatPrecipitation=null,formatWind=null,initialMode='observation',initialRange='near',initialHorizon=30,initialFullscreen=false,onRangeChange=null,onModeChange=null,onHorizonChange=null,onFullscreenChange=null,onRecalculate=null}){
   cleanup();if(!root||!city)return;
   const abortController=new AbortController(),mode=['observation','projection'].includes(initialMode)?initialMode:'observation',range=initialRange in RADAR_RANGE_CONFIG?initialRange:'near',horizon=RADAR_PROJECTION_HORIZONS.includes(Number(initialHorizon))?Number(initialHorizon):30,fullscreen=Boolean(initialFullscreen);
-  controller={root,city,forecast,t,locale,formatPrecipitation:formatPrecipitation||((value)=>fallbackMeasurement('precipitation',value,unitSystem,locale)),formatWind:formatWind||((value)=>fallbackMeasurement('wind',value,unitSystem,locale,{compact:true})),index:0,range,mode,horizon,fullscreen,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false,recalculateBusy:false,identityRegistry:[],nextCellId:1,coverageRanges:new Set(),coverageBusy:new Set()};root.dataset.radarMode=mode;root.dataset.radarHorizon=String(horizon);root.dataset.radarFullscreen=String(fullscreen);
+  controller={root,city,forecast,t,locale,timeFormat,formatPrecipitation:formatPrecipitation||((value)=>fallbackMeasurement('precipitation',value,unitSystem,locale)),formatWind:formatWind||((value)=>fallbackMeasurement('wind',value,unitSystem,locale,{compact:true})),index:0,range,mode,horizon,fullscreen,frames:[],meta:null,timer:null,playing:false,resizeObserver:null,abortController,nowcast:null,nowcastReason:null,nowcastBusy:false,recalculateBusy:false,identityRegistry:[],nextCellId:1,coverageRanges:new Set(),coverageBusy:new Set()};root.dataset.radarMode=mode;root.dataset.radarHorizon=String(horizon);root.dataset.radarFullscreen=String(fullscreen);
   root.querySelectorAll('[data-radar-mode]').forEach(button=>{const active=button.dataset.radarMode===mode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   root.querySelectorAll('[data-radar-range]').forEach(button=>{const active=button.dataset.radarRange===range;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   root.querySelectorAll('[data-radar-horizon]').forEach(button=>{const active=Number(button.dataset.radarHorizon)===horizon;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
   const modal=root.closest?.('.radar-modal'),fullscreenButton=modal?.querySelector?.('[data-radar-fullscreen]');
   const syncFullscreen=(repaint=true)=>{if(!controller)return;modal?.classList?.toggle('is-fullscreen',controller.fullscreen);root.dataset.radarFullscreen=String(controller.fullscreen);if(fullscreenButton){fullscreenButton.setAttribute('aria-pressed',String(controller.fullscreen));fullscreenButton.setAttribute('aria-label',t(controller.fullscreen?'radarExitFullscreen':'radarEnterFullscreen'));fullscreenButton.title=t(controller.fullscreen?'radarExitFullscreen':'radarEnterFullscreen');}if(repaint)requestAnimationFrame(()=>{if(!controller)return;paintBase();paintFrame();});};
   const status=root.querySelector('[data-radar-status]'),stage=root.querySelector('[data-radar-stage]'),radarImage=root.querySelector('[data-radar-image]'),timeLabel=root.querySelector('[data-radar-time]'),slider=root.querySelector('[data-radar-slider]'),play=root.querySelector('[data-radar-play]'),forecastRoot=root.querySelector('[data-radar-forecast]');
-  if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale,forecastOptions,formatPrecipitation:controller.formatPrecipitation,unitSystem});
+  if(forecastRoot)renderForecast(forecastRoot,forecast,{t,locale,forecastOptions,formatPrecipitation:controller.formatPrecipitation,unitSystem,timeFormat});
   if(!stage||!radarImage)return;
   const paintBase=()=>{const rangeConfig=RADAR_RANGE_CONFIG[controller?.range]||RADAR_RANGE_CONFIG.near;renderBaseTiles(stage,city,rangeConfig.mapZoom);applyRadarGeometry(radarImage,rangeConfig);paintNowcast();};syncFullscreen(false);paintBase();
   if(typeof ResizeObserver!=='undefined'){controller.resizeObserver=new ResizeObserver(paintBase);controller.resizeObserver.observe(stage);}
   fullscreenButton?.addEventListener('click',()=>{if(!controller)return;controller.fullscreen=!controller.fullscreen;syncFullscreen();onFullscreenChange?.(controller.fullscreen);},{signal:abortController.signal});
   const setPlaying=playing=>{if(!controller)return;controller.playing=Boolean(playing)&&controller.mode==='observation';if(controller.timer){clearInterval(controller.timer);controller.timer=null;}if(controller.playing&&controller.index>=controller.frames.length-1)controller.index=0;if(play){play.textContent=controller.playing?'❚❚':'▶';play.setAttribute('aria-label',t(controller.playing?'radarPause':'radarPlay'));play.title=t(controller.playing?'radarPause':'radarPlay');}if(controller.playing&&controller.frames.length>1)controller.timer=setInterval(()=>{if(!controller)return;if(controller.index>=controller.frames.length-1){setPlaying(false);paintFrame();return;}controller.index++;paintFrame();},700);};
   const paintFrame=()=>{
-    if(!controller?.meta||!controller.frames.length)return;const frame=controller.frames[controller.index];const rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near;applyRadarGeometry(radarImage,rangeConfig);radarImage.src=radarImageUrl(controller.meta,frame,city,rangeConfig.radarZoom);radarImage.alt=t('radarFrameAlt',{time:timeText(frame.time,locale,forecast?.city?.timezone||'UTC')});
-    if(timeLabel)timeLabel.textContent=timeText(frame.time,locale,forecast?.city?.timezone||'UTC');if(slider){slider.max=String(controller.frames.length-1);slider.value=String(controller.index);}paintNowcast();
+    if(!controller?.meta||!controller.frames.length)return;const frame=controller.frames[controller.index];const rangeConfig=RADAR_RANGE_CONFIG[controller.range]||RADAR_RANGE_CONFIG.near;applyRadarGeometry(radarImage,rangeConfig);radarImage.src=radarImageUrl(controller.meta,frame,city,rangeConfig.radarZoom);radarImage.alt=t('radarFrameAlt',{time:timeText(frame.time,locale,forecast?.city?.timezone||'UTC',timeFormat)});
+    if(timeLabel)timeLabel.textContent=timeText(frame.time,locale,forecast?.city?.timezone||'UTC',timeFormat);if(slider){slider.max=String(controller.frames.length-1);slider.value=String(controller.index);}paintNowcast();
   };
   const setMode=mode=>{
     if(!controller||!['observation','projection'].includes(mode)||mode===controller.mode)return;setPlaying(false);controller.mode=mode;root.dataset.radarMode=mode;root.querySelectorAll('[data-radar-mode]').forEach(button=>{const active=button.dataset.radarMode===mode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});

@@ -3,6 +3,7 @@ import { DEFAULT_FORECAST_ENGINE, FORECAST_ENGINES } from '../forecast-engines.j
 import { FORECAST_PHYSICAL_LIMITS, isWithinPhysicalLimits } from './forecast-quality.js';
 import { DEFAULT_UNIT_SYSTEM, normalizeUnitSystem } from '../units.js';
 import { normalizeUvForecast } from '../uv.js';
+import { normalizeTimeFormat } from '../ui/solar.js';
 
 const KNOWN_MODEL_IDS = new Set(WEATHER_MODELS.map(model => model.id));
 const REFRESH_IDS = new Set(REFRESH_INTERVALS.map(row => row.id));
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   enabledModelIds: Object.freeze([...DEFAULT_MODEL_IDS]),
   theme: 'SYSTEM',
   language: 'SYSTEM',
+  timeFormat: 'H24',
   unitSystem: DEFAULT_UNIT_SYSTEM,
   refreshInterval: 'HOUR_1',
   modelSort: 'ZONE',
@@ -61,6 +63,7 @@ export function normalizeSettings(value={}){
     enabledModelIds: normalizeModelIds(source.enabledModelIds),
     theme: enumValue(source.theme,THEMES,DEFAULT_SETTINGS.theme),
     language: enumValue(source.language,LANGUAGES,DEFAULT_SETTINGS.language),
+    timeFormat: normalizeTimeFormat(source.timeFormat),
     unitSystem: normalizeUnitSystem(source.unitSystem),
     refreshInterval: enumValue(source.refreshInterval,REFRESH_IDS,DEFAULT_SETTINGS.refreshInterval),
     modelSort: enumValue(source.modelSort,MODEL_SORTS,DEFAULT_SETTINGS.modelSort),

@@ -1,5 +1,10 @@
 // Final IT runtime catalogue. Keep one source value per key; historical overrides are intentionally flattened.
 export const catalog = Object.freeze({
+  "timeFormatTitle":"Formato orario",
+  "timeFormatIntro":"Scegli il formato dell’ora indipendentemente dalla lingua.",
+  "timeFormat24":"24 ore",
+  "timeFormat12":"12 ore (AM/PM)",
+
   "sunSection":"Sole",
   "daylightDuration":"Durata del giorno",
   "uvIndex":"Indice UV",

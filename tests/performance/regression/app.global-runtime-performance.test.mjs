@@ -5,6 +5,7 @@ const read=path=>fs.readFileSync(new URL(`../../../${path}`,import.meta.url),'ut
 const app=read('js/app.js');
 const i18n=read('js/i18n.js');
 const radar=read('js/features/radar.js');
+const solar=read('js/ui/solar.js');
 const cache=read('js/core/cache-registry.js');
 const sw=read('sw.js');
 const apiBudget=read('js/api-budget.js');
@@ -27,8 +28,9 @@ assert.match(app,/function dateTimeFormatter\(locale,options\)/);
 assert.equal((app.match(/new Intl\.DateTimeFormat/g)||[]).length,1,'app must construct DateTimeFormat only through the shared runtime cache');
 assert.match(i18n,/const numberFormatters = new Map\(\)/);
 assert.equal((i18n.match(/new Intl\.NumberFormat/g)||[]).length,1,'i18n Android-format compatibility must reuse NumberFormat instances');
-assert.match(radar,/const radarTimeFormatters=new Map\(\)/);
-assert.equal((radar.match(/new Intl\.DateTimeFormat/g)||[]).length,1,'radar timestamp labels must reuse DateTimeFormat instances');
+assert.match(solar,/const clockFormatters=new Map\(\)/);
+assert.match(radar,/formatInstantClock\(/,'radar must delegate to shared cached clock formatting');
+assert.equal((radar.match(/new Intl\.DateTimeFormat/g)||[]).length,0,'radar must reuse the shared cached formatter');
 
 // Background work is scoped to the current weather route and cached forecast
 // records already hydrated synchronously are not cloned/read a second time.

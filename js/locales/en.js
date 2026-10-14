@@ -1,5 +1,10 @@
 // Final EN runtime catalogue. Keep one source value per key; historical overrides are intentionally flattened.
 export const catalog = Object.freeze({
+  "timeFormatTitle":"Time format",
+  "timeFormatIntro":"Choose the clock format independently of the language.",
+  "timeFormat24":"24-hour",
+  "timeFormat12":"12-hour (AM/PM)",
+
   "sunSection":"Sun",
   "daylightDuration":"Daylight duration",
   "uvIndex":"UV index",
