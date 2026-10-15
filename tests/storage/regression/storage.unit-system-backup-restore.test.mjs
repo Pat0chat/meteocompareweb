@@ -30,5 +30,15 @@ assert.equal(storage.loadSettings().unitSystem,'METRIC','legacy backups without 
 const invalid=structuredClone(backup);invalid.data.settings.unitSystem='KELVIN';
 await storage.restoreLocalBackup(invalid,{replace:true});
 assert.equal(storage.loadSettings().unitSystem,'METRIC','invalid imported unit systems must be normalized to metric');
+// UK survives app restarts, language switches and exported backups.
+storage.saveSettings({...storage.defaultSettings,unitSystem:'UK',language:'ENGLISH'});
+assert.equal(storage.loadSettings().unitSystem,'UK');
+storage.saveSettings({...storage.loadSettings(),language:'FRENCH'});
+assert.equal(storage.loadSettings().unitSystem,'UK','language changes must preserve the unit profile');
+const ukBackup=await storage.createLocalBackup([]);
+assert.equal(ukBackup.data.settings.unitSystem,'UK');
+storage.saveSettings({...storage.defaultSettings,unitSystem:'METRIC'});
+await storage.restoreLocalBackup(ukBackup,{replace:true});
+assert.equal(storage.loadSettings().unitSystem,'UK','restore must preserve UK measurements');
 
 console.log('unit-system backup/restore: OK');

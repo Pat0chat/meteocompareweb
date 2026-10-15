@@ -13,6 +13,7 @@ assert.match(contracts,/unitSystem:\s*normalizeUnitSystem\(source\.unitSystem\)/
 
 // Settings / UI wiring.
 assert.match(app,/data-unit-system="\$\{id\}"/);
+assert.match(app,/\['UK',t\('ukUnits'\)\]/, 'UK preset must be selectable');
 assert.match(app,/state\.settings\.unitSystem=target\.dataset\.unitSystem/);
 assert.match(app,/function activeUnitSystem\(\)\{return state\.settings\.unitSystem\|\|'METRIC';\}/);
 assert.match(app,/function measurement\(kind,value/);
@@ -58,7 +59,7 @@ assert.match(sw,/['"]\.\/js\/units\.js['"]/);
 // All five shipped languages expose the unit setting labels.
 for(const lang of ['fr','en','es','de','it']){
   const locale=read(`js/locales/${lang}.js`);
-  for(const key of ['units','unitsIntro','metricUnits','imperialUnits','metricUnitsHint','imperialUnitsHint','unitsChangedToast'])assert.match(locale,new RegExp(`["']${key}["']\\s*:`),`${lang} missing ${key}`);
+  for(const key of ['units','unitsIntro','metricUnits','imperialUnits','metricUnitsHint','imperialUnitsHint','ukUnits','ukUnitsHint','unitsChangedToast'])assert.match(locale,new RegExp(`["']${key}["']\\s*:`),`${lang} missing ${key}`);
 }
 
 console.log('unit interface propagation: OK');

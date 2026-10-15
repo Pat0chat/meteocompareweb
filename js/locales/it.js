@@ -871,6 +871,8 @@ export const catalog = Object.freeze({
   "imperialUnits":'Imperiali',
   "metricUnitsHint":'°C · km/h · mm · km · m',
   "imperialUnitsHint":'°F · mph · in · mi · ft',
+  "ukUnits":'Regno Unito',
+  "ukUnitsHint":'°C · mph · mi · mm · m · hPa',
   "unitsChangedToast":'Unità: {units}',
   "density":"Densità di visualizzazione",
   "densityIntro":"La modalità compatta riduce gli spazi di tabelle e pannelli senza nascondere informazioni.",

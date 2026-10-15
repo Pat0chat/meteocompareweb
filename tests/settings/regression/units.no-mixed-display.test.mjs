@@ -25,7 +25,7 @@ for(const literal of ['°C','°F','km/h','mph','mm/h','in/h','hPa','inHg']){
   assert.doesNotMatch(app,quoted,`app.js must not hard-code the unit literal ${literal}`);
 }
 assert.match(units,/imperial\?'°F':'°C'/);
-assert.match(units,/imperial\?'mph':'km\/h'/);
+assert.match(units,/usesMiles\(unitSystem\)\?'mph':'km\/h'/);
 assert.match(units,/imperial\?'in':'mm'/);
 for(const [label,pattern] of [['°C',/°C/],['°F',/°F/],['km/h',/km\/h/],['mph',/\bmph\b/],['mm/h',/mm\/h/],['in/h',/in\/h/],['hPa',/\bhPa\b/],['inHg',/\binHg\b/]])assert.doesNotMatch(renderingSources,pattern,`active rendering modules must obtain ${label} from units.js`);
 assert.doesNotMatch(chartUtils,/chartMetric(?:Unit|Digits)/,'shared chart primitives must not retain legacy metric-only unit helpers');

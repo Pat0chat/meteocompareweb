@@ -871,6 +871,8 @@ export const catalog = Object.freeze({
   "imperialUnits":'Imperial',
   "metricUnitsHint":'°C · km/h · mm · km · m',
   "imperialUnitsHint":'°F · mph · in · mi · ft',
+  "ukUnits":'Vereinigtes Königreich',
+  "ukUnitsHint":'°C · mph · mi · mm · m · hPa',
   "unitsChangedToast":'Einheiten: {units}',
   "density":"Anzeigedichte",
   "densityIntro":"Kompakt reduziert Abstände in Tabellen und Panels ohne Informationen auszublenden.",

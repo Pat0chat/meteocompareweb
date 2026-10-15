@@ -4,6 +4,7 @@ import {
   UNIT_SYSTEMS,
   normalizeUnitSystem,
   isImperial,
+  usesMiles,
   convertTemperature,
   convertWind,
   convertPrecipitation,
@@ -23,10 +24,12 @@ import {
 const close=(actual,expected,tolerance=1e-9)=>assert.ok(Math.abs(actual-expected)<=tolerance,`${actual} ≉ ${expected}`);
 
 assert.equal(DEFAULT_UNIT_SYSTEM,'METRIC');
-assert.deepEqual(UNIT_SYSTEMS,['METRIC','IMPERIAL']);
+assert.deepEqual(UNIT_SYSTEMS,['METRIC','IMPERIAL','UK']);
 for(const value of [undefined,null,'','unknown','METRIC','metric',' metric '])assert.equal(normalizeUnitSystem(value),'METRIC');
 for(const value of ['IMPERIAL','imperial',' imperial '])assert.equal(normalizeUnitSystem(value),'IMPERIAL');
-assert.equal(isImperial('metric'),false);assert.equal(isImperial('imperial'),true);
+for(const value of ['UK','uk',' uk '])assert.equal(normalizeUnitSystem(value),'UK');
+assert.equal(isImperial('metric'),false);assert.equal(isImperial('imperial'),true);assert.equal(isImperial('UK'),false);
+assert.equal(usesMiles('metric'),false);assert.equal(usesMiles('imperial'),true);assert.equal(usesMiles('UK'),true);
 
 // Metric is the canonical storage / calculation system: conversion must be identity.
 for(const value of [-40,-1,0,.1,1,12.345,100,1013.25]){
@@ -99,6 +102,9 @@ assert.equal(unitDigits('length','METRIC'),2);
 assert.equal(unitDigits('length','IMPERIAL',{compact:true}),1);
 assert.equal(unitDigits('pressure','METRIC'),0);
 assert.equal(unitDigits('pressure','IMPERIAL'),2);
+assert.equal(unitDigits('precipitation','UK'),1);
+assert.equal(unitDigits('precipitationRate','UK'),1);
+assert.equal(unitDigits('pressure','UK'),0);
 
 assert.equal(chartMetricKind('TEMPERATURE'),'temperature');
 assert.equal(chartMetricKind('PRECIPITATION'),'precipitation');
@@ -128,4 +134,29 @@ assert.equal(chartMetricDigitsFor('PRECIPITATION','IMPERIAL'),2);
 assert.equal(chartMetricDigitsFor('WIND','IMPERIAL'),0);
 assert.equal(chartMetricDigitsFor('AGREEMENT','IMPERIAL'),0);
 
+// UK must mix conversions per measurement, never inherit the whole imperial profile.
+const ukCases=[
+  ['temperature',20,20,'°C'],['temperatureDelta',5,5,'°C'],
+  ['wind',100,62.1371192237334,'mph'],['distance',10,6.21371192237334,'mi'],
+  ['precipitation',25.4,25.4,'mm'],['precipitationRate',2.5,2.5,'mm/h'],
+  ['length',1.2,1.2,'m'],['pressure',1013,1013,'hPa'],
+];
+for(const [kind,input,expected,symbol] of ukCases){
+  close(convertUnitValue(kind,input,'UK'),expected,1e-10);
+  assert.equal(unitSymbol(kind,'UK'),symbol,kind);
+}
+assert.equal(chartMetricUnitFor('TEMPERATURE','UK'),'°C');
+assert.equal(chartMetricUnitFor('PRECIPITATION','UK'),'mm');
+assert.equal(chartMetricUnitFor('WIND','UK'),'mph');
+assert.equal(chartMetricUnitFor('GUST','UK'),'mph');
+assert.equal(convertChartMetric('TEMPERATURE',0,'UK'),0);
+assert.equal(convertChartMetric('PRECIPITATION',25.4,'UK'),25.4);
+close(convertChartMetric('WIND',100,'UK'),62.1371192237334,1e-10);
+assert.equal(convertChartMetricDelta('TEMPERATURE',2,'UK'),2);
+assert.equal(convertChartMetricDelta('PRECIPITATION',1,'UK'),1);
+close(convertChartMetricDelta('WIND',1,'UK'),0.621371192237334,1e-12);
+assert.equal(chartMetricDigitsFor('PRECIPITATION','UK'),1);
+for(const kind of ['temperature','wind','precipitation','distance','length','pressure']){
+  assert.equal(convertUnitValue(kind,NaN,'UK'),null);
+}
 console.log('units robustness: OK');

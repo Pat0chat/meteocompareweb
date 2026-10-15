@@ -255,7 +255,7 @@ La Home et la page détails peuvent afficher la Vigilance officielle Météo-Fra
 
 ## Unités
 
-Les réglages proposent des unités d’affichage **Métrique / Impérial** globales sur le Web et la PWA, sans modifier les unités canoniques utilisées pour les calculs météo.
+Les réglages proposent des unités d’affichage **Métrique / Impérial / Royaume-Uni** globales sur le Web et la PWA (Royaume-Uni : °C, mph, mi, mm, m, hPa), sans modifier les unités canoniques utilisées pour les calculs météo.
 
 ## Format horaire
 

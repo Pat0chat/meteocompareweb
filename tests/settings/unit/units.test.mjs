@@ -18,10 +18,12 @@ import { DEFAULT_SETTINGS, normalizeSettings } from '../../../js/data/contracts.
 const close=(actual,expected,tolerance=1e-9)=>assert.ok(Math.abs(actual-expected)<=tolerance,`${actual} ≉ ${expected}`);
 
 assert.equal(DEFAULT_UNIT_SYSTEM,'METRIC');
-assert.deepEqual(UNIT_SYSTEMS,['METRIC','IMPERIAL']);
+assert.deepEqual(UNIT_SYSTEMS,['METRIC','IMPERIAL','UK']);
 assert.equal(normalizeUnitSystem('IMPERIAL'),'IMPERIAL');
 assert.equal(normalizeUnitSystem('metric'),'METRIC');
 assert.equal(normalizeUnitSystem(' imperial '),'IMPERIAL');
+assert.equal(normalizeUnitSystem(' uk '),'UK');
+assert.equal(normalizeSettings({unitSystem:'UK'}).unitSystem,'UK');
 assert.equal(DEFAULT_SETTINGS.unitSystem,'METRIC');
 assert.equal(normalizeSettings({}).unitSystem,'METRIC');
 assert.equal(normalizeSettings({unitSystem:'IMPERIAL'}).unitSystem,'IMPERIAL');
@@ -46,6 +48,9 @@ assert.equal(unitSymbol('pressure','IMPERIAL'),'inHg');
 assert.equal(chartMetricUnitFor('TEMPERATURE','IMPERIAL'),'°F');
 assert.equal(chartMetricUnitFor('PRECIPITATION','IMPERIAL'),'in');
 assert.equal(chartMetricUnitFor('WIND','IMPERIAL'),'mph');
+assert.equal(unitSymbol('wind','UK'),'mph');
+assert.equal(unitSymbol('precipitation','UK'),'mm');
+assert.equal(unitSymbol('temperature','UK'),'°C');
 
 const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
 assert.match(app,/data-unit-system="\$\{id\}"/,'Settings must expose the unit system selector');
