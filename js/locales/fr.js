@@ -1,5 +1,9 @@
 // Final FR runtime catalogue. Keep one source value per key; historical overrides are intentionally flattened.
 export const catalog = Object.freeze({
+  "apparentTemperatureShort":"Ressenti",
+  "apparentTemperature":"Température ressentie",
+  "apparentTemperatureMax":"Température ressentie max",
+  "apparentTemperatureMin":"Température ressentie min",
   "timeFormatTitle":"Format horaire",
   "timeFormatIntro":"Choisissez le format des heures, indépendamment de la langue.",
   "timeFormat24":"24 h",

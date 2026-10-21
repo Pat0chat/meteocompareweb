@@ -144,12 +144,17 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
       return result.values;
     };
     const tempH = read(hourlyRaw,'temperature_2m',FORECAST_PHYSICAL_LIMITS.temperatureC);
+    const apparentH = read(hourlyRaw,'apparent_temperature',FORECAST_PHYSICAL_LIMITS.temperatureC);
     const tempMaxRaw = read(dailyRaw,'temperature_2m_max',FORECAST_PHYSICAL_LIMITS.temperatureC);
     const tempMinRaw = read(dailyRaw,'temperature_2m_min',FORECAST_PHYSICAL_LIMITS.temperatureC);
     const tempMax=alignIndices(dailyIndices,tempMaxRaw),tempMin=alignIndices(dailyIndices,tempMinRaw);
-    for(let i=0;i<Math.max(tempMax.length,tempMin.length);i++){
+    const apparentMax=alignIndices(dailyIndices,read(dailyRaw,'apparent_temperature_max',FORECAST_PHYSICAL_LIMITS.temperatureC));
+    const apparentMin=alignIndices(dailyIndices,read(dailyRaw,'apparent_temperature_min',FORECAST_PHYSICAL_LIMITS.temperatureC));
+    for(let i=0;i<Math.max(tempMax.length,tempMin.length,apparentMax.length,apparentMin.length);i++){
       const pair=sanitizeDailyTemperaturePair(tempMax[i],tempMin[i]);
       tempMax[i]=pair.max;tempMin[i]=pair.min;if(pair.rejected){qc.rejected+=2;qc.temperaturePairRejects++;}
+      const apparentPair=sanitizeDailyTemperaturePair(apparentMax[i],apparentMin[i]);
+      apparentMax[i]=apparentPair.max;apparentMin[i]=apparentPair.min;if(apparentPair.rejected){qc.rejected+=2;qc.temperaturePairRejects++;}
     }
     const usable = (tempH||[]).some(Number.isFinite) || tempMax.some(Number.isFinite) || tempMin.some(Number.isFinite);
     if (!usable) { errors[model.id]='MODEL_UNAVAILABLE'; continue; }
@@ -159,6 +164,7 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
         timestamps:[...hourlyTime],
         timestampEpochMs:[...hourlyEpochs],
         temperature2m:alignIndices(hourlyIndices,tempH),
+        apparentTemperature:alignIndices(hourlyIndices,apparentH),
         pressureMsl:alignIndices(hourlyIndices,read(hourlyRaw,'pressure_msl',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
         precipitation:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation',FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm)),
         precipitationProbability:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation_probability',FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent,true)),
@@ -172,6 +178,8 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
         dates:[...dailyTime],
         tempMax,
         tempMin,
+        apparentTempMax:apparentMax,
+        apparentTempMin:apparentMin,
         pressureMslMean:alignIndices(dailyIndices,read(dailyRaw,'pressure_msl_mean',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
         pressureMslMin:alignIndices(dailyIndices,read(dailyRaw,'pressure_msl_min',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
         pressureMslMax:alignIndices(dailyIndices,read(dailyRaw,'pressure_msl_max',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),

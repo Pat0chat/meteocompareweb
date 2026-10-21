@@ -75,6 +75,10 @@ assert.match(html,/data-timeline-layout="COLUMNS"/,'Timeline must offer the colu
 assert.match(html,/data-timeline-layout="CHRONO"/,'Timeline must offer the chronological strip layout');
 assert.match(html,/class="timeline-full"/,'Full rich timeline must be rendered');
 assert.match(html,/class="timeline-temp-band"/,'Timeline must retain thermal heat bands');
+// Compact timelines keep the felt reading legible without losing the full label.
+assert.match(html, /class="timeline-apparent-value" title="Température ressentie"><span class="timeline-apparent-label">Ressenti<\/span><span class="timeline-apparent-measure">/, 'Columns must use a compact translated label followed by a separate value');
+const todayHtml=html.slice(html.indexOf('id="today-summary"'),html.indexOf('class="today-grid"'));
+assert.match(todayHtml, /class="summary-now-line"><span class="summary-temperature-stack"><span class="summary-current-temp">[^<]*<\/span><small class="apparent-temperature-caption">Température ressentie [^<]*<\/small><\/span><span class="summary-condition">/, 'TodaySummary must stack the full felt-temperature caption under the main temperature, before the condition');
 assert.match(html,/class="timeline-precip-heat"/,'Timeline must retain precipitation heat indicators');
 assert.match(html,/class="timeline-metric (?:timeline-rain|timeline-cloud|timeline-wind)-metric"/,'Timeline must retain precipitation, cloud and wind metrics');
 assert.match(html,/timeline-rain-probability-metric/,'Timeline must render rain probability as a distinct metric');
@@ -184,6 +188,7 @@ switched=clickDataset({timelineMode:'DAILY'});
 assert.match(switched,/data-timeline-mode="DAILY"[^>]*class=|class="seg-btn active" data-timeline-mode="DAILY"/,'Timeline must be switchable to the 7-day view');
 switched=clickDataset({timelineLayout:'CHRONO'});
 assert.match(switched,/class="detail-chrono-view"/,'Timeline must switch to the extended chronological strip');
+assert.match(switched, /class="detail-chrono-row-label temp"[^]*?<small title="Température ressentie">Ressenti · °C<\/small>/, 'Chronological strip must retain the full translated hint, not render the long label in its narrow heading');
 assert.match(switched,/detail-chrono-rain-cell/,'Chronological strip must include rain probability and amount');
 assert.match(switched,/detail-chrono-cloud-cell/,'Chronological strip must include cloud cover');
 assert.match(switched,/detail-chrono-wind-cell/,'Chronological strip must include wind and gusts');

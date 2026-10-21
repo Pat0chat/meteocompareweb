@@ -1,2 +1,2 @@
 // MeteoCompare Web PWA cache version. Bump whenever runtime/static assets change.
-globalThis.METEOCOMPARE_CACHE_VERSION = 'v213-uk-units-preference';
+globalThis.METEOCOMPARE_CACHE_VERSION = 'v215-apparent-temperature-layout';
