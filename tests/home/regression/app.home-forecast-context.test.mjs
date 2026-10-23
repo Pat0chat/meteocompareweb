@@ -15,6 +15,7 @@ assert.match(meta,/models\.slice\(0,4\)/,'Home must keep the primary model list 
 assert.match(meta,/home-hero-context-count/);
 assert.match(meta,/home-hero-context-models/);
 assert.match(meta,/home-hero-context-sync/);
+assert.match(meta,/homeHeroAutoCadence/,'automatic refresh interval needs a clear label, not an ambiguous bare duration');
 assert.doesNotMatch(meta,/forecastEngineName|localWeighting|homeHeroEngine/,'Engine and weighting settings must stay out of the Home hero');
 assert.doesNotMatch(meta,/home-hero-meta-grid|home-hero-meta-item|home-hero-method-row|home-hero-model-chip/,'Home hero must not reintroduce dashboard-like subcards');
 assert.match(home,/renderHomeForecastMeta\(favorites\)/,'Home hero must render the forecast context');
@@ -28,7 +29,7 @@ assert.match(build,/home-hero-context-count/,'SEO prerender should reserve the s
 assert.doesNotMatch(build,/home-hero-meta-grid|home-hero-model-chip|Multi-consensus|Pondération locale désactivée/,'SEO prerender must not restore the heavy metadata panel');
 
 for(const pref of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']){
-  for(const key of ['homeHeroForecastMetaAria','homeHeroLastSync','homeHeroWaitingSync','homeHeroMainModels','homeFamilyCount','homeFamilyCountOne'])
+  for(const key of ['homeHeroForecastMetaAria','homeHeroLastSync','homeHeroAutoCadence','homeHeroWaitingSync','homeHeroMainModels','homeFamilyCount','homeFamilyCountOne'])
     assert.equal(hasTranslation(pref,key),true,`${pref}.${key} missing`);
 }
 console.log('Home lightweight forecast context: OK');

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 const get=path=>fs.readFileSync(new URL(`../../../${path}`,import.meta.url),'utf8');
 const cacheVersion=get('cache-version.js');
-assert.match(cacheVersion,/v215-apparent-temperature-layout/,'PWA must install the updated weather assets without polling for them');
+assert.match(cacheVersion,/v217-forecast-status-consistency/,'PWA must install the updated weather assets without polling for them');
 const api=get('js/api.js'),app=get('js/app.js'),domain=get('js/domain.js'),comparison=get('js/features/comparison.js'),normalizer=get('js/data/forecast-normalizer.js'),css=get('styles.css');
 // New fields ride on the existing (batched model + single UV) fetches; never call a new endpoint.
 assert.match(api,/const HOURLY_VARS = \[[\s\S]*'apparent_temperature'/);

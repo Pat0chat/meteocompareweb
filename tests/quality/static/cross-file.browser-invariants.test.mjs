@@ -70,7 +70,7 @@ assert.match(storage, /loadForecastAsync/, 'legacy forecast cache migration must
 assert.match(storage, /export async function saveForecast/, 'forecast persistence should be awaitable');
 assert.match(storage, /database\?\.close/, 'clearing local data should close IndexedDB before deleting it');
 assert.match(app, /refreshCity\(city\.id,false,false\)/, 'automatic multi-city refresh should suppress per-city full renders');
-assert.match(app, /refreshCity\(c\.id,force,false\)/, 'manual multi-city refresh should suppress per-city full renders');
+assert.match(app, /refreshCity\(city\.id,force,false,minAgeMs\)/, 'manual multi-city refresh should suppress per-city full renders');
 assert.match(sw, /request\.mode==='navigate'/, 'service worker must have explicit navigation handling');
 assert.match(sw, /open-meteo\\\.com/, 'Open-Meteo responses must not be mixed with the shell cache');
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');

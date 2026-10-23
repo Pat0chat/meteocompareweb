@@ -34,3 +34,51 @@ export class AppState {
     this.localDataUi={advancedOpen:false,privacyOpen:false,cacheOpen:false};
   }
 }
+
+/** Refresh decisions are local, synchronous and never trigger any network work. */
+export const MANUAL_REFRESH_COOLDOWN_MS = 5 * 60_000;
+
+export function forecastAgeMs(forecast, now = Date.now()) {
+  const fetched = Date.parse(forecast?.fetchedAt || '');
+  const age = now - fetched;
+  return Number.isFinite(age) && age >= 0 ? age : null;
+}
+
+export function forecastMatchesModels(forecast, enabledModelIds = []) {
+  if (!forecast) return false;
+  const requested = Array.isArray(forecast.requestedModelIds) && forecast.requestedModelIds.length
+    ? forecast.requestedModelIds
+    : [...new Set([...Object.keys(forecast.seriesByModel || {}), ...Object.keys(forecast.errors || {})])];
+  const selected = Array.isArray(enabledModelIds) ? enabledModelIds : [];
+  return requested.length === selected.length && new Set(requested).size === selected.length &&
+    selected.every(id => requested.includes(id));
+}
+
+export function forecastFreshForInterval(forecast, enabledModelIds, intervalMinutes, now = Date.now()) {
+  const age = forecastAgeMs(forecast, now);
+  return age !== null && forecastMatchesModels(forecast, enabledModelIds) &&
+    (intervalMinutes === 0 || age < intervalMinutes * 60_000);
+}
+
+/** Keep the displayed status consistent with the automatic refresh deadline.
+ * In manual mode there is no automatic deadline; retain a 3-hour age indicator
+ * purely for display, without scheduling any fetch.
+ */
+export function forecastCurrentForDisplay(forecast, enabledModelIds, intervalMinutes, now = Date.now()) {
+  const displayMinutes = intervalMinutes > 0 ? intervalMinutes : 180;
+  return forecastFreshForInterval(forecast, enabledModelIds, displayMinutes, now);
+}
+
+export function forecastRecentlyUpdated(forecast, enabledModelIds, now = Date.now(), cooldownMs = MANUAL_REFRESH_COOLDOWN_MS) {
+  const age = forecastAgeMs(forecast, now);
+  return age !== null && age < cooldownMs && forecastMatchesModels(forecast, enabledModelIds);
+}
+
+/** Prevent an asynchronous IndexedDB hydration from replacing a newer network result. */
+export function shouldApplyHydratedForecast(current, hydrated) {
+  if (!hydrated) return false;
+  if (!current) return true;
+  const hydratedAt = Date.parse(hydrated.fetchedAt || '');
+  const currentAt = Date.parse(current.fetchedAt || '');
+  return Number.isFinite(hydratedAt) && (!Number.isFinite(currentAt) || hydratedAt > currentAt);
+}

@@ -156,7 +156,9 @@ assert.match(app,/availableIds\.filter\(id=>enabledIds\.has\(id\)\)/,'bias refre
 assert.match(api+apiBudget+network,/(?:err|error)\.code='HTTP_ERROR'/,'HTTP failures must use structured error codes for localization');
 assert.match(api+apiBudget,/err\.code='OPEN_METEO_ERROR'/,'provider-declared failures must use structured error codes for localization');
 assert.match(app,/function invalidateWeatherRefreshes\(\)\{cityRefreshTokens\.clear\(\);state\.loading\.clear\(\);\}/,'model configuration changes must invalidate in-flight weather loads');
-assert.match(app,/requestedModelIds[\s\S]*sameModels/,'forecast freshness must include the requested model cohort, not only age');
+assert.match(app,/forecastFreshForInterval\(f,state\.settings\.enabledModelIds/,'forecast freshness must use centralized requested-model guard');
+const refreshGuard=read('js/core/app-state.js');
+assert.match(refreshGuard,/requestedModelIds[\s\S]*forecastFreshForInterval/,'forecast freshness must include the requested model cohort, not only age');
 
 assert.match(sw,/CACHE_VERSION = globalThis\.METEOCOMPARE_CACHE_VERSION/,'PWA cache generation must use the centralized source');
 console.log('MeteoCompare Web stability + i18n audit tests: OK');

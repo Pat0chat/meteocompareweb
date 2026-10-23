@@ -1,4 +1,5 @@
 import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels, consensusGroupFor, biasLeadDaysForModel } from './models.js';
+import { MANUAL_REFRESH_COOLDOWN_MS, forecastFreshForInterval, forecastCurrentForDisplay, forecastRecentlyUpdated, shouldApplyHydratedForecast } from './core/app-state.js';
 import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, createLocalBackup, restoreLocalBackup, clearAllData, clearPwaRuntime, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
 import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, buildScenarios, buildDailyScenarios, aggregateNormals, windArrow, dateLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, activeTodayHourlyPoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch, zonedTimestampEpoch } from './domain.js';
@@ -289,7 +290,7 @@ async function hydrateForecastStorage(){
       if(state.forecasts[city.id]){await yieldToMainThread();continue;}
       const f=await loadForecastAsync(city.id),stillFavorite=state.cities.some(c=>c.id===city.id);
       if(!stillFavorite){if(f)deleteCityData(city.id);}
-      else if(f){state.forecasts[city.id]=f;changed=true;}
+      else if(shouldApplyHydratedForecast(state.forecasts[city.id],f)){state.forecasts[city.id]=f;changed=true;}
       await yieldToMainThread();
     }
   });
@@ -593,10 +594,11 @@ function selectedForecastFamilyCount(models=selectedForecastModels()){return new
 function homeLatestSync(favorites){const timestamps=(favorites||[]).map(city=>state.forecasts[city.id]?.fetchedAt).filter(Boolean).map(value=>Date.parse(value)).filter(Number.isFinite);return timestamps.length?new Date(Math.max(...timestamps)).toISOString():null;}
 function renderHomeForecastMeta(favorites){
   const {t}=i18n(),models=selectedForecastModels(),familyCount=selectedForecastFamilyCount(models),refresh=refreshIntervalLabel(state.settings.refreshInterval),latest=homeLatestSync(favorites),main=models.slice(0,4),extra=Math.max(0,models.length-main.length);
+  const cadence=state.settings.refreshInterval==='MANUAL'?t('manual'):t('homeHeroAutoCadence',{interval:refresh});
   const modelSummary=`${modelCountLabel(models.length)} · ${t(familyCount===1?'homeFamilyCountOne':'homeFamilyCount',{count:familyCount})}`;
   const mainModels=`${main.map(model=>model.name).join(' · ')}${extra?` · +${extra}`:''}`;
   const syncLabel=latest?t('homeHeroLastSync',{age:formatExactAge(latest)}):t('homeHeroWaitingSync');
-  return `<div class="home-hero-forecast-meta" aria-label="${attr(t('homeHeroForecastMetaAria'))}"><span class="home-hero-context-item home-hero-context-count">${uiIcon('layers',14)}<span>${esc(modelSummary)}</span></span><span class="home-hero-context-separator" aria-hidden="true"></span><span class="home-hero-context-models" title="${attr(`${t('homeHeroMainModels')} · ${mainModels}`)}">${esc(mainModels)}</span><span class="home-hero-context-separator" aria-hidden="true"></span><span class="home-hero-context-item home-hero-context-sync">${uiIcon('refresh',14)}<span>${esc(syncLabel)} · ${esc(refresh)}</span></span></div>`;
+  return `<div class="home-hero-forecast-meta" aria-label="${attr(t('homeHeroForecastMetaAria'))}"><span class="home-hero-context-item home-hero-context-count">${uiIcon('layers',14)}<span>${esc(modelSummary)}</span></span><span class="home-hero-context-separator" aria-hidden="true"></span><span class="home-hero-context-models" title="${attr(`${t('homeHeroMainModels')} · ${mainModels}`)}">${esc(mainModels)}</span><span class="home-hero-context-separator" aria-hidden="true"></span><span class="home-hero-context-item home-hero-context-sync">${uiIcon('refresh',14)}<span>${esc(syncLabel)} · ${esc(cadence)}</span></span></div>`;
 }
 function archiveCallLabel(count){const n=Number(count)||0;return i18n().t(n===1?'archiveCallOne':'archiveCallMany',{count:n});}
 function localizedWindDirection(direction){if(!Number.isFinite(direction))return '';const keys=['windDirN','windDirNE','windDirE','windDirSE','windDirS','windDirSW','windDirW','windDirNW'];return i18n().t(keys[Math.round(direction/45)%8]);}
@@ -639,10 +641,10 @@ function formatExactAge(iso){
   const min=Math.floor(ms/60000);if(min<1)return t('justNow');if(min<60)return `${min} min`;const h=Math.floor(min/60),m=min%60;if(h<24)return `${h} h${m?` ${m} min`:''}`;const d=Math.floor(h/24);return `${d} ${t('dayShort')} ${h%24} h`;
 }
 function forecastHealth(f){
-  const {t}=i18n(),age=Date.now()-Date.parse(f?.fetchedAt||''),refreshMs=Math.max(60,refreshIntervalMinutes()||60)*60000;
-  const stale=!Number.isFinite(age)||age<0||age>Math.max(refreshMs*2,3*3600e3);
+  const {t}=i18n();
+  const stale=!forecastCurrentForDisplay(f,state.settings.enabledModelIds||[],refreshIntervalMinutes());
   if(!state.online)return {class:stale?'stale':'cached',label:t(stale?'offlineOldCache':'offlineRecentCache'),detail:f?.fetchedAt?t('dataAge',{age:formatExactAge(f.fetchedAt)}):t('noDataLower')};
-  if(stale)return {class:'stale',label:t('cacheOld'),detail:f?.fetchedAt?t('loadedAgoSingular',{age:formatExactAge(f.fetchedAt)}):t('unknownDate')};
+  if(stale)return {class:'stale',label:t('forecastRefreshDue'),detail:f?.fetchedAt?t('loadedAgoSingular',{age:formatExactAge(f.fetchedAt)}):t('unknownDate')};
   return {class:'live',label:t('onlineData'),detail:f?.fetchedAt?t('loadedAgo',{age:formatExactAge(f.fetchedAt)}):t('recentData')};
 }
 
@@ -2437,7 +2439,7 @@ function handleAppClick(e){
   if(target.dataset.graphicDay){const scroller=document.querySelector?.('.graphic-scroll');if(scroller){const left=Math.max(0,Number(target.dataset.graphicDay)||0);scroller.scrollTo?.({left,behavior:'smooth'});}return;}
   if(target.dataset.action){handleAction({currentTarget:target,target:e.target});return;}
   if(target.dataset.cityMenu){e.stopPropagation();lastFocusedBeforeModal=document.activeElement;state.modal={type:'cityMenu',cityId:target.dataset.cityMenu};render();return;}
-  if(target.dataset.refreshCity){e.stopPropagation();state.modal=null;void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'city'});void refreshCityWithToast(target.dataset.refreshCity);return;}
+  if(target.dataset.refreshCity){e.stopPropagation();if(state.modal){state.modal=null;render();}void refreshCityWithToast(target.dataset.refreshCity);return;}
   if(target.dataset.removeCity){removeCity(target.dataset.removeCity);return;}
   if(target.dataset.addCityId){addCityFromSearch(target.dataset.addCityId);return;}
   if(target.dataset.confidenceMetric){state.settings.confidenceMetric=target.dataset.confidenceMetric;persistSettings();syncCityViewUrl();void trackAnalyticsEvent('Forecast View Changed',state.route,{control:'metric',value:target.dataset.confidenceMetric});rerenderCitySectionOrPage('agreement');return;}
@@ -2512,7 +2514,7 @@ function handleAction(e){
   else if(action==='copy-link'){if(state.route.name==='city')syncCityViewUrl();const url=location.href;if(navigator.clipboard?.writeText)navigator.clipboard.writeText(url).then(()=>{void trackAnalyticsEvent('Share Link Copied',state.route,{method:'clipboard'});toast(i18n().t('linkCopied'),{type:'success'});}).catch(()=>{void trackAnalyticsEvent('Share Link Fallback Opened',state.route,{reason:'clipboard_error'});prompt(i18n().t('copyLinkPrompt'),url);});else{void trackAnalyticsEvent('Share Link Fallback Opened',state.route,{reason:'clipboard_unavailable'});prompt(i18n().t('copyLinkPrompt'),url);}}
   else if(action==='open-city-compare'){lastFocusedBeforeModal=document.activeElement;const favorites=favoriteCities(),initial=state.route.name==='compare'?(state.route.ids||[]):favorites.slice(0,Math.min(2,favorites.length)).map(c=>c.id);state.modal={type:'cityCompare',selectedIds:[...initial]};render();}
   else if(action==='apply-city-compare'){const ids=state.modal?.type==='cityCompare'?(state.modal.selectedIds||[]):[];if(ids.length<2){toast(i18n().t('selectAtLeastTwoCities'),{type:'warning'});return;}void trackAnalyticsEvent('City Comparison Started',state.route,{city_count:ids.length});state.modal=null;go(`#/compare?cities=${ids.map(encodeURIComponent).join(',')}`);}
-  else if(action==='refresh-all'){void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'all'});void refreshAll(true,true);}
+  else if(action==='refresh-all'){void refreshAll(true,true,MANUAL_REFRESH_COOLDOWN_MS);}
   else if(action==='open-add-city'){void trackAnalyticsEvent('City Search Opened',state.route);lastFocusedBeforeModal=document.activeElement;cancelCitySearch();state.modal={type:'addCity',query:'',results:[],searching:false,pending:false};render();}
   else if(action==='close-modal'){closeModal();}
   else if(action==='modal-backdrop'&&e.target===e.currentTarget){closeModal();}
@@ -2611,7 +2613,7 @@ async function changeLanguage(nextLanguage,directive){
 }
 
 function refreshIntervalMinutes(){return REFRESH_INTERVALS.find(x=>x.id===state.settings.refreshInterval)?.minutes??60;}
-function isForecastFresh(f){const minutes=refreshIntervalMinutes();if(!f?.fetchedAt)return false;const requested=Array.isArray(f.requestedModelIds)&&f.requestedModelIds.length?f.requestedModelIds:[...new Set([...Object.keys(f.seriesByModel||{}),...Object.keys(f.errors||{})])],current=state.settings.enabledModelIds||[],sameModels=requested.length===current.length&&[...requested].sort().every((id,i)=>id===[...current].sort()[i]);if(!sameModels)return false;const age=Date.now()-Date.parse(f.fetchedAt);if(!Number.isFinite(age)||age<0)return false;if(minutes===0)return true;return age<minutes*60000;}
+function isForecastFresh(f){return forecastFreshForInterval(f,state.settings.enabledModelIds||[],refreshIntervalMinutes());}
 async function refreshDueCities(){
   if(!state.online||dueRefreshRunning||document.visibilityState==='hidden')return;const minutes=refreshIntervalMinutes();if(minutes===0)return;
   const due=state.cities.filter(city=>{const f=state.forecasts[city.id];return !f||!isForecastFresh(f);});
@@ -2621,19 +2623,89 @@ async function refreshDueCities(){
   let index=0;const workers=Math.min(2,due.length);
   try{await Promise.all(Array.from({length:workers},async()=>{while(index<due.length){const city=due[index++];await refreshCity(city.id,false,false);}}));const failed=due.filter(city=>Boolean(state.errors[city.id])).length;if(failed&&state.route.name==='home')toast(i18n().t('automaticRefreshPartialToast',{failed,total:due.length}),{id:'automatic-refresh',type:'warning',title:i18n().t('weatherRefreshTitle'),duration:6500});}finally{dueRefreshRunning=false;if(showActivity)render();}
 }
-async function refreshAll(force=false,notify=false){
-  const cities=[...favoriteCities()];if(!cities.length)return;const workers=Math.min(2,cities.length);let i=0,toastId=null;if(notify)toastId=toast(i18n().t('weatherRefreshAllStarted',{count:cities.length}),{id:'weather-refresh-all',type:'loading',title:i18n().t('weatherRefreshTitle')});
-  const tasks=Array.from({length:workers},async()=>{while(i<cities.length){const c=cities[i++];await refreshCity(c.id,force,false);}}),showActivity=routeShowsWeatherActivity();
+async function refreshAll(force=false,notify=false,minAgeMs=0){
+  const cities=[...favoriteCities()];if(!cities.length)return;
+  const recent=city=>force&&minAgeMs>0&&!state.errors[city.id]&&forecastRecentlyUpdated(state.forecasts[city.id],state.settings.enabledModelIds,Date.now(),minAgeMs);
+  const eligible=cities.filter(city=>!state.loading.has(city.id)&&!recent(city)&&(force||!isForecastFresh(state.forecasts[city.id])));
+  const willFetch=state.online&&eligible.length>0;
+  const showActivity=willFetch&&routeShowsWeatherActivity();
+  let toastId=null;
+  if(notify&&willFetch)toastId=toast(i18n().t('weatherRefreshAllStarted',{count:eligible.length}),{id:'weather-refresh-all',type:'loading',title:i18n().t('weatherRefreshTitle')});
+  let i=0;const results=[];const workers=Math.min(2,cities.length);
   if(showActivity)render();
-  try{await Promise.all(tasks);if(notify){const failed=cities.filter(c=>Boolean(state.errors[c.id])).length;toast(failed?i18n().t('weatherRefreshPartial',{failed,total:cities.length}):i18n().t('weatherRefreshAllComplete',{count:cities.length}),{id:toastId||'weather-refresh-all',type:failed?'warning':'success',title:i18n().t('weatherRefreshTitle')});}}finally{if(showActivity)render();}
+  try{
+    await Promise.all(Array.from({length:workers},async()=>{while(i<cities.length){const city=cities[i++];results.push(await refreshCity(city.id,force,false,minAgeMs));}}));
+    const updated=results.filter(result=>result.status==='updated').length;
+    const skipped=results.filter(result=>result.status==='recent'||result.status==='fresh').length;
+    const failed=results.filter(result=>result.status==='failed'||result.status==='offline'||result.status==='missing').length;
+    const busy=results.filter(result=>result.status==='in_progress'||result.status==='superseded').length;
+    if(notify){
+      const {t}=i18n();let key,params={},type='info';
+      if(failed){key='weatherRefreshPartial';params={failed,total:cities.length};type='warning';}
+      else if(updated&&skipped){key='weatherRefreshAllMixed';params={updated,skipped};type='success';}
+      else if(updated){key='weatherRefreshAllComplete';params={count:updated};type='success';}
+      else if(busy){key='weatherRefreshAlreadyRunning';}
+      else{key='weatherRefreshAllAlreadyCurrent';}
+      toast(t(key,params),{id:toastId||'weather-refresh-all',type,title:t('weatherRefreshTitle')});
+    }
+    if(updated)void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'all'});
+    return results;
+  }finally{if(showActivity)render();}
 }
-async function refreshCityWithToast(cityId){const city=state.cities.find(c=>c.id===cityId);if(!city)return;const id=`weather-refresh-${cityId}`;toast(i18n().t('weatherRefreshCityStarted',{city:city.name}),{id,type:'loading',title:i18n().t('weatherRefreshTitle')});await refreshCity(cityId,true);if(state.errors[cityId])toast(i18n().t('weatherRefreshCityFailed',{city:city.name,error:state.errors[cityId]}),{id,type:'error',title:i18n().t('weatherRefreshTitle')});else toast(i18n().t('weatherRefreshCityComplete',{city:city.name}),{id,type:'success',title:i18n().t('weatherRefreshTitle')});}
-async function refreshCity(cityId,force=false,renderUpdates=true){
-  const city=state.cities.find(c=>c.id===cityId);if(!city||state.loading.has(cityId))return;if(!state.online){if(!state.forecasts[cityId]){const d=classifyError({code:'OFFLINE_NO_CACHE'},{hasCache:false});state.errorCenter.report(`city:${cityId}:network`,d);state.errors[cityId]=errorDescriptorMessage(d);}else{state.errorCenter.report(`city:${cityId}:network`,{...classifyError({code:'STALE_CACHE'},{hasCache:true}),scope:`city:${cityId}:network`});}if(renderUpdates)render();return;}if(!force&&state.forecasts[cityId]&&isForecastFresh(state.forecasts[cityId]))return;
+async function refreshCityWithToast(cityId){
+  const city=state.cities.find(c=>c.id===cityId);if(!city)return;
+  const id=`weather-refresh-${cityId}`,title=i18n().t('weatherRefreshTitle');
+  const recent=!state.errors[cityId]&&forecastRecentlyUpdated(state.forecasts[cityId],state.settings.enabledModelIds);
+  if(recent){toast(i18n().t('weatherRefreshCityAlreadyCurrent',{city:city.name}),{id,type:'info',title});return;}
+  if(state.loading.has(cityId)){toast(i18n().t('weatherRefreshCityAlreadyRunning',{city:city.name}),{id,type:'info',title});return;}
+  toast(i18n().t('weatherRefreshCityStarted',{city:city.name}),{id,type:'loading',title});
+  const result=await refreshCity(cityId,true,true,MANUAL_REFRESH_COOLDOWN_MS),status=result.status;
+  let key,type='info',params={city:city.name};
+  if(status==='updated'){key='weatherRefreshCityComplete';type='success';void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'city'});}
+  else if(status==='recent')key='weatherRefreshCityAlreadyCurrent';
+  else if(status==='in_progress'||status==='superseded')key='weatherRefreshCityAlreadyRunning';
+  else if(status==='offline'){key='weatherRefreshCityOffline';type='warning';}
+  else{key='weatherRefreshCityFailed';type='error';params.error=state.errors[cityId]||i18n().t('unknownError');}
+  toast(i18n().t(key,params),{id,type,title});
+}
+async function refreshCity(cityId,force=false,renderUpdates=true,minAgeMs=0){
+  const city=state.cities.find(c=>c.id===cityId);
+  if(!city)return {status:'missing'};
+  if(state.loading.has(cityId))return {status:'in_progress'};
+  if(!state.online){
+    if(!state.forecasts[cityId]){const d=classifyError({code:'OFFLINE_NO_CACHE'},{hasCache:false});state.errorCenter.report(`city:${cityId}:network`,d);state.errors[cityId]=errorDescriptorMessage(d);}
+    else{state.errorCenter.report(`city:${cityId}:network`,{...classifyError({code:'STALE_CACHE'},{hasCache:true}),scope:`city:${cityId}:network`});}
+    if(renderUpdates)render();return {status:'offline'};
+  }
+  if(force&&minAgeMs>0&&!state.errors[cityId]&&forecastRecentlyUpdated(state.forecasts[cityId],state.settings.enabledModelIds,Date.now(),minAgeMs))return {status:'recent'};
+  if(!force&&isForecastFresh(state.forecasts[cityId]))return {status:'fresh'};
   const token=cityRefreshTokens.begin(cityId);state.loading.add(cityId);delete state.errors[cityId];if(renderUpdates)render();
-  try{const f=await fetchForecast(city,state.settings.enabledModelIds,7,state.forecasts[cityId]||null);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId))return;const resolvedTimezone=f?.city?.timezone||f?.timezone;if(resolvedTimezone&&city.timezone!==resolvedTimezone){city.timezone=resolvedTimezone;persistFavoriteCities();}state.forecasts[cityId]=f;await saveForecast(cityId,f);if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId)){if(!cityRefreshTokens.get(cityId)||!state.cities.some(c=>c.id===cityId))deleteForecast(cityId);return;}state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);analysisStore.mark('evolution',cityId);delete state.errors[cityId];state.errorCenter.resolve(`city:${cityId}:network`);const degraded=Object.values(f.modelMeta||{}).filter(m=>m?.dataWarning==='PARTIAL_HOURLY_SERIES').length;if(degraded)state.errorCenter.report(`city:${cityId}:partial`,{code:'PARTIAL_MODELS',severity:'warning',titleKey:'errorPartialModelsTitle',messageKey:'errorPartialModelsBody',actions:['retry'],technical:String(degraded)});else state.errorCenter.resolve(`city:${cityId}:partial`);if(state.route.name==='city'&&state.route.id===cityId){scheduleIdle(()=>ensureNormals(cityId));scheduleIdle(()=>refreshVigilanceData(cityId,false,true));}}
-  catch(err){if(cityRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId)){const descriptor=classifyError(err,{hasCache:Boolean(state.forecasts[cityId])});state.errorCenter.report(`city:${cityId}:network`,descriptor);state.errors[cityId]=errorDescriptorMessage(descriptor);if(!state.forecasts[cityId])toast(state.errors[cityId],{type:'error'});}}
-  finally{if(cityRefreshTokens.get(cityId)===token){cityRefreshTokens.delete(cityId);state.loading.delete(cityId);if(renderUpdates)render();}}
+  try{
+    const f=await fetchForecast(city,state.settings.enabledModelIds,7,state.forecasts[cityId]||null);
+    if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId))return {status:'superseded'};
+    const resolvedTimezone=f?.city?.timezone||f?.timezone;
+    if(resolvedTimezone&&city.timezone!==resolvedTimezone){city.timezone=resolvedTimezone;persistFavoriteCities();}
+    state.forecasts[cityId]=f;
+    await saveForecast(cityId,f);
+    if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId)){
+      if(!cityRefreshTokens.get(cityId)||!state.cities.some(c=>c.id===cityId))deleteForecast(cityId);
+      return {status:'superseded'};
+    }
+    state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);analysisStore.mark('evolution',cityId);
+    delete state.errors[cityId];state.errorCenter.resolve(`city:${cityId}:network`);
+    const degraded=Object.values(f.modelMeta||{}).filter(m=>m?.dataWarning==='PARTIAL_HOURLY_SERIES').length;
+    if(degraded)state.errorCenter.report(`city:${cityId}:partial`,{code:'PARTIAL_MODELS',severity:'warning',titleKey:'errorPartialModelsTitle',messageKey:'errorPartialModelsBody',actions:['retry'],technical:String(degraded)});
+    else state.errorCenter.resolve(`city:${cityId}:partial`);
+    if(state.route.name==='city'&&state.route.id===cityId){scheduleIdle(()=>ensureNormals(cityId));scheduleIdle(()=>refreshVigilanceData(cityId,false,true));}
+    return {status:'updated'};
+  }catch(err){
+    if(cityRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId)){
+      const descriptor=classifyError(err,{hasCache:Boolean(state.forecasts[cityId])});
+      state.errorCenter.report(`city:${cityId}:network`,descriptor);state.errors[cityId]=errorDescriptorMessage(descriptor);
+      if(!state.forecasts[cityId])toast(state.errors[cityId],{type:'error'});
+    }
+    return {status:'failed'};
+  }finally{if(cityRefreshTokens.get(cityId)===token){cityRefreshTokens.delete(cityId);state.loading.delete(cityId);if(renderUpdates)render();}}
 }
 function humanError(err){const {t}=i18n();if(err?.name==='AbortError')return t('weatherTimeout');if(err?.code==='NO_MODELS_ENABLED')return t('noModelsEnabled');if(err?.code==='NO_USABLE_MODELS')return t('noUsableModels');if(err?.code==='HTTP_ERROR')return t('openMeteoHttpError',{status:err.status||'?'});if(err?.code==='OPEN_METEO_ERROR')return t('openMeteoRejected');if(err?.code==='LOCAL_API_BUDGET_EXCEEDED')return t('apiBudgetExceeded');const m=String(err?.message||err||t('unknownError'));if(/Failed to fetch/i.test(m))return t('openMeteoUnreachable');if(m==='NO_MODELS_ENABLED')return t('noModelsEnabled');if(m==='NO_USABLE_MODELS')return t('noUsableModels');return m;}
 
