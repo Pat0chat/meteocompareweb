@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { fetchForecast } from '../../../js/api.js';
 import { normalizeForecastPayload } from '../../../js/data/contracts.js';
+import { forecastRefreshVerified } from '../../../js/core/app-state.js';
 
 const city={id:'uv-network-check',name:'Example',latitude:54.234567,longitude:8.765432,timezone:'UTC'};
 const now=new Date();now.setUTCMinutes(0,0,0);
@@ -30,7 +31,15 @@ const restored=normalizeForecastPayload(structuredClone(first),{cityId:city.id})
 assert.equal(restored.uvFetchedAt,first.uvFetchedAt,'cache timestamp must survive persistence');
 assert.equal(restored.uvRequestKey,first.uvRequestKey,'location key must survive persistence');
 assert.equal(restored.uvForecastDays,7,'horizon must survive persistence');
+// Regression: a persisted UV hit must never resurrect the previous weather forecast.
+restored.fetchedAt=new Date(Date.now()-147*60_000).toISOString();
+restored.seriesByModel.GFS.hourly.temperature2m[0]=-8;
+const refreshedAt=Date.now();
 const second=await fetchForecast(city,['GFS'],7,restored);
+assert.ok(forecastRefreshVerified(second,['GFS'],refreshedAt),'a genuine weather response must pass the refresh verification even when UV is cached');
+assert.ok(Date.now()-Date.parse(second.fetchedAt)<10_000,'UV cache must not restore the previous 2 h 27 timestamp');
+assert.equal(second.seriesByModel.GFS.hourly.temperature2m[0],17,'cached UV must not overwrite newly downloaded weather values');
+assert.deepEqual(second.requestedModelIds,['GFS']);
 assert.equal(mainCalls,2,'the core weather forecast should still refresh');
 assert.equal(uvCalls,1,'recent UV must not refresh with weather');
 assert.deepEqual(second.uv,first.uv,'UV must survive a manual weather refresh');
@@ -39,6 +48,7 @@ const third=await fetchForecast({...city,id:'other-city-card'},['GFS'],7);
 assert.equal(mainCalls,3,'weather may refresh independently of the UV cache');
 assert.equal(uvCalls,1,'repeated UV request at same coordinates must hit UV memory cache');
 assert.ok(third.uv);
+assert.deepEqual(third.requestedModelIds,['GFS']);
 
 // Parallel model forecasts (different city IDs but the same location) still share UV.
 const another={...city,latitude:54.345678};

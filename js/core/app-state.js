@@ -74,6 +74,19 @@ export function forecastRecentlyUpdated(forecast, enabledModelIds, now = Date.no
   return age !== null && age < cooldownMs && forecastMatchesModels(forecast, enabledModelIds);
 }
 
+/** Only acknowledge a network refresh if its resulting forecast is usable,
+ * covers the requested model selection, and was fetched during this attempt.
+ * An old or wrongly keyed payload must not overwrite the last known-good cache
+ * or trigger a misleading "updated" toast. This function never performs I/O.
+ */
+export function forecastRefreshVerified(forecast, enabledModelIds, startedAt, now = Date.now()) {
+  const fetchedAt = Date.parse(forecast?.fetchedAt || '');
+  return Number.isFinite(fetchedAt) && Number.isFinite(startedAt) &&
+    fetchedAt >= startedAt - 5_000 && fetchedAt <= now + 60_000 &&
+    forecastMatchesModels(forecast, enabledModelIds) &&
+    Object.keys(forecast?.seriesByModel || {}).length > 0;
+}
+
 /** Prevent an asynchronous IndexedDB hydration from replacing a newer network result. */
 export function shouldApplyHydratedForecast(current, hydrated) {
   if (!hydrated) return false;

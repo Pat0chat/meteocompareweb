@@ -1,5 +1,5 @@
 import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels, consensusGroupFor, biasLeadDaysForModel } from './models.js';
-import { MANUAL_REFRESH_COOLDOWN_MS, forecastFreshForInterval, forecastCurrentForDisplay, forecastRecentlyUpdated, shouldApplyHydratedForecast } from './core/app-state.js';
+import { MANUAL_REFRESH_COOLDOWN_MS, forecastFreshForInterval, forecastCurrentForDisplay, forecastRecentlyUpdated, forecastRefreshVerified, shouldApplyHydratedForecast } from './core/app-state.js';
 import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, createLocalBackup, restoreLocalBackup, clearAllData, clearPwaRuntime, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
 import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
 import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, buildScenarios, buildDailyScenarios, aggregateNormals, windArrow, dateLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, activeTodayHourlyPoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch, zonedTimestampEpoch } from './domain.js';
@@ -2621,7 +2621,7 @@ async function refreshDueCities(){
   // Match manual refreshAll(): two bounded workers reduce total stale time without
   // creating an unbounded Open-Meteo burst when many favourites expire together.
   let index=0;const workers=Math.min(2,due.length);
-  try{await Promise.all(Array.from({length:workers},async()=>{while(index<due.length){const city=due[index++];await refreshCity(city.id,false,false);}}));const failed=due.filter(city=>Boolean(state.errors[city.id])).length;if(failed&&state.route.name==='home')toast(i18n().t('automaticRefreshPartialToast',{failed,total:due.length}),{id:'automatic-refresh',type:'warning',title:i18n().t('weatherRefreshTitle'),duration:6500});}finally{dueRefreshRunning=false;if(showActivity)render();}
+  try{const outcomes=[];await Promise.all(Array.from({length:workers},async()=>{while(index<due.length){const city=due[index++];outcomes.push(await refreshCity(city.id,false,false));}}));const failed=outcomes.filter(result=>['failed','offline','missing','unverified','not_persisted'].includes(result.status)).length;if(failed&&state.route.name==='home')toast(i18n().t('automaticRefreshPartialToast',{failed,total:due.length}),{id:'automatic-refresh',type:'warning',title:i18n().t('weatherRefreshTitle'),duration:6500});}finally{dueRefreshRunning=false;if(showActivity)render();}
 }
 async function refreshAll(force=false,notify=false,minAgeMs=0){
   const cities=[...favoriteCities()];if(!cities.length)return;
@@ -2631,17 +2631,20 @@ async function refreshAll(force=false,notify=false,minAgeMs=0){
   const showActivity=willFetch&&routeShowsWeatherActivity();
   let toastId=null;
   if(notify&&willFetch)toastId=toast(i18n().t('weatherRefreshAllStarted',{count:eligible.length}),{id:'weather-refresh-all',type:'loading',title:i18n().t('weatherRefreshTitle')});
-  let i=0;const results=[];const workers=Math.min(2,cities.length);
+  let i=0,completedRender=false;const results=[];const workers=Math.min(2,cities.length);
   if(showActivity)render();
   try{
     await Promise.all(Array.from({length:workers},async()=>{while(i<cities.length){const city=cities[i++];results.push(await refreshCity(city.id,force,false,minAgeMs));}}));
+    // A success toast must never precede the view receiving the installed forecast.
+    // Flush the already-scheduled finishing render (not an extra render/network call).
+    if(showActivity){render({immediate:true});completedRender=true;}
     const updated=results.filter(result=>result.status==='updated').length;
     const skipped=results.filter(result=>result.status==='recent'||result.status==='fresh').length;
-    const failed=results.filter(result=>result.status==='failed'||result.status==='offline'||result.status==='missing').length;
+    const failed=results.filter(result=>['failed','offline','missing','unverified','not_persisted'].includes(result.status)).length;
     const busy=results.filter(result=>result.status==='in_progress'||result.status==='superseded').length;
     if(notify){
       const {t}=i18n();let key,params={},type='info';
-      if(failed){key='weatherRefreshPartial';params={failed,total:cities.length};type='warning';}
+      if(failed||(busy&&updated)){key='weatherRefreshPartial';params={failed:failed+busy,total:cities.length};type='warning';}
       else if(updated&&skipped){key='weatherRefreshAllMixed';params={updated,skipped};type='success';}
       else if(updated){key='weatherRefreshAllComplete';params={count:updated};type='success';}
       else if(busy){key='weatherRefreshAlreadyRunning';}
@@ -2650,7 +2653,7 @@ async function refreshAll(force=false,notify=false,minAgeMs=0){
     }
     if(updated)void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'all'});
     return results;
-  }finally{if(showActivity)render();}
+  }finally{if(showActivity&&!completedRender)render();}
 }
 async function refreshCityWithToast(cityId){
   const city=state.cities.find(c=>c.id===cityId);if(!city)return;
@@ -2660,8 +2663,13 @@ async function refreshCityWithToast(cityId){
   if(state.loading.has(cityId)){toast(i18n().t('weatherRefreshCityAlreadyRunning',{city:city.name}),{id,type:'info',title});return;}
   toast(i18n().t('weatherRefreshCityStarted',{city:city.name}),{id,type:'loading',title});
   const result=await refreshCity(cityId,true,true,MANUAL_REFRESH_COOLDOWN_MS),status=result.status;
+  // refreshCity schedules its finishing render; make it visible before confirming.
+  // This flushes that render rather than queuing a second one.
+  if(['updated','not_persisted','unverified','failed'].includes(status))render({immediate:true});
   let key,type='info',params={city:city.name};
   if(status==='updated'){key='weatherRefreshCityComplete';type='success';void trackAnalyticsEvent('Forecast Refreshed',state.route,{scope:'city'});}
+  else if(status==='unverified'){key='weatherRefreshCityUnverified';type='warning';}
+  else if(status==='not_persisted'){key='weatherRefreshCityNotSaved';type='warning';}
   else if(status==='recent')key='weatherRefreshCityAlreadyCurrent';
   else if(status==='in_progress'||status==='superseded')key='weatherRefreshCityAlreadyRunning';
   else if(status==='offline'){key='weatherRefreshCityOffline';type='warning';}
@@ -2679,25 +2687,36 @@ async function refreshCity(cityId,force=false,renderUpdates=true,minAgeMs=0){
   }
   if(force&&minAgeMs>0&&!state.errors[cityId]&&forecastRecentlyUpdated(state.forecasts[cityId],state.settings.enabledModelIds,Date.now(),minAgeMs))return {status:'recent'};
   if(!force&&isForecastFresh(state.forecasts[cityId]))return {status:'fresh'};
+  const requestedModelIds=[...state.settings.enabledModelIds],startedAt=Date.now();
   const token=cityRefreshTokens.begin(cityId);state.loading.add(cityId);delete state.errors[cityId];if(renderUpdates)render();
   try{
-    const f=await fetchForecast(city,state.settings.enabledModelIds,7,state.forecasts[cityId]||null);
+    const f=await fetchForecast(city,requestedModelIds,7,state.forecasts[cityId]||null);
     if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId))return {status:'superseded'};
+    if(!forecastRefreshVerified(f,requestedModelIds,startedAt)) {
+      state.errors[cityId]=i18n().t('weatherRefreshUnverifiedReason');
+      return {status:'unverified'};
+    }
     const resolvedTimezone=f?.city?.timezone||f?.timezone;
     if(resolvedTimezone&&city.timezone!==resolvedTimezone){city.timezone=resolvedTimezone;persistFavoriteCities();}
     state.forecasts[cityId]=f;
-    await saveForecast(cityId,f);
+    const persisted=await saveForecast(cityId,f);
     if(cityRefreshTokens.get(cityId)!==token||!state.cities.some(c=>c.id===cityId)){
       if(!cityRefreshTokens.get(cityId)||!state.cities.some(c=>c.id===cityId))deleteForecast(cityId);
       return {status:'superseded'};
     }
     state.evolution[cityId]=recordEvolutionSnapshot(cityId,f);analysisStore.mark('evolution',cityId);
-    delete state.errors[cityId];state.errorCenter.resolve(`city:${cityId}:network`);
+    delete state.errors[cityId];
+    state.errorCenter.resolve(`city:${cityId}:network`);
+    if(!persisted)state.errorCenter.report(`city:${cityId}:storage`,{
+      code:'FORECAST_NOT_PERSISTED',severity:'warning',titleKey:'weatherRefreshTitle',
+      messageKey:'weatherRefreshNotSavedReason',actions:[]
+    });
+    else state.errorCenter.resolve(`city:${cityId}:storage`);
     const degraded=Object.values(f.modelMeta||{}).filter(m=>m?.dataWarning==='PARTIAL_HOURLY_SERIES').length;
     if(degraded)state.errorCenter.report(`city:${cityId}:partial`,{code:'PARTIAL_MODELS',severity:'warning',titleKey:'errorPartialModelsTitle',messageKey:'errorPartialModelsBody',actions:['retry'],technical:String(degraded)});
     else state.errorCenter.resolve(`city:${cityId}:partial`);
     if(state.route.name==='city'&&state.route.id===cityId){scheduleIdle(()=>ensureNormals(cityId));scheduleIdle(()=>refreshVigilanceData(cityId,false,true));}
-    return {status:'updated'};
+    return {status:persisted?'updated':'not_persisted'};
   }catch(err){
     if(cityRefreshTokens.get(cityId)===token&&state.cities.some(c=>c.id===cityId)){
       const descriptor=classifyError(err,{hasCache:Boolean(state.forecasts[cityId])});

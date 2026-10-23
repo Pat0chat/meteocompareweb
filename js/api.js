@@ -137,7 +137,10 @@ export async function fetchForecast(city, enabledModelIds, requestedDays=7, prev
   // Request UV only after a usable weather forecast exists. Cache it separately
   // from the model refresh cadence, including across reloads via the persisted forecast.
   const uvEntry=await getUvForecastCached(city,maxDays,previousForecast,fetchUvForecast);
-  if(uvEntry)Object.assign(normalized,uvEntry);
+  // Defense in depth: keep the independently cached UV metadata isolated from
+  // the weather result, even if a cache implementation supplies extra fields.
+  if(uvEntry)Object.assign(normalized,{uv:uvEntry.uv,uvFetchedAt:uvEntry.uvFetchedAt,
+    uvRequestKey:uvEntry.uvRequestKey,uvForecastDays:uvEntry.uvForecastDays});
   return normalized;
 }
 

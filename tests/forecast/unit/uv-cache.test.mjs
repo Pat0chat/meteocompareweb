@@ -25,7 +25,11 @@ now+=15*60_000;
 const fromMemory=await getUvForecastCached(city,7,null,async()=>{calls++;return uv;},()=>now);
 assert.deepEqual(fromMemory,first);
 assert.equal(calls,1);
-const fromPersisted=await getUvForecastCached(city,7,structuredClone(first),async()=>{calls++;return uv;},()=>now);
+const persistedForecast={...structuredClone(first),fetchedAt:new Date(now-147*60_000).toISOString(),
+  requestedModelIds:['GFS'],seriesByModel:{GFS:{hourly:{temperature2m:[-8]}}}};
+const fromPersisted=await getUvForecastCached(city,7,persistedForecast,async()=>{calls++;return uv;},()=>now);
+assert.deepEqual(Object.keys(fromPersisted).sort(),['uv','uvFetchedAt','uvForecastDays','uvRequestKey'].sort(),
+  'a persisted UV cache hit must not carry any old weather or timestamp fields');
 assert.deepEqual(fromPersisted,first);
 assert.equal(calls,1);
 const shorter=await getUvForecastCached(city,3,first,async()=>{calls++;return uv;},()=>now);

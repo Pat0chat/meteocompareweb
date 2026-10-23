@@ -4,6 +4,14 @@ import { normalizeUvForecast } from './uv.js';
 // A normal weather refresh (often every 15 minutes) should not refetch UV.
 export const UV_REFRESH_TTL_MS = 3 * 60 * 60_000;
 export const UV_ERROR_RETRY_MS = 15 * 60_000;
+// A persisted forecast also carries weather model data and fetchedAt. Only UV
+// fields may leave this cache: spreading the whole forecast over new weather
+// would silently restore its stale timestamp and model series.
+function uvOnly(entry) {
+  if (!entry) return null;
+  return {uv: entry.uv, uvFetchedAt: entry.uvFetchedAt,
+    uvRequestKey: entry.uvRequestKey, uvForecastDays: entry.uvForecastDays};
+}
 const successful = new Map();
 const inFlight = new Map();
 const retryAfter = new Map();
@@ -38,7 +46,7 @@ export function freshUvEntry(entry, city, days, now = Date.now()) {
 // involving the weather API, storage, or the browser's network primitives.
 export async function getUvForecastCached(city, days, previousForecast, requestUv, now = () => Date.now()) {
   const key = uvLocationKey(city), timestamp = now();
-  const previous = freshUvEntry(previousForecast, city, days, timestamp) ? previousForecast : null;
+  const previous = freshUvEntry(previousForecast, city, days, timestamp) ? uvOnly(previousForecast) : null;
   const memory = successful.get(key);
   const reusable = [previous, freshUvEntry(memory, city, days, timestamp) ? memory : null]
     .filter(Boolean).sort((a, b) => Date.parse(b.uvFetchedAt) - Date.parse(a.uvFetchedAt))[0];
@@ -47,7 +55,7 @@ export async function getUvForecastCached(city, days, previousForecast, requestU
     if (!memory || !freshUvEntry(memory, city, days, timestamp) ||
         (reusable.uvForecastDays >= memory.uvForecastDays &&
          Date.parse(reusable.uvFetchedAt) > Date.parse(memory.uvFetchedAt))) successful.set(key, reusable);
-    return reusable;
+    return uvOnly(reusable);
   }
 
   // Share one pending request for an identical location and a sufficient horizon.

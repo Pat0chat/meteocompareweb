@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { MANUAL_REFRESH_COOLDOWN_MS, forecastFreshForInterval, forecastRecentlyUpdated } from '../../../js/core/app-state.js';
+import { MANUAL_REFRESH_COOLDOWN_MS, forecastFreshForInterval, forecastRecentlyUpdated, forecastRefreshVerified } from '../../../js/core/app-state.js';
 import { hasTranslation } from '../../../js/i18n.js';
 
 const app=fs.readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
@@ -15,10 +15,10 @@ const city={id:'paris',name:'Paris',timezone:'Europe/Paris'};
 const previous={city,requestedModelIds:['GFS'],fetchedAt:new Date(Date.now()-110*60_000).toISOString(),seriesByModel:{GFS:{}}};
 const state={cities:[city],forecasts:{paris:previous},errors:{},loading:new Set(),evolution:{},online:true,settings:{enabledModelIds:['GFS']},route:{name:'home'},errorCenter:{report(){},resolve(){}}};
 const toasts=[],tracked=[];
-let fetches=0,renders=0,fail=false,request=null;
+let fetches=0,renders=0,fail=false,request=null,saveFails=false;
 const registry=new Map();
 const ctx={
-  state, MANUAL_REFRESH_COOLDOWN_MS,forecastRecentlyUpdated,
+  state, MANUAL_REFRESH_COOLDOWN_MS,forecastRecentlyUpdated,forecastRefreshVerified,
   isForecastFresh(f){return forecastFreshForInterval(f,state.settings.enabledModelIds,60);},
   favoriteCities(){return state.cities;},routeShowsWeatherActivity(){return true;},
   i18n(){return {t:(key)=>key};},
@@ -31,7 +31,7 @@ const ctx={
     if(fail)throw Error('Connection failed');
     return {...cached,city,requestedModelIds:[...models],fetchedAt:new Date().toISOString()};
   },
-  saveForecast:async()=>true,
+  saveForecast:async()=>!saveFails,
   recordEvolutionSnapshot(){return [];},analysisStore:{mark(){}},
   classifyError:()=>({message:'Network failure'}),errorDescriptorMessage:()=> 'Network failure',
   trackAnalyticsEvent:(event,route,meta)=>{tracked.push(meta);return Promise.resolve();},
@@ -132,8 +132,54 @@ assert.equal(fetches,requestsBeforeBothRecent,'repeated Home refresh must cause 
 assert.equal(renders,rendersBeforeBothRecent,'repeated Home refresh must not trigger an unnecessary render');
 assert.equal(toasts.at(-1).message,'weatherRefreshAllAlreadyCurrent');
 
+// A fulfilled request with an old timestamp is NOT a successful refresh.
+const requestsBeforeUnverified=fetches;
+const oldLyon=state.forecasts.lyon;
+state.forecasts.lyon={...oldLyon,fetchedAt:new Date(Date.now()-147*60_000).toISOString()};
+const staleLyon=state.forecasts.lyon;
+request=Promise.resolve({...staleLyon,fetchedAt:staleLyon.fetchedAt});
+await refreshCityWithToast('lyon');
+assert.equal(fetches,requestsBeforeUnverified+1,'one request is permitted for old data');
+assert.equal(state.forecasts.lyon,staleLyon,'invalid network result must never replace cached data');
+assert.equal(toasts.at(-1).message,'weatherRefreshCityUnverified');
+assert.equal(toasts.at(-1).args.type,'warning','success toast must not appear after stale response');
+request=null;
+
+// A response timestamped NOW but for the wrong model set is likewise unverified.
+const modelsBefore=state.forecasts.lyon;
+request=Promise.resolve({...modelsBefore,fetchedAt:new Date().toISOString(),requestedModelIds:['GFS']});
+await refreshCityWithToast('lyon');
+assert.equal(state.forecasts.lyon,modelsBefore);
+assert.equal(toasts.at(-1).message,'weatherRefreshCityUnverified');
+request=null;
+
+// Successful HTTP response but failed IndexedDB/localStorage write must not show success.
+saveFails=true;
+await refreshCityWithToast('lyon');
+assert.equal(toasts.at(-1).message,'weatherRefreshCityNotSaved');
+assert.equal(toasts.at(-1).args.type,'warning');
+assert.ok(Date.now()-Date.parse(state.forecasts.lyon.fetchedAt)<1500,'forecast is still updated in memory');
+saveFails=false;
+
+// A global refresh that updates one city but receives old data for another
+// must produce a warning rather than a global all-success toast.
+state.forecasts.paris={...state.forecasts.paris,fetchedAt:new Date(Date.now()-148*60_000).toISOString()};
+state.forecasts.lyon={...state.forecasts.lyon,fetchedAt:new Date(Date.now()-148*60_000).toISOString()};
+const lyonOldStamp=state.forecasts.lyon.fetchedAt;
+request=null;
+const mixedBase=ctx.fetchForecast;
+ctx.fetchForecast=async(city,models,days,cached)=>{
+  fetches++;
+  return {...cached,city,requestedModelIds:[...models],fetchedAt:city.id==='lyon'?cached.fetchedAt:new Date().toISOString()};
+};
+await refreshAll(true,true,MANUAL_REFRESH_COOLDOWN_MS);
+assert.equal(toasts.at(-1).message,'weatherRefreshPartial');
+assert.equal(toasts.at(-1).args.type,'warning');
+assert.equal(state.forecasts.lyon.fetchedAt,lyonOldStamp,'unverified city must retain its old cache');
+ctx.fetchForecast=mixedBase;
+
 for(const lang of ['FRENCH','ENGLISH','SPANISH','GERMAN','ITALIAN']){
-  for(const key of ['weatherRefreshAllMixed','weatherRefreshAllAlreadyCurrent','weatherRefreshAlreadyRunning','weatherRefreshCityAlreadyCurrent','weatherRefreshCityAlreadyRunning','weatherRefreshCityOffline'])
+  for(const key of ['weatherRefreshAllMixed','weatherRefreshAllAlreadyCurrent','weatherRefreshAlreadyRunning','weatherRefreshCityAlreadyCurrent','weatherRefreshCityAlreadyRunning','weatherRefreshCityOffline','weatherRefreshCityUnverified','weatherRefreshCityNotSaved','weatherRefreshUnverifiedReason','weatherRefreshNotSavedReason'])
     assert.equal(hasTranslation(lang,key),true,`${lang}: ${key}`);
 }
 console.log('Manual refresh flow: timestamp, cooldown, request count, concurrency, model changes, failures, offline and translations: OK');
