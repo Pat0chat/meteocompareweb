@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const app=readFileSync(new URL('../../../js/app.js',import.meta.url),'utf8');
+const css=readFileSync(new URL('../../../styles.css',import.meta.url),'utf8');
+assert.match(app,/citySearchLocationLabel\(c,results\)/,'city results use the disambiguating administrative hierarchy');
+assert.match(app,/data-add-city-id="\$\{attr\(c\.id\)\}"/,'selecting a result still targets its stable geocoding ID');
+assert.match(app,/esc\(citySearchLocationLabel\(c,results\)\)/,'user-supplied locality data is HTML-escaped');
+assert.match(css,/\.search-result-copy\s*\{[^}]*min-width:\s*0;/,'text can shrink inside the search result on narrow screens');
+assert.match(css,/\.search-result-location\s*\{[^}]*overflow-wrap:\s*anywhere/,'long municipality names wrap rather than overlap');
+console.log('City search UI: distinct labels, accessible buttons, and compact mobile layout: OK');

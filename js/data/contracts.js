@@ -90,6 +90,8 @@ export function normalizeCity(value){
     name: typeof value.name==='string'&&value.name.trim()?value.name.trim():id,
     admin1: typeof value.admin1==='string'?value.admin1:'',
     admin2: typeof value.admin2==='string'?value.admin2:'',
+    admin3: typeof value.admin3==='string'?value.admin3:'',
+    admin4: typeof value.admin4==='string'?value.admin4:'',
     country: typeof value.country==='string'?value.country:'',
     countryCode: typeof value.countryCode==='string'?value.countryCode.toUpperCase():'',
     postcodes: Array.isArray(value.postcodes)?value.postcodes.filter(code=>typeof code==='string').slice(0,12):[],

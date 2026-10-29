@@ -1,7 +1,7 @@
 import { WEATHER_MODELS, REFRESH_INTERVALS, getModel, selectedModels, consensusGroupFor, biasLeadDaysForModel } from './models.js';
 import { MANUAL_REFRESH_COOLDOWN_MS, forecastFreshForInterval, forecastCurrentForDisplay, forecastRecentlyUpdated, forecastRefreshVerified, shouldApplyHydratedForecast } from './core/app-state.js';
 import { loadSettings, saveSettings, loadCities, saveCities, loadForecast, loadForecastAsync, saveForecast, deleteForecast, deleteCityData, recordEvolutionSnapshot, loadEvolution, loadNormals, saveNormals, loadBias, saveBias, loadMarine, saveMarine, createLocalBackup, restoreLocalBackup, clearAllData, clearPwaRuntime, inspectLocalData, verifyLocalDataIntegrity, DATA_SCHEMA_VERSION, getStorageIssues, clearStorageIssues } from './storage.js';
-import { searchCities, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
+import { searchCities, citySearchLocationLabel, fetchForecast, fetchClimateNormals, fetchPreviousRuns, fetchBiasArchive } from './api.js';
 import { fromWmoCode, conditionInfo, cityToday, addDays, dayConfidence, currentConditions, hourlyConfidenceBand, aggregateDay, buildScenarios, buildDailyScenarios, aggregateNormals, windArrow, dateLabel, relativeAge, dailyCondition, hourlyCondition, dailyCloudCoverMean, buildTimelinePoints, selectRegularTimelinePoints, activeTodayHourlyPoints, roundedHourLocal, localTimestampValue, zonedTimestampEpochs, zonedLocalTimestampEpoch, zonedTimestampEpoch } from './domain.js';
 import { makeI18n, languageCode, ensureLanguage } from './i18n.js';
 import { analyticsStatus, trackPageView, trackAnalyticsEvent, setAnalyticsOptOut } from './analytics.js';
@@ -1239,9 +1239,17 @@ function renderTodaySunCard(value,agg,timezone){
   return `<article class="summary-dispersion summary-uv-card metric-uv uv-level-${level}"><div class="summary-dispersion-head"><span class="summary-metric-icon uv">${summaryMetricIcon('uv')}</span><div class="summary-dispersion-title"><div class="tile-label">${esc(t('sunSection'))}</div><div class="tile-hint">${esc(uvRiskText(value))}</div></div><strong class="summary-dispersion-value">${uvDisplayValue(value)}</strong></div><div class="summary-dispersion-visual summary-uv-visual"><div class="summary-sun-uv-label">${esc(t('uvDailyMax'))}</div>${renderUvGauge(value,{summary:true})}</div><div class="summary-sun-facts">${fact('sunrise',t('sunrise'),sunrise?timeLabel(sunrise):'—')}${fact('sunset',t('sunset'),sunset?timeLabel(sunset):'—')}${fact('daylight',t('daylightDuration'),duration)}</div><div class="summary-uv-source">${esc(t('uvIndex'))} · ${esc(t('singleSourceEstimate'))}</div></article>`;
 }
 
+function cityLocationLine(city){
+  // The same administrative hierarchy as the search results is kept for
+  // saved favorites, detail pages and the hourly chart. Translate the country
+  // from its ISO code at render time when a code is available.
+  const localize=c=>({ ...c, country:localizedCountryName(c) });
+  return citySearchLocationLabel(localize(city),state.cities.map(localize));
+}
 function homeCityPlaceLine(city){
-  const region=String(city?.region||city?.admin1||'').trim(),country=String(city?.country||'').trim();
-  return [country,region].filter((value,index,parts)=>value&&parts.findIndex(part=>part.toLocaleLowerCase()===value.toLocaleLowerCase())===index).join(' · ')||placeLine(city);
+  // Older favorite/SEO records sometimes expose only region instead of admin1.
+  const region=city?.region||city?.admin1;
+  return cityLocationLine({...city,region});
 }
 function renderCityCard(city){
   const {t}=i18n(),f=state.forecasts[city.id],loading=state.loading.has(city.id),err=state.errors[city.id];
@@ -2566,7 +2574,7 @@ function handleAction(e){
 }
 
 function persistSettings(){saveSettings(state.settings);applyTheme();}
-function placeLine(c){return [c.admin1,c.country].filter(Boolean).join(', ')||`${c.latitude?.toFixed?.(2)||c.latitude}, ${c.longitude?.toFixed?.(2)||c.longitude}`;}
+function placeLine(c){return cityLocationLine(c);}
 
 function cancelCitySearch(){
   clearTimeout(searchTimer);searchTimer=null;searchSeq++;
@@ -2583,7 +2591,8 @@ function renderSearchStatus(){
   return '';
 }
 function renderSearchResults(){
-  return (state.modal?.results||[]).map(c=>`<button class="search-result" data-add-city-id="${attr(c.id)}"><span style="font-size:1.5rem">📍</span><span><b>${esc(c.name)}</b><span class="cell-sub">${esc(placeLine(c))}</span></span></button>`).join('');
+  const results=state.modal?.results||[];
+  return results.map(c=>`<button class="search-result" data-add-city-id="${attr(c.id)}"><span class="search-result-icon" aria-hidden="true">📍</span><span class="search-result-copy"><b>${esc(c.name)}</b><span class="cell-sub search-result-location">${esc(citySearchLocationLabel(c,results))}</span></span></button>`).join('');
 }
 function updateSearchModal(){
   if(!state.modal||state.modal.type!=='addCity')return;

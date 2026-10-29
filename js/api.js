@@ -25,17 +25,69 @@ function requireCity(city){const latitude=Number(city?.latitude),longitude=Numbe
 function withCityCoordinates(url,city){url.searchParams.set('latitude',String(city.latitude));url.searchParams.set('longitude',String(city.longitude));return url;}
 
 
+// Keep the geocoder's individual locality records: two places can have the
+// same name and region while being kilometres apart. Only merge records that
+// refer to effectively the same coordinates and administrative hierarchy.
+function placePart(value){return String(value||'').trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase().replace(/\s+/g,' ');}
+function sameSearchPlace(a,b){
+  if(a.id===b.id)return true;
+  if(placePart(a.name)!==placePart(b.name)||placePart(a.countryCode||a.country)!==placePart(b.countryCode||b.country))return false;
+  if(Math.abs(a.latitude-b.latitude)>0.0005||Math.abs(a.longitude-b.longitude)>0.0005)return false;
+  return ['admin1','admin2','admin3','admin4'].every(key=>!a[key]||!b[key]||placePart(a[key])===placePart(b[key]));
+}
+export function normalizeGeocodingResults(results, limit=10){
+  const unique=[];
+  for(const r of Array.isArray(results)?results:[]){
+    const c=normalizeCity({
+      id:r?.id, name:r?.name, admin1:r?.admin1||'', admin2:r?.admin2||'',
+      admin3:r?.admin3||'', admin4:r?.admin4||'', country:r?.country||'',
+      countryCode:r?.country_code||'', postcodes:r?.postcodes,
+      latitude:r?.latitude, longitude:r?.longitude, timezone:r?.timezone||null,
+    });
+    if(c&&!unique.some(prior=>sameSearchPlace(prior,c)))unique.push(c);
+    if(unique.length>=limit)break;
+  }
+  return unique;
+}
+function citySearchBaseLocation(city){
+  const seen=new Set([placePart(city?.name)]);
+  const parts=[];
+  // Geocoded favorites carry admin1–4. Static/older cities may instead
+  // provide department and region: show these without repeating equivalents.
+  for(const item of [city?.admin4,city?.admin3,city?.admin2,city?.department,city?.admin1,city?.region,city?.country]){
+    const value=String(item||'').trim(),key=placePart(value);
+    if(!key||seen.has(key))continue;
+    parts.push(value);seen.add(key);
+  }
+  return parts.join(', ');
+}
+function citySearchCoordinates(city){
+  const lat=Number(city?.latitude),lon=Number(city?.longitude);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon))return '';
+  return `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+}
+// When the available administrative fields are still identical, show the
+// coordinates rather than implying that different locations are duplicates.
+export function citySearchLocationLabel(city, results=[]){
+  const base=citySearchBaseLocation(city),name=placePart(city?.name);
+  const ambiguous=(results||[]).some(other=>other!==city&&String(other?.id)!==String(city?.id)&&placePart(other?.name)===name&&citySearchBaseLocation(other)===base);
+  if(!ambiguous)return base||citySearchCoordinates(city);
+  const postcodes=Array.isArray(city?.postcodes)?city.postcodes.filter(Boolean):[];
+  const postcode=postcodes.length===1&&!(results||[]).some(other=>other!==city&&placePart(other?.name)===name&&citySearchBaseLocation(other)===base&&other?.postcodes?.includes(postcodes[0]))?postcodes[0]:'';
+  const identifier=postcode||citySearchCoordinates(city);
+  return [base,identifier].filter(Boolean).join(' · ');
+}
+
 export async function searchCities(query, language='fr', signal=null) {
   const u = new URL(GEOCODING_URL);
   u.searchParams.set('name', query);
-  u.searchParams.set('count','10');
+  // Fetch a few extra candidates so genuine duplicates do not crowd out other
+  // localities in the ten results displayed to the user.
+  u.searchParams.set('count','20');
   u.searchParams.set('language', language || 'fr');
   u.searchParams.set('format','json');
   const data = await fetchJson(u,30000,signal,'geocoding',5*60_000);
-  return (data.results || []).map(r => normalizeCity({
-    id:String(r.id), name:r.name, admin1:r.admin1 || '', admin2:r.admin2 || '', country:r.country || '', countryCode:r.country_code || '', postcodes:Array.isArray(r.postcodes)?r.postcodes:[], latitude:r.latitude, longitude:r.longitude,
-    timezone:r.timezone || null,
-  })).filter(Boolean);
+  return normalizeGeocodingResults(data?.results);
 }
 
 function forecastUrl(city, models, forecastDays, forecastHours, includeDaily=true, includeAtmospheric=true) {

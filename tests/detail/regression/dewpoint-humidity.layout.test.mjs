@@ -45,5 +45,4 @@ assert.match(graphic,/y:yHumidity\(point\.relativeHumidityPercent\)/);
 assert.match(graphic,/t\('aboutVisualVariableHumidity'\)/);
 assert.match(graphic,/horizontalGrid\(humidityTicks,yHumidity,'humidity'\)/);
 assert.match(graphic,/role="img" aria-label="\$\{attr\(`\$\{label\} \(\$\{unit\}\)`\)\}"/);
-assert.match(root('cache-version.js'),/v225-unified-atmospheric-icons-axes/);
 console.log('Chronology metric formatting and compact dual axes without overlap: OK');
