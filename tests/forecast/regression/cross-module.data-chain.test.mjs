@@ -130,7 +130,17 @@ assert.ok(paths.some(d=>(d.match(/\bM\b/g)||[]).length>=2),'a missing day must s
 // Targeted hourly model comparison must retain both occurrences of a folded
 // local hour rather than collapsing them onto one key.
 const foldCtx={...ctx,selectedModelIds:['GFS','ECMWF']};
-const foldComparisonHtml=renderTargetedModelComparison(foldForecast,'TEMPERATURE','HOURLY',foldCtx);
+// This comparison uses the live clock. Freeze it inside the DST fixture so the
+// regression remains meaningful on any date (including after the 2026 fold).
+const ActualDate=globalThis.Date,foldNow=Date.parse('2026-10-24T23:10:00.000Z');
+let foldComparisonHtml;
+try {
+  globalThis.Date=class extends ActualDate {
+    constructor(...args){super(...(args.length?args:[foldNow]));}
+    static now(){return foldNow;}
+  };
+  foldComparisonHtml=renderTargetedModelComparison(foldForecast,'TEMPERATURE','HOURLY',foldCtx);
+} finally { globalThis.Date=ActualDate; }
 assert.ok((foldComparisonHtml.match(/2026-10-25T02:00/g)||[]).length>=2,'hourly model comparison must keep both repeated DST hours');
 
 // The app consumes the hourly ICON-D2 product. Its metadata must therefore

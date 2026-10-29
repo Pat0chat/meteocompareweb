@@ -5740,7 +5740,7 @@ html[data-theme="dark"] .home-temperature-area { opacity:.23; }
   box-shadow:0 8px 24px color-mix(in srgb,var(--text) 3%,transparent);
 }
 .detail-chrono-view[data-chrono-mode="HOURLY"] { --detail-chrono-axis-height:72px; }
-.detail-chrono-labels { position:relative; z-index:2; display:grid; grid-template-rows:var(--detail-chrono-date-height) var(--detail-chrono-temp-height) var(--detail-chrono-pressure-height) var(--detail-chrono-axis-height) var(--detail-chrono-rain-height) var(--detail-chrono-cloud-height) var(--detail-chrono-wind-height) var(--detail-chrono-agreement-height); background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 3%,var(--surface)),var(--surface)); }
+.detail-chrono-labels { position:relative; z-index:2; display:grid; grid-template-rows:var(--detail-chrono-date-height) var(--detail-chrono-temp-height) var(--detail-chrono-atmosphere-height) var(--detail-chrono-atmosphere-height) var(--detail-chrono-pressure-height) var(--detail-chrono-axis-height) var(--detail-chrono-rain-height) var(--detail-chrono-cloud-height) var(--detail-chrono-wind-height) var(--detail-chrono-agreement-height); background:linear-gradient(180deg,color-mix(in srgb,var(--primary) 3%,var(--surface)),var(--surface)); }
 .detail-chrono-labels::after { content:""; position:absolute; top:10px; right:0; bottom:10px; width:1px; background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--border-strong) 48%,transparent) 12%,color-mix(in srgb,var(--border-strong) 48%,transparent) 88%,transparent); }
 .detail-chrono-row-label { min-width:0; display:flex; align-items:center; gap:7px; padding:8px 9px; color:var(--muted); }
 .detail-chrono-row-label .wx-icon { width:1.18rem; height:1.18rem; flex:0 0 auto; }
@@ -5984,6 +5984,7 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-grid.horizontal { stroke: color-mix(in srgb,var(--border) 82%,transparent); stroke-dasharray: 2 5; }
 .graphic-grid.horizontal.pressure { stroke:color-mix(in srgb,var(--gv-pressure) 18%,var(--border)); }
 .graphic-grid.horizontal.rain { stroke: color-mix(in srgb,var(--gv-rain) 18%,var(--border)); }
+.graphic-grid.horizontal.humidity { stroke: color-mix(in srgb,#7281cc 16%,transparent); stroke-dasharray: 3 7; }
 .graphic-grid.horizontal.wind { stroke: color-mix(in srgb,var(--gv-wind) 18%,var(--border)); }
 .graphic-day-break { fill: none; stroke: color-mix(in srgb,var(--primary) 34%,var(--border-strong)); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .graphic-day-divider-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; }
@@ -6027,14 +6028,29 @@ body.graphic-view-open #app { height: 100dvh; overflow: hidden; }
 .graphic-ruler.badge-left .graphic-ruler-badge { left: auto; right: 8px; }
 .graphic-sticky-axes { grid-row: 1; grid-column: 1; position: sticky; left: 0; z-index: 17; align-self: stretch; display: grid; grid-template-rows:minmax(0,42fr) minmax(0,19fr) minmax(0,19.5fr) minmax(0,19.5fr); pointer-events:none; }
 .graphic-sticky-axis-slot { position: relative; min-height: 0; background: linear-gradient(90deg,color-mix(in srgb,var(--surface) 98%,transparent) 0%,color-mix(in srgb,var(--surface) 94%,transparent) 80%,transparent 100%); }
+.graphic-sticky-axis-slot::after { content:""; position:absolute; right:0; top:0; bottom:0; width:1px; background:color-mix(in srgb,var(--border-strong) 26%,transparent); pointer-events:none; }
 .graphic-sticky-axis-slot + .graphic-sticky-axis-slot { border-top: 1px solid color-mix(in srgb,var(--border-strong) 78%,transparent); }
 .graphic-y-axis {
-  --axis-left: 10px; --axis-rail-offset: 132px; --axis-color: var(--gv-temp);
+  --axis-left: 10px; --axis-rail-offset: 208px; --axis-color: var(--gv-temp);
   position: absolute; inset: 0; pointer-events: none; z-index: 5; font-family: var(--tech-font); font-size: .70rem; color: var(--gv-muted);
 }
 .graphic-y-axis.temp { --axis-color: var(--gv-temp); }
 .graphic-y-axis.pressure { --axis-color:var(--gv-pressure); }
 .graphic-y-axis.rain { --axis-color: var(--gv-rain); }
+/* Both single and dual scales use the same progressive background and
+   terminate at the same outer rail, 10px before the plot begins. The second
+   rain axis occupies its own left lane rather than creating another gutter. */
+.graphic-sticky-rain-axes { background:linear-gradient(90deg,color-mix(in srgb,var(--surface) 98%,transparent) 0%,color-mix(in srgb,var(--surface) 94%,transparent) 80%,transparent 100%); }
+.graphic-y-axis { --axis-left:6px; --axis-rail-offset:104px; }
+.graphic-y-axis.rain { --axis-left:4px; --axis-rail-offset:48px; }
+.graphic-y-axis.humidity { --axis-color:#7281cc; --axis-left:63px; --axis-rail-offset:47px; }
+.graphic-y-axis.rain .graphic-axis-tick,
+.graphic-y-axis.humidity .graphic-axis-tick { width:calc(var(--axis-rail-offset) + 7px); gap:2px; grid-template-columns:minmax(0,1fr) 5px; }
+.graphic-y-axis.rain .graphic-axis-tick em,
+.graphic-y-axis.humidity .graphic-axis-tick em { padding:1px 1px; font-size:.70rem; overflow:hidden; text-overflow:clip; }
+.graphic-y-axis.rain .graphic-axis-tick i,
+.graphic-y-axis.humidity .graphic-axis-tick i { width:5px; }
+
 .graphic-y-axis.wind { --axis-color: var(--gv-wind); }
 .graphic-axis-heading {
   position: absolute; left: var(--axis-left); top: 7px; width: fit-content; max-width: calc(var(--axis-rail-offset) - 10px); min-height: 32px; display: flex; align-items: center; gap: 6px; box-sizing: border-box; z-index: 4;
@@ -6436,3 +6452,84 @@ html[data-clock="h12"] .home-weather-timeline { --home-timeline-step:82px; }
 /* Comparison charts: same-color, unobtrusive feels-like overlay. */
 .compare-line.apparent-temp-line { opacity: .4; stroke-dasharray: 5 5; stroke-width: 2; pointer-events: none; }
 .apparent-legend-note { font-size: .74rem; opacity: .65; padding: 0 12px 12px; }
+
+/* Axis names are in the graphic legend and assistive labels. Display only
+   compact units above ticks: long translations never cover the numeric scale. */
+.graphic-axis-heading { top:3px; min-height:0; height:18px; padding:1px 4px; gap:0; border:0; border-radius:4px; box-shadow:none; background:var(--surface); }
+.graphic-axis-heading .graphic-axis-icon,
+.graphic-axis-heading strong { display:none; }
+.graphic-axis-heading small { margin:0; font-size:.70rem; line-height:16px; }
+.graphic-sticky-rain-axes .graphic-axis-heading { max-width:var(--axis-rail-offset); }
+.graphic-axis-tick em { padding-inline:2px; }
+@media (max-height:640px) { .graphic-sticky-axes .graphic-axis-heading { display:none; } }
+
+/* Dew point and relative humidity are optional per-model metrics; keep the
+   horizontal chronology aligned even if a model omits both series. */
+.detail-chrono-view { --detail-chrono-atmosphere-height:38px; }
+.detail-chrono-row-label.dew-point { color:var(--temp); }
+.detail-chrono-row-label.humidity { color:var(--primary); }
+.detail-chrono-dew-point, .detail-chrono-humidity { height:var(--detail-chrono-atmosphere-height); background:color-mix(in srgb,var(--primary) 2%,var(--surface)); }
+.detail-chrono-atmosphere-cell { display:flex; min-width:0; justify-content:center; align-items:center; padding:5px; color:var(--text); }
+.detail-chrono-atmosphere-cell strong { font-size:.74rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.timeline-dew-point-metric strong, .timeline-humidity-metric strong { font-variant-numeric:tabular-nums; }
+.graphic-dew-point-line { fill:none; stroke:#15a7a6; stroke-width:2.3; stroke-dasharray:7 4; vector-effect:non-scaling-stroke; pointer-events:none; }
+.graphic-humidity-line { fill:none; stroke:#7281cc; stroke-width:2.5; stroke-dasharray:4 5; vector-effect:non-scaling-stroke; pointer-events:none; }
+.graphic-legend .dew-point i, .graphic-legend .humidity i { width:24px; height:0; background:none; }
+.graphic-legend .dew-point i { border-top:2px dashed #15a7a6; }
+.graphic-legend .humidity i { border-top:2px dashed #7281cc; }
+.graphic-ruler-summary .dew-point i { background:#15a7a6; }
+.graphic-ruler-summary .humidity i { background:#7281cc; }
+
+/* Timeline columns: use precisely the same icon / label / value / rail /
+   range geometry as the other metrics, with localized short labels and full
+   translations retained in title attributes. */
+.timeline-dew-point-metric,
+.timeline-humidity-metric {
+  --timeline-rail-accent:var(--gv-temp);
+  grid-template-columns:19px minmax(0,1fr) auto;
+  grid-template-rows:18px 10px 16px;
+  height:64px;
+  min-height:64px;
+  gap:2px 4px;
+  padding:6px 2px;
+}
+.timeline-humidity-metric { --timeline-rail-accent:#7281cc; }
+.timeline-dew-point-metric > .timeline-metric-label,
+.timeline-humidity-metric > .timeline-metric-label {
+  grid-column:2;
+  grid-row:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:18px;
+}
+.timeline-dew-point-metric > strong,
+.timeline-humidity-metric > strong {
+  grid-column:3;
+  grid-row:1;
+  justify-self:end;
+  line-height:18px;
+  white-space:nowrap;
+}
+.timeline-dew-point-metric > small,
+.timeline-humidity-metric > small {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-size:.70rem;
+}
+
+/* On short mobile viewports the rain plot may be only ~60px tall. Keep its
+   numeric endpoints legible; units stay available in the graph legend and
+   full names remain on the accessible axis labels. */
+@media (max-width:620px), (max-height:640px) {
+  .graphic-sticky-rain-axes .graphic-axis-heading { display:none; }
+  .graphic-sticky-rain-axes .graphic-axis-tick:nth-of-type(2) { display:none; }
+}
+
+/* Shared semantic atmospheric metric icons (Today, both chronologies, chart). */
+.summary-metric-icon.dew-point, .detail-chrono-row-label.dew-point { color:#15a7a6; }
+.summary-metric-icon.humidity, .detail-chrono-row-label.humidity { color:#7281cc; }
+.timeline-dew-point-metric .timeline-metric-icon { color:#15a7a6; }
+.timeline-humidity-metric .timeline-metric-icon { color:#7281cc; }
+.graphic-legend .dew-point > .wx-icon { width:16px; height:16px; flex:0 0 auto; color:#15a7a6; }
+.graphic-legend .humidity > .wx-icon { width:16px; height:16px; flex:0 0 auto; color:#7281cc; }

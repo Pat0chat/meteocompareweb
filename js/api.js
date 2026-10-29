@@ -10,7 +10,7 @@ import { NETWORK_ENDPOINTS } from './network-config.js';
 const { forecast:FORECAST_URL, geocoding:GEOCODING_URL, archive:ARCHIVE_URL, previousRuns:PREVIOUS_RUNS_URL } = NETWORK_ENDPOINTS.openMeteo;
 
 const HOURLY_VARS = [
-  'temperature_2m','apparent_temperature','pressure_msl','precipitation','precipitation_probability','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
+  'temperature_2m','apparent_temperature','dew_point_2m','relative_humidity_2m','pressure_msl','precipitation','precipitation_probability','cloud_cover','cloud_cover_low','cloud_cover_mid','cloud_cover_high',
   'wind_speed_10m','wind_direction_10m','wind_gusts_10m','weather_code'
 ].join(',');
 const DAILY_VARS = [
@@ -38,10 +38,10 @@ export async function searchCities(query, language='fr', signal=null) {
   })).filter(Boolean);
 }
 
-function forecastUrl(city, models, forecastDays, forecastHours, includeDaily=true) {
+function forecastUrl(city, models, forecastDays, forecastHours, includeDaily=true, includeAtmospheric=true) {
   const u = withCityCoordinates(new URL(FORECAST_URL),city);
   u.searchParams.set('models', models.map(m=>m.apiKey).join(','));
-  u.searchParams.set('hourly', HOURLY_VARS);
+  u.searchParams.set('hourly', includeAtmospheric?HOURLY_VARS:HOURLY_VARS.split(',').filter(key=>!['dew_point_2m','relative_humidity_2m'].includes(key)).join(','));
   if (includeDaily) u.searchParams.set('daily', DAILY_VARS);
   u.searchParams.set('timezone', city.timezone || 'auto');
   u.searchParams.set('forecast_days', String(Math.max(1, forecastDays)));
@@ -70,14 +70,19 @@ function modelRecoveryHours(model, requestedHours) {
   return Math.max(1, Math.min(requestedHours, model.recoveryRequestHours || model.horizonHours || model.maxForecastDays*24));
 }
 
-async function fetchModelGroup(city, models, forecastDays, forecastHours) {
-  const raw=await fetchJson(forecastUrl(city,models,forecastDays,forecastHours,true),30000,null,'forecast');
+async function fetchModelGroup(city, models, forecastDays, forecastHours, includeAtmospheric=true) {
+  const raw=await fetchJson(forecastUrl(city,models,forecastDays,forecastHours,true,includeAtmospheric),30000,null,'forecast');
   return normalizeBatchedForecast(raw,city,models,forecastHours);
 }
 function isModelSelectionFailure(error){return error?.code==='OPEN_METEO_ERROR'||(error?.code==='HTTP_ERROR'&&Number(error.status)>=400&&Number(error.status)<500&&![408,429].includes(Number(error.status)));}
 function modelRequestError(error){return error?.code==='HTTP_ERROR'?`HTTP_${error.status||'ERROR'}`:(error?.code||'MODEL_UNAVAILABLE');}
 async function isolateRejectedModelGroup(city,models,forecastDays,forecastHours,error){
-  if(models.length===1)return {parts:[],errors:{[models[0].id]:modelRequestError(error)}};
+  if(models.length===1){
+    // Some regional model APIs may reject an optional atmospheric variable.
+    // Preserve the original weather forecast instead of silently losing that model.
+    try{return {parts:[await fetchModelGroup(city,models,forecastDays,forecastHours,false)],errors:{}};}
+    catch(fallbackError){return {parts:[],errors:{[models[0].id]:modelRequestError(fallbackError)}};}
+  }
   const middle=Math.ceil(models.length/2),left=models.slice(0,middle),right=models.slice(middle);
   const [a,b]=await Promise.all([fetchModelGroupResilient(city,left,forecastDays,forecastHours),fetchModelGroupResilient(city,right,forecastDays,forecastHours)]);
   return {parts:[...a.parts,...b.parts],errors:{...a.errors,...b.errors}};

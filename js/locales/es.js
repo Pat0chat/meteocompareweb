@@ -1,5 +1,9 @@
 // Final ES runtime catalogue. Keep one source value per key; historical overrides are intentionally flattened.
 export const catalog = Object.freeze({
+  "dewPointShort":"Rocío",
+  "relativeHumidityShort":"Humedad",
+  "dewPoint":"Punto de rocío",
+  "relativeHumidity":"Humedad relativa",
   "apparentTemperatureShort":"Sensación",
   "apparentTemperature":"Sensación térmica",
   "apparentTemperatureMax":"Sensación térmica máxima",

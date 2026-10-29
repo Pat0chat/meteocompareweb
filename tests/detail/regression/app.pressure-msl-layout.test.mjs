@@ -25,7 +25,7 @@ assert.match(css,/\.timeline-metric\s*\{[\s\S]*height: 64px;[\s\S]*grid-template
 
 // The rain heat marker belongs to the thermal band, centered directly below the
 // temperature track. It must not compete with pressure or rain metric rows.
-assert.match(app,/class="timeline-temp-track"[^>]*><i><\/i><b><\/b><\/div>\$\{rainHeat\}<\/div><div class="timeline-metric timeline-pressure-metric"/,'rain heat must be directly below the temperature track inside the thermal band');
+assert.match(app,/class="timeline-temp-track"[^>]*><i><\/i><b><\/b><\/div>\$\{rainHeat\}<\/div><div class="timeline-metric timeline-dew-point-metric[\s\S]*timeline-metric timeline-humidity-metric[\s\S]*timeline-metric timeline-pressure-metric"/,'rain heat must be directly below the temperature track inside the thermal band');
 assert.doesNotMatch(app,/timeline-rain-probability-metric[\s\S]{0,260}\$\{rainHeat\}/,'rain heat must not be embedded in the probability metric');
 assert.match(css,/\.timeline-temp-band > \.timeline-precip-heat \{[^}]*align-self:center;[^}]*justify-self:center;/,'rain heat marker must be centered in the thermal band');
 assert.match(css,/\.timeline-precip-heat\s*\{[\s\S]*width:\s*15px;[\s\S]*height:\s*15px;[\s\S]*margin:\s*0;[\s\S]*display:\s*inline-grid;/,'rain heat marker keeps a stable footprint without row-specific offset');

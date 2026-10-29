@@ -7,7 +7,7 @@ const api=get('js/api.js'),app=get('js/app.js'),domain=get('js/domain.js'),compa
 // New fields ride on the existing (batched model + single UV) fetches; never call a new endpoint.
 assert.match(api,/const HOURLY_VARS = \[[\s\S]*'apparent_temperature'/);
 assert.match(api,/const DAILY_VARS = \[[\s\S]*'apparent_temperature_max','apparent_temperature_min'/);
-assert.match(api,/u\.searchParams\.set\('hourly', HOURLY_VARS\)/);
+assert.match(api,/u\.searchParams\.set\('hourly', includeAtmospheric\?HOURLY_VARS/);
 assert.match(api,/if \(includeDaily\) u\.searchParams\.set\('daily', DAILY_VARS\)/);
 assert.equal((api.match(/async function fetchModelGroup\(/g)||[]).length,1);
 assert.ok(!/fetch\s*\(/.test(domain+comparison),'domain and views must not fetch');

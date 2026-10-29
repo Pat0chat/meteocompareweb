@@ -204,14 +204,26 @@ export function currentConditions(forecast, now=new Date(), options={}) {
   const timezone=forecast.city?.timezone||forecast.timezone||'UTC',targetSlot=roundedHourEpoch(timezone,now),rows=[];
   for(const [modelId,series] of Object.entries(forecast.seriesByModel||{})){
     const axis=hourlyAxis(series,timezone),i=axis.indexByEpoch.get(targetSlot);if(i==null)continue;
-    const vote=hourlyCondition(series,i);rows.push({modelId,temperature:physicalValue(series.hourly.temperature2m[i],FORECAST_PHYSICAL_LIMITS.temperatureC),apparentTemperature:physicalValue(series.hourly.apparentTemperature?.[i],FORECAST_PHYSICAL_LIMITS.temperatureC),precipitation:physicalValue(series.hourly.precipitation[i],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm),precipitationProbability:physicalValue(series.hourly.precipitationProbability[i],FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent),wind:physicalValue(series.hourly.windSpeed10m[i],FORECAST_PHYSICAL_LIMITS.windKmh),cloud:physicalValue(series.hourly.cloudCover[i],FORECAST_PHYSICAL_LIMITS.cloudPercent),condition:vote.condition,conditionInferred:vote.inferred});
+    const vote=hourlyCondition(series,i);rows.push({modelId,temperature:physicalValue(series.hourly.temperature2m[i],FORECAST_PHYSICAL_LIMITS.temperatureC),apparentTemperature:physicalValue(series.hourly.apparentTemperature?.[i],FORECAST_PHYSICAL_LIMITS.temperatureC),dewPoint:physicalValue(series.hourly.dewPoint2m?.[i],FORECAST_PHYSICAL_LIMITS.temperatureC),humidity:physicalValue(series.hourly.relativeHumidity2m?.[i],FORECAST_PHYSICAL_LIMITS.relativeHumidityPercent),precipitation:physicalValue(series.hourly.precipitation[i],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm),precipitationProbability:physicalValue(series.hourly.precipitationProbability[i],FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent),wind:physicalValue(series.hourly.windSpeed10m[i],FORECAST_PHYSICAL_LIMITS.windKmh),cloud:physicalValue(series.hourly.cloudCover[i],FORECAST_PHYSICAL_LIMITS.cloudPercent),condition:vote.condition,conditionInferred:vote.inferred});
   }
   const cloudEntries=rows.map(x=>({modelId:x.modelId,value:x.cloud}));
   const apparentRows=rows.filter(x=>Number.isFinite(x.apparentTemperature));
   const apparent=apparentRows.length?forecastEngineContinuous(apparentRows.map(x=>({modelId:x.modelId,value:x.apparentTemperature})),engineConfig(options,'temperature',.5,3,{calibration:{}})):null;
+  const dewPoint=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.dewPoint})),engineConfig(options,'temperature',.5,3,{calibration:{}}));
+  const humidity=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.humidity})),engineConfig(options,'condition',10,50,{min:0,max:100,calibration:{}}));
   const temp=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.temperature})),engineConfig(options,'temperature',.5,3,{calibration:{}})),wind=forecastEngineContinuous(rows.map(x=>({modelId:x.modelId,value:x.wind})),engineConfig(options,'wind',2,12,{min:0,calibration:{}})),cloud=forecastEngineContinuous(cloudEntries,engineConfig(options,'condition',10,50,{min:0,max:100})),cloudAgreement=continuousConsensus(cloudEntries,{},10,50),precip=forecastEnginePrecipitation(rows.map(x=>({modelId:x.modelId,amount:x.precipitation,probability:x.precipitationProbability})),{...engineConfig(options,'precipitation',.5,4,{calibration:{}}),threshold:RAIN_THRESHOLD_MM,amountTight:.5,amountWide:4,amountMax:FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm.max});
   const resolved=resolveAggregateCondition(rows,{temperature:temp.central,precipitation:precip.conditionAmountMm,cloud:cloud.central,cloudFamilyCount:cloudAgreement.familyCount,cloudModelCount:cloudAgreement.count,cloudAgreementPercent:cloudAgreement.convergencePercent}),cv=resolved.conditionVote;
-  return {temperature:temp.central,apparentTemperature:apparent?.central??null,wind:wind.central,cloudCover:Number.isFinite(cloud.central)?Math.round(cloud.central):null,condition:resolved.condition,conditionInferred:resolved.conditionInferred,conditionSource:resolved.conditionSource,conditionNativeModelCount:resolved.nativeModelCount,conditionDerivedModelCount:resolved.derivedModelCount,modelCount:rows.length,familyCount:Math.max(temp.familyCount,wind.familyCount,cv.familyCount),forecastEngine:options?.forecastEngine||DEFAULT_FORECAST_ENGINE,engineDetails:{temperature:forecastEngineSummary(temp),apparentTemperature:forecastEngineSummary(apparent),precipitation:forecastEngineSummary(precip),wind:forecastEngineSummary(wind),cloud:forecastEngineSummary(cloud)}};
+  return {temperature:temp.central,apparentTemperature:apparent?.central??null,dewPoint:dewPoint.central,humidity:humidity.central,wind:wind.central,cloudCover:Number.isFinite(cloud.central)?Math.round(cloud.central):null,condition:resolved.condition,conditionInferred:resolved.conditionInferred,conditionSource:resolved.conditionSource,conditionNativeModelCount:resolved.nativeModelCount,conditionDerivedModelCount:resolved.derivedModelCount,modelCount:rows.length,familyCount:Math.max(temp.familyCount,wind.familyCount,cv.familyCount),forecastEngine:options?.forecastEngine||DEFAULT_FORECAST_ENGINE,engineDetails:{temperature:forecastEngineSummary(temp),apparentTemperature:forecastEngineSummary(apparent),dewPoint:forecastEngineSummary(dewPoint),humidity:forecastEngineSummary(humidity),precipitation:forecastEngineSummary(precip),wind:forecastEngineSummary(wind),cloud:forecastEngineSummary(cloud)}};
+}
+
+export function dailyAtmosphericMean(series,date,key,limits){
+  const hourly=series?.hourly||{},values=[];
+  (hourly.timestamps||[]).forEach((timestamp,index)=>{
+    if(typeof timestamp!=='string'||timestamp.slice(0,10)!==date)return;
+    const value=physicalValue(hourly[key]?.[index],limits);
+    if(Number.isFinite(value))values.push(value);
+  });
+  return values.length?values.reduce((sum,value)=>sum+value,0)/values.length:null;
 }
 
 export function dailyCloudCoverMean(series,date){
@@ -344,6 +356,8 @@ export function aggregateDay(forecast, date, options={}) {
       tempMax:temperatures.max,tempMin:temperatures.min,
       apparentTempMax:physicalValue(series.daily.apparentTempMax?.[index],FORECAST_PHYSICAL_LIMITS.temperatureC),
       apparentTempMin:physicalValue(series.daily.apparentTempMin?.[index],FORECAST_PHYSICAL_LIMITS.temperatureC),
+      dewPoint:dailyAtmosphericMean(series,date,'dewPoint2m',FORECAST_PHYSICAL_LIMITS.temperatureC),
+      humidity:dailyAtmosphericMean(series,date,'relativeHumidity2m',FORECAST_PHYSICAL_LIMITS.relativeHumidityPercent),
       precip:physicalValue(series.daily.precipitationSum[index],FORECAST_PHYSICAL_LIMITS.precipitationDailyMm),cloud:dailyCloudCoverMean(series,date),
       wind:physicalValue(series.daily.windSpeedMax[index],FORECAST_PHYSICAL_LIMITS.windKmh),gust:physicalValue(series.daily.windGustsMax[index],FORECAST_PHYSICAL_LIMITS.gustKmh),
       direction:physicalValue(series.daily.windDirection10mDominant[index],FORECAST_PHYSICAL_LIMITS.directionDeg),precipProb:physicalValue(series.daily.precipitationProbabilityMax[index],FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent),
@@ -364,7 +378,7 @@ export function aggregateDay(forecast, date, options={}) {
       : null;
   }
   const weights=options?.weightsByVariable||{},calibrationLeadDay=dailyCalibrationLeadDay(forecast,date);
-  const metricForKey=key=>['tempMax','tempMin','apparentTempMax','apparentTempMin'].includes(key)?'temperature':['wind','gust','direction'].includes(key)?'wind':['condition','cloud'].includes(key)?'condition':'precipitation';
+  const metricForKey=key=>['tempMax','tempMin','apparentTempMax','apparentTempMin','dewPoint'].includes(key)?'temperature':['wind','gust','direction'].includes(key)?'wind':['condition','cloud','humidity'].includes(key)?'condition':'precipitation';
   const entries=key=>data
     .filter(row=>row.comparable[metricForKey(key)]&&Number.isFinite(row[key]))
     .map(row=>({modelId:row.modelId,value:row[key]}));
@@ -373,6 +387,8 @@ export function aggregateDay(forecast, date, options={}) {
 
   const tempMax=calculate('tempMax','temperature',.5,3);
   const tempMin=calculate('tempMin','temperature',.5,3,{calibration:{}});
+  const dewPoint=calculate('dewPoint','temperature',.5,3,{calibration:{}});
+  const humidity=calculate('humidity','condition',10,50,{min:0,max:100,calibration:{}});
   const apparentTempMax=entries('apparentTempMax').length?calculate('apparentTempMax','temperature',.5,3,{calibration:{}}):null;
   const apparentTempMin=entries('apparentTempMin').length?calculate('apparentTempMin','temperature',.5,3,{calibration:{}}):null;
   const wind=calculate('wind','wind',2,12,{min:0});
@@ -395,12 +411,13 @@ export function aggregateDay(forecast, date, options={}) {
     date,data,
     tempMax:tempMax.central,tempMin:tempMin.central,
     apparentTempMax:apparentTempMax?.central??null,apparentTempMin:apparentTempMin?.central??null,
+    dewPoint:dewPoint.central,humidity:humidity.central,
     precip:precip.centralAmountMm,precipProbability:precip.probabilityPercent,
     precipConditional:precip.conditionalAmountMm,precipExpected:precip.expectedAmountMm,precipConditionAmount:precip.conditionAmountMm,
     precipitationDiagnostics:{probabilityPercent:precip.probabilityPercent,agreementPercent:precip.convergencePercent,occurrenceAgreementPercent:precip.occurrenceConvergencePercent,amountAgreementPercent:precip.amountConvergencePercent,dispersion:precip.dispersion||null,historicalReliabilityPercent:precip.historicalReliabilityPercent??null,evidenceLevel:precip.evidenceLevel||null},
     cloud:Number.isFinite(cloudConsensus.central)?Math.round(cloudConsensus.central):null,
     wind:wind.central,gust:gust.central,
-    tempMaxRange:range('tempMax'),tempMinRange:range('tempMin'),apparentTempMaxRange:range('apparentTempMax'),apparentTempMinRange:range('apparentTempMin'),precipRange:range('precipExpectedSource'),
+    tempMaxRange:range('tempMax'),tempMinRange:range('tempMin'),apparentTempMaxRange:range('apparentTempMax'),apparentTempMinRange:range('apparentTempMin'),dewPointRange:range('dewPoint'),humidityRange:range('humidity'),precipRange:range('precipExpectedSource'),
     cloudRange:range('cloud'),windRange:range('wind'),gustRange:range('gust'),
     cloudConfidence:{
       percent:cloudAgreement.convergencePercent,
@@ -420,6 +437,7 @@ export function aggregateDay(forecast, date, options={}) {
     engineDetails:{
       tempMax:forecastEngineSummary(tempMax),tempMin:forecastEngineSummary(tempMin),
       apparentTempMax:forecastEngineSummary(apparentTempMax),apparentTempMin:forecastEngineSummary(apparentTempMin),
+      dewPoint:forecastEngineSummary(dewPoint),humidity:forecastEngineSummary(humidity),
       precipitation:forecastEngineSummary(precip),cloud:forecastEngineSummary(cloudConsensus),
       wind:forecastEngineSummary(wind),gust:forecastEngineSummary(gust),
     },
@@ -468,6 +486,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       const tempMin=hourly?null:(tempComparable?dailyTemperatures.min:null);
       const tempMax=hourly?null:(tempComparable?dailyTemperatures.max:null);
       const apparentTemperature=hourly?physicalValue(modelSeries.hourly.apparentTemperature?.[index],FORECAST_PHYSICAL_LIMITS.temperatureC):null;
+      const dewPoint=hourly?physicalValue(modelSeries.hourly.dewPoint2m?.[index],FORECAST_PHYSICAL_LIMITS.temperatureC):dailyAtmosphericMean(modelSeries,key,'dewPoint2m',FORECAST_PHYSICAL_LIMITS.temperatureC);
+      const humidity=hourly?physicalValue(modelSeries.hourly.relativeHumidity2m?.[index],FORECAST_PHYSICAL_LIMITS.relativeHumidityPercent):dailyAtmosphericMean(modelSeries,key,'relativeHumidity2m',FORECAST_PHYSICAL_LIMITS.relativeHumidityPercent);
       const apparentTempMin=hourly?null:(tempComparable?physicalValue(modelSeries.daily.apparentTempMin?.[index],FORECAST_PHYSICAL_LIMITS.temperatureC):null);
       const apparentTempMax=hourly?null:(tempComparable?physicalValue(modelSeries.daily.apparentTempMax?.[index],FORECAST_PHYSICAL_LIMITS.temperatureC):null);
       const precipitation=hourly?physicalValue(modelSeries.hourly.precipitation[index],FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm):(precipComparable?physicalValue(modelSeries.daily.precipitationSum[index],FORECAST_PHYSICAL_LIMITS.precipitationDailyMm):null);
@@ -482,8 +502,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       const precipTemperature=hourly?temperature:dailyPrecipitationTemperature(modelSeries,key);
       const conditionResult=conditionComparable?(hourly?hourlyCondition(modelSeries,index):dailyCondition(modelSeries,key)):{condition:null,inferred:false};
       const condition=conditionResult.condition,conditionInferred=conditionResult.inferred;
-      if([temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,cloudCover,wind,windGust,windDirection,precipTemperature].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN)){
-        snaps.push({modelId,temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,cloudCover,wind,windGust,windDirection,precipTemperature,condition,conditionInferred});
+      if([temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,dewPoint,humidity,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,cloudCover,wind,windGust,windDirection,precipTemperature].some(Number.isFinite)||(condition&&condition!==CONDITION.UNKNOWN)){
+        snaps.push({modelId,temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,dewPoint,humidity,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,cloudCover,wind,windGust,windDirection,precipTemperature,condition,conditionInferred});
       }
     }
 
@@ -491,6 +511,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     const minEntries=hourly?[]:snaps.map(row=>({modelId:row.modelId,value:row.tempMin}));
     const apparentEntries=snaps.map(row=>({modelId:row.modelId,value:hourly?row.apparentTemperature:row.apparentTempMax}));
     const apparentMinEntries=hourly?[]:snaps.map(row=>({modelId:row.modelId,value:row.apparentTempMin}));
+    const dewPointEntries=snaps.map(row=>({modelId:row.modelId,value:row.dewPoint}));
+    const humidityEntries=snaps.map(row=>({modelId:row.modelId,value:row.humidity}));
     const pressureEntries=snaps.map(row=>({modelId:row.modelId,value:row.pressure}));
     const pressureMinEntries=hourly?[]:snaps.map(row=>({modelId:row.modelId,value:row.pressureMin}));
     const pressureMaxEntries=hourly?[]:snaps.map(row=>({modelId:row.modelId,value:row.pressureMax}));
@@ -503,6 +525,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
     const minForecast=hourly?null:forecastEngineContinuous(minEntries,engineConfig(options,'temperature',.5,3,{calibration:{}}));
     const apparentForecast=apparentEntries.some(row=>Number.isFinite(row.value))?forecastEngineContinuous(apparentEntries,engineConfig(options,'temperature',.5,3,{calibration:{}})):null;
     const apparentMinForecast=hourly||!apparentMinEntries.some(row=>Number.isFinite(row.value))?null:forecastEngineContinuous(apparentMinEntries,engineConfig(options,'temperature',.5,3,{calibration:{}}));
+    const dewPointForecast=forecastEngineContinuous(dewPointEntries,engineConfig(options,'temperature',.5,3,{calibration:{}}));
+    const humidityForecast=forecastEngineContinuous(humidityEntries,engineConfig(options,'condition',10,50,{min:0,max:100,calibration:{}}));
     const pressureForecast=forecastEngineContinuous(pressureEntries,engineConfig(options,'pressure',.5,8,{calibration:{}}));
     const pressureMinForecast=hourly?null:forecastEngineContinuous(pressureMinEntries,engineConfig(options,'pressure',.5,8,{calibration:{}}));
     const pressureMaxForecast=hourly?null:forecastEngineContinuous(pressureMaxEntries,engineConfig(options,'pressure',.5,8,{calibration:{}}));
@@ -567,6 +591,8 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       uvIndex:hourly?uvForTimestamp(forecast,key):uvMaxForDate(forecast,key),
       temperatureC:hourly?temperatureForecast.central:null,
       apparentTemperatureC:hourly?apparentForecast?.central??null:null,
+      dewPointC:dewPointForecast.central,
+      relativeHumidityPercent:humidityForecast.central,
       apparentTempMinC:hourly?null:apparentMinForecast?.central??null,
       apparentTempMaxC:hourly?null:apparentForecast?.central??null,
       tempMinC:hourly?null:minForecast?.central??null,
@@ -591,6 +617,10 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       precipitationExpectedMaxAcrossModelsMm:precipitationExpectedAmounts.length?Math.max(...precipitationExpectedAmounts):null,
       precipitationProbabilityMin:probabilities.length?Math.min(...probabilities):null,
       precipitationProbabilityMax:probabilities.length?Math.max(...probabilities):null,
+      dewPointMinAcrossModels:dewPointEntries.filter(row=>Number.isFinite(row.value)).length?Math.min(...dewPointEntries.map(row=>row.value).filter(Number.isFinite)):null,
+      dewPointMaxAcrossModels:dewPointEntries.filter(row=>Number.isFinite(row.value)).length?Math.max(...dewPointEntries.map(row=>row.value).filter(Number.isFinite)):null,
+      humidityMinAcrossModels:humidityEntries.filter(row=>Number.isFinite(row.value)).length?Math.min(...humidityEntries.map(row=>row.value).filter(Number.isFinite)):null,
+      humidityMaxAcrossModels:humidityEntries.filter(row=>Number.isFinite(row.value)).length?Math.max(...humidityEntries.map(row=>row.value).filter(Number.isFinite)):null,
       pressureMslHpa:pressureForecast.central,
       pressureMslMinHpa:hourly?null:pressureMinForecast?.central??null,
       pressureMslMaxHpa:hourly?null:pressureMaxForecast?.central??null,
@@ -619,10 +649,11 @@ export function buildTimelinePoints(forecast, mode='HOURLY', now=new Date(), opt
       consensusLevel:Number.isFinite(consensusPercent)?(consensusPercent>=75?'HIGH':consensusPercent>=50?'MEDIUM':'LOW'):null,
       divergenceReasons:[...new Set(divergence)],
       forecastEngine:options?.forecastEngine||DEFAULT_FORECAST_ENGINE,
-      modelValues:options?.includeModelValues?snaps.map(({modelId,temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,wind,windGust,windDirection,condition})=>({modelId,temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,wind,windGust,windDirection,condition})):undefined,
+      modelValues:options?.includeModelValues?snaps.map(({modelId,temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,dewPoint,humidity,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,wind,windGust,windDirection,condition})=>({modelId,temperature,tempMin,tempMax,apparentTemperature,apparentTempMin,apparentTempMax,dewPoint,humidity,precipitation,precipitationProbability,pressure,pressureMin,pressureMax,wind,windGust,windDirection,condition})):undefined,
       engineDetails:{
         temperature:forecastEngineSummary(temperatureForecast),
         apparentTemperature:forecastEngineSummary(apparentForecast),
+        dewPoint:forecastEngineSummary(dewPointForecast),humidity:forecastEngineSummary(humidityForecast),
         apparentTempMin:apparentMinForecast?forecastEngineSummary(apparentMinForecast):null,
         tempMin:minForecast?forecastEngineSummary(minForecast):null,
         precipitation:forecastEngineSummary(precipitationForecast),

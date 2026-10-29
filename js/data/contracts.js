@@ -112,7 +112,7 @@ export function normalizeCities(values){
 }
 
 const HOURLY_KEYS = ['temperature2m','precipitation','precipitationProbability','cloudCover','windSpeed10m','windDirection10m','windGusts10m','weatherCode'];
-const OPTIONAL_HOURLY_KEYS = ['pressureMsl','apparentTemperature'];
+const OPTIONAL_HOURLY_KEYS = ['pressureMsl','apparentTemperature','dewPoint2m','relativeHumidity2m'];
 const DAILY_KEYS = ['tempMax','tempMin','precipitationSum','precipitationProbabilityMax','windSpeedMax','windGustsMax','windDirection10mDominant','weatherCode','sunrise','sunset'];
 const OPTIONAL_DAILY_KEYS = ['pressureMslMean','pressureMslMin','pressureMslMax','apparentTempMax','apparentTempMin'];
 
@@ -148,6 +148,8 @@ export function forecastSeriesIssues(series){
     for(const key of OPTIONAL_HOURLY_KEYS)if(hourly[key]!=null&&!arrayAligned(hourly[key],hourlyLength))issues.push(`HOURLY_${key}_MISALIGNED`);
     if(arrayAligned(hourly.temperature2m,hourlyLength)&&!arrayValuesValid(hourly.temperature2m,temperature))issues.push('HOURLY_temperature2m_INVALID');
     if(arrayAligned(hourly.apparentTemperature,hourlyLength)&&!arrayValuesValid(hourly.apparentTemperature,temperature))issues.push('HOURLY_apparentTemperature_INVALID');
+    if(arrayAligned(hourly.dewPoint2m,hourlyLength)&&!arrayValuesValid(hourly.dewPoint2m,temperature))issues.push('HOURLY_dewPoint2m_INVALID');
+    if(arrayAligned(hourly.relativeHumidity2m,hourlyLength)&&!arrayValuesValid(hourly.relativeHumidity2m,within(FORECAST_PHYSICAL_LIMITS.relativeHumidityPercent)))issues.push('HOURLY_relativeHumidity2m_INVALID');
     if(arrayAligned(hourly.pressureMsl,hourlyLength)&&!arrayValuesValid(hourly.pressureMsl,pressure))issues.push('HOURLY_pressureMsl_INVALID');
     if(arrayAligned(hourly.precipitation,hourlyLength)&&!arrayValuesValid(hourly.precipitation,hourlyPrecipitation))issues.push('HOURLY_precipitation_INVALID');
     if(arrayAligned(hourly.windSpeed10m,hourlyLength)&&!arrayValuesValid(hourly.windSpeed10m,wind))issues.push('HOURLY_windSpeed10m_INVALID');

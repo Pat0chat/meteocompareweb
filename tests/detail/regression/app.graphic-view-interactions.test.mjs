@@ -29,7 +29,7 @@ assert.match(app,/class="graphic-plot graphic-plot-temperature"/);
 assert.match(app,/class="graphic-plot graphic-plot-rain"/);
 assert.match(app,/class="graphic-plot graphic-plot-wind"/);
 assert.match(app,/graphicNiceAxis\(rainMaxRaw/);
-assert.match(app,/graphicNiceAxis\(windMaxRaw/);
+assert.match(app,/graphicBoundedRange\(windValues/);
 assert.match(app,/axisMarkup\('rain'/);
 assert.match(app,/axisMarkup\('wind'/);
 assert.match(css,/\.graphic-plots \{ display: grid; grid-template-rows:/);
@@ -39,7 +39,7 @@ assert.match(css,/\.graphic-axis-heading \{/);
 assert.match(css,/\.graphic-axis-rail \{/);
 assert.match(css,/\.graphic-axis-tick \{/);
 assert.doesNotMatch(css,/--axis-heading-width:/);
-assert.match(css,/--axis-rail-offset:\s*132px/);
+assert.match(css,/--axis-rail-offset:\s*208px/);
 
 
 // Wind plot includes gusts on the same scale and exposes them in the legend.

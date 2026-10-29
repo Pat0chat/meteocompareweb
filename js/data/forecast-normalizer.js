@@ -145,6 +145,8 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
     };
     const tempH = read(hourlyRaw,'temperature_2m',FORECAST_PHYSICAL_LIMITS.temperatureC);
     const apparentH = read(hourlyRaw,'apparent_temperature',FORECAST_PHYSICAL_LIMITS.temperatureC);
+    const dewPointH = read(hourlyRaw,'dew_point_2m',FORECAST_PHYSICAL_LIMITS.temperatureC);
+    const humidityH = read(hourlyRaw,'relative_humidity_2m',FORECAST_PHYSICAL_LIMITS.relativeHumidityPercent);
     const tempMaxRaw = read(dailyRaw,'temperature_2m_max',FORECAST_PHYSICAL_LIMITS.temperatureC);
     const tempMinRaw = read(dailyRaw,'temperature_2m_min',FORECAST_PHYSICAL_LIMITS.temperatureC);
     const tempMax=alignIndices(dailyIndices,tempMaxRaw),tempMin=alignIndices(dailyIndices,tempMinRaw);
@@ -165,6 +167,8 @@ export function normalizeBatchedForecast(raw, city, models, requestedHours=null)
         timestampEpochMs:[...hourlyEpochs],
         temperature2m:alignIndices(hourlyIndices,tempH),
         apparentTemperature:alignIndices(hourlyIndices,apparentH),
+        dewPoint2m:alignIndices(hourlyIndices,dewPointH),
+        relativeHumidity2m:alignIndices(hourlyIndices,humidityH),
         pressureMsl:alignIndices(hourlyIndices,read(hourlyRaw,'pressure_msl',FORECAST_PHYSICAL_LIMITS.pressureMslHpa)),
         precipitation:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation',FORECAST_PHYSICAL_LIMITS.precipitationHourlyMm)),
         precipitationProbability:alignIndices(hourlyIndices,read(hourlyRaw,'precipitation_probability',FORECAST_PHYSICAL_LIMITS.precipitationProbabilityPercent,true)),

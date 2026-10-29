@@ -1,5 +1,9 @@
 // Final DE runtime catalogue. Keep one source value per key; historical overrides are intentionally flattened.
 export const catalog = Object.freeze({
+  "dewPointShort":"Taupunkt",
+  "relativeHumidityShort":"Feuchte",
+  "dewPoint":"Taupunkt",
+  "relativeHumidity":"Relative Luftfeuchtigkeit",
   "apparentTemperatureShort":"Gefühlt",
   "apparentTemperature":"Gefühlte Temperatur",
   "apparentTemperatureMax":"Maximale gefühlte Temperatur",
